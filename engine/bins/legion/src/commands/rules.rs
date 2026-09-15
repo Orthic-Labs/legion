@@ -5,9 +5,14 @@ use legion_contracts::{
     Coverage, FindingId, FindingRef, ProviderId, ProviderResult, ProviderStatus,
 };
 use legion_rules::{Confidence, RuleCompiler, Severity, SourceFile};
+use serde::{
+    de::{MapAccess, SeqAccess, Visitor},
+    Deserialize,
+};
 use serde_json::{json, Map, Value};
 use std::{
     collections::BTreeSet,
+    fmt,
     path::{Path, PathBuf},
 };
 
@@ -266,19 +271,30 @@ pub fn run(args: RulesArgs) -> CommandResult {
     if args.max_file_bytes == 0 {
         return Err(CommandError::usage("max-file-bytes must be positive"));
     }
+    if args.command.iter().any(|argument| argument == "--help") {
+        return Ok(json!({"__raw":"Usage: legion rules [compile <source> --base <policy> [--out <output>]]\n"}));
+    }
     if args.command.first().map(String::as_str) == Some("compile") {
         return compile_policy(&args);
     }
     if !args.command.is_empty() {
-        return Err(CommandError::usage(format!("unknown option: {}", args.command[0])));
+        return Err(CommandError::usage(format!(
+            "unknown option: {}",
+            args.command[0]
+        )));
     }
     let Some(manifest) = args.manifest.as_ref() else {
-        return Ok(json!({ "rules": packaged_rules()? }));
+        let output = json!({ "rules": packaged_rules()? });
+        let raw = serde_json::to_string(&output)
+            .map_err(|error| CommandError::internal(error.to_string()))?;
+        return Ok(json!({ "__raw": format!("{raw}\n") }));
     };
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let manifest_path = std::fs::canonicalize(manifest).map_err(super::io_error)?;
-    let provider = ProviderId::new(args.provider.ok_or_else(|| CommandError::usage("rules requires --provider when --manifest is supplied"))?)
-        .map_err(|error| CommandError::usage(error.to_string()))?;
+    let provider = ProviderId::new(args.provider.ok_or_else(|| {
+        CommandError::usage("rules requires --provider when --manifest is supplied")
+    })?)
+    .map_err(|error| CommandError::usage(error.to_string()))?;
     let selector: Value = serde_json::from_str(&args.selector)
         .map_err(|error| CommandError::usage(format!("selector must be JSON: {error}")))?;
     let manifest = std::fs::read_to_string(&manifest_path).map_err(super::io_error)?;
@@ -471,87 +487,480 @@ fn select_packs(
 }
 
 fn packaged_rules() -> Result<Vec<String>, CommandError> {
-    fn walk(path: &Path, out: &mut BTreeSet<String>) -> Result<(), CommandError> {
-        for entry in std::fs::read_dir(path).map_err(super::io_error)? {
-            let entry = entry.map_err(super::io_error)?;
-            let path = entry.path();
-            if path.is_dir() { walk(&path, out)?; }
-            else if path.extension().and_then(|x| x.to_str()) == Some("json") {
-                let value: Value = serde_json::from_slice(&std::fs::read(&path).map_err(super::io_error)?)
-                    .map_err(|e| CommandError::internal(e.to_string()))?;
-                if let Some(rules) = value.get("rules").and_then(Value::as_array) {
-                    for rule in rules {
-                        if let Some(id) = rule.get("id").and_then(Value::as_str).or_else(|| rule.as_str()) {
-                            out.insert(id.to_owned());
-                        }
-                    }
+    // Prefer release-owned native packs. The compile-time registry is used by
+    // developer binaries so command behavior never discovers a source checkout
+    // beside its executable.
+    fn collect_rule_ids(value: &Value, out: &mut BTreeSet<String>) {
+        if let Some(rules) = value.get("rules").and_then(Value::as_array) {
+            for rule in rules {
+                if let Some(id) = rule
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .or_else(|| rule.as_str())
+                {
+                    out.insert(id.to_owned());
                 }
             }
         }
-        Ok(())
+        if let Some(packs) = value.get("packs").and_then(Value::as_array) {
+            for pack in packs {
+                collect_rule_ids(pack, out);
+            }
+        }
     }
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../src/registry/rules");
+
     let mut rules = BTreeSet::new();
-    walk(&root, &mut rules)?;
+    for source in EMBEDDED_RULE_FILES {
+        let value: Value = serde_json::from_str(source)
+            .map_err(|error| CommandError::internal(format!("embedded rule registry invalid: {error}")))?;
+        collect_rule_ids(&value, &mut rules);
+    }
     Ok(rules.into_iter().collect())
 }
 
+const EMBEDDED_RULE_FILES: &[&str] = &[
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/ast-grep/structural-core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/architecture/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/ast-grep/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/docs-contract/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/maintainability/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/code/test-quality/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/compatibility/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/copy/anti-slop.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/copy/clarity.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/copy/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/copy/documentation.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/data-integrity/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/discoverability/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/governance/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/narrative/chronology.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/privacy/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/requirements/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/safety/hazards.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/abuse-observability.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/ai.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/boundaries.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/browser-http.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/creator-derived.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/crypto-data-privacy.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/enums.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/injection-output.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/specialist.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/supply-developer-machine.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/security/opengrep/core.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/ux/designer-derived.json")),
+    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/rules/visual/designer-derived.json")),
+];
+
 fn compile_policy(args: &RulesArgs) -> CommandResult {
+    const USAGE: &str = "Usage: legion rules compile <source> --base <policy> [--out <output>]";
     let command = &args.command;
-    if command.len() < 2 { return Err(CommandError::usage("Usage: legion rules compile <source> --base <policy> [--out <output>]")); }
-    let source = std::fs::read_to_string(&command[1]).map_err(|e| CommandError::usage(format!("rule source unreadable: {} ({e})", command[1])))?;
+    if command.len() < 2 || command[0] != "compile" {
+        return Err(CommandError::usage(USAGE));
+    }
     let mut base_path = None;
     let mut out_path = None;
     let mut index = 2;
     while index < command.len() {
         let flag = &command[index];
-        let Some(value) = command.get(index + 1) else { return Err(CommandError::usage("Usage: legion rules compile <source> --base <policy> [--out <output>]")); };
+        let Some(value) = command.get(index + 1) else {
+            return Err(CommandError::usage(USAGE));
+        };
+        if value.is_empty() {
+            return Err(CommandError::usage(USAGE));
+        }
         match flag.as_str() {
-            "--base" if base_path.is_none() => base_path = Some(value),
-            "--out" if out_path.is_none() => out_path = Some(value),
+            "--base" if base_path.is_none() => base_path = Some(value.clone()),
+            "--out" if out_path.is_none() => out_path = Some(value.clone()),
             "--base" => return Err(CommandError::usage("duplicate --base")),
             "--out" => return Err(CommandError::usage("duplicate --out")),
-            _ => return Err(CommandError::usage("Usage: legion rules compile <source> --base <policy> [--out <output>]")),
+            _ => return Err(CommandError::usage(USAGE)),
         }
         index += 2;
     }
-    let Some(base_path) = base_path else { return Err(CommandError::usage("Usage: legion rules compile <source> --base <policy> [--out <output>]")); };
-    let mut base: Value = serde_json::from_slice(&std::fs::read(base_path).map_err(|e| CommandError::usage(format!("base policy unreadable: {base_path} ({e})")))?)
-        .map_err(|e| CommandError::usage(format!("base policy unreadable: {base_path} ({e})")))?;
-    let classes = base.get("effectRules").and_then(Value::as_array).ok_or_else(|| CommandError::usage("base policy has no effectRules"))?
-        .iter().filter_map(|r| r.get("effectClass").and_then(Value::as_str)).map(str::to_owned).collect::<Vec<_>>();
+    let Some(base_path) = base_path else {
+        return Err(CommandError::usage(USAGE));
+    };
+    let source_path = resolve_cli_path(&command[1]).map_err(super::io_error)?;
+    let base_path = resolve_cli_path(&base_path).map_err(super::io_error)?;
+    let base_text = std::fs::read_to_string(&base_path).map_err(|error| {
+        CommandError::usage(format!(
+            "base policy unreadable: {} ({error})",
+            base_path.display()
+        ))
+    })?;
+    let mut base = parse_ordered_json(&base_text).map_err(|error| {
+        CommandError::usage(format!(
+            "base policy unreadable: {} ({error})",
+            base_path.display()
+        ))
+    })?;
+    let source = std::fs::read_to_string(&source_path).map_err(|error| {
+        CommandError::usage(format!(
+            "rule source unreadable: {} ({error})",
+            source_path.display()
+        ))
+    })?;
+    let classes = base
+        .object_field("effectRules")
+        .and_then(OrderedJson::as_array)
+        .ok_or_else(|| CommandError::usage("base policy has no effectRules"))?
+        .iter()
+        .map(|rule| {
+            rule.object_field("effectClass")
+                .and_then(OrderedJson::as_str)
+                .map(str::to_owned)
+                .ok_or_else(|| CommandError::usage("base policy has no effectRules"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
     let mut parsed = Vec::new();
-    for (line_no, raw) in source.lines().enumerate() {
-        let line = raw.trim(); if line.is_empty() || line.starts_with('#') { continue; }
-        let (head, note): (&str, Option<&str>) = if let Some((h, n)) = line.split_once(" note=\"") {
-            (h, Some(n.strip_suffix('"').ok_or_else(|| CommandError::usage(format!("line {}: invalid note string", line_no + 1)))?))
-        } else { (line, None) };
+    for (line_no, raw) in source.split('\n').enumerate() {
+        let line = raw.trim_end_matches('\r').trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (head, note) = if let Some((head, note)) = line.split_once(" note=\"") {
+            let note = note.strip_suffix('"').ok_or_else(|| {
+                CommandError::usage(format!("line {}: invalid note string", line_no + 1))
+            })?;
+            (head, Some(note))
+        } else {
+            (line, None)
+        };
         let fields = head.split_whitespace().collect::<Vec<_>>();
-        if fields.len() != 5 || !matches!(fields[0], "allow"|"deny") || !fields[1].starts_with("approval=") || !fields[2].starts_with("trust=") || !fields[3].starts_with("enforcement=") || fields[4].is_empty() {
-            return Err(CommandError::usage(format!("line {}: invalid rule", line_no + 1)));
+        let valid_effect = fields.get(1).is_some_and(|effect| {
+            !effect.is_empty()
+                && effect
+                    .bytes()
+                    .all(|byte| byte == b'_' || byte.is_ascii_uppercase())
+        });
+        let valid = fields.len() == 5
+            && matches!(fields.first(), Some(&"allow") | Some(&"deny"))
+            && valid_effect
+            && fields
+                .get(2)
+                .is_some_and(|field| matches!(*field, "approval=required" | "approval=none"))
+            && fields.get(3) == Some(&"trust=capability-signature")
+            && fields.get(4).is_some_and(|field| {
+                matches!(
+                    *field,
+                    "enforcement=strong"
+                        | "enforcement=observed"
+                        | "enforcement=read_only"
+                        | "enforcement=advisory"
+                        | "enforcement=unsupported"
+                        | "enforcement=degraded"
+                )
+            });
+        if !valid {
+            return Err(CommandError::usage(format!(
+                "line {}: invalid rule",
+                line_no + 1
+            )));
         }
         let effect = fields[1];
-        let mut rule = json!({"effectClass": effect, "rule": fields[0], "approvalRequired": fields[2]=="approval=required", "trustMinimum": fields[3].trim_start_matches("trust="), "requiredEnforcement": fields[4].trim_start_matches("enforcement=")});
+        let approval = fields[2] == "approval=required";
+        let trust = &fields[3]["trust=".len()..];
+        let enforcement = &fields[4]["enforcement=".len()..];
+        let mut rule = OrderedJson::Object(vec![
+            ("effectClass".into(), OrderedJson::String(effect.into())),
+            ("rule".into(), OrderedJson::String(fields[0].into())),
+            ("approvalRequired".into(), OrderedJson::Bool(approval)),
+            ("trustMinimum".into(), OrderedJson::String(trust.into())),
+            (
+                "requiredEnforcement".into(),
+                OrderedJson::String(enforcement.into()),
+            ),
+        ]);
         if let Some(note) = note {
-            let decoded: String = serde_json::from_str(&format!("\"{}\"", note)).map_err(|_| CommandError::usage(format!("line {}: invalid note string", line_no + 1)))?;
-            rule["note"] = Value::String(decoded);
+            let decoded: String = serde_json::from_str(&format!("\"{note}\"")).map_err(|_| {
+                CommandError::usage(format!("line {}: invalid note string", line_no + 1))
+            })?;
+            rule.object_set("note", OrderedJson::String(decoded));
         }
-        if !classes.iter().any(|c| c == effect) { return Err(CommandError::usage(format!("unknown effect class: {effect}"))); }
-        if parsed.iter().any(|(c, _): &(String, Value)| c == effect) { return Err(CommandError::usage(format!("duplicate effect class: {effect}"))); }
+        if !classes.iter().any(|class| class == effect) {
+            return Err(CommandError::usage(format!(
+                "unknown effect class: {effect}"
+            )));
+        }
+        if parsed
+            .iter()
+            .any(|(class, _): &(String, OrderedJson)| class == effect)
+        {
+            return Err(CommandError::usage(format!(
+                "duplicate effect class: {effect}"
+            )));
+        }
         parsed.push((effect.to_owned(), rule));
     }
-    let missing = classes.iter().filter(|c| !parsed.iter().any(|(p, _)| p == *c)).cloned().collect::<Vec<_>>();
-    if !missing.is_empty() { return Err(CommandError::usage(format!("missing effect class(es): {}", missing.join(", ")))); }
-    base["effectRules"] = Value::Array(classes.iter().map(|c| parsed.iter().find(|(p, _)| p == c).unwrap().1.clone()).collect());
-    let bytes = serde_json::to_vec_pretty(&base).map_err(|e| CommandError::internal(e.to_string()))?;
-    if let Some(out) = out_path {
-        let output = std::path::absolute(out).map_err(super::io_error)?;
-        if let Some(parent) = output.parent() { std::fs::create_dir_all(parent).map_err(super::io_error)?; }
-        std::fs::write(&output, format!("{}\n", String::from_utf8_lossy(&bytes))).map_err(super::io_error)?;
-        Ok(json!({"output": output}))
-    } else {
-        Ok(json!({"__raw": format!("{}\n", String::from_utf8_lossy(&bytes))}))
+    let missing = classes
+        .iter()
+        .filter(|class| {
+            !parsed
+                .iter()
+                .any(|(parsed_class, _)| parsed_class == *class)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    if !missing.is_empty() {
+        return Err(CommandError::usage(format!(
+            "missing effect class(es): {}",
+            missing.join(", ")
+        )));
     }
+    let effect_rules = classes
+        .iter()
+        .map(|class| {
+            parsed
+                .iter()
+                .find(|(parsed_class, _)| parsed_class == class)
+                .unwrap()
+                .1
+                .clone()
+        })
+        .collect();
+    if parsed.iter().any(|(_, rule)| {
+        matches!(
+            rule.object_field("requiredEnforcement")
+                .and_then(OrderedJson::as_str),
+            Some("advisory" | "degraded")
+        )
+    }) {
+        return Err(CommandError::usage("compiled policy failed validation"));
+    }
+    base.object_set("effectRules", OrderedJson::Array(effect_rules));
+    let bytes = format!("{}\n", base.render_pretty());
+    if let Some(out) = out_path {
+        let output = resolve_cli_path(&out).map_err(super::io_error)?;
+        if let Some(parent) = output.parent() {
+            std::fs::create_dir_all(parent).map_err(super::io_error)?;
+        }
+        let temporary = PathBuf::from(format!("{}.tmp-{}", output.display(), std::process::id()));
+        std::fs::write(&temporary, bytes.as_bytes()).map_err(super::io_error)?;
+        std::fs::rename(&temporary, &output).map_err(super::io_error)?;
+        let receipt = json!({"output": output});
+        let raw = serde_json::to_string(&receipt)
+            .map_err(|error| CommandError::internal(error.to_string()))?;
+        Ok(json!({"__raw": format!("{raw}\n")}))
+    } else {
+        Ok(json!({"__raw": bytes}))
+    }
+}
+
+#[derive(Clone, Debug)]
+enum OrderedJson {
+    Null,
+    Bool(bool),
+    Number(serde_json::Number),
+    String(String),
+    Array(Vec<OrderedJson>),
+    Object(Vec<(String, OrderedJson)>),
+}
+
+impl OrderedJson {
+    fn as_array(&self) -> Option<&[OrderedJson]> {
+        match self {
+            Self::Array(values) => Some(values),
+            _ => None,
+        }
+    }
+
+    fn as_str(&self) -> Option<&str> {
+        match self {
+            Self::String(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    fn object_field(&self, name: &str) -> Option<&OrderedJson> {
+        match self {
+            Self::Object(entries) => entries
+                .iter()
+                .find(|(key, _)| key == name)
+                .map(|(_, value)| value),
+            _ => None,
+        }
+    }
+
+    fn object_set(&mut self, name: &str, value: OrderedJson) {
+        if let Self::Object(entries) = self {
+            if let Some((_, current)) = entries.iter_mut().find(|(key, _)| key == name) {
+                *current = value;
+            } else {
+                entries.push((name.into(), value));
+            }
+        }
+    }
+
+    fn render_pretty(&self) -> String {
+        self.render_at(0)
+    }
+
+    fn render_at(&self, depth: usize) -> String {
+        match self {
+            Self::Null => "null".into(),
+            Self::Bool(value) => value.to_string(),
+            Self::Number(value) => value.to_string(),
+            Self::String(value) => serde_json::to_string(value).unwrap_or_else(|_| "\"\"".into()),
+            Self::Array(values) => {
+                if values.is_empty() {
+                    return "[]".into();
+                }
+                let indent = "  ".repeat(depth + 1);
+                let close_indent = "  ".repeat(depth);
+                let body = values
+                    .iter()
+                    .map(|value| format!("{indent}{}", value.render_at(depth + 1)))
+                    .collect::<Vec<_>>()
+                    .join(",\n");
+                format!("[\n{body}\n{close_indent}]")
+            }
+            Self::Object(entries) => {
+                if entries.is_empty() {
+                    return "{}".into();
+                }
+                let indent = "  ".repeat(depth + 1);
+                let close_indent = "  ".repeat(depth);
+                let body = entries
+                    .iter()
+                    .map(|(key, value)| {
+                        format!(
+                            "{indent}{}: {}",
+                            serde_json::to_string(key).unwrap_or_else(|_| "\"\"".into()),
+                            value.render_at(depth + 1)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",\n");
+                format!("{{\n{body}\n{close_indent}}}")
+            }
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for OrderedJson {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct OrderedVisitor;
+        impl<'de> Visitor<'de> for OrderedVisitor {
+            type Value = OrderedJson;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a JSON value")
+            }
+
+            fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(OrderedJson::Bool(value))
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(OrderedJson::Number(value.into()))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(OrderedJson::Number(value.into()))
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                serde_json::Number::from_f64(value)
+                    .map(OrderedJson::Number)
+                    .ok_or_else(|| E::custom("non-finite JSON number"))
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(OrderedJson::String(value.into()))
+            }
+
+            fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(OrderedJson::String(value))
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(OrderedJson::Null)
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(OrderedJson::Null)
+            }
+
+            fn visit_seq<A>(self, mut access: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let mut values = Vec::new();
+                while let Some(value) = access.next_element()? {
+                    values.push(value);
+                }
+                Ok(OrderedJson::Array(values))
+            }
+
+            fn visit_map<A>(self, mut access: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut entries = Vec::new();
+                while let Some((key, value)) = access.next_entry()? {
+                    entries.push((key, value));
+                }
+                Ok(OrderedJson::Object(entries))
+            }
+        }
+        deserializer.deserialize_any(OrderedVisitor)
+    }
+}
+
+fn parse_ordered_json(input: &str) -> Result<OrderedJson, serde_json::Error> {
+    let mut deserializer = serde_json::Deserializer::from_str(input);
+    let value = OrderedJson::deserialize(&mut deserializer)?;
+    deserializer.end()?;
+    Ok(value)
+}
+
+fn resolve_cli_path(path: &str) -> std::io::Result<PathBuf> {
+    let path = Path::new(path);
+    let path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
+    let mut normalized = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                normalized.pop();
+            }
+            _ => normalized.push(component.as_os_str()),
+        }
+    }
+    Ok(normalized)
 }
 
 fn severity_name(severity: Severity) -> &'static str {

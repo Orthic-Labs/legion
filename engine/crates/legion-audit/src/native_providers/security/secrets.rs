@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use super::common::{array, files, valid_digest};
+use super::common::{array, valid_digest};
 
 const REDACTED: &str = "[REDACTED]";
 

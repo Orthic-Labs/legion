@@ -3994,6 +3994,10 @@ mod tests {
                 "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
                 "executable": live_identity["executable"]["path"].clone(),
                 "installRoot": live_identity["executable"]["installRoot"].clone(),
+                // This scenario varies only the generation. The active binding
+                // still needs the same resolved-path evidence as production.
+                "resolvedExecutable": live_identity["resolvedExecutable"].clone(),
+                "resolvedInstallRoot": live_identity["resolvedInstallRoot"].clone(),
             }
         });
 
@@ -4006,6 +4010,25 @@ mod tests {
         assert!(remediation
             .iter()
             .all(|item| item.contains("opt-in, so repair leaves it alone")));
+    }
+
+    #[test]
+    fn setup_health_does_not_excuse_unproven_binding_for_opt_in_projection() {
+        let temp = TempRoot::new("opt-in-unproven-binding");
+        let clients = json!([{"clientId":"pi", "installed":true, "fidelity":"Full"}]);
+        let mut live_identity = installed_health_identity(&temp.0);
+        live_identity["projections"] = json!({
+            "piSkills": {
+                "clientId":"pi", "state":"stale", "explicitOnly":true,
+                "generation":"old-generation",
+                "origin":legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable":live_identity["executable"]["path"].clone(),
+                "installRoot":live_identity["executable"]["installRoot"].clone()
+            }
+        });
+        let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
+        assert_eq!(status, "incomplete");
+        assert!(remediation.iter().any(|item| item.contains("piSkills resolved target escaped active release")));
     }
 
     #[test]

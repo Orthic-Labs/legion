@@ -51,12 +51,19 @@ pub fn run(args: CommonArgs) -> CommandResult {
         Some("install") => {
             let id = required_id(&registry, argv.get(1))?;
             let root = resolve_root(argv.get(2), &cwd);
-            install_response(&registry, &id, &root).map_err(map_harness_error)
+            let mut value = install_response(&registry, &id, &root).map_err(map_harness_error)?;
+            reorder_surfaces(&mut value);
+            relativize_skill_target(&mut value, &root);
+            Ok(value)
         }
         Some("verify") => {
             let id = required_id(&registry, argv.get(1))?;
             let root = resolve_root(argv.get(2), &cwd);
-            let (value, _ok) = verify_response(&registry, &id, &root).map_err(map_harness_error)?;
+            let (mut value, _ok) = verify_response(&registry, &id, &root).map_err(map_harness_error)?;
+            // Node emits surfaces in descriptor order. The registry's
+            // internal map is sorted for deterministic lookup, so restore
+            // wire order at this boundary.
+            reorder_surfaces(&mut value);
             Ok(value)
         }
         Some("uninstall") => {
@@ -65,9 +72,38 @@ pub fn run(args: CommonArgs) -> CommandResult {
             uninstall_response(&registry, &id, &root).map_err(map_harness_error)
         }
         Some(other) => Err(CommandError::usage(format!(
-            "unknown harness subcommand: {other}"
+            "harness {other} requires a harness id (one of {})",
+            registry.adapter_ids().join(", ")
         ))),
         None => Err(CommandError::usage("harness requires a subcommand")),
+    }
+}
+
+fn reorder_surfaces(value: &mut serde_json::Value) {
+    let Some(surfaces) = value.get_mut("surfaces").and_then(serde_json::Value::as_object_mut)
+    else {
+        return;
+    };
+    let existing = std::mem::take(surfaces);
+    let mut ordered = serde_json::Map::new();
+    for name in ["instructions", "skills", "agents", "mcp", "hooks"] {
+        if let Some(surface) = existing.get(name) {
+            ordered.insert(name.to_owned(), surface.clone());
+        }
+    }
+    for (name, surface) in existing {
+        ordered.entry(name).or_insert(surface);
+    }
+    *surfaces = ordered;
+}
+
+fn relativize_skill_target(value: &mut serde_json::Value, root: &Path) {
+    let Some(target) = value.pointer_mut("/surfaces/skills/skills/targetDir") else {
+        return;
+    };
+    let Some(path) = target.as_str() else { return; };
+    if let Ok(relative) = Path::new(path).strip_prefix(root) {
+        *target = serde_json::Value::String(relative.to_string_lossy().replace('/', "\\"));
     }
 }
 

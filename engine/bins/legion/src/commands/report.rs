@@ -16,9 +16,23 @@ pub async fn run(args: ReportArgs, cancellation: CancellationToken) -> CommandRe
     if cancellation.is_cancelled() {
         return Err(CommandError::cancelled());
     }
-    let report: legion_contracts::ReportV1 =
-        serde_json::from_slice(&std::fs::read(&args.report).map_err(super::io_error)?)
-            .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
+    let report_path = if args.report.is_absolute() {
+        args.report.clone()
+    } else {
+        std::env::current_dir().map_err(super::io_error)?.join(&args.report)
+    };
+    let bytes = std::fs::read(&report_path).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            CommandError::internal(format!(
+                "Error: ENOENT: no such file or directory, open '{}'",
+                report_path.display()
+            ))
+        } else {
+            super::io_error(error)
+        }
+    })?;
+    let report: legion_contracts::ReportV1 = serde_json::from_slice(&bytes)
+        .map_err(|error| CommandError::usage(format!("invalid report: {error}")))?;
     report
         .validate()
         .map_err(|error| CommandError::policy(error.to_string()))?;

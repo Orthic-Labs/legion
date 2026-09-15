@@ -277,7 +277,10 @@ where
             ExecutionState::Timeout
         } else if output.cancelled {
             ExecutionState::Cancelled
-        } else if output.exit_code == Some(0) {
+        } else if output
+            .exit_code
+            .is_some_and(|code| request.accepted_exit_codes.contains(&code))
+        {
             ExecutionState::Completed
         } else {
             ExecutionState::Failed

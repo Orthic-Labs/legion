@@ -30,11 +30,11 @@
         "sorcerer"
       ],
       "occurrences": {
-        "nemesis": 7,
-        "forge": 68,
-        "seer": 24,
-        "sentinel": 12,
-        "sorcerer": 9
+        "nemesis": 9,
+        "forge": 69,
+        "seer": 27,
+        "sentinel": 14,
+        "sorcerer": 11
       },
       "class": "R2",
       "reason": "legacy-token classification source"
@@ -59,37 +59,12 @@
       "reason": "legacy-token detector and exact prohibited path checks"
     },
     {
-      "path": "src/lib/cli/commands/doctor.mjs",
-      "tokens": [
-        "forge",
-        "seer",
-        "sentinel",
-        "sorcerer"
-      ],
-      "occurrences": {
-        "forge": 1,
-        "seer": 1,
-        "sentinel": 1,
-        "sorcerer": 1
-      },
-      "class": "R3",
-      "reason": "reports legacy MCP bindings without rewriting unowned configuration"
-    },
-    {
       "path": "tests/bind.test.mjs",
       "tokens": [
         "seer"
       ],
       "class": "R5",
       "reason": "prior binding migration fixture"
-    },
-    {
-      "path": "tests/doctor.test.mjs",
-      "tokens": [
-        "seer"
-      ],
-      "class": "R5",
-      "reason": "legacy binding diagnosis fixture"
     },
     {
       "path": "tests/naming-contract.test.mjs",
@@ -235,12 +210,51 @@
       "reason": "predecessor migration fixtures"
     },
     {
-      "path": "tests/arcane-package-codex-adapter.test.mjs",
+      "path": "engine/bins/legion/src/commands/bind.rs",
       "tokens": [
-        "forge"
+        "forge",
+        "seer",
+        "sentinel",
+        "sorcerer"
       ],
+      "occurrences": {
+        "forge": 2,
+        "seer": 11,
+        "sentinel": 2,
+        "sorcerer": 2
+      },
+      "class": "R3",
+      "reason": "native bind migrates predecessor role and assurance aliases"
+    },
+    {
+      "path": "engine/bins/legion/src/commands/doctor.rs",
+      "tokens": [
+        "nemesis",
+        "forge",
+        "seer",
+        "sentinel",
+        "sorcerer"
+      ],
+      "occurrences": {
+        "nemesis": 1,
+        "forge": 3,
+        "seer": 3,
+        "sentinel": 3,
+        "sorcerer": 3
+      },
+      "class": "R3",
+      "reason": "native doctor reports legacy bindings without rewriting unowned configuration"
+    },
+    {
+      "path": "engine/bins/legion/tests/native_product_parity.rs",
+      "tokens": [
+        "seer"
+      ],
+      "occurrences": {
+        "seer": 2
+      },
       "class": "R5",
-      "reason": "predecessor adapter fixture"
+      "reason": "native legacy binding diagnosis fixture"
     },
     {
       "path": "tests/arcane-package-s02-policy.test.mjs",

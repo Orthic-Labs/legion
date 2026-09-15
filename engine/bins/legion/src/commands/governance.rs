@@ -15,7 +15,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
         .map(|value| value.to_string_lossy().into_owned())
         .collect::<Vec<_>>();
     let domain = argv.first().map(String::as_str);
-    if matches!(domain, Some("--help") | Some("help") | None) {
+    if matches!(domain, Some("--help") | Some("help")) {
         return Ok(json_raw(
             "Usage: legion governance execution|delivery|judgment --json <structured-request> [--key-dir <dir>]\n",
         ));
@@ -28,35 +28,29 @@ pub fn run(args: CommonArgs) -> CommandResult {
     }
     let (request, key_dir) = parse_json_request(&argv[1..])?;
     if domain == Some("execution") {
-        return Ok(dispatch_execution_control(&request, None));
+        return Ok(compact(dispatch_execution_control(&request, None)));
     }
     if domain == Some("delivery") {
-        return Ok(dispatch_delivery_governance(&request));
+        return Ok(compact(dispatch_delivery_governance(&request)));
     }
     let operation = request
         .get("operation")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    if requires_authenticated_stores(operation) {
-        let resolved_key_dir = key_dir
-            .clone()
-            .or_else(|| std::env::var_os("ARCANE_KEY_DIR").map(PathBuf::from))
-            .filter(|path| !path.as_os_str().is_empty());
-        if resolved_key_dir.is_none() {
-            return Ok(auth_unavailable_result());
-        }
-        if KeyRing::load_dir(resolved_key_dir.as_ref().expect("checked")).is_err() {
-            return Ok(auth_unavailable_result());
-        }
-    }
     let cwd = std::env::current_dir().map_err(super::io_error)?;
-    let key_ring = key_dir
+    let resolved_key_dir = key_dir
         .or_else(|| std::env::var_os("ARCANE_KEY_DIR").map(PathBuf::from))
-        .filter(|path| !path.as_os_str().is_empty())
-        .and_then(|path| KeyRing::load_dir(&path).ok());
+        .filter(|path| !path.as_os_str().is_empty());
+    let key_ring = resolved_key_dir
+        .as_ref()
+        .and_then(|path| KeyRing::load_dir(path).ok());
+    let authenticated = key_ring.is_some();
     let capability = JudgmentControlCapability::from_cwd(&cwd, key_ring)
         .map_err(|error| CommandError::incomplete(error))?;
-    Ok(dispatch_governance_judgment(&request, Some(&capability)))
+    if requires_authenticated_stores(operation) && !authenticated {
+        return Ok(compact(auth_unavailable_result()));
+    }
+    Ok(compact(dispatch_governance_judgment(&request, Some(&capability))))
 }
 
 fn parse_json_request(argv: &[String]) -> Result<(Value, Option<PathBuf>), CommandError> {
@@ -88,4 +82,9 @@ fn parse_json_request(argv: &[String]) -> Result<(Value, Option<PathBuf>), Comma
 
 fn json_raw(text: &str) -> Value {
     serde_json::json!({ "__raw": text })
+}
+
+fn compact(mut value: Value) -> Value {
+    value["__compact"] = serde_json::json!(true);
+    value
 }

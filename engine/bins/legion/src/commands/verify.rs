@@ -15,7 +15,11 @@ pub async fn run(args: VerifyArgs, cancellation: CancellationToken) -> CommandRe
     if cancellation.is_cancelled() {
         return Err(CommandError::cancelled());
     }
-    let supplied = std::fs::canonicalize(&args.run).map_err(super::io_error)?;
+    let supplied = if args.run.is_absolute() {
+        args.run
+    } else {
+        std::env::current_dir().map_err(super::io_error)?.join(args.run)
+    };
     let (root, facts_path, plan_path) = if supplied.is_dir() {
         (
             supplied.clone(),

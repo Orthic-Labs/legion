@@ -253,28 +253,28 @@ fn merge_generic_descriptor(target: &mut Value, declared: &Value) {
 }
 
 pub fn capabilities_value(descriptor: &HarnessDescriptor) -> Result<Value, HarnessError> {
-    let mut surfaces = BTreeMap::new();
+    let mut surfaces = serde_json::Map::new();
     for surface in crate::surfaces::SURFACES {
-            let declared = descriptor.surfaces.get(surface);
-            let mechanism = declared
-                .map(|value| value.mechanism.clone())
-                .unwrap_or_else(|| Mechanism {
-                    kind: "none".into(),
-                    path: None,
-                    table: None,
-                    key: None,
-                });
-            let fidelity = if surface == "hooks" {
-                declared
-                    .map(|value| value.fidelity.clone())
-                    .filter(|value| !value.is_empty())
-                    .unwrap_or_else(|| crate::surfaces::enforcement_fidelity(&mechanism))
-            } else {
-                declared
-                    .map(|value| value.fidelity.clone())
-                    .unwrap_or_else(|| "unsupported".into())
-            };
-            let note = declared.and_then(|value| value.note.clone());
+        let declared = descriptor.surfaces.get(surface);
+        let mechanism = declared
+            .map(|value| value.mechanism.clone())
+            .unwrap_or_else(|| Mechanism {
+                kind: "none".into(),
+                path: None,
+                table: None,
+                key: None,
+            });
+        let fidelity = if surface == "hooks" {
+            declared
+                .map(|value| value.fidelity.clone())
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| crate::surfaces::enforcement_fidelity(&mechanism))
+        } else {
+            declared
+                .map(|value| value.fidelity.clone())
+                .unwrap_or_else(|| "unsupported".into())
+        };
+        let note = declared.and_then(|value| value.note.clone());
         let mechanism_value = serde_json::to_value(&mechanism)
             .map_err(|error| HarnessError::internal(error.to_string()))?;
         surfaces.insert(
@@ -290,6 +290,6 @@ pub fn capabilities_value(descriptor: &HarnessDescriptor) -> Result<Value, Harne
         "id": descriptor.id,
         "displayName": descriptor.display_name,
         "installOwner": descriptor.install_owner,
-        "surfaces": surfaces,
+        "surfaces": Value::Object(surfaces),
     }))
 }

@@ -22,9 +22,13 @@ import { parseSkillFrontmatter } from './lib/skill-frontmatter.mjs';
 import { loadCapabilityRegistry } from '../src/lib/capabilities/registry.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
-// Harness fidelity is derived from the adapter registry — the single source of
-// truth for what each harness supports — not hand-maintained here.
-import { fidelityMatrix } from '../src/lib/host/registry.mjs';
+import claudeCode from '../src/lib/host/adapters/claude-code.mjs';
+import codex from '../src/lib/host/adapters/codex.mjs';
+import cline from '../src/lib/host/adapters/cline.mjs';
+import commandCode from '../src/lib/host/adapters/command-code.mjs';
+import pi from '../src/lib/host/adapters/pi.mjs';
+import generic from '../src/lib/host/adapters/generic.mjs';
+const HOST_ADAPTERS = Object.freeze([claudeCode, codex, cline, commandCode, pi, generic]);
 const OUT = 'src/registry/host-projection.json';
 const SUPPORT_OUT = 'references/generated/support.md';
 
@@ -131,17 +135,17 @@ export function buildProjection(root = ROOT) {
 
 // Map each adapter's surface fidelity to the projection's reporting shape.
 function harnessFidelity() {
-  return fidelityMatrix().map((caps) => ({
-    id: caps.id,
-    installOwner: caps.installOwner,
+  return HOST_ADAPTERS.map((adapter) => ({
+    id: adapter.id,
+    installOwner: adapter.installOwner,
     fidelity: {
-      instructions: caps.surfaces.instructions.fidelity,
-      skillDiscovery: caps.surfaces.skills.fidelity,
-      authorityAgents: caps.surfaces.agents.fidelity,
-      mcp: caps.surfaces.mcp.fidelity,
-      guardEnforcement: caps.surfaces.hooks.fidelity,
+      instructions: adapter.surfaces.instructions.fidelity,
+      skillDiscovery: adapter.surfaces.skills.fidelity,
+      authorityAgents: adapter.surfaces.agents.fidelity,
+      mcp: adapter.surfaces.mcp.fidelity,
+      guardEnforcement: adapter.surfaces.hooks.fidelity,
     },
-    mechanisms: Object.fromEntries(Object.entries(caps.surfaces).map(([k, v]) => [k, v.mechanism?.kind ?? 'none'])),
+    mechanisms: Object.fromEntries(Object.entries(adapter.surfaces).map(([k, v]) => [k, v.mechanism?.kind ?? 'none'])),
   }));
 }
 

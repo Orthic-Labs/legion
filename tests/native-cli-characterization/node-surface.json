@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-frozen-node-cli-surface",
+  "commands": [
+    "assurance",
+    "audit",
+    "authority",
+    "bind",
+    "budget",
+    "completion",
+    "components",
+    "contract",
+    "controls",
+    "doctor",
+    "explain",
+    "fix",
+    "governance",
+    "harness",
+    "hooks",
+    "host",
+    "init",
+    "inspect",
+    "languages",
+    "mcp",
+    "minimize",
+    "plan",
+    "providers",
+    "report",
+    "rules",
+    "run",
+    "schedule",
+    "skills",
+    "stacks",
+    "state",
+    "targets",
+    "verify"
+  ],
+  "dispatchRoutes": [
+    {
+      "command": "audit",
+      "source": "./commands/audit.mjs"
+    },
+    {
+      "command": "authority",
+      "source": "./commands/authority-proof.mjs"
+    },
+    {
+      "command": "bind",
+      "source": "./commands/bind.mjs"
+    },
+    {
+      "command": "budget",
+      "source": "./commands/budget.mjs"
+    },
+    {
+      "command": "completion",
+      "source": "./commands/completion.mjs"
+    },
+    {
+      "command": "components",
+      "source": "./commands/components.mjs"
+    },
+    {
+      "command": "contract",
+      "source": "./commands/contract.mjs"
+    },
+    {
+      "command": "controls",
+      "source": "./commands/controls.mjs"
+    },
+    {
+      "command": "doctor",
+      "source": "./commands/doctor.mjs"
+    },
+    {
+      "command": "explain",
+      "source": "./commands/explain.mjs"
+    },
+    {
+      "command": "fix",
+      "source": "./commands/fix.mjs"
+    },
+    {
+      "command": "governance",
+      "source": "./commands/governance.mjs"
+    },
+    {
+      "command": "harness",
+      "source": "./commands/harness.mjs"
+    },
+    {
+      "command": "hooks",
+      "source": "./commands/hooks.mjs"
+    },
+    {
+      "command": "host",
+      "source": "./commands/host-events.mjs"
+    },
+    {
+      "command": "init",
+      "source": "./commands/init.mjs"
+    },
+    {
+      "command": "inspect",
+      "source": "./commands/inspect.mjs"
+    },
+    {
+      "command": "languages",
+      "source": "./commands/languages.mjs"
+    },
+    {
+      "command": "mcp",
+      "source": "./commands/mcp.mjs"
+    },
+    {
+      "command": "minimize",
+      "source": "./commands/minimize.mjs"
+    },
+    {
+      "command": "plan",
+      "source": "./commands/plan.mjs"
+    },
+    {
+      "command": "providers",
+      "source": "./commands/providers.mjs"
+    },
+    {
+      "command": "report",
+      "source": "./commands/report.mjs"
+    },
+    {
+      "command": "rules",
+      "source": "./commands/rules.mjs"
+    },
+    {
+      "command": "run",
+      "source": "./commands/run.mjs"
+    },
+    {
+      "command": "schedule",
+      "source": "./commands/schedule.mjs"
+    },
+    {
+      "command": "skills",
+      "source": "./commands/skills.mjs"
+    },
+    {
+      "command": "stacks",
+      "source": "./commands/stacks.mjs"
+    },
+    {
+      "command": "state",
+      "source": "./commands/state.mjs"
+    },
+    {
+      "command": "targets",
+      "source": "./commands/targets.mjs"
+    },
+    {
+      "command": "verify",
+      "source": "./commands/verify.mjs"
+    }
+  ],
+  "nestedRoutes": [
+    {
+      "route": "authority.proof.inspect",
+      "command": "authority",
+      "subcommand": "proof.inspect",
+      "source": "./commands/authority-proof.mjs"
+    },
+    {
+      "route": "budget.inspect",
+      "command": "budget",
+      "subcommand": "inspect",
+      "source": "./commands/budget.mjs"
+    },
+    {
+      "route": "completion.claim",
+      "command": "completion",
+      "subcommand": "claim",
+      "source": "./commands/completion.mjs"
+    },
+    {
+      "route": "completion.evidence",
+      "command": "completion",
+      "subcommand": "evidence",
+      "source": "./commands/completion.mjs"
+    },
+    {
+      "route": "contract.seal",
+      "command": "contract",
+      "subcommand": "seal",
+      "source": "./commands/contract.mjs"
+    },
+    {
+      "route": "governance.delivery",
+      "command": "governance",
+      "subcommand": "delivery",
+      "source": "./commands/governance.mjs"
+    },
+    {
+      "route": "governance.execution",
+      "command": "governance",
+      "subcommand": "execution",
+      "source": "./commands/governance.mjs"
+    },
+    {
+      "route": "harness.capabilities",
+      "command": "harness",
+      "subcommand": "capabilities",
+      "source": "./commands/harness.mjs"
+    },
+    {
+      "route": "harness.detect",
+      "command": "harness",
+      "subcommand": "detect",
+      "source": "./commands/harness.mjs"
+    },
+    {
+      "route": "harness.install",
+      "command": "harness",
+      "subcommand": "install",
+      "source": "./commands/harness.mjs"
+    },
+    {
+      "route": "harness.list",
+      "command": "harness",
+      "subcommand": "list",
+      "source": "./commands/harness.mjs"
+    },
+    {
+      "route": "harness.matrix",
+      "command": "harness",
+      "subcommand": "matrix",
+      "source": "./commands/harness.mjs"
+    },
+    {
+      "route": "harness.uninstall",
+      "command": "harness",
+      "subcommand": "uninstall",
+      "source": "./commands/harness.mjs"
+    },
+    {
+      "route": "harness.verify",
+      "command": "harness",
+      "subcommand": "verify",
+      "source": "./commands/harness.mjs"
+    },
+    {
+      "route": "host.events.inspect",
+      "command": "host",
+      "subcommand": "events.inspect",
+      "source": "./commands/host-events.mjs"
+    },
+    {
+      "route": "minimize.commit",
+      "command": "minimize",
+      "subcommand": "commit",
+      "source": "./commands/minimize.mjs"
+    },
+    {
+      "route": "minimize.decision",
+      "command": "minimize",
+      "subcommand": "decision",
+      "source": "./commands/minimize.mjs"
+    },
+    {
+      "route": "rules.compile",
+      "command": "rules",
+      "subcommand": "compile",
+      "source": "./commands/rules.mjs"
+    },
+    {
+      "route": "run.close",
+      "command": "run",
+      "subcommand": "close",
+      "source": "./commands/run.mjs"
+    },
+    {
+      "route": "run.open",
+      "command": "run",
+      "subcommand": "open",
+      "source": "./commands/run.mjs"
+    },
+    {
+      "route": "run.repair",
+      "command": "run",
+      "subcommand": "repair",
+      "source": "./commands/run.mjs"
+    },
+    {
+      "route": "run.supersede",
+      "command": "run",
+      "subcommand": "supersede",
+      "source": "./commands/run.mjs"
+    },
+    {
+      "route": "run.suspend",
+      "command": "run",
+      "subcommand": "suspend",
+      "source": "./commands/run.mjs"
+    },
+    {
+      "route": "state.snapshot",
+      "command": "state",
+      "subcommand": "snapshot",
+      "source": "./commands/state.mjs"
+    },
+    {
+      "route": "state.verify",
+      "command": "state",
+      "subcommand": "verify",
+      "source": "./commands/state.mjs"
+    }
+  ]
+}

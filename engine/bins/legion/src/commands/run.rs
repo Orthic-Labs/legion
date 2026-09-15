@@ -30,9 +30,9 @@ fn cwd() -> Result<PathBuf, CommandError> {
 }
 fn ring() -> Result<KeyRing, CommandError> {
     let p = std::env::var_os("ARCANE_KEY_DIR").ok_or_else(|| {
-        CommandError::incomplete("ARC_AUTH_KEY_UNAVAILABLE: ARCANE_KEY_DIR is required")
+        CommandError::integrity("ARC_AUTH_KEY_UNAVAILABLE: ARCANE_KEY_DIR is required")
     })?;
-    KeyRing::load_dir(Path::new(&p)).map_err(|e| CommandError::incomplete(e.to_string()))
+    KeyRing::load_dir(Path::new(&p)).map_err(|e| CommandError::integrity(e.to_string()))
 }
 fn git(root: &Path, a: &[&str]) -> Result<String, CommandError> {
     let o = Command::new("git")
@@ -271,7 +271,9 @@ pub async fn run(args: CommonArgs, cancellation: CancellationToken) -> CommandRe
         .map(|v| v.to_string_lossy().into_owned())
         .collect::<Vec<_>>();
     let sub = a.first().map(String::as_str).ok_or_else(|| {
-        CommandError::usage("run requires a subcommand: open|close|suspend|supersede|repair")
+        CommandError::usage(
+            "run requires a subcommand: open|close|suspend|supersede|repair (got <none>)",
+        )
     })?;
     match sub {
         "open" => open(&a[1..]),
@@ -285,7 +287,10 @@ pub async fn run(args: CommonArgs, cancellation: CancellationToken) -> CommandRe
 fn open(a: &[String]) -> CommandResult {
     let c = arg(a, "--contract")
         .filter(|v| v.starts_with("EC-") && v[3..].parse::<u64>().is_ok())
-        .ok_or_else(|| CommandError::usage("run open requires --contract <EC-#>"))?;
+        .ok_or_else(|| {
+            let got = arg(a, "--contract").unwrap_or_else(|| "<none>".into());
+            CommandError::usage(format!("run open requires --contract <EC-#> (got {got})"))
+        })?;
     let v = arg(a, "--version")
         .and_then(|x| x.parse::<u64>().ok())
         .filter(|x| *x > 0)
@@ -491,9 +496,11 @@ fn close(a: &[String]) -> CommandResult {
 }
 fn lifecycle(action: &str, a: &[String]) -> CommandResult {
     let s = session(a)?;
+    // Node loads host authentication before validating action-specific inputs.
+    // This preserves fail-closed ARC_AUTH_KEY_UNAVAILABLE precedence.
+    let k = ring()?;
     let tx = arg(a, "--transaction")
         .ok_or_else(|| CommandError::usage(format!("run {action} requires --transaction <id>")))?;
-    let k = ring()?;
     let root = cwd()?;
     let id = k
         .active_key_id()

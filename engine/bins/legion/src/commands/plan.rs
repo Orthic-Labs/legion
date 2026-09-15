@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 /// in a later process.
 #[derive(Debug, Args)]
 pub struct PlanArgs {
-    #[arg(default_value = ".")]
+    #[arg(default_value = ".", trailing_var_arg = true, allow_hyphen_values = true)]
     pub root: PathBuf,
     #[arg(long)]
     pub json: bool,
@@ -20,11 +20,32 @@ pub struct PlanArgs {
 }
 
 pub async fn run(args: PlanArgs, cancellation: CancellationToken) -> CommandResult {
+    if args.root.to_string_lossy().starts_with('-') {
+        return Err(CommandError::usage(format!(
+            "Unknown option '{}'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"{}\"",
+            args.root.display(), args.root.display()
+        )));
+    }
     if cancellation.is_cancelled() {
         return Err(CommandError::cancelled());
     }
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
-    let application = super::native_application_for(&root.to_string_lossy())?;
+    // Without the native composition this process cannot honestly compile a
+    // plan. Fail closed with a machine-readable incomplete envelope rather
+    // than a stderr-only error; the exit taxonomy maps `status: incomplete`
+    // to exit 2.
+    let application = match super::native_application_for(&root.to_string_lossy()) {
+        Ok(application) => application,
+        Err(error) => {
+            return Ok(json!({
+                "schemaVersion": 1,
+                "kind": "audit-provider-plan",
+                "status": "incomplete",
+                "repository": {"root": root},
+                "gaps": [error.message],
+            }));
+        }
+    };
     let signing_key = super::audit_signing_key()?;
     let result = application
         .invoke_with_cancellation(

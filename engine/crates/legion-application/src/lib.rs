@@ -10,7 +10,7 @@ use std::{
 use async_trait::async_trait;
 
 use legion_audit::{
-    execute, verify_binding, verify_execution, AuditError, AuditPlan, AuditProvider,
+    verify_binding, verify_execution, AuditError, AuditPlan, AuditProvider,
     BlueprintInventorySource, ExecutionReport, FileBlueprintInventorySource, InventoryEnvelope,
     ProviderExecutor,
 };
@@ -1855,6 +1855,23 @@ impl NativeApplication {
         invocation
     }
 
+    async fn invoke_audit_with_cancellation(
+        &self,
+        repository_id: String,
+        providers: Vec<ProviderSpec>,
+        signing_key: Option<Vec<u8>>,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<NativeOperationResult, NativeApplicationError> {
+        let plan_inventory = self.inventory_source.inventory(&repository_id)?;
+        let pending = AuditPlan::compile(&plan_inventory, &providers)?;
+        let plan = match signing_key.as_deref() { Some(key) => pending.freeze(Some(key))?, None => pending.freeze_source_diagnostic()? };
+        let execution_inventory = self.inventory_source.inventory(&repository_id)?;
+        verify_binding(&plan, &execution_inventory, signing_key.as_deref())?;
+        let report = legion_audit::execute_with_cancellation(&plan, &execution_inventory, self.provider_executor.as_ref(), cancellation).await?;
+        if signing_key.is_some() { verify_execution(&report)?; } else { legion_audit::verify_source_diagnostic(&report, &plan)?; }
+        Ok(NativeOperationResult::Audit(report))
+    }
+
     pub async fn invoke(
         &self,
         operation: NativeOperation,
@@ -1937,7 +1954,10 @@ impl NativeApplication {
                 };
                 let execution_inventory = self.inventory_source.inventory(&repository_id)?;
                 verify_binding(&plan, &execution_inventory, signing_key.as_deref())?;
-                let report = execute(&plan, &execution_inventory, self.provider_executor.as_ref())?;
+                let report = legion_audit::execute_with_cancellation(
+                    &plan, &execution_inventory, self.provider_executor.as_ref(),
+                    tokio_util::sync::CancellationToken::new(),
+                ).await?;
                 if signing_key.is_some() {
                     verify_execution(&report)?;
                 } else {
@@ -2017,6 +2037,8 @@ impl NativeApplication {
             // Runtime owns provider cancellation and bounded cleanup. Keeping this future
             // awaited lets its scheduler retain terminal provider evidence.
             self.invoke(operation).await
+        } else if let NativeOperation::Audit { repository_id, providers, signing_key } = operation {
+            self.invoke_audit_with_cancellation(repository_id, providers, signing_key, cancellation).await
         } else if cancellation.is_cancelled() {
             Err(NativeApplicationError::Runtime(RuntimeError::Cancelled))
         } else {

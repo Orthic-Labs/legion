@@ -6,159 +6,549 @@
     {
       "id": "root-help",
       "command": "help",
-      "argv": ["--help"],
-      "expect": { "exitCode": 0, "stdoutIncludes": ["Usage: legion"] }
+      "argv": [
+        "--help"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage: legion"
+        ]
+      }
     },
     {
       "id": "root-version",
       "command": "version",
-      "argv": ["--version"],
-      "expect": { "exitCode": 0 }
+      "argv": [
+        "--version"
+      ],
+      "expect": {
+        "exitCode": 0
+      }
     },
     {
       "id": "root-unknown-command",
       "command": "unknown",
-      "argv": ["frobnicate"],
-      "expect": { "exitCode": 4, "stderrIncludes": ["unknown command"] }
+      "argv": [
+        "frobnicate"
+      ],
+      "expect": {
+        "exitCode": 4,
+        "stderrIncludes": [
+          "unknown command"
+        ]
+      }
     },
     {
       "id": "assurance-help",
       "command": "assurance",
-      "argv": ["assurance", "--help"],
-      "captureOnly": true
+      "argv": [
+        "assurance",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 4,
+        "stderrIncludes": [
+          "unknown command: assurance"
+        ]
+      }
     },
-    { "id": "catalog-help", "command": "catalog", "argv": ["catalog", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "decision-help", "command": "decision", "argv": ["decision", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "handoff-help", "command": "handoff", "argv": ["handoff", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "policy-help", "command": "policy", "argv": ["policy", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "research-help", "command": "research", "argv": ["research", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "review-help", "command": "review", "argv": ["review", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "serve-help", "command": "serve", "argv": ["serve", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "setup-help", "command": "setup", "argv": ["setup", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "status-help", "command": "status", "argv": ["status", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "run-open-help", "command": "run", "subcommand": "open", "argv": ["run", "open", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "run-close-help", "command": "run", "subcommand": "close", "argv": ["run", "close", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "run-suspend-help", "command": "run", "subcommand": "suspend", "argv": ["run", "suspend", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "run-supersede-help", "command": "run", "subcommand": "supersede", "argv": ["run", "supersede", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "run-repair-help", "command": "run", "subcommand": "repair", "argv": ["run", "repair", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "completion-claim-help", "command": "completion", "subcommand": "claim", "argv": ["completion", "claim", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "completion-evidence-help", "command": "completion", "subcommand": "evidence", "argv": ["completion", "evidence", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "host-events-help", "command": "host", "subcommand": "events", "argv": ["host", "events", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "host-events-inspect-help", "command": "host", "subcommand": "events.inspect", "argv": ["host", "events", "inspect", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "host-describe-help", "command": "host", "subcommand": "describe", "argv": ["host", "describe", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "state-snapshot-help", "command": "state", "subcommand": "snapshot", "argv": ["state", "snapshot", "--help"], "rustExpect": { "exitCode": 0 } },
-    { "id": "state-verify-help", "command": "state", "subcommand": "verify", "argv": ["state", "verify", "--help"], "rustExpect": { "exitCode": 0 } },
+    {
+      "id": "catalog-help",
+      "command": "catalog",
+      "argv": [
+        "catalog",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": ["Usage:"]
+      }
+    },
+    {
+      "id": "decision-help",
+      "command": "decision",
+      "argv": [
+        "decision",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": ["Usage:"]
+      }
+    },
+    {
+      "id": "handoff-help",
+      "command": "handoff",
+      "argv": [
+        "handoff",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": ["Usage:"]
+      }
+    },
+    {
+      "id": "policy-help",
+      "command": "policy",
+      "argv": [
+        "policy",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": ["Usage:"]
+      }
+    },
+    {
+      "id": "research-help",
+      "command": "research",
+      "argv": [
+        "research",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": ["Usage:"]
+      }
+    },
+    {
+      "id": "review-help",
+      "command": "review",
+      "argv": [
+        "review",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": ["Usage:"]
+      }
+    },
+    {
+      "id": "serve-help",
+      "command": "serve",
+      "argv": [
+        "serve",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": ["Usage:"]
+      }
+    },
+    {
+      "id": "setup-help",
+      "command": "setup",
+      "argv": [
+        "setup",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": ["Usage:"]
+      }
+    },
+    {
+      "id": "status-help",
+      "command": "status",
+      "argv": [
+        "status",
+        "--help"
+      ],
+      "nativeOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": ["Usage:"]
+      }
+    },
+    {
+      "id": "run-open-help",
+      "command": "run",
+      "subcommand": "open",
+      "argv": [
+        "run",
+        "open",
+        "--help"
+      ]
+    },
+    {
+      "id": "run-close-help",
+      "command": "run",
+      "subcommand": "close",
+      "argv": [
+        "run",
+        "close",
+        "--help"
+      ]
+    },
+    {
+      "id": "run-suspend-help",
+      "command": "run",
+      "subcommand": "suspend",
+      "argv": [
+        "run",
+        "suspend",
+        "--help"
+      ]
+    },
+    {
+      "id": "run-supersede-help",
+      "command": "run",
+      "subcommand": "supersede",
+      "argv": [
+        "run",
+        "supersede",
+        "--help"
+      ]
+    },
+    {
+      "id": "run-repair-help",
+      "command": "run",
+      "subcommand": "repair",
+      "argv": [
+        "run",
+        "repair",
+        "--help"
+      ]
+    },
+    {
+      "id": "completion-claim-help",
+      "command": "completion",
+      "subcommand": "claim",
+      "argv": [
+        "completion",
+        "claim",
+        "--help"
+      ]
+    },
+    {
+      "id": "completion-evidence-help",
+      "command": "completion",
+      "subcommand": "evidence",
+      "argv": [
+        "completion",
+        "evidence",
+        "--help"
+      ]
+    },
+    {
+      "id": "host-events-help",
+      "command": "host",
+      "subcommand": "events",
+      "argv": [
+        "host",
+        "events",
+        "--help"
+      ],
+      "rustExpect": {
+        "exitCode": 0
+      }
+    },
+    {
+      "id": "host-events-inspect-help",
+      "command": "host",
+      "subcommand": "events.inspect",
+      "argv": [
+        "host",
+        "events",
+        "inspect",
+        "--help"
+      ]
+    },
+    {
+      "id": "host-describe-help",
+      "command": "host",
+      "subcommand": "describe",
+      "argv": [
+        "host",
+        "describe",
+        "--help"
+      ]
+    },
+    {
+      "id": "state-snapshot-help",
+      "command": "state",
+      "subcommand": "snapshot",
+      "argv": [
+        "state",
+        "snapshot",
+        "--help"
+      ]
+    },
+    {
+      "id": "state-verify-help",
+      "command": "state",
+      "subcommand": "verify",
+      "argv": [
+        "state",
+        "verify",
+        "--help"
+      ]
+    },
     {
       "id": "providers-json",
       "command": "providers",
-      "argv": ["providers", "--json"],
-      "expect": { "exitCode": 0, "kind": "legion-providers" }
+      "argv": [
+        "providers",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "kind": "legion-providers"
+      }
     },
     {
       "id": "languages-json",
       "command": "languages",
-      "argv": ["languages", "--json"],
-      "expect": { "exitCode": 0, "kind": "legion-languages" }
+      "argv": [
+        "languages",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "kind": "legion-languages"
+      }
     },
     {
       "id": "init-dry-run",
       "command": "init",
-      "argv": ["init", ".", "--dry-run"],
+      "argv": [
+        "init",
+        ".",
+        "--dry-run"
+      ],
       "cwd": "tests/fixtures/minimal-repo",
-      "expect": { "exitCode": 0, "kind": "legion-init-preview" }
+      "expect": {
+        "exitCode": 0,
+        "kind": "legion-init-preview"
+      },
+      "normalization": {
+        "tempRoots": true
+      }
     },
     {
       "id": "hooks-install",
       "command": "hooks",
-      "argv": ["hooks", "install"],
-      "expect": { "exitCode": 0, "kind": "legion-hooks" }
+      "argv": [
+        "hooks",
+        "install"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "kind": "legion-hooks"
+      }
     },
     {
       "id": "mcp-print-config",
       "command": "mcp",
-      "argv": ["mcp", "print-config"],
-      "expect": { "exitCode": 0, "kind": "legion-mcp-config" }
+      "argv": [
+        "mcp",
+        "print-config"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "kind": "legion-mcp-config"
+      }
     },
     {
       "id": "mcp-unknown-subcommand",
       "command": "mcp",
-      "argv": ["mcp", "frobnicate"],
-      "expect": { "exitCode": 4 }
+      "argv": [
+        "mcp",
+        "frobnicate"
+      ],
+      "expect": {
+        "exitCode": 4
+      }
     },
     {
       "id": "authority-proof-inspect",
       "command": "authority",
-      "argv": ["authority", "proof", "inspect"],
-      "expect": { "exitCode": 0 }
+      "argv": [
+        "authority",
+        "proof",
+        "inspect"
+      ],
+      "expect": {
+        "exitCode": 0
+      }
     },
     {
       "id": "doctor-json",
       "command": "doctor",
-      "argv": ["doctor", ".", "--json"],
-      "expect": { "exitCode": 0, "stdoutIncludes": ["legion-doctor"] },
-      "rustExpect": { "exitCode": 2, "captureOnly": true }
+      "argv": [
+        "doctor",
+        ".",
+        "--json"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "legion-doctor"
+        ]
+      },
+      "normalization": {
+        "timestamps": true,
+        "tempRoots": true
+      }
     },
     {
       "id": "bind-help",
       "command": "bind",
-      "argv": ["bind", "--help"],
-      "captureOnly": true
+      "argv": [
+        "bind",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "bind-registrations",
       "command": "bind",
-      "argv": ["bind", "--registrations"],
-      "expect": { "exitCode": 0, "kind": "legion-bind-registrations" }
+      "argv": [
+        "bind",
+        "--registrations"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "kind": "legion-bind-registrations"
+      },
+      "normalization": {
+        "tempRoots": true
+      }
     },
     {
       "id": "bind-unknown-harness",
       "command": "bind",
-      "argv": ["bind", "--harness", "frobnicate", "."],
+      "argv": [
+        "bind",
+        "--harness",
+        "frobnicate",
+        "."
+      ],
       "cwd": "tests/fixtures/minimal-repo",
-      "expect": { "exitCode": 4 }
+      "expect": {
+        "exitCode": 4
+      }
     },
     {
       "id": "bind-claude-retired",
       "command": "bind",
-      "argv": ["bind", "--harness", "claude-code", "."],
+      "argv": [
+        "bind",
+        "--harness",
+        "claude-code",
+        "."
+      ],
       "cwd": "tests/fixtures/minimal-repo",
-      "expect": { "exitCode": 0, "kind": "legion-bind-preview" }
+      "expect": {
+        "exitCode": 0,
+        "kind": "legion-bind-preview"
+      },
+      "normalization": {
+        "tempRoots": true
+      }
     },
     {
       "id": "audit-help",
       "command": "audit",
-      "argv": ["audit", "--help"],
-      "captureOnly": true
+      "argv": [
+        "audit",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "run-help",
       "command": "run",
-      "argv": ["run", "--help"],
-      "captureOnly": true
+      "argv": [
+        "run",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "governance-help",
       "command": "governance",
-      "argv": ["governance", "--help"],
-      "captureOnly": true
+      "argv": [
+        "governance",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "contract-help",
       "command": "contract",
-      "argv": ["contract", "--help"],
-      "captureOnly": true
+      "argv": [
+        "contract",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "budget-help",
       "command": "budget",
-      "argv": ["budget", "--help"],
-      "captureOnly": true
+      "argv": [
+        "budget",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "budget-inspect-usage",
       "command": "budget",
-      "argv": ["budget", "inspect"],
-      "expect": { "exitCode": 4 }
+      "argv": [
+        "budget",
+        "inspect"
+      ],
+      "expect": {
+        "exitCode": 4
+      }
     },
     {
       "id": "governance-execution-classify",
@@ -169,13 +559,23 @@
         "--json",
         "{\"operation\":\"execution.retry.classify\",\"input\":{\"failure_class\":\"AUTHENTICATION\"}}"
       ],
-      "expect": { "exitCode": 2, "kind": "arcane-execution-control-decision" }
+      "expect": {
+        "exitCode": 2,
+        "kind": "arcane-execution-control-decision"
+      }
     },
     {
       "id": "governance-malformed-json",
       "command": "governance",
-      "argv": ["governance", "execution", "--json", "{"],
-      "expect": { "exitCode": 4 }
+      "argv": [
+        "governance",
+        "execution",
+        "--json",
+        "{"
+      ],
+      "expect": {
+        "exitCode": 4
+      }
     },
     {
       "id": "governance-delivery-capacity",
@@ -186,7 +586,9 @@
         "--json",
         "{\"operation\":\"dispatch-capacity\",\"input\":{\"readyTasks\":[{\"id\":\"t1\"}],\"constraints\":[]}}"
       ],
-      "expect": { "exitCode": 2 }
+      "expect": {
+        "exitCode": 2
+      }
     },
     {
       "id": "governance-judgment-verify-closure",
@@ -197,7 +599,10 @@
         "--json",
         "{\"operation\":\"finding.verify-closure\",\"payload\":{}}"
       ],
-      "expect": { "exitCode": 2, "code": "ARC_INTERNAL_ERROR" }
+      "expect": {
+        "exitCode": 2,
+        "code": "ARC_INTERNAL_ERROR"
+      }
     },
     {
       "id": "governance-judgment-deficit-classify",
@@ -208,7 +613,10 @@
         "--json",
         "{\"operation\":\"deficit.classify\",\"payload\":{}}"
       ],
-      "expect": { "exitCode": 2, "code": "ARC_INTERNAL_ERROR" }
+      "expect": {
+        "exitCode": 2,
+        "code": "ARC_INTERNAL_ERROR"
+      }
     },
     {
       "id": "governance-judgment-advisory-query",
@@ -219,163 +627,898 @@
         "--json",
         "{\"operation\":\"advisory.query\",\"payload\":{\"expected\":{}}}"
       ],
-      "expect": { "exitCode": 2, "code": "ARC_AUTH_KEY_UNAVAILABLE" }
+      "expect": {
+        "exitCode": 2,
+        "code": "ARC_AUTH_KEY_UNAVAILABLE"
+      }
     },
     {
       "id": "schedule-help",
       "command": "schedule",
-      "argv": ["schedule", "--help"],
-      "captureOnly": true
+      "argv": [
+        "schedule",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "rules-help",
       "command": "rules",
-      "argv": ["rules", "--help"],
-      "captureOnly": true
+      "argv": [
+        "rules",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
+    },
+    {
+      "id": "rules-list",
+      "command": "rules",
+      "argv": [
+        "rules"
+      ],
+      "expect": {
+        "exitCode": 0
+      }
+    },
+    {
+      "id": "rules-help-after-compile",
+      "command": "rules",
+      "subcommand": "compile",
+      "argv": [
+        "rules",
+        "compile",
+        "--help"
+      ],
+      "expect": {
+        "exitCode": 0
+      }
+    },
+    {
+      "id": "rules-compile-usage",
+      "command": "rules",
+      "subcommand": "compile",
+      "argv": [
+        "rules",
+        "compile"
+      ],
+      "expect": {
+        "exitCode": 4
+      }
+    },
+    {
+      "id": "rules-compile-preview",
+      "command": "rules",
+      "subcommand": "compile",
+      "cwd": "src/lib/guard/compat",
+      "argv": [
+        "rules",
+        "compile",
+        "rules/arcane-policy-v1.rules",
+        "--base",
+        "policy/arcane-policy-v1.json"
+      ],
+      "expect": {
+        "exitCode": 0
+      }
+    },
+    {
+      "id": "rules-compile-write",
+      "command": "rules",
+      "subcommand": "compile",
+      "cwd": "src/lib/guard/compat",
+      "argv": [
+        "rules",
+        "compile",
+        "rules/arcane-policy-v1.rules",
+        "--base",
+        "policy/arcane-policy-v1.json",
+        "--out",
+        "compiled/output.json"
+      ],
+      "normalization": {
+        "tempRoots": true
+      },
+      "expect": {
+        "exitCode": 0
+      }
+    },
+    {
+      "id": "rules-compile-duplicate-base",
+      "command": "rules",
+      "subcommand": "compile",
+      "cwd": "src/lib/guard/compat",
+      "argv": [
+        "rules",
+        "compile",
+        "rules/arcane-policy-v1.rules",
+        "--base",
+        "policy/arcane-policy-v1.json",
+        "--base",
+        "policy/arcane-policy-v1.json"
+      ],
+      "expect": {
+        "exitCode": 4
+      }
+    },
+    {
+      "id": "rules-unknown",
+      "command": "rules",
+      "argv": [
+        "rules",
+        "frobnicate"
+      ],
+      "expect": {
+        "exitCode": 4
+      }
     },
     {
       "id": "hooks-help",
       "command": "hooks",
-      "argv": ["hooks", "--help"],
-      "captureOnly": true
+      "argv": [
+        "hooks",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "mcp-help",
       "command": "mcp",
-      "argv": ["mcp", "--help"],
-      "captureOnly": true
+      "argv": [
+        "mcp",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "state-help",
       "command": "state",
-      "argv": ["state", "--help"],
-      "captureOnly": true
+      "argv": [
+        "state",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "completion-help",
       "command": "completion",
-      "argv": ["completion", "--help"],
-      "captureOnly": true
+      "argv": [
+        "completion",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "host-help",
       "command": "host",
-      "argv": ["host", "--help"],
-      "captureOnly": true
+      "argv": [
+        "host",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "harness-help",
       "command": "harness",
-      "argv": ["harness", "--help"],
-      "captureOnly": true
+      "argv": [
+        "harness",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "harness-list",
       "command": "harness",
-      "argv": ["harness", "list"],
-      "expect": { "exitCode": 0, "kind": "legion-harness-list" }
+      "argv": [
+        "harness",
+        "list"
+      ],
+      "expect": {
+        "exitCode": 0,
+        "kind": "legion-harness-list"
+      }
     },
     {
       "id": "harness-unknown-subcommand",
       "command": "harness",
-      "argv": ["harness", "frobnicate"],
-      "expect": { "exitCode": 4 }
+      "argv": [
+        "harness",
+        "frobnicate"
+      ],
+      "expect": {
+        "exitCode": 4
+      }
     },
     {
       "id": "harness-capabilities-codex",
       "command": "harness",
-      "argv": ["harness", "capabilities", "codex", "."],
-      "expect": { "exitCode": 0, "kind": "legion-harness-capabilities" }
+      "argv": [
+        "harness",
+        "capabilities",
+        "codex",
+        "."
+      ],
+      "expect": {
+        "exitCode": 0,
+        "kind": "legion-harness-capabilities"
+      }
     },
     {
       "id": "authority-help",
       "command": "authority",
-      "argv": ["authority", "--help"],
-      "captureOnly": true
+      "argv": [
+        "authority",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "minimize-help",
       "command": "minimize",
-      "argv": ["minimize", "--help"],
-      "captureOnly": true
+      "argv": [
+        "minimize",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "minimize-usage",
       "command": "minimize",
-      "argv": ["minimize"],
-      "expect": { "exitCode": 4 }
+      "argv": [
+        "minimize"
+      ],
+      "expect": {
+        "exitCode": 4
+      }
     },
     {
       "id": "minimize-commit-init-review-usage",
       "command": "minimize",
-      "argv": ["minimize", "commit", "init-review"],
-      "expect": { "exitCode": 4 }
+      "argv": [
+        "minimize",
+        "commit",
+        "init-review"
+      ],
+      "expect": {
+        "exitCode": 4
+      }
     },
     {
       "id": "inspect-help",
       "command": "inspect",
-      "argv": ["inspect", "--help"],
-      "captureOnly": true
+      "argv": [
+        "inspect",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "targets-help",
       "command": "targets",
-      "argv": ["targets", "--help"],
-      "captureOnly": true
+      "argv": [
+        "targets",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "components-help",
       "command": "components",
-      "argv": ["components", "--help"],
-      "captureOnly": true
+      "argv": [
+        "components",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "stacks-help",
       "command": "stacks",
-      "argv": ["stacks", "--help"],
-      "captureOnly": true
+      "argv": [
+        "stacks",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "controls-help",
       "command": "controls",
-      "argv": ["controls", "--help"],
-      "captureOnly": true
+      "argv": [
+        "controls",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "skills-help",
       "command": "skills",
-      "argv": ["skills", "--help"],
-      "captureOnly": true
+      "argv": [
+        "skills",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "plan-help",
       "command": "plan",
-      "argv": ["plan", "--help"],
-      "captureOnly": true
+      "argv": [
+        "plan",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "verify-help",
       "command": "verify",
-      "argv": ["verify", "--", "--help"],
-      "captureOnly": true
+      "argv": [
+        "verify",
+        "--",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 3,
+        "stderrIncludes": [
+          "cannot find the file"
+        ]
+      },
+      "normalization": {
+        "tempRoots": true
+      }
     },
     {
       "id": "explain-help",
       "command": "explain",
-      "argv": ["explain", "--help"],
-      "captureOnly": true
+      "argv": [
+        "explain",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
     },
     {
       "id": "report-help",
       "command": "report",
-      "argv": ["report", "--", "--help"],
-      "captureOnly": true
+      "argv": [
+        "report",
+        "--",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 3,
+        "stderrIncludes": [
+          "cannot find the file"
+        ]
+      },
+      "normalization": {
+        "stackFrames": true,
+        "tempRoots": true
+      }
     },
     {
       "id": "fix-help",
       "command": "fix",
-      "argv": ["fix", "--help"],
-      "captureOnly": true
+      "argv": [
+        "fix",
+        "--help"
+      ],
+      "captureOnly": true,
+      "nativeOracle": {
+        "exitCode": 0,
+        "stdoutIncludes": [
+          "Usage:"
+        ]
+      }
+    },
+    {
+      "id": "root-no-command",
+      "command": "root",
+      "argv": [],
+      "expect": { "exitCode": 4, "stdoutIncludes": ["Usage: legion"] }
+    },
+    {
+      "id": "root-unknown-option",
+      "command": "root",
+      "argv": ["--wat"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["Unknown option"] },
+      "normalization": { "stackFrames": true }
+    },
+    {
+      "id": "init-unknown-root",
+      "command": "init",
+      "argv": ["init", "does-not-exist"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["root does not exist"] },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "init-write",
+      "command": "init",
+      "argv": ["init", ".", "--write"],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 0, "kind": "legion-init-preview" },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "bind-write",
+      "command": "bind",
+      "argv": ["bind", ".", "--write"],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 0, "kind": "legion-bind-result" },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "bind-conflicting-flags",
+      "command": "bind",
+      "argv": ["bind", "--check", "--write"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["either --check or --write"] }
+    },
+    {
+      "id": "doctor-unknown-option",
+      "command": "doctor",
+      "argv": ["doctor", "--wat"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["Unknown option"] }
+    },
+    {
+      "id": "inspect-empty-repository",
+      "command": "inspect",
+      "argv": ["inspect", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 2, "stdoutIncludes": ["legion-product-inspection"] }
+    },
+    {
+      "id": "targets-empty-repository",
+      "command": "targets",
+      "argv": ["targets", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 2, "stdoutIncludes": ["legion-product-portfolio"] }
+    },
+    {
+      "id": "components-empty-repository",
+      "command": "components",
+      "argv": ["components", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 2, "stdoutIncludes": ["legion-component-graph"] }
+    },
+    {
+      "id": "stacks-empty-repository",
+      "command": "stacks",
+      "argv": ["stacks", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 2, "stdoutIncludes": ["legion-stack-graph"] }
+    },
+    {
+      "id": "controls-empty-repository",
+      "command": "controls",
+      "argv": ["controls", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 2, "stdoutIncludes": ["legion-control-baseline"] }
+    },
+    {
+      "id": "skills-list",
+      "command": "skills",
+      "argv": ["skills", "list"],
+      "expect": { "exitCode": 0, "stdoutIncludes": ["\"skills\""] }
+    },
+    {
+      "id": "skills-verify",
+      "command": "skills",
+      "argv": ["skills", "verify"],
+      "expect": { "exitCode": 0, "stdoutIncludes": ["\"status\":\"pass\""] }
+    },
+    {
+      "id": "skills-unknown-command",
+      "command": "skills",
+      "argv": ["skills", "frobnicate"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["unknown skills command"] }
+    },
+    {
+      "id": "harness-detect",
+      "command": "harness",
+      "argv": ["harness", "detect", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 0, "kind": "legion-harness-detect" }
+    },
+    {
+      "id": "harness-matrix",
+      "command": "harness",
+      "argv": ["harness", "matrix", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 0, "kind": "legion-harness-matrix" }
+    },
+    {
+      "id": "harness-verify-codex",
+      "command": "harness",
+      "argv": ["harness", "verify", "codex", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 2, "kind": "legion-harness-verify" }
+    },
+    {
+      "id": "harness-install-codex",
+      "command": "harness",
+      "argv": ["harness", "install", "codex", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 0, "kind": "legion-harness-install" },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "harness-uninstall-codex",
+      "command": "harness",
+      "argv": ["harness", "uninstall", "codex", "."],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 0, "kind": "legion-harness-uninstall" },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "hooks-uninstall",
+      "command": "hooks",
+      "argv": ["hooks", "uninstall"],
+      "expect": { "exitCode": 0, "kind": "legion-hooks" }
+    },
+    {
+      "id": "hooks-unknown-action",
+      "command": "hooks",
+      "argv": ["hooks", "frobnicate"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["hooks requires"] }
+    },
+    {
+      "id": "mcp-no-command",
+      "command": "mcp",
+      "argv": ["mcp"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["mcp requires"] }
+    },
+    {
+      "id": "host-events-inspect-empty",
+      "command": "host",
+      "subcommand": "events.inspect",
+      "argv": ["host", "events", "inspect"],
+      "expect": { "exitCode": 3, "stderrIncludes": ["host key directory not found"] },
+      "normalization": { "stackFrames": true, "tempRoots": true }
+    },
+    {
+      "id": "host-unknown-subcommand",
+      "command": "host",
+      "argv": ["host", "frobnicate"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["host events requires inspect"] }
+    },
+    {
+      "id": "authority-unknown-subcommand",
+      "command": "authority",
+      "argv": ["authority", "frobnicate"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["authority proof requires inspect"] }
+    },
+    {
+      "id": "state-no-command",
+      "command": "state",
+      "argv": ["state"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["state requires a subcommand"] }
+    },
+    {
+      "id": "state-snapshot-missing-input",
+      "command": "state",
+      "subcommand": "snapshot",
+      "argv": ["state", "snapshot"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["state snapshot requires"] }
+    },
+    {
+      "id": "state-snapshot-write",
+      "command": "state",
+      "env": {
+        "LEGION_PARITY_NOW": "2026-09-15T00:00:00.000Z",
+        "LEGION_PARITY_ROOT": "<PARITY_ROOT>"
+      },
+      "subcommand": "snapshot",
+      "argv": ["state", "snapshot", "--path", ".", "--out", ".audit/state.json"],
+      "cwd": "tests/fixtures/minimal-repo",
+      "expect": { "exitCode": 0, "kind": "legion-state-snapshot" },
+      "normalization": { "tempRoots": true, "timestamps": true }
+    },
+    {
+      "id": "state-verify-missing-input",
+      "command": "state",
+      "subcommand": "verify",
+      "argv": ["state", "verify"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["state verify requires"] }
+    },
+    {
+      "id": "run-no-command",
+      "command": "run",
+      "argv": ["run"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["run requires a subcommand"] }
+    },
+    {
+      "id": "run-open-missing-contract",
+      "command": "run",
+      "subcommand": "open",
+      "argv": ["run", "open"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["run open requires --contract"] }
+    },
+    {
+      "id": "run-close-no-binding",
+      "command": "run",
+      "subcommand": "close",
+      "argv": ["run", "close"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["no binding exists"] }
+    },
+    {
+      "id": "run-suspend-auth-unavailable",
+      "command": "run",
+      "subcommand": "suspend",
+      "argv": ["run", "suspend"],
+      "expect": { "exitCode": 5, "stderrIncludes": ["ARC_AUTH_KEY_UNAVAILABLE"] },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "run-supersede-auth-unavailable",
+      "command": "run",
+      "subcommand": "supersede",
+      "argv": ["run", "supersede"],
+      "expect": { "exitCode": 5, "stderrIncludes": ["ARC_AUTH_KEY_UNAVAILABLE"] },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "run-repair-auth-unavailable",
+      "command": "run",
+      "subcommand": "repair",
+      "argv": ["run", "repair"],
+      "expect": { "exitCode": 5, "stderrIncludes": ["ARC_AUTH_KEY_UNAVAILABLE"] },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "completion-claim-missing-input",
+      "command": "completion",
+      "subcommand": "claim",
+      "argv": ["completion", "claim"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["completion claim requires"] }
+    },
+    {
+      "id": "completion-evidence-missing-input",
+      "command": "completion",
+      "subcommand": "evidence",
+      "argv": ["completion", "evidence"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["completion evidence requires"] }
+    },
+    {
+      "id": "contract-no-command",
+      "command": "contract",
+      "argv": ["contract"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["contract requires a subcommand"] }
+    },
+    {
+      "id": "contract-seal-missing-input",
+      "command": "contract",
+      "subcommand": "seal",
+      "argv": ["contract", "seal"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["contract seal requires --file"] }
+    },
+    {
+      "id": "budget-no-command",
+      "command": "budget",
+      "argv": ["budget"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["budget requires inspect"] }
+    },
+    {
+      "id": "budget-inspect-missing-contract",
+      "command": "budget",
+      "subcommand": "inspect",
+      "argv": ["budget", "inspect"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["requires --contract"] }
+    },
+    {
+      "id": "budget-inspect-invalid-contract",
+      "command": "budget",
+      "subcommand": "inspect",
+      "argv": ["budget", "inspect", "--contract", "EC-X", "--version", "1", "--task", "T-1"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["requires --contract"] }
+    },
+    {
+      "id": "governance-no-domain",
+      "command": "governance",
+      "argv": ["governance"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["governance requires"] }
+    },
+    {
+      "id": "schedule-no-artifact",
+      "command": "schedule",
+      "argv": ["schedule"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["schedule requires"] }
+    },
+    {
+      "id": "schedule-missing-plan",
+      "command": "schedule",
+      "argv": ["schedule", "--plan", "missing.json"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["invalid schedule artifact"] },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "audit-unknown-option",
+      "command": "audit",
+      "argv": ["audit", "--wat"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["Unknown option"] }
+    },
+    {
+      "id": "plan-unknown-option",
+      "command": "plan",
+      "argv": ["plan", "--wat"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["Unknown option"] }
+    },
+    {
+      "id": "verify-missing-artifact",
+      "command": "verify",
+      "argv": ["verify", "missing.json"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["verify facts artifact missing"] },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "report-missing-artifact",
+      "command": "report",
+      "argv": ["report", "missing.json"],
+      "expect": { "exitCode": 3, "stderrIncludes": ["ENOENT"] },
+      "normalization": { "stackFrames": true, "tempRoots": true }
+    },
+    {
+      "id": "explain-missing-id",
+      "command": "explain",
+      "argv": ["explain"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["explain requires"] }
+    },
+    {
+      "id": "explain-unknown-id",
+      "command": "explain",
+      "argv": ["explain", "missing-finding"],
+      "expect": { "exitCode": 4, "kind": "legion-explain" }
+    },
+    {
+      "id": "fix-missing-plan",
+      "command": "fix",
+      "argv": ["fix"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["fix requires exactly"] }
+    },
+    {
+      "id": "minimize-no-domain",
+      "command": "minimize",
+      "argv": ["minimize"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["minimize requires a domain"] }
+    },
+    {
+      "id": "minimize-decision-no-action",
+      "command": "minimize",
+      "subcommand": "decision",
+      "argv": ["minimize", "decision"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["requires an action"] }
+    },
+    {
+      "id": "minimize-decision-validate-missing",
+      "command": "minimize",
+      "subcommand": "decision.validate",
+      "argv": ["minimize", "decision", "validate"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["decision validate"] }
+    },
+    {
+      "id": "minimize-commit-verify-missing",
+      "command": "minimize",
+      "subcommand": "commit.verify",
+      "argv": ["minimize", "commit", "verify", "missing.json"],
+      "expect": { "exitCode": 1, "stderrIncludes": ["MINIMIZE FAIL: missing commit receipt"] },
+      "normalization": { "tempRoots": true }
+    },
+    {
+      "id": "rules-compile-missing-base",
+      "command": "rules",
+      "subcommand": "compile",
+      "argv": ["rules", "compile", "missing.rules"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["Usage: legion rules compile"] }
+    },
+    {
+      "id": "rules-unknown-option",
+      "command": "rules",
+      "argv": ["rules", "--wat"],
+      "expect": { "exitCode": 4, "stderrIncludes": ["unknown option"] }
     }
   ]
 }

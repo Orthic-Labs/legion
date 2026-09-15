@@ -1,9 +1,9 @@
 //! Native implementation of `legacy.accessibility.internal-suite`.
 
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
 use legion_contracts::{FindingRef, ProviderStatus};
-use serde_json::{json, Value};
+use serde_json::json;
 
 use super::common::{
     denominator, finding, has_ascii_case_insensitive, line_at, occurrences_ascii_case_insensitive,

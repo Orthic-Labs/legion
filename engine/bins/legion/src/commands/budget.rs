@@ -50,7 +50,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
     let contract = contract.filter(|value| !value.is_empty()).ok_or_else(|| {
         CommandError::usage("budget inspect requires --contract <EC-#>")
     })?;
-    if !contract.starts_with("EC-") {
+    if !contract.starts_with("EC-") || contract[3..].parse::<u64>().is_err() {
         return Err(CommandError::usage("budget inspect requires --contract <EC-#>"));
     }
     let version = version.filter(|value| *value >= 1).ok_or_else(|| {

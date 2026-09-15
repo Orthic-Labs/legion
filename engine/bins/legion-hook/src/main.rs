@@ -1233,7 +1233,13 @@ fn parse_effect_class(
     match tool {
         "Write" | "Edit" | "MultiEdit" | "NotebookEdit" => Some(EffectClass::FILE_WRITE),
         "WebFetch" | "WebSearch" => Some(EffectClass::NETWORK_EGRESS),
-        name if is_mcp_external_tool(name) => Some(EffectClass::EXTERNAL_SIDE_EFFECT),
+        // First-party host session tools (mcp__ccd_*) are host dispatch even
+        // when their names contain a verb like "send": the verb allowlist
+        // exists because third-party MCP names are untrusted, while the ccd_
+        // prefix belongs to the host-registered namespace.
+        name if is_mcp_external_tool(name) && !is_first_party_host_tool(name) => {
+            Some(EffectClass::EXTERNAL_SIDE_EFFECT)
+        }
         "shell" | "shell_command" | "Bash" | "PowerShell" | "apply_patch" => {
             Some(command_effect_class(command))
         }

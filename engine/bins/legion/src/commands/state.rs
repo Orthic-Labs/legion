@@ -101,6 +101,11 @@ fn collect_dir(root: &Path, prefix: &Path, entries: &mut Map<String, Value>) {
 }
 
 fn iso_now() -> String {
+    if let Ok(value) = std::env::var("LEGION_PARITY_NOW") {
+        if !value.is_empty() {
+            return value;
+        }
+    }
     let seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -130,11 +135,20 @@ fn snapshot(args: &[String]) -> CommandResult {
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
+            value if value.starts_with("--path=") => {
+                paths.push(value["--path=".len()..].to_owned());
+            }
+            value if value.starts_with("--out=") => {
+                out = Some(value["--out=".len()..].to_owned());
+            }
             "--path" => {
                 i += 1;
                 let Some(path) = args.get(i) else {
                     return Err(CommandError::usage("state snapshot requires --path <file-or-dir> (repeatable) and --out <snapshot.json>"));
                 };
+                if path.starts_with('-') && path != "-" {
+                    return Err(CommandError::usage("state snapshot requires a value after --path; use --path=<value> for a value beginning with '-'"));
+                }
                 paths.push(path.clone());
             }
             "--out" => {
@@ -142,13 +156,16 @@ fn snapshot(args: &[String]) -> CommandResult {
                 let Some(path) = args.get(i) else {
                     return Err(CommandError::usage("state snapshot requires --path <file-or-dir> (repeatable) and --out <snapshot.json>"));
                 };
+                if path.starts_with('-') && path != "-" {
+                    return Err(CommandError::usage("state snapshot requires a value after --out; use --out=<value> for a value beginning with '-'"));
+                }
                 out = Some(path.clone());
             }
             other => return Err(CommandError::usage(format!("unknown option: {other}"))),
         }
         i += 1;
     }
-    let Some(out) = out else {
+    let Some(out) = out.filter(|value| !value.is_empty()) else {
         return Err(CommandError::usage(
             "state snapshot requires --path <file-or-dir> (repeatable) and --out <snapshot.json>",
         ));
@@ -159,16 +176,18 @@ fn snapshot(args: &[String]) -> CommandResult {
         ));
     }
     let mut surfaces = Map::new();
-    let mut files = 0;
     for path in &paths {
         let resolved = resolve_path(&cwd, path);
         let entries = collect(&resolved);
-        files += entries.len();
-        surfaces.insert(
-            resolved.to_string_lossy().into_owned(),
-            Value::Object(entries),
-        );
+        let surface = std::env::var("LEGION_PARITY_ROOT")
+            .ok()
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| resolved.to_string_lossy().into_owned());
+        surfaces.insert(surface, Value::Object(entries));
     }
+    // Repeated/aliased --path arguments resolve to one observed surface in the
+    // artifact. Count the final map, as Node does, not discarded duplicates.
+    let files: usize = surfaces.values().filter_map(Value::as_object).map(Map::len).sum();
     let snapshot = json!({"schema":SNAPSHOT_SCHEMA,"takenAt":iso_now(),"surfaces":surfaces});
     let output = resolve_path(&cwd, &out);
     if let Some(parent) = output.parent() {
@@ -182,17 +201,33 @@ fn snapshot(args: &[String]) -> CommandResult {
         ),
     )
     .map_err(super::io_error)?;
-    Ok(json!({"kind":"legion-state-snapshot","surfaces":paths.len(),"files":files,"out":output}))
+    let rendered = serde_json::to_string(&json!({"kind":"legion-state-snapshot","surfaces":paths.len(),"files":files,"out":output}))
+        .map_err(super::io_error)?;
+    Ok(json!({"__raw": format!("{rendered}\n")}))
 }
 
 fn verify(args: &[String]) -> CommandResult {
     let cwd = std::env::current_dir().map_err(super::io_error)?;
-    if args.len() != 2 || args[0] != "--snapshot" {
-        return Err(CommandError::usage(
-            "state verify requires --snapshot <snapshot.json>",
-        ));
+    let mut supplied = None;
+    let mut i = 0;
+    while i < args.len() {
+        if let Some(value) = args[i].strip_prefix("--snapshot=") {
+            supplied = Some(value);
+        } else if args[i] == "--snapshot" {
+            i += 1;
+            supplied = args.get(i).map(String::as_str);
+            if supplied.is_none() {
+                return Err(CommandError::usage("state verify requires --snapshot <snapshot.json>"));
+            }
+        } else {
+            return Err(CommandError::usage(format!("unknown option: {}", args[i])));
+        }
+        i += 1;
     }
-    let snapshot_path = resolve_path(&cwd, &args[1]);
+    let supplied = supplied.filter(|value| !value.is_empty()).ok_or_else(|| {
+        CommandError::usage("state verify requires --snapshot <snapshot.json>")
+    })?;
+    let snapshot_path = resolve_path(&cwd, supplied);
     let snapshot: Value =
         serde_json::from_slice(&std::fs::read(&snapshot_path).map_err(|error| {
             CommandError::usage(format!("state verify cannot read snapshot: {error}"))
@@ -236,6 +271,13 @@ fn verify(args: &[String]) -> CommandResult {
     if deltas.is_empty() {
         Ok(json!({"kind":"legion-state-verify","verdict":"clean","deltas":[]}))
     } else {
+        eprintln!("STATE BOUNDARY BREACH: {} delta(s) under snapshotted production state", deltas.len());
+        for delta in deltas.iter().take(20) {
+            eprintln!("  {}: {} :: {}",
+                delta["change"].as_str().unwrap_or_default(),
+                delta["surface"].as_str().unwrap_or_default(),
+                delta["path"].as_str().unwrap_or_default());
+        }
         Ok(json!({"kind":"legion-state-verify","verdict":"breach","deltas":deltas}))
     }
 }

@@ -10,6 +10,7 @@ pub mod install;
 pub mod legacy_claude;
 pub mod ownership;
 pub mod projection;
+pub mod reasoning;
 pub mod setup_registry;
 pub mod uninstall;
 pub mod verify;

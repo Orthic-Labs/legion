@@ -1,7 +1,7 @@
 use super::CommandResult;
 use crate::cli::CommonArgs;
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub fn run(args: CommonArgs) -> CommandResult {
     let argv = args
@@ -32,7 +32,12 @@ pub fn run(args: CommonArgs) -> CommandResult {
     let root = std::env::current_dir().map_err(super::io_error)?;
     let proofs_dir = root.join(".audit/arcane/authority-invocations/proofs");
     let proofs = read_proofs(&proofs_dir, invocation_id.as_deref());
-    Ok(json!({ "proofs": proofs }))
+    Ok(compact(json!({ "proofs": proofs })))
+}
+
+fn compact(mut value: Value) -> Value {
+    value["__compact"] = json!(true);
+    value
 }
 
 fn read_proofs(root: &Path, invocation_id: Option<&str>) -> Vec<Value> {

@@ -257,6 +257,22 @@ async fn actual_version_probe_precedes_requested_argv() {
 }
 
 #[tokio::test]
+async fn explicitly_accepted_finding_exit_code_is_complete() {
+    let platform = ScriptedPlatform::new([
+        Ok(output("tool 1.2.3\n", Some(0))),
+        Ok(output("findings", Some(1))),
+    ]);
+    let mut request = sealed_request();
+    request.accepted_exit_codes = [0, 1].into_iter().collect();
+    let receipt = EffectExecutor::new(platform, MemoryArtifacts::default(), policy(true))
+        .execute(&request)
+        .await;
+    assert_eq!(receipt.state, ExecutionState::Completed);
+    assert!(receipt.is_complete());
+    assert_eq!(receipt.exit_code, Some(1));
+}
+
+#[tokio::test]
 async fn version_mismatch_and_nonzero_are_incomplete() {
     for (version_output, exit_code) in [("tool 1.0\n", Some(0)), ("tool 2.0\n", Some(9))] {
         let platform = ScriptedPlatform::new([Ok(output(version_output, exit_code))]);

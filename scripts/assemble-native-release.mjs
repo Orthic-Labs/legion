@@ -495,6 +495,12 @@ if (!portableCoreValidation.valid) {
 	);
 }
 
+// Harness commands resolve their registry from the installed plugin root.
+// Ship the generated projection at that exact runtime-owned location.
+const installedHostProjection = join(pluginRoot, "share", "legion", "src", "registry", "host-projection.json");
+mkdirSync(dirname(installedHostProjection), { recursive: true });
+copyFileSync(join(repositoryRoot, "src", "registry", "host-projection.json"), installedHostProjection);
+
 // Anchor the shipped portable core to the release manifest: the validator in the
 // installed binary recomputes this digest over the on-disk core bytes and refuses
 // to trust the core if it does not match. Written here (not with the other

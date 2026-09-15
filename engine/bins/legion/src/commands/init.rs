@@ -18,9 +18,19 @@ pub struct InitArgs {
 }
 
 pub fn run(args: InitArgs) -> CommandResult {
-    let root = std::fs::canonicalize(&args.root).map_err(|_| {
-        CommandError::usage(format!("root does not exist: {}", args.root.display()))
+    let requested_root = if args.root.is_absolute() {
+        args.root.clone()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(&args.root)
+            .components()
+            .collect()
+    };
+    let root = std::fs::canonicalize(&requested_root).map_err(|_| {
+        CommandError::usage(format!("root does not exist: {}", requested_root.display()))
     })?;
+    let root = super::display_path(&root);
     let config_path = root.join("legion.config.json");
     let gitignore_path = root.join(".gitignore");
     // Match Node: preview unless --write; --dry-run is accepted for compatibility.

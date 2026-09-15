@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadManifest, sha256File, sourceIdentity } from "../native-cli/gate.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const ARCHITECTURE = "x86_64";
@@ -141,6 +142,8 @@ export function runLocalWindowsDevelopment({ buildOnly = false } = {}) {
 	const started = performance.now();
 	const releaseVersion = version();
 	const source = sourceState();
+	const sourceTree = sourceIdentity(ROOT);
+	const behaviorManifest = loadManifest(join(ROOT, "tests", "native-cli-characterization", "fixtures.json"));
 	const assemblyRoot = join(ROOT, "dist", "native", `windows-${ARCHITECTURE}`, `legion-${releaseVersion}`);
 	const installerRoot = assertBelow(OUTPUT_ROOT, join(OUTPUT_ROOT, "installer"), "installer output");
 	const qualificationRoot = assertBelow(OUTPUT_ROOT, join(OUTPUT_ROOT, "qualification"), "qualification output");
@@ -206,6 +209,7 @@ export function runLocalWindowsDevelopment({ buildOnly = false } = {}) {
 
 	const result = {
 		status: "pass",
+		origin: "installed",
 		profile: "internal-unsigned",
 		installer: installer.installer,
 		installerSha256: installer.sha256,
@@ -213,8 +217,11 @@ export function runLocalWindowsDevelopment({ buildOnly = false } = {}) {
 		qualification: qualification.evidence?.path ?? join(qualificationRoot, "qualification.json"),
 		installedRoot: INSTALL_ROOT,
 		installedExecutable: executable,
+		executableSha256: sha256File(executable),
 		installedVersion,
 		sourceRevision: source.revision,
+		sourceTreeSha256: sourceTree.sourceTreeSha256,
+		manifestSha256: behaviorManifest.manifestSha256,
 		dirty: source.dirty,
 		codexOptIn,
 		elapsedMs: Math.round(performance.now() - started),

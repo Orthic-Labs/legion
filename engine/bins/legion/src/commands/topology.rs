@@ -9,31 +9,41 @@ use std::path::PathBuf;
 pub fn run_inspect(args: RootArgs) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let packs = topology_packs()?;
-    Ok(inspect_repository(&root, &packs).map_err(CommandError::incomplete)?)
+    let mut value = inspect_repository(&root, &packs).map_err(CommandError::incomplete)?;
+    value["__compact"] = serde_json::json!(true);
+    Ok(value)
 }
 
 pub fn run_targets(args: RootArgs) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let packs = topology_packs()?;
-    Ok(inspect_targets(&root, &packs).map_err(CommandError::incomplete)?)
+    let mut value = inspect_targets(&root, &packs).map_err(CommandError::incomplete)?;
+    value["__compact"] = serde_json::json!(true);
+    Ok(value)
 }
 
 pub fn run_components(args: RootArgs) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let packs = topology_packs()?;
-    Ok(inspect_components(&root, &packs).map_err(CommandError::incomplete)?)
+    let mut value = inspect_components(&root, &packs).map_err(CommandError::incomplete)?;
+    value["__compact"] = serde_json::json!(true);
+    Ok(value)
 }
 
 pub fn run_stacks(args: RootArgs) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let packs = topology_packs()?;
-    Ok(inspect_stacks(&root, &packs).map_err(CommandError::incomplete)?)
+    let mut value = inspect_stacks(&root, &packs).map_err(CommandError::incomplete)?;
+    value["__compact"] = serde_json::json!(true);
+    Ok(value)
 }
 
 pub fn run_controls(args: RootArgs) -> CommandResult {
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
     let packs = topology_packs()?;
-    Ok(inspect_controls(&root, &packs).map_err(CommandError::incomplete)?)
+    let mut value = inspect_controls(&root, &packs).map_err(CommandError::incomplete)?;
+    value["__compact"] = serde_json::json!(true);
+    Ok(value)
 }
 
 fn topology_packs() -> Result<Vec<serde_json::Value>, CommandError> {
@@ -53,15 +63,7 @@ fn topology_assets_root() -> Result<PathBuf, CommandError> {
             }
         }
     }
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let repo_src = manifest_dir
-        .ancestors()
-        .nth(3)
-        .map(|root| root.join("src"));
-    if let Some(src) = repo_src {
-        if src.join("registry/controls/packs/index.json").is_file() {
-            return Ok(src);
-        }
-    }
+    // A developer checkout is intentionally not a product asset source. If
+    // no installed release is bound, topology remains empty/unproven.
     Ok(PathBuf::from("."))
 }

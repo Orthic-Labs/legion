@@ -35,8 +35,13 @@ pub mod topology;
 pub mod languages;
 pub mod verify;
 use serde_json::{json, Value};
-use std::{path::Path, sync::Arc};
+use std::{path::{Path, PathBuf}, sync::Arc};
 pub type CommandResult = Result<Value, CommandError>;
+
+pub fn display_path(path: &Path) -> PathBuf {
+    let text = path.to_string_lossy();
+    PathBuf::from(text.strip_prefix(r"\\?\").unwrap_or(&text))
+}
 pub fn native_application_for(
     repository_id: &str,
 ) -> Result<Arc<legion_application::NativeApplication>, CommandError> {

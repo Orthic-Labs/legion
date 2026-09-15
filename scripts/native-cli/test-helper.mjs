@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,24 +9,26 @@ function version() {
   return JSON.parse(readFileSync(resolve(ROOT, 'release', 'version.json'), 'utf8')).version;
 }
 
-export function resolveNativeCli() {
-  const candidates = [
-    process.env.LEGION_EXE,
-    resolve(ROOT, 'dist', 'native', 'windows-x86_64', `legion-${version()}`, 'bin', 'legion.exe'),
-    process.env.LOCALAPPDATA && resolve(process.env.LOCALAPPDATA, 'Orthic Labs', 'Legion', 'current', 'bin', 'legion.exe'),
-  ].filter(Boolean);
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+/**
+ * Resolve only installer-owned stable current. Product tests must never bind a
+ * development checkout or staged repository executable.
+ */
+export function resolveNativeCli(env = process.env) {
+  if (!env.LOCALAPPDATA) return null;
+  const path = resolve(env.LOCALAPPDATA, 'Orthic Labs', 'Legion', 'current', 'bin', 'legion.exe');
+  if (!existsSync(path) || !lstatSync(path).isFile() || lstatSync(path).isSymbolicLink()) return null;
+  return path;
 }
 
-/** Run product CLI tests against staged/native executable selected by LEGION_EXE or release roots. */
+/** Run product CLI tests against the explicitly selected native executable. */
 export function runNativeCli(args = [], { cwd = ROOT, env = {} } = {}) {
-  const executable = resolveNativeCli();
-  if (!executable) throw new Error('native legion.exe unavailable; set LEGION_EXE to staged executable');
+  const executable = resolveNativeCli({ ...process.env, ...env });
+  if (!executable) throw new Error('installed stable legion.exe unavailable; run the local unsigned installer');
   const result = spawnSync(executable, args, {
     cwd, encoding: 'utf8', env: { ...process.env, ...env },
-    stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 8 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 8 * 1024 * 1024, windowsHide: true,
   });
   return { executable, status: result.status ?? 3, exitCode: result.status ?? 3, stdout: result.stdout ?? '', stderr: result.stderr ?? '', error: result.error ?? null };
 }
 
-export { ROOT as nativeCliRoot };
+export { ROOT as nativeCliRoot, version };

@@ -256,31 +256,28 @@ fn plan_stays_fail_closed_without_native_composition() {
         .is_some_and(|gaps| !gaps.is_empty()));
 }
 
+// Node parity (`src/lib/cli/run.mjs`): `assurance` appears in help but the
+// dispatcher never routed it, so the legacy CLI answered exit 4 on stderr.
+// The native CLI preserves that edge (see the captured
+// `assurance-help` characterization fixture).
 #[test]
-fn cutoff_assurance_reports_remaining_legacy_runtime() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(3)
-        .expect("repository root");
-    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
-        .args(["assurance", root.to_str().unwrap(), "--json"])
-        .output()
-        .expect("native Legion CLI must execute");
-    assert_eq!(output.status.code(), Some(2));
-    let value = output_json(&output);
-    assert_eq!(value["status"], "incomplete");
-    assert!(value["legacyExecutableCount"]
-        .as_u64()
-        .is_some_and(|count| count > 0));
+fn assurance_stays_help_only_like_node() {
+    let output = legion(&["assurance", ".", "--json"]);
+    assert_eq!(output.status.code(), Some(4));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unknown command"));
 }
 
 #[test]
 fn run_lifecycle_never_uses_default_provider_as_completion_evidence() {
+    // Node parity (`src/lib/cli/commands/run.mjs`): a non-EC contract id is a
+    // usage failure, exit 4 on stderr, before any completeness evaluation.
     let output = legion(&["run", "open", "--contract", "fixture", "--version", "1"]);
-    assert_eq!(output.status.code(), Some(2));
-    let value = output_json(&output);
-    assert_eq!(value["status"], "incomplete");
-    assert!(value["gaps"]
-        .as_array()
-        .is_some_and(|gaps| !gaps.is_empty()));
+    assert_eq!(output.status.code(), Some(4));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("run open requires --contract <EC-#>"),
+        "{stderr}"
+    );
 }

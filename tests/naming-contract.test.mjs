@@ -57,7 +57,7 @@ function namingFixture() {
   const fixture = mkdtempSync(join(tmpdir(), 'legion-naming-adversarial-'));
   const files = [
     'src/config/naming-registry.json', 'src/config/naming-legacy-allowlist.json', 'README.md', 'package.json', 'MANIFEST.package.json',
-    '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'src/lib/roster/index.mjs', 'src/lib/cli/commands/doctor.mjs',
+    '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'src/lib/roster/index.mjs', 'engine/bins/legion/src/commands/doctor.rs',
     'src/packages/context/lib/context.mjs', 'src/lib/verification/arcane/architecture-event-store.mjs', 'src/lib/contracts/arcane/authority-binding-store.mjs',
     'src/providers/security/packs/output-handling.mjs',
   ];
@@ -75,7 +75,7 @@ test('naming checker rejects unclassified active filenames, NUL source, and lega
     writeFileSync(join(fixture, 'src', 'lib', 'naming', 'seer-runtime.mjs'), 'export const active = true;\n');
     writeFileSync(join(fixture, 'active.mjs'), Buffer.from('export const value = "\0seer";\n'));
     writeFileSync(join(fixture, 'neutral-nul.mjs'), Buffer.from('export const value = "\0neutral";\n'));
-    const doctorPath = join(fixture, 'src', 'lib', 'cli', 'commands', 'doctor.mjs');
+    const doctorPath = join(fixture, 'engine', 'bins', 'legion', 'src', 'commands', 'doctor.rs');
     writeFileSync(doctorPath, `${readFileSync(doctorPath, 'utf8')}\n// seer\n`);
     const manifestPath = join(fixture, 'MANIFEST.package.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
@@ -86,7 +86,7 @@ test('naming checker rejects unclassified active filenames, NUL source, and lega
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'src/lib/naming/seer-runtime.mjs' && reason === 'unclassified legacy filename'));
     assert.ok(report.unclassified.some(({ path }) => path === 'active.mjs'));
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'neutral-nul.mjs' && reason === 'active source cannot be decoded for naming scan'));
-    assert.ok(report.unclassified.some(({ path, reason }) => path === 'src/lib/cli/commands/doctor.mjs' && reason.includes('occurrence count differs')));
+    assert.ok(report.unclassified.some(({ path, reason }) => path === 'engine/bins/legion/src/commands/doctor.rs' && reason.includes('occurrence count differs')));
     assert.ok(report.unclassified.some(({ path, reason }) => path === 'MANIFEST.package.json' && reason.includes('retains legacy assurance package')));
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });

@@ -121,7 +121,7 @@ fn wrap_result(value: Value) -> Value {
 fn call_host_value(host: &Option<Box<dyn Fn() -> Value + Send + Sync>>, label: &str) -> Result<Value, String> {
     host.as_ref()
         .map(|callback| callback())
-        .ok_or_else(|| format!("{label} is unavailable"))
+        .ok_or_else(|| format!("state.{label} is not a function"))
 }
 
 fn call_host_items(
@@ -130,7 +130,7 @@ fn call_host_items(
 ) -> Result<Vec<Value>, String> {
     host.as_ref()
         .map(|callback| callback())
-        .ok_or_else(|| format!("{label} is unavailable"))
+        .ok_or_else(|| format!("state.{label} is not a function"))
 }
 
 fn dispatch_operation(

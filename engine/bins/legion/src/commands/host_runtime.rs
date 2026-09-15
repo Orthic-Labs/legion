@@ -85,7 +85,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
         i += 1;
     }
     inspect_ledger(session.as_deref(), key_dir.as_deref())
-        .map_err(|message| CommandError::internal(message))
+        .map_err(|message| CommandError::internal(format!("ArcaneError: {message}")))
 }
 
 fn run_describe(argv: &[String]) -> CommandResult {

@@ -300,10 +300,17 @@ pub fn run(args: CommonArgs) -> CommandResult {
     if !matches!(sub, "claim" | "evidence") {
         return Err(CommandError::usage("completion requires claim"));
     }
-    let f = arg(&a, "--file").ok_or_else(|| {
-        CommandError::usage(format!("completion {sub} requires --file <outcome.json>"))
-    })?;
-    let s = session(&a)?;
+    // Node treats file and authenticated session as one required input gate.
+    // Keep its compact message when either is absent.
+    let f = arg(&a, "--file");
+    let s = session(&a).ok();
+    if f.is_none() || s.is_none() {
+        return Err(CommandError::usage(format!(
+            "completion {sub} requires --file & known session"
+        )));
+    }
+    let f = f.unwrap();
+    let s = s.unwrap();
     let root = root()?;
     let k = ring(&a)?;
     let bs = SessionBindingStore::new(root.join(".audit/arcane/session-bindings"));

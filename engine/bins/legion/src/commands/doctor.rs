@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio_util::sync::CancellationToken;
 
@@ -35,11 +36,14 @@ const CODEX_HOOK_EVENTS: [&str; 8] = [
     "stop",
 ];
 const LEGACY_NAMES: [&str; 4] = ["seer", "forge", "sorcerer", "sentinel"];
+const NAMING_TOKENS: [&str; 5] = ["seer", "nemesis", "forge", "sentinel", "sorcerer"];
 
 fn now() -> String {
-    let elapsed = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
+    format_time(SystemTime::now())
+}
+
+fn format_time(time: SystemTime) -> String {
+    let elapsed = time.duration_since(UNIX_EPOCH).unwrap_or_default();
     let seconds = elapsed.as_secs() as i64;
     let days = seconds.div_euclid(86_400);
     let day_seconds = seconds.rem_euclid(86_400);
@@ -79,13 +83,16 @@ fn digest_bytes(bytes: &[u8]) -> String {
 }
 
 fn absolute_root(path: &Path) -> PathBuf {
-    if path.is_absolute() {
+    let joined = if path.is_absolute() {
         path.to_path_buf()
     } else {
         std::env::current_dir()
             .unwrap_or_else(|_| PathBuf::from("."))
             .join(path)
-    }
+    };
+    // Node's resolve() performs lexical cleanup, including removing a trailing
+    // `.`. Keep the caller's path semantics without requiring it to exist.
+    joined.components().collect()
 }
 
 fn home_dir() -> PathBuf {
@@ -109,6 +116,41 @@ fn command_on_path(command: &str) -> bool {
         }
     }
     false
+}
+
+fn command_path(command: &str) -> Option<PathBuf> {
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    for directory in std::env::split_paths(&path) {
+        let candidate = directory.join(command);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+        #[cfg(windows)]
+        for extension in [".exe", ".cmd", ".bat"] {
+            let candidate = directory.join(format!("{command}{extension}"));
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+fn runtime_toolchains() -> Value {
+    let Some(executable) = command_path("node") else {
+        return json!({"state":"unproven","tools":[]});
+    };
+    let Ok(output) = Command::new(&executable).arg("--version").output() else {
+        return json!({"state":"unproven","tools":[]});
+    };
+    if !output.status.success() {
+        return json!({"state":"unproven","tools":[]});
+    }
+    let version = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    if version.is_empty() {
+        return json!({"state":"unproven","tools":[]});
+    }
+    json!({"state":"ready","tools":[{"name":"node","executable":executable,"version":version}]})
 }
 
 fn installed_roots() -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
@@ -248,10 +290,11 @@ fn semantic_health(env: &HashMap<String, String>) -> Value {
             } else {
                 None
             };
-            lifecycle(
-                "semantic-probe",
-                json!({"id":id,"phase":"finished","ok":!failed,"error":error}),
-            );
+            let mut finished = json!({"id":id,"phase":"finished","ok":!failed});
+            if let Some(error) = error {
+                finished["error"] = json!(error);
+            }
+            lifecycle("semantic-probe", finished);
             json!({"id":id,"ok":!failed,"startedAt":started,"finishedAt":now(),"error":error})
         })
         .collect::<Vec<_>>();
@@ -320,11 +363,87 @@ fn naming_bindings(root: &Path) -> Value {
     json!({"claudeCode":inspect(root.join(".mcp.json")),"gemini":inspect(root.join(".gemini/settings.json")),"codex":{"status":if legacy.is_empty() {if text.is_empty() {"absent"} else {"canonical"}} else {"legacy-present"},"legacy":legacy}})
 }
 
-fn naming_contract(assets: Option<&Path>) -> Value {
-    let available = assets
-        .map(|root| root.join("registry/index.json").is_file())
-        .unwrap_or(false);
-    json!({"schemaVersion":1,"kind":"legion-naming-contract-report","status":if available {"pass"} else {"unavailable"},"canonicalAuthorities":["alchemist","arcane","oracle","sage"],"deprecatedAliases":["forge","seer","sentinel","sorcerer"],"unclassified":[]})
+fn naming_source_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .ancestors()
+        .nth(3)
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."))
+}
+
+fn naming_occurrences(text: &str, token: &str) -> Vec<usize> {
+    let lower = text.to_ascii_lowercase();
+    let mut lines = Vec::new();
+    for (index, _) in lower.match_indices(token) {
+        let before = lower.as_bytes().get(index.wrapping_sub(1)).copied();
+        let after = lower.as_bytes().get(index + token.len()).copied();
+        let word = |byte: Option<u8>| byte.is_some_and(|value| value.is_ascii_alphanumeric());
+        if !word(before) && !word(after) {
+            lines.push(lower[..index].bytes().filter(|byte| *byte == b'\n').count() + 1);
+        }
+    }
+    lines
+}
+
+fn naming_rule<'a>(rules: &'a [Value], path: &str, token: &str) -> Option<&'a Value> {
+    rules.iter().find(|rule| {
+        let target = rule.get("path").and_then(Value::as_str);
+        let prefix = rule.get("pathPrefix").and_then(Value::as_str);
+        let applies = target == Some(path) || prefix.is_some_and(|value| path.starts_with(value));
+        applies && rule.get("tokens").and_then(Value::as_array).is_some_and(|tokens| tokens.iter().any(|value| value.as_str() == Some(token)))
+    })
+}
+
+fn naming_files(root: &Path) -> Vec<String> {
+    let output = Command::new("git")
+        .args(["ls-files", "-co", "--exclude-standard", "-z"])
+        .current_dir(root)
+        .output();
+    output
+        .ok()
+        .filter(|value| value.status.success())
+        .map(|value| String::from_utf8_lossy(&value.stdout).split('\0').filter(|path| !path.is_empty()).map(str::to_owned).collect())
+        .unwrap_or_default()
+}
+
+fn naming_contract(_assets: Option<&Path>) -> Value {
+    let root = naming_source_root();
+    let rules = read_json(&root.join("src/config/naming-legacy-allowlist.json"))
+        .and_then(|value| value.get("rules").cloned())
+        .and_then(|value| value.as_array().cloned())
+        .unwrap_or_default();
+    let mut issues = Vec::new();
+    for path in naming_files(&root).into_iter().filter(|path| {
+        ![".git/", ".agent/", ".audit/", ".cache/", "docs/foundation/", "node_modules/"]
+            .iter()
+            .any(|prefix| format!("{path}/").starts_with(prefix))
+    }) {
+        for token in NAMING_TOKENS {
+            let path_hits = naming_occurrences(&path, token);
+            if !path_hits.is_empty() && naming_rule(&rules, &path, token).is_none() {
+                issues.push(json!({"path":path,"token":token,"reason":"unclassified legacy filename"}));
+            }
+        }
+        let Some(text) = std::fs::read(&root.join(&path)).ok().and_then(|bytes| {
+            if bytes.contains(&0) { return None; }
+            String::from_utf8(bytes).ok()
+        }) else { continue };
+        for token in NAMING_TOKENS {
+            let lines = naming_occurrences(&text, token);
+            if lines.is_empty() { continue; }
+            let Some(rule) = naming_rule(&rules, &path, token) else {
+                issues.push(json!({"path":path,"line":lines[0],"token":token,"reason":"unclassified legacy token"}));
+                continue;
+            };
+            if rule.get("path").is_some() && rule.get("class").and_then(Value::as_str) != Some("R5") && rule.get("occurrences").and_then(|value| value.get(token)).and_then(Value::as_u64).is_none() {
+                issues.push(json!({"path":path,"line":lines[0],"token":token,"reason":"active exact-path allowlist lacks occurrence count"}));
+            }
+            if let Some(expected) = rule.get("occurrences").and_then(|value| value.get(token)).and_then(Value::as_u64) {
+                if lines.len() as u64 != expected { issues.push(json!({"path":path,"line":lines[0],"token":token,"reason":format!("legacy token occurrence count differs: expected {expected}, found {}", lines.len())})); }
+            }
+        }
+    }
+    json!({"schemaVersion":1,"kind":"legion-naming-contract-report","status":if issues.is_empty() {"pass"} else {"fail"},"canonicalAuthorities":["alchemist","arcane","oracle","sage"],"deprecatedAliases":["forge","seer","sentinel","sorcerer"],"unclassified":issues})
 }
 
 fn binding_section(root: &Path) -> Value {
@@ -372,7 +491,7 @@ fn binding_section(root: &Path) -> Value {
 }
 
 fn codex_hook_trust(home: &Path) -> Value {
-    let config_path = home.join(".codex/config.toml");
+    let config_path = home.join(".codex").join("config.toml");
     let text = std::fs::read_to_string(&config_path).unwrap_or_default();
     let mut trusted = BTreeSet::new();
     let mut current = None::<String>;
@@ -416,10 +535,11 @@ fn codex_hook_trust(home: &Path) -> Value {
     json!({"configPath":config_path,"configPresent":!text.is_empty(),"plugin":"arcane@local-brief","required":required,"trusted":trusted.into_iter().collect::<Vec<_>>(),"missing":missing,"state":if missing.is_empty() {"pass"} else {"ARC_HOOK_TRUST_REQUIRED"},"remediation":if missing.is_empty() {Value::Null} else {json!("Review & trust current Guard hooks (legacy plugin identity arcane@local-brief) with Codex /hooks; setup never manufactures trusted_hash.")}})
 }
 
-fn host_requirements(assets: Option<&Path>) -> Value {
-    let Some(index) = assets.map(|root| root.join("registry/index.json")) else {
+fn host_requirements(root: &Path) -> Value {
+    let index = root.join("src/registry/host-projection.json");
+    if !index.is_file() {
         return json!({"present":false,"state":"missing-projection","skills":[]});
-    };
+    }
     let Some(value) = read_json(&index) else {
         return json!({"present":false,"state":"invalid-registry","detail":"installed capability registry is unavailable","skills":[]});
     };
@@ -432,7 +552,7 @@ fn host_requirements(assets: Option<&Path>) -> Value {
     {
         let kind = bundle.get("kind").and_then(Value::as_str);
         let discoverability = bundle.get("discoverability").and_then(Value::as_str);
-        if !((kind == Some("capability") && discoverability == Some("public"))
+        if !((kind == Some("domain-capability") && discoverability == Some("public"))
             || (kind == Some("entrypoint") && discoverability == Some("explicit")))
         {
             continue;
@@ -473,26 +593,41 @@ fn host_requirements(assets: Option<&Path>) -> Value {
     json!({"present":true,"state":state,"skills":skills})
 }
 
-fn host_section(root: &Path, assets: Option<&Path>, plugin: Option<&Path>) -> Value {
-    let manifest = plugin
-        .map(|path| path.join(".claude-plugin/plugin.json"))
-        .and_then(|path| read_json(&path));
-    let hooks = plugin
-        .map(|path| path.join("hooks/hooks.json"))
-        .and_then(|path| read_json(&path));
-    let mcp_manifest = plugin
-        .map(|path| path.join("mcp.json"))
-        .and_then(|path| read_json(&path));
-    let surface = plugin
-        .map(|path| path.join("src/registry/plugin-surface.json"))
-        .and_then(|path| read_json(&path));
-    let projection_path = assets.map(|path| path.join("registry/index.json"));
-    let (_, entrypoints, capabilities) = provider_projection(assets);
+fn host_section(root: &Path, _assets: Option<&Path>, _plugin: Option<&Path>) -> Value {
+    let manifest = read_json(&root.join(".claude-plugin/plugin.json"));
+    let hooks = read_json(&root.join("hooks/hooks.json"));
+    let surface = read_json(&root.join("src/registry/plugin-surface.json"));
+    let projection_path = root.join("src/registry/host-projection.json");
+    let projection = read_json(&projection_path);
+    let (capabilities, entrypoints) = projection
+        .as_ref()
+        .and_then(|value| value.get("capabilities"))
+        .and_then(Value::as_array)
+        .map(|items| {
+            let capabilities = items
+                .iter()
+                .filter(|item| {
+                    item.get("kind").and_then(Value::as_str) == Some("domain-capability")
+                })
+                .count();
+            let entrypoints = items
+                .iter()
+                .filter(|item| item.get("kind").and_then(Value::as_str) == Some("entrypoint"))
+                .filter_map(|item| item.get("id").and_then(Value::as_str).map(str::to_owned))
+                .collect::<Vec<_>>();
+            (capabilities, entrypoints)
+        })
+        .unwrap_or_default();
     let home = home_dir();
-    let installed_file = read_json(&home.join(".claude/plugins/installed_plugins.json"))
-        .unwrap_or_else(|| json!({}));
+    let installed_file = read_json(
+        &home
+            .join(".claude")
+            .join("plugins")
+            .join("installed_plugins.json"),
+    )
+    .unwrap_or_else(|| json!({}));
     let claude_settings =
-        read_json(&home.join(".claude/settings.json")).unwrap_or_else(|| json!({}));
+        read_json(&home.join(".claude").join("settings.json")).unwrap_or_else(|| json!({}));
     let enabled_plugins = claude_settings
         .get("enabledPlugins")
         .and_then(Value::as_object);
@@ -517,11 +652,7 @@ fn host_section(root: &Path, assets: Option<&Path>, plugin: Option<&Path>) -> Va
         }
     }
     let mut conflicts = Vec::new();
-    if root.join(".claude/agents").is_dir()
-        && plugin
-            .map(|path| path.join("agents").is_dir())
-            .unwrap_or(false)
-    {
+    if root.join(".claude/agents").is_dir() && root.join("agents").is_dir() {
         conflicts.push(json!({"harness":"claude-code","kind":"duplicate-installation-path","detail":"both the plugin package (agents/) and a legion bind projection (.claude/agents/) are present; one installation path must own each harness"}));
     }
     let hook_events = hooks
@@ -533,10 +664,8 @@ fn host_section(root: &Path, assets: Option<&Path>, plugin: Option<&Path>) -> Va
     let mcp_entrypoints = manifest
         .as_ref()
         .and_then(|v| v.get("mcpServers"))
-        .or_else(|| mcp_manifest.as_ref().and_then(|v| v.get("mcpServers")))
         .and_then(Value::as_object)
         .map(|servers| {
-            let plugin_root = plugin;
             servers
                 .values()
                 .flat_map(|server| {
@@ -552,9 +681,7 @@ fn host_section(root: &Path, assets: Option<&Path>, plugin: Option<&Path>) -> Va
                         .strip_prefix("${CLAUDE_PLUGIN_ROOT}/")
                         .or_else(|| raw.strip_prefix("${PLUGIN_ROOT}/"))
                         .unwrap_or(raw);
-                    let exists = plugin_root
-                        .map(|root| root.join(relative).is_file())
-                        .unwrap_or(false);
+                    let exists = root.join(relative).is_file();
                     Some(json!({"path":relative,"exists":exists}))
                 })
                 .collect::<Vec<_>>()
@@ -568,39 +695,44 @@ fn host_section(root: &Path, assets: Option<&Path>, plugin: Option<&Path>) -> Va
         "pi",
         "generic",
     ];
-    let fidelity_harnesses = legion_harness::HarnessRegistry::load()
-        .ok()
-        .and_then(|registry| registry.fidelity_matrix(root).ok())
-        .unwrap_or_default();
-    let adapter_capabilities = legion_harness::HarnessRegistry::load()
-        .ok()
-        .map(|registry| {
-            known
-                .iter()
-                .filter_map(|id| {
-                    registry
-                        .capabilities(id, root)
-                        .ok()
-                        .map(|value| ((*id).to_owned(), value))
-                })
-                .collect::<std::collections::BTreeMap<_, _>>()
-        })
-        .unwrap_or_default();
+    let fidelity_harnesses = read_json(&root.join("src/registry/host-projection.json"))
+        .and_then(|projection| projection.get("harnesses").cloned())
+        .unwrap_or_else(|| json!([]));
+    let mut adapter_capabilities = serde_json::Map::new();
+    if let Ok(registry) = legion_harness::HarnessRegistry::load() {
+        for id in &known {
+            if let Ok(value) = registry.capabilities(id, root) {
+                adapter_capabilities.insert((*id).to_owned(), value);
+            }
+        }
+    }
     let mut detected = Vec::new();
-    if root.join(".claude").exists() || root.join("CLAUDE.md").exists() {
+    if root.join(".claude").exists()
+        || root.join(".claude-plugin/plugin.json").exists()
+        || root.join("CLAUDE.md").exists()
+    {
         detected.push("claude-code");
     }
-    if root.join(".codex").exists() || root.join("AGENTS.md").exists() {
+    let env = std::env::vars().collect::<HashMap<_, _>>();
+    if root.join(".codex").exists()
+        || env.get("CODEX_HOME").is_some_and(|value| !value.is_empty())
+        || env
+            .get("CODEX_THREAD_ID")
+            .is_some_and(|value| !value.is_empty())
+        || env
+            .get("CODEX_SESSION_ID")
+            .is_some_and(|value| !value.is_empty())
+    {
         detected.push("codex");
     }
     let key_dirs = [
-        home.join(".claude/arcane-keys"),
-        home.join(".codex/arcane-keys"),
+        home.join(".claude").join("arcane-keys"),
+        home.join(".codex").join("arcane-keys"),
     ]
     .iter()
     .map(|dir| json!({"dir":dir,"present":dir.is_dir()}))
     .collect::<Vec<_>>();
-    let canonical_key_dir = home.join(".codex/arcane-keys");
+    let canonical_key_dir = home.join(".codex").join("arcane-keys");
     let key_ids = std::fs::read_dir(&canonical_key_dir)
         .ok()
         .into_iter()
@@ -624,9 +756,15 @@ fn host_section(root: &Path, assets: Option<&Path>, plugin: Option<&Path>) -> Va
             .cloned()
             .unwrap_or(Value::Null)
     };
-    let outbox = read_json(&root.join(".audit/arcane/observation-outbox/outbox.json"))
-        .unwrap_or_else(|| json!({"pending":[],"delivered":[],"deadLetter":[]}));
-    json!({"projection":{"path":"src/registry/host-projection.json","present":projection_path.as_ref().is_some_and(|path| path.is_file()),"generatedAt":null,"driftCheck":"node scripts/generate-host-projection.mjs --check"},"installations":{"claude-code":installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":assets.is_some(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(assets),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":false,"codexHookTrust":codex_hook_trust(&home)}})
+    let outbox = read_json(
+        &root
+            .join(".audit")
+            .join("arcane")
+            .join("observation-outbox")
+            .join("outbox.json"),
+    )
+    .unwrap_or_else(|| json!({"pending":[],"delivered":[],"deadLetter":[]}));
+    json!({"projection":{"path":"src/registry/host-projection.json","present":projection_path.is_file(),"generatedAt":projection_path.metadata().ok().and_then(|metadata| metadata.modified().ok()).map(format_time),"driftCheck":"node scripts/generate-host-projection.mjs --check"},"installations":{"claude-code":installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":projection_path.is_file(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(root),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":root.join("src/packages/arcane/host/claude-code-adapter.mjs").is_file(),"codexHookTrust":codex_hook_trust(&home)}})
 }
 
 pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
@@ -735,7 +873,7 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
                 .to_owned(),
         );
     }
-    let report = json!({"schemaVersion":1,"kind":"legion-doctor","repository":{"root":root},"blueprint":{"state":if !available {"missing"} else if stale {"stale"} else {"ready"},"mode":metadata["mode"],"packetDigest":projection.get("packetDigest").cloned().unwrap_or(Value::Null)},"coverage":{"languages":languages,"frameworks":[],"systems":[],"unsupported":[]},"providers":{"selected":selected,"blocked":[],"missingTools":[]},"hostCapabilities":{"networkSandbox":env.get("AUDIT_NETWORK_GUARD").map(|v| v == "active").unwrap_or(false),"signing":env.get("AUDIT_PLAN_SIGNING_KEY").is_some_and(|v| !v.is_empty()),"browser":false,"toolchains":{"state":"unproven","tools":[]}},"arcane":{"semanticHealth":semantic},"host":host,"naming":{"schemaVersion":naming["schemaVersion"],"kind":naming["kind"],"status":naming["status"],"canonicalAuthorities":naming["canonicalAuthorities"],"deprecatedAliases":naming["deprecatedAliases"],"unclassified":naming["unclassified"],"bindings":bindings},"binding":binding_section(&root),"cleanClaimPossible":false,"gaps":gaps,"commands":commands});
+    let report = json!({"schemaVersion":1,"kind":"legion-doctor","repository":{"root":root},"blueprint":{"state":if !available {"missing"} else if stale {"stale"} else {"ready"},"mode":metadata["mode"],"packetDigest":projection.get("packetDigest").cloned().unwrap_or(Value::Null)},"coverage":{"languages":languages,"frameworks":[],"systems":[],"unsupported":[]},"providers":{"selected":selected,"blocked":[],"missingTools":[]},"hostCapabilities":{"networkSandbox":env.get("AUDIT_NETWORK_GUARD").map(|v| v == "active").unwrap_or(false),"signing":env.get("AUDIT_PLAN_SIGNING_KEY").is_some_and(|v| !v.is_empty()),"browser":false,"toolchains":runtime_toolchains()},"arcane":{"semanticHealth":semantic},"host":host,"naming":{"schemaVersion":naming["schemaVersion"],"kind":naming["kind"],"status":naming["status"],"canonicalAuthorities":naming["canonicalAuthorities"],"deprecatedAliases":naming["deprecatedAliases"],"unclassified":naming["unclassified"],"bindings":bindings},"binding":binding_section(&root),"cleanClaimPossible":false,"gaps":gaps,"commands":commands});
     lifecycle(
         "finished",
         json!({"gaps":report["gaps"].as_array().map_or(0,Vec::len)}),

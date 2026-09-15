@@ -21,6 +21,10 @@ impl ReceiptStore {
         if !store.receipts_path.is_file() {
             fs::write(&store.receipts_path, "").map_err(|error| error.to_string())?;
         }
+        let quarantine_path = root.join("quarantine.jsonl");
+        if !quarantine_path.is_file() {
+            fs::write(quarantine_path, "").map_err(|error| error.to_string())?;
+        }
         Ok(store)
     }
 

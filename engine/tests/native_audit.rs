@@ -244,15 +244,16 @@ fn selected_lenses_must_reconcile_with_completed_providers() {
         .gaps
         .contains(&"selected reasoning lenses did not complete".into()));
 
-    // A fixture denominator is deliberately rejected: only the frozen inventory
-    // digest and exact inventory count can support a complete provider claim.
+    // This generic fixture supplies no authenticated plan-bound host. Reject
+    // its claimed complete reasoning result before trusting its denominator.
+    // Exact denominator validation is exercised separately below.
     let complete = execute(&plan, &inventory, &FixtureExecutor { complete: true }).unwrap();
     assert_eq!(
         complete.selected_lenses,
         vec!["architecture", "correctness"]
     );
     assert!(complete.lenses_ran.is_empty());
-    assert!(complete.gaps.iter().any(|gap| gap.contains("denominator")));
+    assert!(complete.gaps.iter().any(|gap| gap.contains("authenticated plan-bound executor")));
 }
 
 #[test]
@@ -525,7 +526,7 @@ fn external_receipt_projection_rejects_missing_identity_and_state() {
             &[spec(
                 "external-provider",
                 "deterministic",
-                "legacy-check",
+                "external-process",
                 serde_json::json!({"op": "always"}),
             )],
         )
@@ -543,7 +544,7 @@ fn external_receipt_projection_rejects_missing_identity_and_state() {
         &[spec(
             "external-provider",
             "deterministic",
-            "legacy-check",
+            "external-process",
             serde_json::json!({"op": "always"}),
         )],
     )
@@ -574,7 +575,7 @@ fn external_receipt_projection_rejects_missing_identity_and_state() {
             &[spec(
                 "external-provider",
                 "deterministic",
-                "legacy-check",
+                "external-process",
                 serde_json::json!({"op": "always"}),
             )],
         )

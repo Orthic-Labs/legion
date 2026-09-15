@@ -117,7 +117,7 @@ pub fn result(
     }
     details.insert("findingEvidence".into(), Value::Object(evidence));
     details.insert("findingLocations".into(), Value::Object(locations));
-    let mut result = ProviderResult {
+    let result = ProviderResult {
         schema_version: 1,
         provider,
         applicable: true,

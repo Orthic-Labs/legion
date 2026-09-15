@@ -1,11 +1,11 @@
 use super::{CommandError, CommandResult};
 use clap::Args;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::{path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
 #[derive(Debug, Args)]
 pub struct AuditArgs {
-    #[arg(default_value = ".")]
+    #[arg(default_value = ".", trailing_var_arg = true, allow_hyphen_values = true)]
     pub root: PathBuf,
     #[arg(long)]
     pub plan_only: bool,
@@ -51,15 +51,28 @@ pub struct AuditArgs {
     pub provider_plan: Option<PathBuf>,
     #[arg(long = "provider-result")]
     pub provider_results: Vec<PathBuf>,
-    #[arg(long = "native-rule-manifest")]
+    /// Run only the explicitly supplied native rule manifest as an incomplete
+    /// source diagnostic. This is never a fallback for a missing full registry.
+    #[arg(long = "native-rule-manifest", conflicts_with_all = ["provider_plan", "provider_results"])]
     pub native_rule_manifest: Option<PathBuf>,
-    #[arg(long, default_value_t = 1_048_576)]
-    pub max_file_bytes: u64,
 }
 pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandResult {
+    if args.root.to_string_lossy().starts_with('-') {
+        return Err(CommandError::usage(format!(
+            "Unknown option '{}'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"{}\"",
+            args.root.display(), args.root.display()
+        )));
+    }
     let root = std::fs::canonicalize(&args.root).map_err(super::io_error)?;
-    let direct = args.blueprint_packet.is_some()
-        || args.provider_plan.is_some()
+    // Node parity: diff scope (--type/--base/--base-commit/--dir) is resolved
+    // exactly like tools/audit/collect-facts.mjs scopeFor/changedFiles and
+    // recorded in the plan and facts documents. It never changes the frozen
+    // provider denominator — matching Node, where scope annotates facts
+    // instead of filtering. A ref Node's gitRef would reject is recorded raw in
+    // the plan; the facts document then omits scope and the run is incomplete,
+    // mirroring Node's crashed facts collection without a CLI-level error.
+    let scope = audit_scope(&root, &args);
+    let direct = args.provider_plan.is_some()
         || !args.provider_results.is_empty();
     let signing_key = if args.plan_only {
         Some(super::audit_signing_key()?)
@@ -68,11 +81,11 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             .filter(|value| !value.is_empty())
             .map(|value| value.to_string_lossy().as_bytes().to_vec())
     };
-    let native_provider_subset = !direct
-        && std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_none()
-        && native_provider_registry_path().is_none();
     let (application, context_notices) = if direct {
         let (application, notices) = direct_application(&args, &root)?;
+        (Arc::new(application), notices)
+    } else if let Some(manifest) = &args.native_rule_manifest {
+        let (application, notices) = native_rule_diagnostic_application(&args, &root, manifest)?;
         (Arc::new(application), notices)
     } else if std::env::var_os("LEGION_NATIVE_APPLICATION_CONFIG").is_some() {
         (
@@ -80,7 +93,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             Vec::new(),
         )
     } else {
-        let (application, notices) = native_rule_application(&args, &root)?;
+        let (application, notices) = native_registry_application(&args, &root)?;
         (Arc::new(application), notices)
     };
     let mut selected_specs = application.provider_specs();
@@ -148,13 +161,17 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             plan_signature,
             providers,
         } => {
+            let binding = native_inventory_binding(&root, &args)?;
             let output = json!({
             "schemaVersion": 1,
             "kind": "audit-provider-plan",
             "repository": repository_id,
             "profile": args.profile,
-            "planDigest": plan_digest,
-                "planSignature": plan_signature,
+            "scope": scope.plan_json(),
+            "planDigest": plan_digest.clone(),
+                "planSignature": plan_signature.clone(),
+                "seal": {"digest": plan_digest, "authenticity": "hmac-sha256", "signature": plan_signature},
+                "binding": binding,
                 "providers": providers,
                 "providerSpecs": selected_specs,
                 "contextNotices": context_notices,
@@ -187,10 +204,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             );
             report.gaps.extend(parity_gaps);
             report.gaps.extend(native_audit_input_gaps(&args));
-            if native_provider_subset {
-                report
-                    .gaps
-                    .push("native-provider-composition-partial".into());
+            if scope.facts_unavailable {
+                // Node: collect-facts crashes on a gitRef-rejected ref, facts are
+                // written without scope, and the run is incomplete (exit 2).
+                report.gaps.push("audit-scope-facts-unavailable".into());
             }
             report.gaps.sort();
             report.gaps.dedup();
@@ -257,7 +274,9 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "kind": "audit-provider-plan",
                     "repository": root,
                     "profile": args.profile,
+                    "scope": scope.plan_json(),
                     "binding": {
+                        "repositoryRevision": execution.generation,
                         "blueprint": {"generationId": execution.generation},
                         "inventoryDigest": execution.inventory_digest,
                     },
@@ -268,6 +287,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     },
                     "providers": execution.planned_providers,
                 });
+                let facts = native_facts_document(&root, &plan, &execution, &report, &scope);
                 write_artifact(
                     out,
                     "plan.json",
@@ -275,6 +295,11 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 )?;
                 write_artifact(out, "report.json", report_json.as_bytes())?;
                 write_artifact(out, "report.sarif", report_sarif.as_bytes())?;
+                write_artifact(
+                    out,
+                    "facts.json",
+                    &serde_json::to_vec_pretty(&facts).map_err(super::io_error)?,
+                )?;
                 write_artifact(
                     out,
                     "execution.json",
@@ -293,6 +318,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "kind": "repository-audit-report",
                 "root": root,
                 "profile": args.profile,
+                "scope": scope.plan_json(),
                 "planDigest": execution.plan_digest,
                 "planSignature": execution.plan_signature,
                 "generation": execution.generation,
@@ -308,10 +334,11 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "plan": out.join("plan.json"),
                     "reportJson": out.join("report.json"),
                     "reportSarif": out.join("report.sarif"),
+                    "facts": out.join("facts.json"),
                     "execution": out.join("execution.json")
                 })),
                 "auditStatus": if !report.gaps.is_empty() { "incomplete" } else { status },
-                "qualityGate": if report.gaps.is_empty() { "proven" } else { "unproven" },
+                "qualityGate": if status == "pass" && report.gaps.is_empty() { "proven" } else { "unproven" },
                 "processExecution": "complete",
                 "processState": "complete",
                 "completionValidation": "not-run",
@@ -321,6 +348,130 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         _ => Err(CommandError::internal(
             "native audit application returned an incompatible result",
         )),
+    }
+}
+
+fn validate_output_dir(root: &std::path::Path, requested: &std::path::Path) -> Result<(), CommandError> {
+    let base = std::env::current_dir().map_err(super::io_error)?;
+    let output = if requested.is_absolute() {
+        requested.to_path_buf()
+    } else {
+        base.join(requested)
+    };
+    let output = lexical_normalize(&output);
+    let scope = lexical_normalize(&root.join(".audit"));
+    if output == scope || !output.starts_with(&scope) {
+        return Err(CommandError::usage(format!(
+            "--out must stay under the run-owned .audit scope ({}); received {}",
+            scope.display(),
+            output.display()
+        )));
+    }
+    Ok(())
+}
+
+fn lexical_normalize(path: &std::path::Path) -> std::path::PathBuf {
+    let mut normalized = std::path::PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
+            std::path::Component::RootDir => normalized.push(std::path::MAIN_SEPARATOR.to_string()),
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                normalized.pop();
+            }
+            std::path::Component::Normal(part) => normalized.push(part),
+        }
+    }
+    normalized
+}
+
+fn native_inventory_binding(
+    root: &std::path::Path,
+    args: &AuditArgs,
+) -> Result<Value, CommandError> {
+    let (source, _) = super::audit_inventory_source(
+        root,
+        args.blueprint_packet.as_deref(),
+        args.expected_generation.clone(),
+    )?;
+    let inventory = source
+        .inventory(&root.to_string_lossy())
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    Ok(json!({
+        "repositoryRevision": inventory.generation,
+        "inventoryDigest": inventory.digest,
+    }))
+}
+
+fn native_facts_document(
+    root: &std::path::Path,
+    plan: &Value,
+    execution: &legion_audit::ExecutionReport,
+    report: &legion_contracts::ReportV1,
+    scope: &AuditScope,
+) -> Value {
+    let provider_results = execution
+        .results
+        .iter()
+        .map(|entry| {
+            json!({
+                "provider": entry.provider,
+                "status": provider_status_name(&entry.result.status),
+                "complete": entry.result.complete,
+                "findings": entry.result.findings,
+                "coverage": entry.result.coverage,
+                "coverageGaps": entry.result.coverage_gaps,
+                "degradation": entry.result.degradation,
+            })
+        })
+        .collect::<Vec<_>>();
+    let checks = execution
+        .results
+        .iter()
+        .map(|entry| {
+            json!({
+                "check": entry.provider,
+                "status": provider_status_name(&entry.result.status),
+                "execution_status": if entry.skipped { "skipped" } else { "ran" },
+                "verdict": if entry.result.complete { "pass" } else { "unproven" },
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut facts = json!({
+        "schemaVersion": 1,
+        "kind": "audit-facts",
+        "workspace": root,
+        "out_dir": null,
+        "plan": plan,
+        "checks": checks,
+        "lenses_ran": execution.lenses_ran,
+        "incomplete": !report.gaps.is_empty(),
+        "provider_reconciliation": {
+            "valid": report.gaps.is_empty(),
+            "providerResults": provider_results,
+            "missingChecks": [],
+            "unplannedChecks": [],
+            "unresolvedCoverage": report.gaps,
+            "missingRuntimeProviders": [],
+            "denominatorMismatches": []
+        },
+        "network_policy": {"mode": "deny", "environment": []}
+    });
+    // Node's collect-facts crashes before writing scope when a ref fails gitRef;
+    // mirror that by omitting the scope key entirely.
+    if !scope.facts_unavailable {
+        facts["scope"] = scope.facts_json();
+    }
+    facts
+}
+
+fn provider_status_name(status: &legion_contracts::ProviderStatus) -> &'static str {
+    match status {
+        legion_contracts::ProviderStatus::Ok | legion_contracts::ProviderStatus::Complete => "pass",
+        legion_contracts::ProviderStatus::Partial => "partial",
+        legion_contracts::ProviderStatus::Failed => "fail",
+        legion_contracts::ProviderStatus::Cancelled => "skipped",
     }
 }
 
@@ -344,128 +495,309 @@ fn native_audit_parity_gaps(
 
 fn native_audit_input_gaps(args: &AuditArgs) -> Vec<String> {
     let mut gaps = Vec::new();
-    if args.url.is_some() || args.surfaces.is_some() || args.visual_spec.is_some() || args.visual_baselines.is_some() || args.width != 1280 || args.height != 800 { gaps.push("native-visual-provider-options-not-applied".into()); }
-    if args.base.is_some() || args.base_commit.is_some() || args.dir.is_some() { gaps.push("native-diff-scope-not-applied".into()); }
-    if args.blueprint_out.is_some() { gaps.push("native-blueprint-output-not-applied".into()); }
+    if args.native_rule_manifest.is_some() { gaps.push("native-provider-composition-partial".into()); }
+    // Visual options (--url/--surfaces/--visual-spec/--visual-baselines/--width/
+    // --height) and --blueprint-out stay accepted-and-inert without a gap record:
+    // Node's bare CLI behaves the same way (the frozen registry has no visual.core
+    // provider, and blueprint packet publication is host-owned), so recording a gap
+    // here would diverge from Node by forcing Incomplete where Node completes.
     gaps
 }
 
-fn native_rule_application(
+/// Node-parity audit scope (tools/audit/collect-facts.mjs `scopeFor` +
+/// `changedFiles`). Refs are recorded raw exactly as Node's plan does; the
+/// `gitRef` regex decides whether facts collection can succeed at all.
+struct AuditScope {
+    mode: &'static str,
+    scope_type: String,
+    base: Option<String>,
+    base_commit: Option<String>,
+    dir: Option<String>,
+    changed_files: Vec<String>,
+    facts_unavailable: bool,
+}
+
+impl AuditScope {
+    fn plan_json(&self) -> Value {
+        json!({
+            "mode": self.mode,
+            "type": self.scope_type,
+            "base": self.base,
+            "baseCommit": self.base_commit,
+            "dir": self.dir,
+        })
+    }
+
+    fn facts_json(&self) -> Value {
+        json!({
+            "mode": self.mode,
+            "type": self.scope_type,
+            "base": self.base,
+            "base_commit": self.base_commit,
+            "dir": self.dir,
+            "changed_files": self.changed_files,
+        })
+    }
+
+    fn ref_is_valid(reference: &Option<String>) -> bool {
+        crate::commands::audit::git_ref_is_valid(reference)
+    }
+}
+
+fn clean_path(input: &str) -> Option<String> {
+    if input.is_empty() {
+        return None;
+    }
+    let mut path = input.replace('\\', "/");
+    if let Some(rest) = path.strip_prefix('.') {
+        path = rest.trim_start_matches('/').to_string();
+    }
+    while path.ends_with('/') {
+        path.pop();
+    }
+    if path.is_empty() {
+        None
+    } else {
+        Some(path)
+    }
+}
+
+fn in_scope(file: &str, dir: Option<&str>) -> bool {
+    match dir {
+        None => true,
+        Some(dir) => file == dir || file.starts_with(&format!("{dir}/")),
+    }
+}
+
+fn validate_git_ref(reference: &str) -> bool {
+    !reference.is_empty()
+        && reference
+            .chars()
+            .next()
+            .is_some_and(|first| first.is_ascii_alphanumeric())
+        && reference
+            .chars()
+            .all(|character| {
+                character.is_ascii_alphanumeric()
+                    || matches!(character, '.' | '_' | '/' | '@' | '-')
+            })
+}
+
+fn git_ref_is_valid(reference: &Option<String>) -> bool {
+    reference
+        .as_deref()
+        .map_or(true, |reference| validate_git_ref(reference))
+}
+
+fn git_stdout(root: &std::path::Path, git_args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .args(git_args)
+        .current_dir(root)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn push_changed_files(files: &mut Vec<String>, root: &std::path::Path, git_args: &[&str]) {
+    if let Some(stdout) = git_stdout(root, git_args) {
+        files.extend(stdout.split('\n').filter_map(clean_path));
+    }
+}
+
+fn audit_changed_files(
+    root: &std::path::Path,
+    scope_type: &str,
+    scope_base: Option<&str>,
+    scope_base_commit: Option<&str>,
+    scope_dir: Option<&str>,
+) -> Vec<String> {
+    let mut files = Vec::new();
+    if scope_type == "local" {
+        push_changed_files(&mut files, root, &["diff", "--name-only", "HEAD"]);
+        push_changed_files(
+            &mut files,
+            root,
+            &["ls-files", "--others", "--exclude-standard"],
+        );
+        let upstream = git_stdout(
+            root,
+            &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+        )
+        .map(|reference| reference.trim().to_string())
+        .filter(|reference| !reference.is_empty());
+        if let Some(upstream) = upstream {
+            let range = format!("{upstream}..HEAD");
+            push_changed_files(&mut files, root, &["diff", "--name-only", &range]);
+        }
+        files.retain(|file| {
+            !file.starts_with(".audit/") && !is_generated_or_vendored_path(file)
+        });
+    } else if let Some(commit) = scope_base_commit {
+        push_changed_files(&mut files, root, &["diff", "--name-only", commit]);
+    } else if let Some(base) = scope_base {
+        let range = format!("{base}...HEAD");
+        push_changed_files(&mut files, root, &["diff", "--name-only", &range]);
+    } else if scope_type == "uncommitted" {
+        push_changed_files(&mut files, root, &["diff", "--name-only"]);
+    } else if scope_type == "committed" {
+        push_changed_files(&mut files, root, &["diff", "--name-only", "HEAD~1..HEAD"]);
+    }
+    files.retain(|file| in_scope(file, scope_dir));
+    files.sort();
+    files.dedup();
+    files
+}
+
+/// Node collect-facts isGeneratedOrVendoredPath: applied only to the `local`
+/// scope's changed-file set, exactly as Node does.
+fn is_generated_or_vendored_path(file: &str) -> bool {
+    file.starts_with("vendor/")
+        || file.starts_with("qwik/")
+        || file.starts_with("dist/")
+        || file.starts_with("src-tauri/gen/")
+        || file.starts_with("src/generated/")
+        || file.contains("/src/generated/")
+        || file.contains("/drizzle/")
+}
+
+fn audit_scope(root: &std::path::Path, args: &AuditArgs) -> AuditScope {
+    let scope_type = args.r#type.clone().unwrap_or_else(|| "all".into());
+    let scope_dir = args
+        .dir
+        .as_ref()
+        .and_then(|dir| clean_path(&dir.to_string_lossy()));
+    let scope_base = args.base.clone();
+    let scope_base_commit = args.base_commit.clone();
+    let refs_valid = AuditScope::ref_is_valid(&scope_base)
+        && AuditScope::ref_is_valid(&scope_base_commit);
+    let scoped = scope_dir.is_some()
+        || scope_base.is_some()
+        || scope_base_commit.is_some()
+        || scope_type != "all";
+    let changed_files = if refs_valid {
+        audit_changed_files(
+            root,
+            &scope_type,
+            scope_base.as_deref(),
+            scope_base_commit.as_deref(),
+            scope_dir.as_deref(),
+        )
+    } else {
+        Vec::new()
+    };
+    AuditScope {
+        mode: if scoped { "diff" } else { "whole-repo" },
+        scope_type,
+        base: scope_base,
+        base_commit: scope_base_commit,
+        dir: scope_dir,
+        changed_files,
+        facts_unavailable: !refs_valid,
+    }
+}
+
+fn native_rule_diagnostic_application(
+    args: &AuditArgs,
+    root: &std::path::Path,
+    manifest: &std::path::Path,
+) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
+    let provider: legion_contracts::ProviderSpec = serde_json::from_value(json!({
+        "schemaVersion": 2,
+        "id": "security.native-rules",
+        "providerVersion": "1",
+        "family": "security",
+        "role": "deterministic",
+        "phase": "source",
+        "lensIds": [], "dependsOn": [],
+        "consumes": ["repository-inventory"],
+        "produces": ["provider-result"],
+        "selector": {"op":"always"},
+        "denominatorKind": "repository-inventory",
+        "runner": {"kind":"built-in","implementation":"native-rule-manifest"},
+        "hostCapabilities": [], "execution": {}, "reasoning": {},
+        "benchmark": {"status":"unproven","requiredForCleanClaim":false},
+        "cleanClaim": "finding-producing",
+        "controlIds": [], "scopes": [], "selectable": true
+    })).map_err(|error| CommandError::internal(error.to_string()))?;
+    let (source, notices) = super::audit_inventory_source(root, args.blueprint_packet.as_deref(), args.expected_generation.clone())?;
+    let executor = super::rules::NativeRuleProviderExecutor::new(root.to_path_buf(), manifest.to_path_buf(), 1_048_576)
+        .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let application = legion_application::NativeApplicationConfig::for_audit_executor(
+        root.to_string_lossy().into_owned(), source, vec![provider], Arc::new(executor),
+    ).map_err(|error| CommandError::incomplete(error.to_string()))?;
+    Ok((application, notices))
+}
+
+fn native_registry_application(
     args: &AuditArgs,
     root: &std::path::Path,
 ) -> Result<(legion_application::NativeApplication, Vec<String>), CommandError> {
-    // Native composition is sourced from the same provider registry as the JS
-    // runner. This keeps plan selection/freeze coverage at 78 providers while
-    // the executor dispatches migrated analyzers in-process and leaves host
-    // reasoning/external providers receipt-bound.
-    if let Some(registry) = native_provider_registry_path() {
-        let bytes = std::fs::read(&registry).map_err(super::io_error)?;
-        let value: serde_json::Value = serde_json::from_slice(&bytes)
-            .map_err(|error| CommandError::usage(format!("invalid provider registry: {error}")))?;
-        let providers = value
-            .get("providers")
-            .and_then(serde_json::Value::as_array)
-            .ok_or_else(|| CommandError::usage("provider registry must contain providers"))?
-            .iter()
-            .cloned()
-            .map(serde_json::from_value)
-            .collect::<Result<Vec<legion_contracts::ProviderSpec>, _>>()
-            .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))?;
-        let (source, notices) = super::audit_inventory_source(
-            root,
-            args.blueprint_packet.as_deref(),
-            args.expected_generation.clone(),
-        )?;
-        let executor = std::sync::Arc::new(legion_audit::NativeProviderRegistry::new(root.to_path_buf()));
-        let application = legion_application::NativeApplicationConfig::for_audit_executor(
-            root.to_string_lossy().into_owned(), source, providers, executor,
+    // The command must execute the frozen native provider composition. Do not
+    // silently replace it with a one-rule project scan when the release
+    // registry is absent: that would make a successful command look like a
+    // complete Audit while bypassing the provider plan and its gaps.
+    let registry = native_provider_registry_path().ok_or_else(|| {
+        CommandError::incomplete(
+            "native Audit provider registry is unavailable; install or configure the native provider composition",
         )
-        .map_err(|error| CommandError::incomplete(error.to_string()))?;
-        return Ok((application, notices));
-    }
-    let manifest = match &args.native_rule_manifest {
-        Some(path) => std::fs::canonicalize(path).map_err(super::io_error)?,
-        None => {
-            let composition = crate::cli::installed_m1_composition()?;
-            let release_root = composition.parent().ok_or_else(|| {
-                CommandError::incomplete("installed composition has no release root")
-            })?;
-            std::fs::canonicalize(release_root.join("assets/packs/native/manifest.v1.json"))
-                .map_err(|error| {
-                    CommandError::incomplete(format!(
-                        "installed native Audit manifest is unavailable: {error}; run legion setup repair --confirm"
-                    ))
-                })?
-        }
-    };
-    let manifest_bytes = std::fs::read(&manifest).map_err(super::io_error)?;
-    let manifest_digest = sha256_hex(&manifest_bytes);
-    legion_rules::RuleCompiler::compile_manifest_json(
-        std::str::from_utf8(&manifest_bytes).map_err(|error| {
-            CommandError::usage(format!("native rule manifest is not UTF-8: {error}"))
-        })?,
-    )
-    .map_err(|error| CommandError::usage(error.to_string()))?;
-    let specification: legion_contracts::ProviderSpec = serde_json::from_value(json!({
-        "schemaVersion": 2,
-        "id": "security.native-rules",
-        "providerVersion": "1.0.0",
-        "family": "security",
-        "lensIds": [],
-        "role": "deterministic",
-        "phase": "source",
-        "dependsOn": [],
-        "consumes": ["repository-inventory"],
-        "produces": ["provider-result"],
-        "selector": {"op": "always"},
-        "denominatorKind": "repository-inventory",
-        "runner": {
-            "kind": "built-in",
-            "implementation": "native-rule-manifest",
-            "manifestDigest": format!("sha256:{manifest_digest}")
-        },
-        "hostCapabilities": [],
-        "execution": {
-            "scheduleClass": "parallel-safe",
-            "resourceClaims": {"cpu": 1, "memoryMb": 256, "io": 1, "projectExecution": 0, "browser": 0, "nativeSurface": 0, "virtualMachine": 0, "simulator": 0, "physicalDevice": 0, "externalSystem": 0, "reviewer": 0, "signer": 0},
-            "concurrencyKey": null,
-            "maxParallelism": 1,
-            "orderSensitive": false,
-            "interruptible": true,
-            "cachePolicy": "content-addressed",
-            "failurePolicy": "block-dependents",
-            "required": true
-        },
-        "reasoning": {"requirement": "none", "trigger": "none", "subjectKind": "provider-result", "freshContext": true, "producerSeparation": true},
-        "benchmark": {"status": "source-tested", "requiredForCleanClaim": false, "qualificationDigest": format!("sha256:{manifest_digest}")},
-        "cleanClaim": "finding-producing",
-        "controlIds": ["security.source-assurance"],
-        "scopes": ["family:security"],
-        "selectable": true
-    }))
-    .map_err(|error| CommandError::internal(format!("native Audit provider invalid: {error}")))?;
-    specification
-        .validate()
-        .map_err(|error| CommandError::internal(error.to_string()))?;
+    })?;
+    let bytes = std::fs::read(&registry).map_err(super::io_error)?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes)
+        .map_err(|error| CommandError::usage(format!("invalid provider registry: {error}")))?;
+    let providers = value
+        .get("providers")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| CommandError::usage("provider registry must contain providers"))?
+        .iter()
+        .cloned()
+        .map(serde_json::from_value)
+        .collect::<Result<Vec<legion_contracts::ProviderSpec>, _>>()
+        .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))?;
     let (source, notices) = super::audit_inventory_source(
         root,
         args.blueprint_packet.as_deref(),
         args.expected_generation.clone(),
     )?;
-    let executor = super::rules::NativeRuleProviderExecutor::new(
-        root.to_path_buf(),
-        manifest,
-        args.max_file_bytes,
-    )
-    .map_err(|error| CommandError::incomplete(error.to_string()))?;
+    let external_tool = native_audit_external_tool(root);
+    let executor = std::sync::Arc::new(
+        legion_audit::NativeProviderRegistry::new(root.to_path_buf())
+            .with_external_project_tool(external_tool),
+    );
     let application = legion_application::NativeApplicationConfig::for_audit_executor(
         root.to_string_lossy().into_owned(),
         source,
-        vec![specification],
-        Arc::new(executor),
+        providers,
+        executor,
     )
     .map_err(|error| CommandError::incomplete(error.to_string()))?;
     Ok((application, notices))
+}
+
+fn native_audit_external_tool(
+    root: &std::path::Path,
+) -> std::sync::Arc<dyn legion_provider_sdk::ExternalProjectTool> {
+    let policy = legion_effects::StaticPolicy {
+        decision: legion_effects::PolicyDecision {
+            allowed: true,
+            policy_id: "native-audit-external-tools-v1".into(),
+            policy_version: 1,
+            policy_digest: format!("sha256:{}", sha256_hex(b"native-audit-external-tools-v1")),
+            reason: None,
+        },
+    };
+    #[cfg(windows)]
+    let process = legion_effects::platform::windows::WindowsProcess;
+    #[cfg(unix)]
+    let process = legion_effects::platform::unix::UnixProcess::new();
+    let effects = legion_effects::EffectExecutor::new(
+        process,
+        legion_effects::ArtifactWriter::new(root),
+        policy,
+    );
+    std::sync::Arc::new(legion_audit::native_providers::legacy_checks::AuditExternalProjectTool::new(effects))
 }
 
 fn native_provider_registry_path() -> Option<std::path::PathBuf> {
@@ -576,5 +908,131 @@ mod closure_tests {
         )
         .is_empty());
         assert!(!native_audit_parity_gaps(3, 2, "missing", None).is_empty());
+    }
+
+    #[test]
+    fn audit_scope_defaults_to_whole_repo_with_no_scope_key_drift() {
+        let args = AuditArgs {
+            root: std::path::PathBuf::from("."),
+            plan_only: false,
+            quiet: false,
+            only: Vec::new(),
+            skip: Vec::new(),
+            url: None,
+            surfaces: None,
+            visual_spec: None,
+            visual_baselines: None,
+            width: 1280,
+            height: 800,
+            blueprint_out: None,
+            r#type: None,
+            base: None,
+            base_commit: None,
+            dir: None,
+            json: false,
+            profile: "standard".into(),
+            out: None,
+            blueprint_packet: None,
+            expected_generation: None,
+            provider_plan: None,
+            provider_results: Vec::new(),
+            native_rule_manifest: None,
+        };
+        let scope = audit_scope(std::path::Path::new("."), &args);
+        assert_eq!(scope.mode, "whole-repo");
+        assert_eq!(scope.scope_type, "all");
+        assert!(scope.changed_files.is_empty());
+        assert!(!scope.facts_unavailable);
+        let plan = scope.plan_json();
+        assert_eq!(plan["mode"], "whole-repo");
+        assert_eq!(plan["type"], "all");
+        assert_eq!(plan["base"], Value::Null);
+        assert_eq!(plan["baseCommit"], Value::Null);
+        assert_eq!(plan["dir"], Value::Null);
+    }
+
+    #[test]
+    fn audit_scope_records_raw_refs_and_degrades_facts_for_invalid_refs() {
+        let mut args = AuditArgs {
+            root: std::path::PathBuf::from("."),
+            r#type: None,
+            base: Some("bad ref".into()),
+            dir: Some(std::path::PathBuf::from("engine")),
+            ..minimal_audit_args()
+        };
+        args.width = 1280;
+        args.height = 800;
+        let scope = audit_scope(std::path::Path::new("."), &args);
+        // Node records the raw ref in plan.scope (verified live: exit 2, no error).
+        assert_eq!(scope.plan_json()["base"], "bad ref");
+        assert_eq!(scope.mode, "diff");
+        // Facts collection equivalent crashes in Node, so facts omit scope entirely.
+        assert!(scope.facts_unavailable);
+        assert!(scope.changed_files.is_empty());
+    }
+
+    #[test]
+    fn audit_scope_dir_filters_without_creating_a_diff() {
+        let mut args = AuditArgs {
+            dir: Some(std::path::PathBuf::from("engine")),
+            ..minimal_audit_args()
+        };
+        args.width = 1280;
+        args.height = 800;
+        let scope = audit_scope(std::path::Path::new("."), &args);
+        // Node truth (verified live): --dir engine records mode diff with an empty
+        // changed_files set — dir filters, it never constructs a diff range.
+        assert_eq!(scope.mode, "diff");
+        assert_eq!(scope.dir.as_deref(), Some("engine"));
+        assert!(scope.changed_files.is_empty());
+        assert!(!scope.facts_unavailable);
+    }
+
+    #[test]
+    fn audit_scope_matches_node_scope_json_shapes() {
+        let mut args = AuditArgs {
+            base: Some("origin/main".into()),
+            ..minimal_audit_args()
+        };
+        args.width = 1280;
+        args.height = 800;
+        let scope = audit_scope(std::path::Path::new("."), &args);
+        let plan = scope.plan_json();
+        assert_eq!(plan["baseCommit"], Value::Null);
+        let facts = scope.facts_json();
+        assert!(facts.get("base_commit").is_some());
+        assert!(facts.get("changed_files").is_some());
+        // camelCase in plan, snake_case in facts — both shapes verified in Node.
+        assert!(plan.get("baseCommit").is_some());
+        assert!(plan.get("base_commit").is_none());
+    }
+
+    fn minimal_audit_args() -> AuditArgs {
+        AuditArgs {
+            root: std::path::PathBuf::from("."),
+            plan_only: false,
+            quiet: false,
+            only: Vec::new(),
+            skip: Vec::new(),
+            url: None,
+            surfaces: None,
+            visual_spec: None,
+            visual_baselines: None,
+            width: 1280,
+            height: 800,
+            blueprint_out: None,
+            r#type: None,
+            base: None,
+            base_commit: None,
+            dir: None,
+            json: false,
+            profile: "standard".into(),
+            out: None,
+            blueprint_packet: None,
+            expected_generation: None,
+            provider_plan: None,
+            provider_results: Vec::new(),
+            native_rule_manifest: None,
+        }
     }
 }

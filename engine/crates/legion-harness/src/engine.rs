@@ -134,7 +134,7 @@ pub fn verify(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path) -
             }
             surfaces.insert(
                 surface.to_string(),
-                json!({ "fidelity": fidelity, "ok": ok, "missing": verification.get("missing"), "forked": verification.get("forked"), "present": verification.get("present"), "total": verification.get("total"), "extra": verification.get("extra") }),
+                json!({ "fidelity": fidelity, "ok": ok, "present": verification.get("present"), "total": verification.get("total"), "missing": verification.get("missing"), "forked": verification.get("forked"), "extra": verification.get("extra") }),
             );
         } else if ["instructions", "mcp", "agents"].contains(&surface) && mech.path.is_some() {
             let path = mech.path.as_deref().expect("checked");
@@ -252,9 +252,7 @@ pub fn uninstall(descriptor: &HarnessDescriptor, root: &Path, legion_root: &Path
                 assert_plausible_toml(&path, "mcp")?;
                 let table = mech.table.clone().unwrap_or_else(|| "mcp_servers".into());
                 let before = fs::read_to_string(&path).map_err(|error| HarnessError::internal(error.to_string()))?;
-                let after = legion_toml_block_re(&table)
-                    .replace_all(&before, "")
-                    .to_string();
+                let after = remove_legion_toml_block(&before, &table);
                 if after != before {
                     if after.trim().is_empty() {
                         fs::remove_file(&path).map_err(|error| HarnessError::internal(error.to_string()))?;
@@ -410,16 +408,14 @@ fn install_mcp(mech: &Mechanism, root: &Path) -> Result<Value, HarnessError> {
         } else {
             String::new()
         };
-        let re = legion_toml_block_re(&table);
-        let mut found = false;
-        let collapsed = re.replace_all(&existing, |caps: &regex::Captures| {
-            if found {
-                return String::new();
-            }
-            found = true;
-            block.trim_end_matches('\n').to_string()
-        });
-        let next = if found { collapsed.to_string() } else { existing + &block };
+        let header = format!("[{table}.legion]");
+        let found = existing.lines().any(|line| line.trim() == header);
+        let collapsed = remove_legion_toml_block(&existing, &table);
+        let next = if found {
+            format!("{}{}", collapsed.trim_end_matches('\n'), block)
+        } else {
+            existing + &block
+        };
         fs::write(&path, next).map_err(|error| HarnessError::internal(error.to_string()))?;
         return Ok(json!({ "wrote": [mech.path.clone().expect("path")] }));
     }
@@ -516,10 +512,26 @@ fn assert_plausible_toml(path: &Path, surface: &str) -> Result<(), HarnessError>
     Ok(())
 }
 
-fn legion_toml_block_re(table: &str) -> Regex {
-    let escaped = table.replace('.', "\\.");
-    Regex::new(&format!(
-        r"\n?\[{escaped}\.legion\][\s\S]*?(?=\n\[|$)"
-    ))
-    .expect("valid regex")
+fn remove_legion_toml_block(input: &str, table: &str) -> String {
+    let header = format!("[{table}.legion]");
+    let lines = input.lines().collect::<Vec<_>>();
+    let mut output = Vec::new();
+    let mut skipping = false;
+    for line in lines {
+        if line.trim() == header {
+            skipping = true;
+            continue;
+        }
+        if skipping && line.trim_start().starts_with('[') {
+            skipping = false;
+        }
+        if !skipping {
+            output.push(line);
+        }
+    }
+    let mut rendered = output.join("\n");
+    if input.ends_with('\n') && !rendered.is_empty() {
+        rendered.push('\n');
+    }
+    rendered
 }

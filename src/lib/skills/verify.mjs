@@ -68,6 +68,7 @@ function findUnexpected(packageRoot, bundleId, declared, findings) {
 
 function allFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory() && ['__pycache__', '.audit', '.cache'].includes(entry.name)) return [];
     const path = join(directory, entry.name);
     return entry.isDirectory() ? allFiles(path) : [path];
   });

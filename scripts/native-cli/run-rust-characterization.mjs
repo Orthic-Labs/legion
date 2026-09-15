@@ -1,134 +1,131 @@
 #!/usr/bin/env node
 /**
- * Step 5 — run characterization corpus against native legion.exe (dev build or installed).
+ * Native characterization gate. By default this is a current-tree gate and
+ * requires build evidence binding the exact executable, source tree, and
+ * frozen manifest. --diagnostic deliberately produces non-qualifying output.
  */
-import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHash } from 'node:crypto';
+import { brotliDecompressSync } from 'node:zlib';
+import {
+  DEFAULT_MAX_OUTPUT_BYTES,
+  DEFAULT_TIMEOUT_MS,
+  evaluateParityRow,
+  createSandbox,
+  developerExecutablePath,
+  loadManifest,
+  removeSandbox,
+  resolveEvidencePath,
+  runBounded,
+  sha256,
+  snapshotSandbox,
+  sourceIdentity,
+  summarizeResults,
+  validateExecutableProvenance,
+  validateNormalization,
+} from './gate.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const FIXTURE_INDEX = resolve(ROOT, 'tests', 'native-cli-characterization', 'fixtures.json');
+const NODE_BASELINES = resolve(ROOT, 'tests', 'native-cli-characterization', 'node-baselines.br.json');
 const OUT_DIR = resolve(ROOT, 'dist', 'native-cli', 'rust-characterization');
 
-function resolveExe() {
-	if (process.env.LEGION_EXE && existsSync(process.env.LEGION_EXE)) {
-		return process.env.LEGION_EXE;
-	}
-	const built = resolve(
-		ROOT,
-		'dist',
-		'native',
-		'windows-x86_64',
-		`legion-${readVersion()}`,
-		'bin',
-		'legion.exe',
-	);
-	if (existsSync(built)) return built;
-	const local = process.env.LOCALAPPDATA;
-	if (local) {
-		const installed = resolve(local, 'Orthic Labs', 'Legion', 'current', 'bin', 'legion.exe');
-		if (existsSync(installed)) return installed;
-	}
-	return null;
-}
+const frozen = JSON.parse(readFileSync(NODE_BASELINES, 'utf8'));
+const baselines = JSON.parse(brotliDecompressSync(Buffer.from(frozen.payload, frozen.encoding === 'brotli-base64' ? 'base64' : 'utf8')));
+function readBaseline(id) { return baselines[id] ?? null; }
 
-function readVersion() {
-	const version = JSON.parse(
-		readFileSync(resolve(ROOT, 'release', 'version.json'), 'utf8'),
-	);
-	return version.version;
-}
-
-function sha256(text) {
-	return createHash('sha256').update(text).digest('hex');
-}
-
-function runExe(executable, argv, { cwd, env = {} }) {
-	const result = spawnSync(executable, argv, {
-		cwd,
-		env: { ...process.env, ...env },
-		encoding: 'utf8',
-		maxBuffer: 8 * 1024 * 1024,
-	});
-	return {
-		exitCode: result.status ?? 3,
-		stdout: result.stdout ?? '',
-		stderr: result.stderr ?? '',
-	};
+function semanticOracle(fixture, observation) {
+  const expect = fixture.rustExpect ?? {};
+  const mismatches = [];
+  if (expect.exitCode !== undefined && observation.exitCode !== expect.exitCode) mismatches.push(`expected native exit ${expect.exitCode}, got ${observation.exitCode}`);
+  for (const needle of expect.stdoutIncludes ?? []) if (!observation.stdout.includes(needle)) mismatches.push(`native stdout missing: ${needle}`);
+  for (const needle of expect.stderrIncludes ?? []) if (!observation.stderr.includes(needle)) mismatches.push(`native stderr missing: ${needle}`);
+  if (expect.kind) {
+    try { if (JSON.parse(observation.stdout).kind !== expect.kind) mismatches.push(`expected native kind ${expect.kind}`); }
+    catch { mismatches.push('native stdout is not JSON'); }
+  }
+  return mismatches;
 }
 
 function main() {
-	const executable = resolveExe();
-	if (!executable) {
-		console.error(
-			JSON.stringify({
-				ok: false,
-				error: 'legion.exe not found; set LEGION_EXE or run release:build:win:unsigned',
-			}),
-		);
-		process.exit(1);
-	}
-	const index = JSON.parse(readFileSync(FIXTURE_INDEX, 'utf8'));
-	mkdirSync(OUT_DIR, { recursive: true });
-	const results = [];
-	for (const fixture of index.fixtures) {
-		if (fixture.rust === false) continue;
-		const cwd = resolve(ROOT, fixture.cwd ?? '.');
-		const observation = runExe(executable, fixture.argv, { cwd, env: fixture.env ?? {} });
-		const record = {
-			id: fixture.id,
-			executable,
-			exitCode: observation.exitCode,
-			stdoutSha256: sha256(observation.stdout),
-			stderrSha256: sha256(observation.stderr),
-			stdout: observation.stdout,
-			stderr: observation.stderr,
-			mismatch: null,
-		};
-		const expect = fixture.rustExpect ?? fixture.expect ?? {};
-		const captureOnly = fixture.captureOnly || fixture.rustExpect?.captureOnly;
-		if (!captureOnly && expect.exitCode !== undefined) {
-			if (record.exitCode !== expect.exitCode) {
-				record.mismatch = `expected exit ${expect.exitCode}, got ${record.exitCode}`;
-			}
-		}
-		if (!captureOnly && expect.kind) {
-			try {
-				const json = JSON.parse(record.stdout);
-				if (json.kind !== expect.kind) {
-					record.mismatch = `expected kind ${expect.kind}, got ${json.kind}`;
-				}
-			} catch {
-				record.mismatch = 'stdout is not JSON';
-			}
-		}
-		if (!captureOnly && expect.stdoutIncludes) {
-			for (const needle of expect.stdoutIncludes) {
-				if (!record.stdout.includes(needle)) record.mismatch = `stdout missing: ${needle}`;
-			}
-		}
-		if (!captureOnly && expect.stderrIncludes) {
-			for (const needle of expect.stderrIncludes) {
-				if (!record.stderr.includes(needle)) record.mismatch = `stderr missing: ${needle}`;
-			}
-		}
-		writeFileSync(resolve(OUT_DIR, `${fixture.id}.json`), `${JSON.stringify(record, null, 2)}\n`);
-		results.push({ id: fixture.id, exitCode: record.exitCode, mismatch: record.mismatch });
-	}
-	const summary = {
-		schemaVersion: 1,
-		kind: 'legion-rust-characterization',
-		generatedAt: new Date().toISOString(),
-		executable,
-		total: results.length,
-		failed: results.filter((item) => item.mismatch).length,
-		results,
-	};
-	writeFileSync(resolve(OUT_DIR, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
-	console.log(JSON.stringify(summary, null, 2));
-	if (summary.failed) process.exit(1);
+  const diagnostic = process.argv.includes('--diagnostic');
+  const manifest = loadManifest(FIXTURE_INDEX);
+  const source = sourceIdentity(ROOT);
+  const executable = developerExecutablePath(process.env);
+  const provenance = diagnostic ? { mode: 'diagnostic-developer', executable, evidenceRole: 'diagnostic-developer-capture' } : validateExecutableProvenance({
+    executable,
+    evidencePath: resolveEvidencePath(process.env, ROOT),
+    manifestSha256: manifest.manifestSha256,
+    source,
+    mode: 'current-tree',
+  });
+  mkdirSync(OUT_DIR, { recursive: true });
+  const results = [];
+  for (const { fixture, id, fixtureSha256 } of manifest.rows) {
+    validateNormalization(fixture);
+    const baseline = readBaseline(id);
+    const sandbox = createSandbox(ROOT, fixture);
+    try {
+      const before = snapshotSandbox(sandbox);
+      const observation = runBounded(executable, fixture.argv, {
+        cwd: sandbox.cwd,
+        env: sandbox.env,
+        timeoutMs: fixture.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        maxOutputBytes: fixture.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES,
+      });
+      const after = snapshotSandbox(sandbox);
+      const record = {
+        schemaVersion: 2,
+        kind: 'legion-rust-characterization-row',
+        id,
+        fixtureSha256,
+        manifestSha256: manifest.manifestSha256,
+        source,
+        executable: provenance.executable ?? executable,
+        executableSha256: diagnostic ? sha256(readFileSync(executable)) : provenance.executableSha256,
+        argv: fixture.argv,
+        cwd: fixture.cwd ?? '.',
+        sandboxRoots: sandbox.tempRoots,
+        exitCode: observation.exitCode,
+        stdoutSha256: sha256(observation.stdout),
+        stderrSha256: sha256(observation.stderr),
+        stdout: observation.stdout,
+        stderr: observation.stderr,
+        error: observation.error,
+        signal: observation.signal,
+        timedOut: observation.timedOut,
+        outputLimitExceeded: observation.outputLimitExceeded,
+        filesystem: { before: before.value, after: after.value, beforeSha256: before.sha256, afterSha256: after.sha256 },
+        mismatch: [],
+        status: 'blocked',
+      };
+      Object.assign(record, evaluateParityRow({ fixture, record, baseline,
+        manifestSha256: manifest.manifestSha256, fixtureSha256,
+        tempRoots: [...sandbox.tempRoots, ...(baseline?.sandboxRoots ?? [])] }));
+      if (record.status === 'matched' || record.status === 'mismatched') {
+        record.mismatch.push(...semanticOracle(fixture, observation));
+        record.status = record.mismatch.length ? 'mismatched' : 'matched';
+      }
+      writeFileSync(resolve(OUT_DIR, `${id}.json`), `${JSON.stringify(record, null, 2)}\n`);
+      results.push({ id, fixtureSha256, status: record.status, comparison: record.comparison, mismatch: record.mismatch });
+    } finally { removeSandbox(sandbox); }
+  }
+  const summary = {
+    schemaVersion: 2,
+    kind: 'legion-rust-characterization',
+    evidenceRole: diagnostic ? 'diagnostic-developer-capture' : 'current-tree-qualifying-parity',
+    qualifying: false,
+    manifest: { sha256: manifest.manifestSha256, rowCount: manifest.rowCount, rowIds: manifest.rowIds },
+    source,
+    executable,
+    provenance,
+    ...summarizeResults(results, { rowIds: manifest.rowIds, rowCount: manifest.rowCount }),
+  };
+  summary.qualifying = !diagnostic && summary.qualifying;
+  writeFileSync(resolve(OUT_DIR, 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
+  console.log(JSON.stringify(summary, null, 2));
+  if (!diagnostic && !summary.qualifying) process.exitCode = 1;
 }
 
-main();
+if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) main();

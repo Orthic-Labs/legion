@@ -189,11 +189,13 @@ test('distribution channels keep package managers optional and bind direct boots
 test('native skill assembly retains runtime helpers and excludes generated Python cache', () => {
   const assembly = readFile(new URL('../scripts/assemble-native-release.mjs', import.meta.url), 'utf8');
   assert.match(assembly, /function copySkillTree/);
-  assert.match(assembly, /segments\.includes\("__pycache__"\)/);
+  assert.match(assembly, /\["__pycache__", "\.audit", "\.cache", "\.workbuddy-ai"\]\.includes\(segment\)/);
   assert.match(assembly, /endsWith\("\.pyc"\)/);
   assert.match(assembly, /assemblePortableCore/);
   assert.match(assembly, /CLIENT_PROJECTION_KINDS/);
   assert.match(assembly, /validatePortableCore/);
+  assert.match(assembly, /pluginRoot, "share", "legion", "src", "registry", "host-projection\.json"/);
+  assert.match(assembly, /copyFileSync\(join\(repositoryRoot, "src", "registry", "host-projection\.json"\), installedHostProjection\)/);
   assert.doesNotMatch(assembly, /LEGACY_RUNTIME_EXTENSIONS/);
 });
 

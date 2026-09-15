@@ -2,6 +2,13 @@
   "schemaVersion": 1,
   "rules": [
     {
+      "path": "engine/bins/legion/src/cli.rs",
+      "patterns": ["developer-workspace"],
+      "occurrences": {"developer-workspace": 3},
+      "class": "compatibility-output",
+      "reason": "native unknown-option output preserves frozen Node CLI stack text for exact cutover parity"
+    },
+    {
       "path": "docs/dispatch/2026-08-31-foundation-legion-a.json",
       "patterns": ["developer-workspace"],
       "occurrences": {"developer-workspace": 3},

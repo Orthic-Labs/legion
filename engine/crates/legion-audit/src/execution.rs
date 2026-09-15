@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use legion_contracts::{ProviderId, ProviderResult, ProviderStatus};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     error::AuditError,
@@ -10,12 +11,48 @@ use crate::{
     plan::{AuditProvider, FrozenPlan},
 };
 
+#[async_trait::async_trait]
 pub trait ProviderExecutor: Send + Sync {
     fn execute(
         &self,
         provider: &AuditProvider,
         inventory: &InventoryEnvelope,
     ) -> Result<ProviderResult, AuditError>;
+
+    /// Async seam for host capabilities. Existing native implementations keep
+    /// their synchronous implementation; only injected external tools cross
+    /// this boundary.
+    async fn execute_async(
+        &self,
+        plan: &FrozenPlan,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+        _cancellation: CancellationToken,
+    ) -> Result<ProviderResult, AuditError> {
+        self.execute_bound(plan, provider, inventory)
+    }
+
+    /// Execute with the frozen plan identity available to providers that cross
+    /// a host boundary. Existing in-process providers keep their original
+    /// implementation through the default method; host providers override it
+    /// so a receipt cannot be detached from the plan that admitted it.
+    fn execute_bound(
+        &self,
+        plan: &FrozenPlan,
+        provider: &AuditProvider,
+        inventory: &InventoryEnvelope,
+    ) -> Result<ProviderResult, AuditError> {
+        let _ = plan;
+        // Artifact and generic executors do not authenticate host receipts.
+        // A claimed complete result from one of them must not bypass the
+        // explicit plan-bound host implementation.
+        if provider.kind == crate::plan::ProviderKind::HostService {
+            return Err(AuditError::Provider(
+                "host-service provider requires an authenticated plan-bound executor".into(),
+            ));
+        }
+        self.execute(provider, inventory)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -45,14 +82,19 @@ fn provider_id(value: &str) -> Result<ProviderId, AuditError> {
 }
 
 pub(crate) fn source_diagnostic_allowed(provider: &AuditProvider) -> bool {
-    matches!(provider.kind,
-            crate::plan::ProviderKind::BuiltIn | crate::plan::ProviderKind::RustAlgorithm)
-            && provider.configuration.get("execution")
-                .and_then(|v| v.get("resourceClaims"))
-                .and_then(Value::as_object)
-                .is_none_or(|claims| claims.iter().all(|(key, value)|
-                    matches!(key.as_str(), "cpu" | "memoryMb" | "io")
-                    || value.as_u64() == Some(0)))
+    matches!(
+        provider.kind,
+        crate::plan::ProviderKind::BuiltIn | crate::plan::ProviderKind::RustAlgorithm
+    ) && provider
+        .configuration
+        .get("execution")
+        .and_then(|v| v.get("resourceClaims"))
+        .and_then(Value::as_object)
+        .is_none_or(|claims| {
+            claims.iter().all(|(key, value)| {
+                matches!(key.as_str(), "cpu" | "memoryMb" | "io") || value.as_u64() == Some(0)
+            })
+        })
 }
 
 pub fn execute(
@@ -120,7 +162,7 @@ pub fn execute(
             failed.insert(provider.id.clone());
             failed_execution(provider, gap, "skipped-after-dependency-failure", true)?
         } else {
-            match executor.execute(provider, inventory) {
+            match executor.execute_bound(plan, provider, inventory) {
                 Ok(result) => {
                     let denominator =
                         provider_denominator(provider, inventory, &candidate_denominators)?;
@@ -167,6 +209,158 @@ pub fn execute(
                         provider: provider.id.clone(),
                         result,
                         skipped: false,
+                    }
+                }
+                Err(error) => {
+                    failed.insert(provider.id.clone());
+                    let gap = error.to_string();
+                    gaps.push(gap.clone());
+                    failed_execution(provider, gap, "provider-error", false)?
+                }
+            }
+        };
+        results.push(execution);
+        if provider.benchmark_required_for_clean_claim
+            && (provider.benchmark_status != "qualified" || provider.qualification_digest.is_none())
+        {
+            gaps.push(format!("provider-unqualified:{}", provider.id));
+        }
+    }
+    gaps.sort();
+    gaps.dedup();
+    lenses_ran.sort();
+    lenses_ran.dedup();
+    if lenses_ran != selected_lenses {
+        gaps.push("selected reasoning lenses did not complete".into());
+    }
+    gaps.sort();
+    gaps.dedup();
+    Ok(ExecutionReport {
+        plan_digest: plan.digest().into(),
+        plan_signature: plan.signature().map(ToOwned::to_owned),
+        generation: inventory.generation.clone(),
+        inventory_digest: inventory.digest.clone(),
+        planned_providers,
+        results,
+        selected_lenses,
+        lenses_ran,
+        gaps,
+    })
+}
+
+pub async fn execute_with_cancellation(
+    plan: &FrozenPlan,
+    inventory: &InventoryEnvelope,
+    executor: &dyn ProviderExecutor,
+    cancellation: CancellationToken,
+) -> Result<ExecutionReport, AuditError> {
+    // Keep validation/report assembly identical to legacy synchronous path;
+    // host execution is selected through the async executor seam.
+    inventory.validate()?;
+    if inventory.repository_id != plan.plan().repository_id
+        || inventory.generation != plan.plan().inventory_generation
+        || inventory.digest != plan.plan().inventory_digest
+    {
+        return Err(AuditError::SourceDrift(
+            "inventory no longer matches frozen plan".into(),
+        ));
+    }
+    let mut completed = BTreeSet::new();
+    let mut failed = BTreeSet::new();
+    let mut results = Vec::new();
+    let mut gaps = Vec::new();
+    if plan.signature().is_none() {
+        gaps.push("unsigned-plan".into());
+    }
+    let mut selected_lenses = plan
+        .providers()
+        .iter()
+        .flat_map(|p| p.lens_ids.iter().cloned())
+        .collect::<Vec<_>>();
+    selected_lenses.sort();
+    selected_lenses.dedup();
+    let mut lenses_ran = Vec::new();
+    let planned_providers = plan
+        .providers()
+        .iter()
+        .map(|p| p.id.clone())
+        .collect::<Vec<_>>();
+    let candidate_denominators = plan
+        .providers()
+        .iter()
+        .filter(|p| p.role == "candidate-generator")
+        .map(|p| {
+            let selector = p.configuration.get("selector").ok_or_else(|| {
+                AuditError::Invalid(format!("provider {} is missing selector", p.id))
+            })?;
+            inventory.denominator_entries(selector)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    for provider in plan.providers() {
+        let blocked = provider
+            .dependencies
+            .iter()
+            .any(|d| !completed.contains(d) || failed.contains(d));
+        let source_only = source_diagnostic_allowed(provider);
+        let execution = if plan.signature().is_none() && !source_only {
+            let gap = format!("unsigned-plan-provider-not-executed:{}", provider.id);
+            gaps.push(gap.clone());
+            failed.insert(provider.id.clone());
+            failed_execution(provider, gap, "unsigned-source-diagnostic-only", true)?
+        } else if blocked {
+            let gap = format!("dependency-failed:{}", provider.id);
+            gaps.push(gap.clone());
+            failed.insert(provider.id.clone());
+            failed_execution(provider, gap, "skipped-after-dependency-failure", true)?
+        } else {
+            match executor
+                .execute_async(plan, provider, inventory, cancellation.clone())
+                .await
+            {
+                Ok(result) => {
+                    let denominator =
+                        provider_denominator(provider, inventory, &candidate_denominators)?;
+                    let result_error = result
+                        .validate()
+                        .err()
+                        .map(|e| e.to_string())
+                        .or_else(|| {
+                            (result.provider.to_string() != provider.id)
+                                .then(|| "provider result identity mismatch".into())
+                        })
+                        .or_else(|| {
+                            (result.required != provider.required)
+                                .then(|| "provider result required flag mismatch".into())
+                        })
+                        .or_else(|| {
+                            (!result.applicable)
+                                .then(|| "selected provider reported not applicable".into())
+                        })
+                        .or_else(|| validate_result(provider, &result, &denominator).err());
+                    if let Some(error) = result_error {
+                        let gap = format!("invalid-provider-result:{}:{error}", provider.id);
+                        gaps.push(gap.clone());
+                        failed.insert(provider.id.clone());
+                        failed_execution(provider, gap, "invalid-provider-result", false)?
+                    } else {
+                        if result.complete
+                            && matches!(
+                                result.status,
+                                ProviderStatus::Ok | ProviderStatus::Complete
+                            )
+                        {
+                            completed.insert(provider.id.clone());
+                            lenses_ran.extend(provider.lens_ids.iter().cloned());
+                        } else {
+                            failed.insert(provider.id.clone());
+                            gaps.push(format!("provider-incomplete:{}", provider.id));
+                            gaps.extend(result.coverage_gaps.iter().cloned());
+                        }
+                        ProviderExecution {
+                            provider: provider.id.clone(),
+                            result,
+                            skipped: false,
+                        }
                     }
                 }
                 Err(error) => {
@@ -513,8 +707,8 @@ fn validate_external_receipt(
             return Err("completed external receipt lacks process termination evidence".into());
         }
     }
-    if result.complete != receipt_complete {
-        return Err("external provider result and receipt completion state disagree".into());
+    if result.complete && !receipt_complete {
+        return Err("external provider cannot complete from an incomplete receipt".into());
     }
     Ok(())
 }

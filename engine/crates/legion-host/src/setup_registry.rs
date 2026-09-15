@@ -4424,6 +4424,16 @@ mod tests {
             install_root: Some(install_root.clone()),
             ..input.clone()
         };
+        // The shared fixture pre-seeds an unmarked `legion` MCP entry, which
+        // the ownership contract refuses during registration writes. This
+        // test exercises LocalCache ledger equivalence, not entry adoption,
+        // so start from a clean host config and let repair write a fresh
+        // owned registration.
+        fs::write(
+            root.0.join("state").join("host-home").join(".claude.json"),
+            b"{}",
+        )
+        .unwrap();
         repair_client_projection(&ledger_input).unwrap();
         let virtualized_input = ClientProjectionInput {
             executable: Some(virtualized_executable),

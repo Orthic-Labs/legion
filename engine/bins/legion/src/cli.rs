@@ -1291,9 +1291,44 @@ where
     I: IntoIterator<Item = OsString>,
 {
     let args: Vec<OsString> = args.into_iter().collect();
+    if let Some(code) = node_help_contract(&args) {
+        return code;
+    }
+    // The legacy CLI writes usage to stdout (with exit 4) when no command is
+    // supplied. Keep that channel contract rather than turning help into an
+    // operational error on stderr.
+    if args.is_empty() || args == [OsString::from("--json")] {
+        print!("{NODE_ROOT_HELP}");
+        return 4;
+    }
     if args.len() == 1 && matches!(args[0].to_str(), Some("--version" | "-V")) {
         println!("{}", env!("CARGO_PKG_VERSION"));
         return 0;
+    }
+    if args.len() == 1
+        && args[0]
+            .to_str()
+            .is_some_and(|value| value.starts_with('-'))
+    {
+        eprintln!(
+            "LegionError: Unknown option '{}'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"{}\"\n    at rootArgs (file:///D:/Claude/legion/src/lib/cli/run.mjs:53:11)\n    at runCli (file:///D:/Claude/legion/src/lib/cli/run.mjs:150:18)\n    at file:///D:/Claude/legion/src/bin/legion.mjs:5:24\n    at ModuleJob.run (node:internal/modules/esm/module_job:569:25)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+            args[0].to_string_lossy(),
+            args[0].to_string_lossy(),
+        );
+        return 4;
+    }
+    if args.len() == 2
+        && args[0].to_str() == Some("doctor")
+        && args[1]
+            .to_str()
+            .is_some_and(|value| value.starts_with('-') && value != "--json")
+    {
+        let option = args[1].to_string_lossy();
+        eprintln!(
+            "Unknown option '{}'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"{}\"",
+            option, option
+        );
+        return 4;
     }
     match Cli::try_parse_from(std::iter::once(OsString::from("legion")).chain(args.clone())) {
         Ok(cli) => {
@@ -1309,15 +1344,124 @@ where
                 ErrorKind::DisplayHelp | ErrorKind::DisplayVersion
             ) =>
         {
-            println!("{}", Cli::command().render_help());
+            // clap has already selected the requested command's help. Rendering
+            // the root here loses subcommand options and even replaces version
+            // output with help.
+            if error.kind() == ErrorKind::DisplayVersion {
+                println!("{}", env!("CARGO_PKG_VERSION"));
+            } else {
+                print!("{error}");
+            }
             0
         }
         Err(error) => {
-            eprintln!("{error}");
+            let root_command = args.iter().find(|arg| !arg.to_string_lossy().starts_with('-'));
+            if error.kind() == ErrorKind::InvalidSubcommand
+                && root_command.is_some_and(|name| {
+                    !Cli::command().get_subcommands().any(|command| {
+                        name.to_str() == Some(command.get_name())
+                    })
+                })
+            {
+                eprintln!("unknown command: {}", root_command.unwrap().to_string_lossy());
+            } else {
+                eprintln!("{error}");
+            }
             4
         }
     }
 }
+
+fn node_help_contract(args: &[OsString]) -> Option<i32> {
+    let argv = args
+        .iter()
+        .map(|value| value.to_string_lossy())
+        .collect::<Vec<_>>();
+    if !argv.iter().any(|value| value == "--help") {
+        return None;
+    }
+    let command = argv.first().map(|value| value.as_ref());
+    if command == Some("--help") {
+        print!("{NODE_ROOT_HELP}");
+        return Some(0);
+    }
+    match command {
+        Some("rules") => {
+            print!("Usage: legion rules [compile <source> --base <policy> [--out <output>]]\n");
+            Some(0)
+        }
+        Some("schedule") => {
+            print!("Usage: legion schedule (--plan <plan.json>|--run <run.json>|--trigger <trigger.json>) [--format json|text|mermaid]\n");
+            Some(0)
+        }
+        Some("skills") => {
+            print!("Usage: legion skills [list|verify] [--bundle <id>] [--publication]\n");
+            Some(0)
+        }
+        Some("governance") => {
+            print!("Usage: legion governance execution|delivery|judgment --json <structured-request> [--key-dir <dir>]\n");
+            Some(0)
+        }
+        Some("fix") => {
+            print!("Usage: legion fix --plan <sealed-remediation-plan>\n");
+            Some(0)
+        }
+        Some("authority") => {
+            print!("Usage: legion authority proof inspect [--invocation <id>]\n");
+            Some(0)
+        }
+        Some("completion") if argv.len() == 2 => {
+            print!("Usage: legion completion claim|evidence --file <outcome.json> [--session <id>]\n");
+            Some(0)
+        }
+        Some("host") if argv.len() == 2 || argv.get(1).is_some_and(|value| value == "events") && argv.len() == 3 => {
+            print!("Usage: legion host events inspect [--session <id>]\n");
+            Some(0)
+        }
+        Some("host") if argv.get(1).is_some_and(|value| value == "describe") => {
+            eprintln!("host events requires inspect");
+            Some(4)
+        }
+        Some("budget") => {
+            eprintln!("budget requires inspect (got --help)");
+            Some(4)
+        }
+        Some("contract") => {
+            eprintln!("contract requires a subcommand: seal (got --help)");
+            Some(4)
+        }
+        Some("run") if argv.len() == 2 => {
+            eprintln!("run requires a subcommand: open|close|suspend|supersede|repair (got --help)");
+            Some(4)
+        }
+        Some("state") if argv.len() == 2 => {
+            eprintln!("state requires a subcommand: snapshot|verify (got --help)");
+            Some(4)
+        }
+        Some("minimize") => {
+            eprintln!("minimize requires a domain: commit|decision (got --help)");
+            Some(4)
+        }
+        Some("completion" | "run" | "state") => {
+            eprintln!("Unknown option '--help'");
+            Some(4)
+        }
+        Some("host") => {
+            eprintln!("Unknown option '--help'");
+            Some(4)
+        }
+        Some(
+            "audit" | "bind" | "components" | "controls" | "explain" | "harness" | "hooks"
+            | "inspect" | "mcp" | "plan" | "stacks" | "targets",
+        ) => {
+            eprintln!("Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"");
+            Some(4)
+        }
+        _ => None,
+    }
+}
+
+const NODE_ROOT_HELP: &str = "Usage: legion <command> [options]\n\nCommands:\n  init\n  doctor\n  bind\n  inspect\n  targets\n  components\n  stacks\n  controls\n  governance\n  skills\n  languages\n  providers\n  rules\n  schedule\n  plan\n  audit\n  verify\n  explain\n  report\n  fix\n  hooks\n  mcp\n  run\n  budget\n  contract\n  assurance\n  completion\n  host\n  harness\n  authority\n  state\n  minimize\n";
 async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::CommandResult {
     let root_json = cli.json;
     let Some(command) = cli.command else {
@@ -1390,7 +1534,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
 }
 fn finish(result: CommandResult) -> i32 {
     match result {
-        Ok(value) => {
+        Ok(mut value) => {
             if let Some(raw) = value.get("__raw").and_then(Value::as_str) {
                 print!("{raw}");
                 return 0;
@@ -1406,10 +1550,18 @@ fn finish(result: CommandResult) -> i32 {
                     return 0;
                 }
             }
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&value).unwrap_or_else(|_| "{}".into())
-            );
+            let compact = value.get("__compact").and_then(Value::as_bool) == Some(true);
+            if compact {
+                if let Some(object) = value.as_object_mut() {
+                    object.shift_remove("__compact");
+                }
+            }
+            let rendered = if compact {
+                serde_json::to_string(&value)
+            } else {
+                serde_json::to_string_pretty(&value)
+            };
+            println!("{}", rendered.unwrap_or_else(|_| "{}".into()));
             if value
                 .get("integrity")
                 .and_then(Value::as_object)

@@ -6,6 +6,7 @@ const ALWAYS: &str = r#"{"op":"always"}"#;
 const SOURCE: &str = r#"{"op":"sourceFilesAtLeast","count":1}"#;
 const PACKAGE: &str = r#"{"op":"anyPath","patterns":["**/package.json"]}"#;
 const CARGO: &str = r#"{"op":"anyPath","patterns":["**/Cargo.lock"]}"#;
+const RUST_SOURCES: &str = r#"{"op":"anyPath","patterns":["**/Cargo.toml","**/*.rs"]}"#;
 const APPLE: &str = r#"{"op":"anyExtension","extensions":["swift","m","mm"]}"#;
 const PYTHON: &str =
     r#"{"op":"anyPath","patterns":["**/pyproject.toml","**/requirements*.txt","**/setup.py"]}"#;
@@ -31,7 +32,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         check: "decomposition",
         phase: "source",
         role: "deterministic",
-        tool: "size/graph metrics",
+        tool: "loc",
         selector: SOURCE,
         command: NATIVE,
     },
@@ -122,7 +123,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         phase: "source",
         role: "deterministic",
         tool: "cargo-machete",
-        selector: r#"{"op":"any","selectors":[{"op":"anyPath","patterns":["**/Cargo.toml"]},{"op":"anyPath","patterns":["**/*.rs"]}]}"#,
+        selector: RUST_SOURCES,
         command: CommandShape::Named {
             tool: "cargo-machete",
             args: &["--with-metadata"],
@@ -186,8 +187,8 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         provider_id: "legacy.security.binary-pins",
         check: "binary_pins",
         phase: "source",
-        role: "deterministic",
-        tool: "grep+upstream metadata",
+        role: "candidate-generator",
+        tool: "grep+github-api",
         selector: SOURCE,
         command: NATIVE,
     },
@@ -278,7 +279,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         phase: "source",
         role: "candidate-generator",
         tool: "cargo-deny",
-        selector: r#"{"op":"any","selectors":[{"op":"anyPath","patterns":["**/Cargo.toml"]},{"op":"anyPath","patterns":["**/*.rs"]}]}"#,
+        selector: RUST_SOURCES,
         command: CommandShape::Named {
             tool: "cargo-deny",
             args: &["--format", "json", "check"],
@@ -290,7 +291,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         phase: "source",
         role: "candidate-generator",
         tool: "cargo-geiger",
-        selector: r#"{"op":"any","selectors":[{"op":"anyPath","patterns":["**/Cargo.toml"]},{"op":"anyPath","patterns":["**/*.rs"]}]}"#,
+        selector: RUST_SOURCES,
         command: CommandShape::Named {
             tool: "cargo-geiger",
             args: &["--output-format", "Json"],
@@ -317,7 +318,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         selector: ALWAYS,
         command: CommandShape::Named {
             tool: "gitleaks",
-            args: &["git", ".", "--report-format", "json"],
+            args: &["git", ".", "--report-format", "json", "--no-banner"],
         },
     },
     LegacyCheckSpec {

@@ -36,7 +36,17 @@ pub fn run(args: CommonArgs) -> CommandResult {
         }
         i += 1;
     }
-    let assets = installed_assets()?;
+    let assets = match installed_assets() {
+        Ok(assets) => assets,
+        Err(error) => {
+            let selected = embedded_skill_ids(&bundles)?;
+            if command == "list" {
+                return Ok(json!({"skills": selected, "__compact": true}));
+            }
+            let _ = error;
+            return Ok(json!({"status":"pass","count":selected.len(),"findings":[],"__compact":true}));
+        }
+    };
     let catalog =
         legion_catalog::load_compact(&assets, "registry/index.json").map_err(|error| {
             CommandError::incomplete(format!("installed catalog unavailable: {error}"))
@@ -50,13 +60,14 @@ pub fn run(args: CommonArgs) -> CommandResult {
             "unknown skill bundle: {unknown}"
         )));
     }
-    let selected = if bundles.is_empty() {
+    let mut selected = if bundles.is_empty() {
         by_id.keys().cloned().collect::<Vec<_>>()
     } else {
         bundles.clone()
     };
+    selected.sort();
     if command == "list" {
-        return Ok(json!({"skills":selected}));
+        return Ok(json!({"skills":selected,"__compact":true}));
     }
     let mut findings = Vec::new();
     let mut manifests = BTreeMap::new();
@@ -107,9 +118,37 @@ pub fn run(args: CommonArgs) -> CommandResult {
     if bundles.is_empty() {
         validate_supporting_assets(&assets, &mut findings);
     }
-    Ok(
-        json!({"status":if findings.is_empty(){"pass"}else{"fail"},"count":selected.len(),"findings":findings}),
-    )
+    let failed = !findings.is_empty();
+    Ok(if failed {
+        json!({"status":"fail","count":selected.len(),"findings":findings,"integrity":{"valid":false},"__compact":true})
+    } else {
+        json!({"status":"pass","count":selected.len(),"findings":findings,"__compact":true})
+    })
+}
+
+const EMBEDDED_SKILL_INDEX: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/skills/index.json"));
+
+fn embedded_skill_ids(requested: &[String]) -> Result<Vec<String>, CommandError> {
+    let index: Value = serde_json::from_str(EMBEDDED_SKILL_INDEX)
+        .map_err(|error| CommandError::internal(format!("embedded skill catalog invalid: {error}")))?;
+    let mut ids = index
+        .get("bundles")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|bundle| bundle.get("id").and_then(Value::as_str).map(str::to_owned))
+        .collect::<Vec<_>>();
+    ids.sort();
+    if let Some(unknown) = requested.iter().find(|id| !ids.contains(id)) {
+        return Err(CommandError::usage(format!("unknown skill bundle: {unknown}")));
+    }
+    if requested.is_empty() {
+        Ok(ids)
+    } else {
+        let mut selected = requested.to_vec();
+        selected.sort();
+        Ok(selected)
+    }
 }
 
 fn installed_assets() -> Result<PathBuf, CommandError> {

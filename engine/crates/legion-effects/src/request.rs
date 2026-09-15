@@ -51,6 +51,7 @@ pub struct ExternalToolRequest {
     pub origin: ToolOrigin,
     pub shell: bool,
     pub expected_digest: Option<String>,
+    pub accepted_exit_codes: BTreeSet<i32>,
     pub version_args: Vec<String>,
     pub version_requirement: Option<String>,
     pub environment: BTreeMap<String, String>,
@@ -79,6 +80,7 @@ impl Default for ExternalToolRequest {
             origin: ToolOrigin::TargetProject,
             shell: false,
             expected_digest: None,
+            accepted_exit_codes: [0].into_iter().collect(),
             version_args: vec!["--version".into()],
             version_requirement: None,
             environment: BTreeMap::new(),
@@ -118,6 +120,11 @@ impl ExternalToolRequest {
         if self.shell {
             return Err(EffectError::UnauthorizedEffect(
                 "shell execution is forbidden".into(),
+            ));
+        }
+        if self.accepted_exit_codes.is_empty() {
+            return Err(EffectError::InvalidRequest(
+                "accepted_exit_codes must not be empty".into(),
             ));
         }
         if self

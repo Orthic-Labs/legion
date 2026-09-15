@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Validate static relative ESM imports against npm's own dry-run package file list.
+// Validate static relative ESM imports against pnpm's dry-run package file list.
 import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, posix, resolve } from 'node:path';
@@ -23,16 +23,16 @@ export function packedFilesFromNpmPackPayload(payload) {
 }
 
 export function npmPackDryRun(root = ROOT, { spawn = spawnSync } = {}) {
-  const command = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const result = spawn(command, ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+  const pnpmEntry = process.env.npm_execpath;
+  if (!pnpmEntry) throw new Error('pnpm runtime path is unavailable; run through pnpm');
+  const result = spawn(process.execPath, [pnpmEntry, 'pack', '--dry-run', '--json'], {
     cwd: root,
     encoding: 'utf8',
     windowsHide: true,
-    shell: process.platform === 'win32',
   });
   if (result.error || result.status !== 0) {
     const detail = String(result.error?.message ?? result.stderr ?? result.stdout ?? 'unknown npm pack failure').trim();
-    throw new Error(`npm pack --dry-run failed: ${detail}`);
+    throw new Error(`pnpm pack --dry-run failed: ${detail}`);
   }
   return packedFilesFromNpmPackPayload(JSON.parse(result.stdout));
 }

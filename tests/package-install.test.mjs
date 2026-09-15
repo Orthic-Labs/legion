@@ -18,7 +18,7 @@ test('development workspace version agrees with native release and schema versio
 test('package files allowlist excludes internal state', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   const files = pkg.files;
-  assert.ok(files.includes('src/bin/'));
+  assert.ok(!files.includes('src/bin/'));
   assert.ok(files.includes('src/lib/'));
   assert.ok(files.includes('src/registry/'));
   assert.ok(files.includes('src/schemas/'));

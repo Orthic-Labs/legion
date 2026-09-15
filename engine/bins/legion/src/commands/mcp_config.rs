@@ -1,7 +1,6 @@
 use super::{CommandError, CommandResult};
 use crate::cli::CommonArgs;
 use serde_json::json;
-use std::path::PathBuf;
 
 pub fn run(args: CommonArgs) -> CommandResult {
     let argv = args
@@ -12,15 +11,11 @@ pub fn run(args: CommonArgs) -> CommandResult {
     let action = argv.first().map(String::as_str);
     match action {
         Some("print-config") => {
-            let executable = std::env::current_exe()
-                .map_err(super::io_error)?
-                .to_string_lossy()
-                .into_owned();
             Ok(json!({
                 "schemaVersion": 1,
                 "kind": "legion-mcp-config",
                 "transport": "stdio",
-                "command": executable,
+                "command": "legion",
                 "args": ["serve", "--stdio"],
                 "tools": ["legion_m1_status", "legion_m1_invoke"],
                 "implemented": true,
@@ -41,13 +36,10 @@ pub fn run(args: CommonArgs) -> CommandResult {
 }
 
 fn mcp_install_config() -> serde_json::Value {
-    let executable = std::env::current_exe()
-        .map(|path| path.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| PathBuf::from("legion").to_string_lossy().into_owned());
     json!({
         "mcpServers": {
             "legion": {
-                "command": executable,
+                "command": "legion",
                 "args": ["serve", "--stdio"]
             }
         }

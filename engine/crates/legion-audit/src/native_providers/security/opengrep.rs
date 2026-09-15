@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use super::common::{array, digest_json, exact_binding, files, string, u64_value, valid_digest};
+use super::common::{array, digest_json, exact_binding, string, valid_digest};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

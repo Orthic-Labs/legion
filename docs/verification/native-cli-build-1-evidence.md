@@ -18,7 +18,7 @@ Initial Luna returns were not accepted as build-ready. Static review found shall
 - No new product-local target exists; `engine/target` predates this work (last write 2026-08-26). Managed release route remains configured by `.rightkit-local-development.json`.
 - Pre-cutover `node scripts/check-native-cli-surface.mjs --phase=enforce` reports exactly 34 expected Node-runtime files. This is deletion inventory, not a build failure; deletion remains gated on first installed parity proof.
 - Audit executor trace found 29 production `runtime-script` providers still mapped to `src/providers/**.mjs`; native package ships none of those modules or Node runtime. Four disjoint Luna lanes now own code-language (10), architecture/framework (8), security/tooling (7), and legacy/governance (4) ports. Build remains blocked until native registry/executor integration covers all 29.
-- `rightkit cargo metadata --locked --offline --format-version 1 --no-deps --manifest-path D:\Claude\legion\engine\Cargo.toml`: pass via managed broker; this was metadata only, not a build. Build budget remains 0/3.
+- `rightkit cargo metadata --locked --offline --format-version 1 --no-deps --manifest-path <repository>\engine\Cargo.toml`: pass via managed broker; this was metadata only, not a build. Build budget remains 0/3.
 
 ## Intended outcome
 

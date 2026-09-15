@@ -6,7 +6,7 @@
 
 use std::{collections::BTreeMap, path::PathBuf};
 
-use legion_contracts::{FindingRef, ProviderStatus};
+use legion_contracts::ProviderStatus;
 use serde_json::{json, Value};
 
 use super::common::{denominator, digest_bytes, digest_text, finding, ProviderInput};

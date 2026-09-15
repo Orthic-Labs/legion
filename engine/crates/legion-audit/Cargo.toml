@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+async-trait.workspace = true
 legion-contracts = { path = "../legion-contracts" }
 legion-provider-sdk = { path = "../legion-provider-sdk" }
 legion-rules = { path = "../legion-rules" }
@@ -17,7 +18,18 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 walkdir.workspace = true
+tokio-util.workspace = true
+tokio.workspace = true
 
 [[test]]
 name = "native_audit"
 path = "../../tests/native_audit.rs"
+[[test]]
+name = "native_reasoning_cutover"
+path = "tests/native_reasoning_cutover.rs"
+[[test]]
+name = "native_legacy_external_tool"
+path = "tests/native_legacy_external_tool.rs"
+[[test]]
+name = "native_legacy_provider_equivalence"
+path = "tests/native_legacy_provider_equivalence.rs"

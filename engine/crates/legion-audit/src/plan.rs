@@ -99,7 +99,21 @@ impl AuditPlan {
                     // Every production runtime-script provider is now backed
                     // by the in-process native provider registry.
                     "runtime-script" => ProviderKind::RustAlgorithm,
-                    "legacy-check" => ProviderKind::TypedExternalProjectTool,
+                    "legacy-check" => {
+                        // Legacy is the public registry identity, not proof of
+                        // an external process. In-process Rust checks must not
+                        // fabricate process-start/cleanup receipts to pass the
+                        // external-tool validator.
+                        let contract = crate::native_providers::legacy_checks::spec(spec.id.as_str())
+                            .ok_or_else(|| AuditError::Invalid(format!("unknown legacy provider {}", spec.id)))?;
+                        if spec.runner.get("check").and_then(Value::as_str) != Some(contract.check) {
+                            return Err(AuditError::Invalid(format!("legacy provider {} check does not match frozen contract", spec.id)));
+                        }
+                        match contract.command {
+                            crate::native_providers::legacy_checks::CommandShape::Native { .. } => ProviderKind::RustAlgorithm,
+                            _ => ProviderKind::TypedExternalProjectTool,
+                        }
+                    },
                     "reasoning-contract" => ProviderKind::HostService,
                     "optional-blueprint-evidence" => ProviderKind::OptionalBlueprintEvidence,
                     "external-process" => ProviderKind::TypedExternalProjectTool,

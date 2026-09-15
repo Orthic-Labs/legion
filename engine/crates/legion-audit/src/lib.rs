@@ -14,7 +14,7 @@ pub mod native_providers;
 
 pub use dag::topological;
 pub use error::AuditError;
-pub use execution::{execute, ExecutionReport, ProviderExecution, ProviderExecutor};
+pub use execution::{execute, execute_with_cancellation, ExecutionReport, ProviderExecution, ProviderExecutor};
 pub use integrity::{canonical_bytes, digest, plan_digest, sign, verify};
 pub use inventory::{
     BlueprintInventorySource, BlueprintSource, FileBlueprintInventorySource,
