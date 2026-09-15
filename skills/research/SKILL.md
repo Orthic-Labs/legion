@@ -1,6 +1,6 @@
 ---
 name: research
-description: "Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow."
+description: "Find and synthesize external information for research deliverables, including market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, and NotebookLM research. Excludes local transcript inspection, repository reading, and simple supplied-source reading."
 kind: capability
 capabilityClass: domain
 discoverability: public
@@ -22,6 +22,11 @@ hostRequirements:
 ---
 
 # Research
+
+Use Research only when requested outcome requires finding or synthesizing external information.
+Reading local transcripts, inspecting repository files, or opening/summarizing a supplied source
+without external investigation stays direct. Medical and legal are private internal routes; India
+consumer-commission filing is a Legal workflow.
 
 PRIMARY_DELIVERABLE: Frozen `ResearchRoute` plus route-scoped evidence artifact.
 RESOURCE_BUDGET: hook-metered by route scale, never model-counted.

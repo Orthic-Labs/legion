@@ -59,8 +59,9 @@ route available Blueprint evidence into Architect.
 
 ## Depth follows intent
 
-A question gets an answer. A design request gets architecture. Only an implementation request
-gets an executable contract. Never force ceremony the request did not ask for.
+A question gets an answer. A design request gets architecture. An implementation request may
+proceed through ordinary ambient execution; it does not imply a contract. Use an executable
+contract only for explicit or locked governed work. Never force ceremony the request did not ask for.
 
 ## Boundaries
 

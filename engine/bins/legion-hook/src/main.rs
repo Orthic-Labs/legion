@@ -24,22 +24,14 @@ use protocol::{HookRequest, HookResponse};
 /// Embedded because installed customers may have no copy of the development
 /// workspace (or its Arcane files). This is response policy, not effect policy:
 /// the Guard only transports it on SessionStart; Arcane owns its meaning.
-const SESSION_START_CONTEXT: &str = r#"BRIEF: Lead with the answer; omit preamble, restatement, hedging, filler, and closing filler. Keep direct facts to 1–2 sentences and work recaps under 200 words. Use numbered one-line steps for work the operator must do. Cut filler, not technical precision, security, trust-boundary validation, data-loss prevention, accessibility basics, or explicit scope. Continue safe in-scope corrections until verified; leave one small runnable check for nontrivial logic. Report what changed and what was verified.
+const SESSION_START_CONTEXT: &str = r#"Complete requested outcome within explicit constraints. Preserve original objective through follow-ups; apply corrections to every affected pending action.
 
-MINIMIZE: Freeze verified state A, verified state B, and hard constraints. Prefer, in order: NOT_BUILD, REUSE, STDLIB, NATIVE, INSTALLED_DEP, ONE_LINE, then MIN_CUSTOM; select the first safe rung. Delete work that cannot change the decision or advance B. Declare every new file and dependency before mutation. Bind decisions and required commit receipts to the exact bytes they describe. A material correction invalidates downstream decisions. Never mistake structural completeness for semantic correctness.
+Use a skill only when its operation and inputs fit requested result. Proceed directly when no skill is needed. Procedures, tools, and worker suggestions cannot expand scope.
 
-ROUTING: Arcane decides cognitive processing shape: retrieve only necessary context, choose direct or deliberate cognition and any grounding, choose model versus deterministic execution, set proportional verification, then shape final response. Legion owns capability selection, work decomposition, orchestration, authority attachment, and execution semantics; deterministic Guard authorizes typed effects and records receipts. Default route is direct, no-model when exact machinery is sufficient, no authority, and proportional verification. Resolve ordinary reversible requested work directly; reserve escalation for genuinely unresolved meaning, ownership, acceptance, or operator-only input. Before ending, deliver verified work or one exact hard blocker; never end on a permission question, caveat, or future-work promise.
+Before repairing, inspect enough of the relevant production flow to identify cause and observable success. Choose the smallest complete repair and cheapest decisive checks. Repeat expensive work only when changed inputs or unresolved evidence justify it.
 
-FRESH DELEGATION CONTEXT: Start bounded subagents with fork_turns:"none" unless the user explicitly requests inherited history. Send current scope, exclusions, ownership, evidence pointers and expected result. Bound reads and tool output; split large assignments. On each return, integrate accepted work and reassign remaining ready work or finish it inline. A partial return does not close scope. Verify requested behavior on its actual platform, application mode and installed build; transport success does not prove user-visible completion. Ordinary delegation needs no contract or Oracle solely because it delegates.
-
-BOUNDED FALSIFICATION (CHALLENGE PASS): Before committing to a materially assumption-dependent conclusion, Arcane may invoke ONE evidence-directed self-challenge pass that tests the smallest set of decisive assumptions. It must end in KEEP/NARROW/REVISE and may not recursively review itself. This is evidence-seeking, never prose-seeking: generic self-reflection is excluded; inspect decisive evidence, or do not run.
-
-L0 DIRECT: no challenge pass (the default; most work). L1 SELF-CHALLENGE: the same working model performs one bounded falsification pass. L2 INDEPENDENT: a separate independent reviewer/challenger is used when independence itself is the value; Oracle is L2 only when independent completion assurance is actually required, never a generic second-opinion agent.
-
-L1 triggers: recommendation resting on assumed rather than inspected implementation; diagnosis from symptoms while decisive evidence is cheaply available; architectural recommendation materially dependent on checkable implementation assumptions (conceptual design work alone does not trigger); consequential extrapolation in the answer; about to contradict a canonical source; confidence materially dependent on 1-3 checkable assumptions; explicit user challenge ("are you sure?", "check that"); previous answer challenged or corrected.
-
-Hard bound: one pass, no recursion. Candidate → one falsification attempt → commit; never challenge the challenge. Keep this internal; do not announce the pass or turn it into ceremony."#;
-const SESSION_START_SYSTEM_MESSAGE: &str = "MINIMIZE:ON";
+Delegate only when coordination pays for itself. Contracts apply only to explicit or locked work. Independent review is optional unless specifically required. Report only requested states actually reached."#;
+const SESSION_START_SYSTEM_MESSAGE: &str = "LEGION:ACTIVE";
 const MAX_TRANSCRIPT_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_STOP_REOPENINGS: u64 = 3;
 
@@ -188,6 +180,9 @@ fn policy_unavailable_response(event_type: String) -> HookResponse {
 /// not own it. Completion verification is proportional: the typed requirement
 /// below determines whether a fresh Oracle receipt must be checked.
 fn stop_response(request: &HookRequest) -> HookResponse {
+    if stop_reentry_exhausted(&request.payload) {
+        return HookResponse::allowed(request.event_type.clone(), "stop re-entry cap reached");
+    }
     if let Err(error) = validate_stop_verification(&request.payload) {
         let (code, reason) = match error {
             StopVerificationError::Required => (
@@ -200,9 +195,6 @@ fn stop_response(request: &HookRequest) -> HookResponse {
             ),
         };
         return HookResponse::denied(request.event_type.clone(), code, reason, "strong");
-    }
-    if stop_reentry_exhausted(&request.payload) {
-        return HookResponse::allowed(request.event_type.clone(), "stop re-entry cap reached");
     }
     if let Some(final_text) = stop_transcript_text(&request.payload) {
         if let Some(reason) = stop_shape_reason(&final_text) {
@@ -3132,30 +3124,20 @@ mod tests {
             .and_then(|output| output.get("additionalContext"))
             .and_then(Value::as_str)
             .expect("SessionStart includes embedded additionalContext");
-        assert!(context.contains("BRIEF:"));
-        assert!(context.contains("MINIMIZE:"));
-        assert!(context.contains("ROUTING:"));
-        assert!(context.contains("BOUNDED FALSIFICATION (CHALLENGE PASS):"));
-        for level in ["L0 DIRECT", "L1 SELF-CHALLENGE", "L2 INDEPENDENT"] {
-            assert!(context.contains(level), "missing challenge level: {level}");
-        }
-        for trigger in [
-            "assumed rather than inspected implementation",
-            "decisive evidence is cheaply available",
-            "checkable implementation assumptions",
-            "consequential extrapolation",
-            "contradict a canonical source",
-            "1-3 checkable assumptions",
-            "explicit user challenge",
-            "previous answer challenged or corrected",
+        for rule in [
+            "Complete requested outcome within explicit constraints",
+            "Use a skill only when its operation and inputs fit requested result",
+            "Choose the smallest complete repair and cheapest decisive checks",
+            "Contracts apply only to explicit or locked work",
+            "Report only requested states actually reached",
         ] {
-            assert!(context.contains(trigger), "missing L1 trigger: {trigger}");
+            assert!(context.contains(rule), "missing session rule: {rule}");
         }
-        assert!(context.contains("KEEP/NARROW/REVISE"));
-        assert!(context.contains("one pass, no recursion"));
+        assert!(!context.contains("Declare every new file"));
+        assert!(!context.contains("BOUNDED FALSIFICATION"));
         assert_eq!(
             value.get("systemMessage").and_then(Value::as_str),
-            Some("MINIMIZE:ON")
+            Some("LEGION:ACTIVE")
         );
     }
 
@@ -3207,6 +3189,20 @@ mod tests {
         })));
         assert!(!missing.allowed);
         assert_eq!(missing.code.as_deref(), Some("ARC_VERIFICATION_REQUIRED"));
+    }
+
+    #[test]
+    fn stop_reentry_cap_precedes_optional_verification_repair() {
+        let response = dispatch(stop(json!({
+            "stopOrdinal": 3,
+            "verificationRequirement": {
+                "kind": "oracle-completion-validation",
+                "subjectDigest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "sourceRevision": "0123456789abcdef0123456789abcdef01234567",
+            },
+        })));
+        assert!(response.allowed, "re-entry cap must end optional verification repair loops");
+        assert_eq!(response.reason, "stop re-entry cap reached");
     }
 
     #[test]

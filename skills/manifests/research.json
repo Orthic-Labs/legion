@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/research",
-      "Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow."
+      "Find and synthesize external information for research deliverables, including market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, and NotebookLM research. Excludes local transcript inspection, repository reading, and simple supplied-source reading."
     ],
     "outputs": [
       "references/assurance/README.md",
@@ -75,12 +75,12 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://research/SKILL.md",
-      "digest": "sha256:11b002293aa6d5b3e292cb3a69d774f1aa9ec33ae1b290edb1889518d9173ff5"
+      "digest": "sha256:e4283dc0e22ae5b7b5d777c0231ed2554ade5fcbca351a5263e053568fb93564"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://research/agents/openai.yaml",
-      "digest": "sha256:eee288ea5bc89a40aeb93ecf98c2616c9b9f9d15e201b392943be077dee0057f"
+      "digest": "sha256:443840f7b2651476831a1508308be9f22926ee9e3b52b7e3dbf3c953ff5f2443"
     },
     {
       "path": "dependencies.json",
@@ -90,7 +90,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://research/evals/evals.json",
-      "digest": "sha256:2ed40225d6604db7122fbbcc9207debf8c441fd52e5d85659b421b7f4969b4bb"
+      "digest": "sha256:ad511b7e30a790e9ce9f11e2990c85134a90e2a9c636b1d29af4023254f233f9"
     },
     {
       "path": "references/assurance/README.md",

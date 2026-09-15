@@ -8,7 +8,9 @@
   ],
   "should_not_trigger": [
     {"id":"bp-not-target-design","prompt":"Design a new deployment topology and migration plan.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Blueprint may ground current state, but Architect owns target-state decision.","severity":"error","mode":"discovery"},
-    {"id":"bp-not-repo-health","prompt":"Run a full repository health and security audit.","expected_skill":"audit","forbidden_skills":["blueprint"],"expected_behavior":"Audit owns diagnosis; Blueprint is its context provider.","severity":"error","mode":"discovery"}
+    {"id":"bp-not-repo-health","prompt":"Run a full repository health and security audit.","expected_skill":"audit","forbidden_skills":["blueprint"],"expected_behavior":"Audit owns diagnosis; Blueprint is its context provider.","severity":"error","mode":"discovery"},
+    {"id":"bp-not-bounded-file-read","prompt":"Open package.json and tell me which test script runs.","expected_skill":null,"forbidden_skills":["blueprint"],"expected_behavior":"Performs ordinary bounded file inspection directly without graph maintenance.","severity":"error","mode":"discovery"},
+    {"id":"bp-not-transcript-reader","prompt":"Read this chat transcript and identify the unanswered question.","expected_skill":null,"forbidden_skills":["blueprint"],"expected_behavior":"Reads transcript directly; Blueprint is not a transcript reader.","severity":"error","mode":"discovery"}
   ],
   "output_quality": [
     {"id":"bp-fresh-bound","prompt":"Use blueprint to explain current request flow.","expected_skill":"blueprint","forbidden_skills":[],"expected_behavior":"Carries source revision, generation, freshness, manifest digest, evidence paths, and typed degradation.","severity":"error","mode":"static"}

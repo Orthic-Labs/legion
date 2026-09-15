@@ -70,10 +70,10 @@
       "severity": "error",
       "mode": "static",
       "assertions": [
-        { "type": "required_text", "value": "one state inspection" },
+        { "type": "required_text", "value": "one inspection" },
         { "type": "required_text", "value": "next acceptance outcome" },
         { "type": "required_text", "value": "Still running" },
-        { "type": "required_text", "value": "suppress unchanged-status notification" },
+        { "type": "required_text", "value": "suppress unchanged notification" },
         { "type": "forbidden_text", "value": "poll every" },
         { "type": "forbidden_text", "value": "full changed-file inventory" }
       ]
@@ -90,7 +90,7 @@
       "mode": "static",
       "assertions": [
         { "type": "required_text", "value": "paused" },
-        { "type": "required_text", "value": "do not reschedule" }
+        { "type": "required_text", "value": "Cancel continuation" }
       ]
     },
     {
@@ -131,8 +131,17 @@
       "mode": "static",
       "assertions": [
         { "type": "required_text", "value": "Non-divergent" },
-        { "type": "required_text", "value": "stop automatic continuation" }
+        { "type": "required_text", "value": "cancel divergent continuation" }
       ]
+    },
+    {
+      "id": "wake-scope-narrowing-preserves-authority",
+      "prompt": "Stop the installer work, but keep editing and testing the source fix already in scope. Check again later.",
+      "expected_skill": "wake",
+      "forbidden_skills": [],
+      "expected_behavior": "Cancels excluded installer work while preserving authorized source work, and reports only scheduler-observed timing.",
+      "severity": "error",
+      "mode": "static"
     }
   ],
   "compatibility": [

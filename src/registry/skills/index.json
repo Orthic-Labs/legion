@@ -234,7 +234,7 @@
     {
       "id": "blueprint",
       "name": "blueprint",
-      "description": "Build, query, or reconcile source-grounded current repository truth, architecture, flows, symbols, impact, freshness, & documentation. Use for /blueprint, repository onboarding, current-state maps, docs reconciliation, or grounding Audit/Architect.",
+      "description": "Build, query, or reconcile a repository graph or current-state map when that map is requested or required. Use for /blueprint, repository onboarding, architecture/flow maps, impact analysis, docs reconciliation, or grounding Audit/Architect. Excludes chat transcripts and ordinary bounded file inspection.",
       "kind": "capability",
       "capabilityClass": "context",
       "discoverability": "public",
@@ -400,7 +400,7 @@
     {
       "id": "debugger",
       "name": "debugger",
-      "description": "Diagnosis capability for reproducing failures, isolating evidence, forming disconfirmable hypotheses, establishing root cause, and selecting routine repairs. Do not use for preflight or completion-only verification.",
+      "description": "Diagnose and repair known failures by reproducing them, isolating evidence, testing disconfirmable hypotheses, establishing root cause, and verifying an authorized routine fix. Do not use for preflight or completion-only verification.",
       "kind": "capability",
       "capabilityClass": "domain",
       "discoverability": "public",
@@ -409,26 +409,16 @@
         "analyze",
         "diagnose",
         "decide",
+        "execute",
         "produce"
       ],
       "effects": [
         "source-read",
-        "process-exec"
+        "process-exec",
+        "artifact-write"
       ],
-      "hostRequirements": [
-        "blueprint-graph"
-      ],
-      "hostRequirementDetails": [
-        {
-          "id": "blueprint-graph",
-          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
-          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
-          "probe": {
-            "kind": "command",
-            "command": "blueprint"
-          }
-        }
-      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
       "source": "skills/debugger/SKILL.md",
       "manifest": "skills/manifests/debugger.json"
     },
@@ -655,7 +645,7 @@
     {
       "id": "research",
       "name": "research",
-      "description": "Sole top-level evidence router: general, market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, documents, authority, and NotebookLM. Medical and legal are private internal routes; India consumer-commission filing is a Legal workflow.",
+      "description": "Find and synthesize external information for research deliverables, including market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, and NotebookLM research. Excludes local transcript inspection, repository reading, and simple supplied-source reading.",
       "kind": "capability",
       "capabilityClass": "domain",
       "discoverability": "public",

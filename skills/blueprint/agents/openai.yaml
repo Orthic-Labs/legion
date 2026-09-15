@@ -1,6 +1,6 @@
 interface:
   display_name: "Blueprint"
-  short_description: "Build, query, or reconcile source-grounded current repository truth, architecture, flows, symbols, impact, freshness, & documentation. Use for /blueprint, repository onboarding, current-state maps, docs reconciliation, or grounding Audit/Architect."
-  default_prompt: "Use $blueprint when this request matches: Build, query, or reconcile source-grounded current repository truth, architecture, flows, symbols, impact, freshness, & documentation. Use for /blueprint, repository onboarding, current-state maps, docs reconciliation, or grounding Audit/Architect."
+  short_description: "Build, query, or reconcile a repository graph or current-state map when that map is requested or required. Use for /blueprint, repository onboarding, architecture/flow maps, impact analysis, docs reconciliation, or grounding Audit/Architect. Excludes chat transcripts and ordinary bounded file inspection."
+  default_prompt: "Use $blueprint when this request matches: Build, query, or reconcile a repository graph or current-state map when that map is requested or required. Use for /blueprint, repository onboarding, architecture/flow maps, impact analysis, docs reconciliation, or grounding Audit/Architect. Excludes chat transcripts and ordinary bounded file inspection."
 policy:
   allow_implicit_invocation: true

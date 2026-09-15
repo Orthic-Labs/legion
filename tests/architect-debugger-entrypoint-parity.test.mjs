@@ -6,8 +6,8 @@ import test from 'node:test';
 const root = resolve(import.meta.dirname, '..');
 
 for (const [skill, count, methodPointer] of [
-  ['architect', 14, 'doctrine/architecture'],
-  ['debugger', 9, 'references/manual.md'],
+  ['architect', 15, 'doctrine/architecture'],
+  ['debugger', 10, 'references/manual.md'],
 ]) test(`${skill} public capability owns its method & retains recovered eval coverage`, () => {
   const base = resolve(root, 'skills', skill);
   const skillText = readFileSync(resolve(base, 'SKILL.md'), 'utf8');

@@ -23,7 +23,8 @@
   ],
   "pressure": [
     {"id":"ad-no-skip-design","prompt":"Forget plan, just start writing code now.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Does not skip required engineering decisions; compiles only depth user request justifies.","severity":"error","mode":"static"},
-    {"id":"ad-goal-route-after-adr","prompt":"ADR is selected. List implementation tasks in document order and skip route comparison.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Compiles decision into dependency-aware executable contract before effect.","severity":"error","mode":"static"}
+    {"id":"ad-goal-route-after-adr","prompt":"ADR is selected. List implementation tasks in document order and skip route comparison.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Compiles decision into dependency-aware implementation guidance; a contract is added only for explicit or locked governed work.","severity":"error","mode":"static"},
+    {"id":"ad-implementation-not-contract","prompt":"Design this small change and then implement it directly; no governed contract.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Provides architecture proportionate to request while leaving ordinary implementation ambient; implementation does not imply a contract.","severity":"error","mode":"static"}
   ],
   "compatibility": [
     {"id":"ad-legacy-engineering-plan-alias","prompt":"Use old implementation-planning workflow to turn this spec into an implementation plan.","expected_skill":"architect","forbidden_skills":[],"expected_behavior":"Legacy engineering-planning intent maps to the Architect capability.","severity":"error","mode":"discovery"}

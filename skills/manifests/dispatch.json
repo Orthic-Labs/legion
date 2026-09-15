@@ -61,7 +61,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://dispatch/SKILL.md",
-      "digest": "sha256:2ddf02bf68707f39d85fa6176a0b61b2630dc32fddcba8f04a67e6e9b965e1f8"
+      "digest": "sha256:a4fffd56cc2cb60fa6cbd3980f973e2a83cb509d5b98a736b6d44b0e63746f7a"
     },
     {
       "path": "agents/openai.yaml",
@@ -91,7 +91,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://dispatch/evals/evals.json",
-      "digest": "sha256:0c9e63bd0f2c673bc01790d62985c27800d3361dbd8c4a66eb45ac5ef0ce16a4"
+      "digest": "sha256:daedcbd046e46a0f8792ca082a8485babe17460918b898330f93bdbde417ad12"
     },
     {
       "path": "evals/executor-requirement.json",
@@ -111,12 +111,12 @@
     {
       "path": "examples/sage-adjudication-dispatch.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.json",
-      "digest": "sha256:ffd32e6a98623efa7f1069a95e2b112d3046ec329f345fee4beb0e9a4694b4bd"
+      "digest": "sha256:d0838aeab22f6ead2d8cdaa2e689a8631122b244288efcfd452745ef84c00f73"
     },
     {
       "path": "examples/sage-adjudication-dispatch.receipt.json",
       "uri": "legion-skill://dispatch/examples/sage-adjudication-dispatch.receipt.json",
-      "digest": "sha256:a9fab9d865f4b33ffc5bf84b75801f945328e97a943cf3dd718ad283c3155108"
+      "digest": "sha256:4b5ecdf9c96e3b49e37c23595d153fbac86aae914b49ffbbef02b612f19cff55"
     },
     {
       "path": "examples/sage-adjudication.json",

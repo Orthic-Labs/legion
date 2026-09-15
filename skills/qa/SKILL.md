@@ -32,13 +32,17 @@ TERMINAL: Frozen criteria have exact passing evidence or failing artifact.
      semantic: required
      capabilities:
        - source-read
-2. Freeze revision, route, viewport, selector, state, fixture, environment, & acceptance criteria.
+2. Freeze acceptance criteria plus only observables relevant to actual failure surface. Record
+   revision/environment when needed for reproducibility; route, viewport, selector, state, & fixture
+   apply only when implicated.
    EXECUTOR:
      semantic: required
      capabilities:
        - repository-truth-read
        - source-read
-3. Test behavior with `scripts/qa-functional.mjs`; use `scripts/qa-shot.mjs` only for supporting viewport artifacts against frozen observable criteria.
+3. Use smallest decisive project-native check. For web/browser behavior, test with
+   `scripts/qa-functional.mjs`; use `scripts/qa-shot.mjs` only for supporting viewport artifacts
+   against frozen observable criteria. Focused native checks need no browser ceremony.
    EXECUTOR:
      semantic: conditional
      capabilities:

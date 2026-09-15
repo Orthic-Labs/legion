@@ -7,8 +7,8 @@ only when evidence exposes a material unresolved semantic/ownership/acceptance d
 
 **Read `SKILL.md` first.** This manual is the craft underneath that capability.
 
-Debugger produces evidence, decisions, & a concise result for its lead; it never performs product
-effects. When work is explicitly governed, a durable handoff may bind acceptance IDs, ownership,
+Debugger produces evidence, decisions, & a concise result; it may apply an authorized routine fix
+in the same task. When work is explicitly governed, a durable handoff may bind acceptance IDs, ownership,
 cutover obligations, event/checkpoint requirements, deficits, & an explicit diagnosis trigger.
 Execution DAGs follow actual file/artifact consumption, not stage order.
 
@@ -76,22 +76,11 @@ Then:
 
 ### 2. Isolate
 
-- **Ground first when mapped:** request current Blueprint evidence through Legion's direct Membrane
-  provider. It uses resident Hub transport when available, or a bounded one-shot for supplied root
-  when Hub is off. A resident `project is not enrolled` response also falls through to one-shot;
-  enrollment controls watcher/resident operation, not one-shot access. Trust generated evidence when
-  doctor is `ready`, or when it is `degraded` while graph is explicitly fresh & no blocker/error is
-  reported — carry every degradation warning into diagnosis instead of treating it as clean.
-  If graph exists, confirm provider-reported graph status, then use `graph search|resolve` to identify
-  failing nodes, `graph path` to trace suspected call/data route, `graph neighbors` for local
-  dependency boundary, & `graph impact` to find callers/consumers that may reproduce failure.
-  Graph output narrows hypotheses; exact source, logs, & reproduction establish cause.
-  If graph coverage is unsupported/stale/unavailable, record `graph-unavailable` and bisect with
-  direct code/log evidence instead.
-- **Time-box the graph, and never rebuild it mid-debug.** Doctor plus status is a couple of minutes of
-  orientation, not a project. Run `graph impact` once you have a suspect symbol — it is a
-  blast-radius query, not a place to go looking for one. A mid-session rebuild changes the ground
-  under an investigation in progress.
+- **Use Blueprint conditionally:** request graph evidence only when relevant repository relationships
+  remain unresolved or completeness matters. When used, time-box it, carry degradation warnings, &
+  use graph output to narrow hypotheses; exact source, logs, & reproduction establish cause. Ordinary
+  bounded source inspection needs no graph. If graph coverage is unavailable, continue with direct
+  code/log evidence instead of blocking diagnosis.
 - Bisect: where does the failure first appear in the path?
 - Binary-search the code, the time, the data, or the env. For a **regression** with a known last-good
   commit and a deterministic reproduction, let Git do it: `git bisect start <bad> <good>` then
@@ -208,8 +197,8 @@ Then:
   **differential diagnosis** — package it to attack the *diagnosis* (observations, evidence, live +
   rejected hypotheses), not to review code prematurely.
 
-**Then ship it: hand the verified fix to `/commit`.** This skill ends at a proven fix; `/commit` is the
-diff-scoped gate that gets it out. Do not push from here.
+Commit or delivery follows current user authority & repository rules; Debugger does not force a
+separate repair or commit handoff.
 
 ### Time budgets — advisory, not a trigger
 

@@ -18,7 +18,7 @@ for (const skill of ['dispatch', 'qa']) test(`${skill} public capability routes 
     for (const family of ['should_trigger', 'should_not_trigger', 'output_quality', 'safety', 'pressure', 'compatibility']) assert.ok(groups.some(([name]) => name === family), `dispatch needs ${family} eval family`);
     for (const id of ['dispatch-acceptance-readback', 'dispatch-relay-never-authority', 'dispatch-worker-result-contract']) assert.ok(ids.includes(id), `dispatch needs ${id}`);
   } else {
-    assert.equal(cases.length, 12);
+    assert.equal(cases.length, 13);
   }
 });
 

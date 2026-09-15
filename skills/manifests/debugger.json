@@ -26,7 +26,7 @@
   "parity": {
     "triggers": [
       "/debugger",
-      "Diagnosis capability for reproducing failures, isolating evidence, forming disconfirmable hypotheses, establishing root cause, and selecting routine repairs. Do not use for preflight or completion-only verification."
+      "Diagnose and repair known failures by reproducing them, isolating evidence, testing disconfirmable hypotheses, establishing root cause, and verifying an authorized routine fix. Do not use for preflight or completion-only verification."
     ],
     "outputs": [
       "references/manual.md"
@@ -48,27 +48,27 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://debugger/SKILL.md",
-      "digest": "sha256:8b0b7377a4dfb466580ca480a727fa624f9d05dc9ca8335ccd24dd2130ba5d87"
+      "digest": "sha256:3c55e0b3fae871bc969c63342f81e8fa7001d6ac77f7534af4a6fa6b67012e31"
     },
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://debugger/agents/openai.yaml",
-      "digest": "sha256:c0d9c60778f00a0f5c0e19c8c92a10c3d3be279d9c9dbd4396416ce7e6b3f04e"
+      "digest": "sha256:da1a8da6334bb5c5fca826db665cc1b1381d0fc2b00ac51b65b9085a198f6983"
     },
     {
       "path": "dependencies.json",
       "uri": "legion-skill://debugger/dependencies.json",
-      "digest": "sha256:c1688b89deba2724b4fd41e0c446370441c8ee1b0c2a6987a5b13bc75c5acb07"
+      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://debugger/evals/evals.json",
-      "digest": "sha256:d5b459a8a753fc6847b88f5c4e9a6ed9c8c3a46d850fe214c7926349f0ce0c44"
+      "digest": "sha256:2fe24fde5a851792da0e3f44c17ec6521c15c1b2dc8e62793f51bc211d3bc36f"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://debugger/references/manual.md",
-      "digest": "sha256:89787948c9c98e38b74585ff72e71dd08da963b204c5d9d7e6b73fa60e4dba74"
+      "digest": "sha256:fd2e5cf800f6daf1a5a8edad85c105105c65e906c8f4cf2697c1f188ab6601b6"
     }
   ]
 }

@@ -94,7 +94,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://architect/SKILL.md",
-      "digest": "sha256:bfecdf1c640763d7f5710811c0f1dd9dfef246073ac459bbeba8812f086de59e"
+      "digest": "sha256:e9b60030116b9ff34e6225c482380a9f347b6188003fc46cae589edd4636cdb4"
     },
     {
       "path": "agents/openai.yaml",
@@ -564,7 +564,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://architect/evals/evals.json",
-      "digest": "sha256:70f89e3bad7f72f161de5d23242600e6978307ca6db467a4fdb36d6f93493150"
+      "digest": "sha256:821a41e8a225ebd324383056e9557bcb8840b01108721af17bc8c1fc11b3a083"
     },
     {
       "path": "references/manual.md",

@@ -103,6 +103,13 @@
       "severity": "error",
       "mode": "static",
       "prompt": "Uses deterministic boundary mocks only in QA mode."
+    },
+    {
+      "id": "qa-focused-native-check",
+      "expected_behavior": "Runs a focused native check using relevant observables without requiring browser route, viewport, selector, or fixture fields.",
+      "severity": "error",
+      "mode": "static",
+      "prompt": "Verify this native CLI error path with the smallest decisive check; no browser is involved."
     }
   ],
   "safety": [

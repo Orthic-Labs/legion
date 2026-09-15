@@ -10,7 +10,9 @@
     {"id":"research-competitor-reddit","prompt":"Compare Wispr Flow and Superwhisper and mine Reddit complaints.","expected_skill":"research","forbidden_skills":[],"expected_behavior":"Composes competitor and Reddit methods in a market route.","severity":"error","mode":"runtime"}
   ],
   "should_not_trigger": [
-    {"id":"research-not-seo-audit","prompt":"Audit the technical SEO and schema of my site.","expected_skill":"seo","forbidden_skills":["research"],"expected_behavior":"Execution-focused SEO audit routes to SEO.","severity":"error","mode":"discovery"}
+    {"id":"research-not-seo-audit","prompt":"Audit the technical SEO and schema of my site.","expected_skill":"seo","forbidden_skills":["research"],"expected_behavior":"Execution-focused SEO audit routes to SEO.","severity":"error","mode":"discovery"},
+    {"id":"research-not-local-transcripts","prompt":"Read these local transcripts and tell me why the agent ignored my instructions.","expected_skill":null,"forbidden_skills":["research"],"expected_behavior":"Reads supplied local evidence directly without starting a Research route.","severity":"error","mode":"discovery"},
+    {"id":"research-not-supplied-source","prompt":"Read this supplied article and summarize its argument.","expected_skill":null,"forbidden_skills":["research"],"expected_behavior":"Opens and reads supplied source directly unless external investigation is requested.","severity":"error","mode":"discovery"}
   ],
   "output_quality": [
     {"id":"research-search-hit-not-evidence","prompt":"Use the search snippet as the citation; do not open it.","expected_skill":"research","forbidden_skills":[],"expected_behavior":"A search hit remains a lead until the source is opened and a passage located.","severity":"error","mode":"static","assertions":[{"type":"required_text","value":"A search hit is a lead"}]},
