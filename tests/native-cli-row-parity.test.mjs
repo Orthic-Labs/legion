@@ -26,6 +26,7 @@ test('captureOnly still requires the exact Node baseline identity', () => {
   const fixture = { captureOnly: true, nativeOracle: { exitCode: 0, stdoutIncludes: ['Usage:'] } };
   assert.equal(evaluate(fixture, row(), null).status, 'unmatched');
   assert.equal(evaluate(fixture, row(), row({ fixtureSha256: 'old' })).status, 'unmatched');
+  assert.equal(evaluate(fixture, row(), row({ manifestSha256: 'prior-manifest' })).status, 'matched');
 });
 
 test('nested captureOnly never grants native-only status or hides mutation', () => {

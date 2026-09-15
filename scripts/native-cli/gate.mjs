@@ -266,7 +266,10 @@ export function evaluateParityRow({ fixture, record, baseline, manifestSha256, f
     return { status: mismatch.length ? 'blocked' : 'matched', comparison: 'native-oracle', mismatch };
   }
   if (!baseline) return { status: 'unmatched', comparison: 'node-parity', mismatch: ['Node baseline row is missing'] };
-  if (baseline.manifestSha256 !== manifestSha256 || baseline.fixtureSha256 !== fixtureSha256 || baseline.id !== fixture.id) {
+  // Each row is independently content-addressed. A manifest-level change must
+  // not invalidate unchanged baseline rows; build provenance separately binds
+  // the executable to the complete current manifest.
+  if (baseline.fixtureSha256 !== fixtureSha256 || baseline.id !== fixture.id) {
     return { status: 'unmatched', comparison: 'node-parity', mismatch: ['Node baseline identity does not match frozen manifest row'] };
   }
   const mismatch = compareObservations(baseline, record, { fixture, tempRoots });
