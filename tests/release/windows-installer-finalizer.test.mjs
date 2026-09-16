@@ -90,6 +90,11 @@ test("activation uses direct Process exit metadata for bounded children", () => 
 	assert.match(activation, /\[Diagnostics\.Process\]::new\(\)[\s\S]+\$process\.WaitForExit\(\$ChildTimeoutSeconds \* 1000\)/);
 	assert.match(activation, /\$exitCode = \$process\.ExitCode[\s\S]+if \(\$exitCode -ne 0\)/);
 	assert.doesNotMatch(activation, /Start-Process/);
+	assert.match(activation, /Sync-PackagedLocalCacheMirrors\(\[string\]\$VersionPath\)/);
+	assert.match(activation, /Copy-Item -LiteralPath \$VersionPath -Destination \$stagePath/);
+	assert.match(activation, /Packaged LocalCache mirror hash mismatch/);
+	assert.match(activation, /Sync-PackagedLocalCacheMirrors \$versionPath/);
+	assert.match(activation, /Sync-PackagedLocalCacheMirrors \$versionPath[\s\S]+Remove-Item -LiteralPath \$backupPath/);
 });
 
 test("activation preserves real redirected child exit codes", { skip: process.platform !== "win32" }, () => {

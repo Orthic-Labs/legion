@@ -167,6 +167,8 @@ export function runLocalWindowsDevelopment({ buildOnly = false } = {}) {
 	if (installer.status !== "unsigned") fail("installer worker did not report unsigned output");
 	assertFile(installer.installer, "unsigned installer");
 	if (installer.sha256 !== sha256(installer.installer)) fail("unsigned installer digest mismatch");
+	const payloadExecutable = assertFile(join(assemblyRoot, "bin", "legion.exe"), "assembled Legion executable");
+	const payloadExecutableSha256 = sha256(payloadExecutable);
 	const finalizationPath = join(installerRoot, "installer-finalization.json");
 	writeFileSync(finalizationPath, `${JSON.stringify(localFinalization({ installer: installer.installer, releaseVersion, sourceRevision: source.revision }), null, 2)}\n`);
 
@@ -197,6 +199,8 @@ export function runLocalWindowsDevelopment({ buildOnly = false } = {}) {
 		"/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", `/DIR=${INSTALL_ROOT}`, `/LOG=${installLog}`,
 	], { label: "stable installer" }));
 	const executable = assertFile(join(INSTALL_ROOT, "current", "bin", "legion.exe"), "stable Legion executable");
+	const installedExecutableSha256 = sha256File(executable);
+	if (installedExecutableSha256 !== payloadExecutableSha256) fail(`installed executable digest mismatch: ${installedExecutableSha256} != ${payloadExecutableSha256}`);
 	const installedVersion = run(executable, ["--version"], { capture: true, cwd: INSTALL_ROOT, label: "installed version" }).stdout.trim();
 	if (installedVersion !== releaseVersion) fail(`installed version mismatch: ${installedVersion}`);
 	const status = runJson(executable, ["--json", "setup", "status"], { cwd: INSTALL_ROOT, label: "installed setup status" });
@@ -217,7 +221,8 @@ export function runLocalWindowsDevelopment({ buildOnly = false } = {}) {
 		qualification: qualification.evidence?.path ?? join(qualificationRoot, "qualification.json"),
 		installedRoot: INSTALL_ROOT,
 		installedExecutable: executable,
-		executableSha256: sha256File(executable),
+		executableSha256: installedExecutableSha256,
+		payloadExecutableSha256,
 		installedVersion,
 		sourceRevision: source.revision,
 		sourceTreeSha256: sourceTree.sourceTreeSha256,

@@ -27,7 +27,7 @@ function Write-InstallEvent([string]$Stage, [string]$Status, [string]$Detail = '
 function Stop-ProcessTree([int]$ProcessId) {
   try { & taskkill.exe /PID $ProcessId /T /F 2>$null | Out-Null } catch { }
 }
-function Sync-PackagedLocalCacheMirrors([string]$CurrentPath) {
+function Sync-PackagedLocalCacheMirrors([string]$VersionPath) {
   $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
   $packagesRoot = Join-Path $localAppData 'Packages'
   if (-not (Test-Path -LiteralPath $packagesRoot -PathType Container)) { return }
@@ -38,13 +38,17 @@ function Sync-PackagedLocalCacheMirrors([string]$CurrentPath) {
     $stagePath = Join-Path $mirrorProductRoot ('.next-current-' + [Guid]::NewGuid().ToString('N'))
     try {
       Write-InstallEvent 'localcache-mirror' 'started' $mirrorCurrent
-      Copy-Item -LiteralPath $CurrentPath -Destination $stagePath -Recurse
+      Copy-Item -LiteralPath $VersionPath -Destination $stagePath -Recurse
       if (Test-Path -LiteralPath $mirrorCurrent) { Remove-Item -LiteralPath $mirrorCurrent -Recurse -Force }
       Move-Item -LiteralPath $stagePath -Destination $mirrorCurrent
+      $sourceHash = (Get-FileHash -LiteralPath (Join-Path $VersionPath 'bin\legion.exe') -Algorithm SHA256).Hash
+      $mirrorHash = (Get-FileHash -LiteralPath (Join-Path $mirrorCurrent 'bin\legion.exe') -Algorithm SHA256).Hash
+      if ($sourceHash -ne $mirrorHash) { throw "Packaged LocalCache mirror hash mismatch: $mirrorHash != $sourceHash" }
       Write-InstallEvent 'localcache-mirror' 'complete' $mirrorCurrent
     } catch {
       Remove-Item -LiteralPath $stagePath -Recurse -Force -ErrorAction SilentlyContinue
       Write-InstallEvent 'localcache-mirror' 'failed' ($_ | Out-String).Trim()
+      throw
     }
   }
 }
@@ -108,9 +112,12 @@ try {
     try { $refresh = $refreshJson | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Client refresh returned invalid JSON' }
     if ($refresh.status -ne 'complete') { throw "Client refresh status=$($refresh.status)" }
   }
+  Sync-PackagedLocalCacheMirrors $versionPath
+  $versionHash = (Get-FileHash -LiteralPath (Join-Path $versionPath 'bin\legion.exe') -Algorithm SHA256).Hash
+  $currentHash = (Get-FileHash -LiteralPath $legion -Algorithm SHA256).Hash
+  if ($currentHash -ne $versionHash) { throw "Activation hash mismatch: $currentHash != $versionHash" }
   Remove-Item -LiteralPath $backupPath -Recurse -Force -ErrorAction SilentlyContinue
   [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$versionPath;previous=$null;refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $rootPath 'activation.json') -Encoding UTF8
-  Sync-PackagedLocalCacheMirrors $currentPath
   Write-InstallEvent 'activation' 'complete' "version=$Version"
 } catch {
   Remove-Item -LiteralPath $stagePath,$currentPath -Recurse -Force -ErrorAction SilentlyContinue
