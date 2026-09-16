@@ -27,6 +27,12 @@ function Write-InstallEvent([string]$Stage, [string]$Status, [string]$Detail = '
 function Stop-ProcessTree([int]$ProcessId) {
   try { & taskkill.exe /PID $ProcessId /T /F 2>$null | Out-Null } catch { }
 }
+function Get-BinaryHash([string]$Path) {
+  $stream = [IO.File]::OpenRead($Path)
+  $hasher = [Security.Cryptography.SHA256]::Create()
+  try { return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '') }
+  finally { $hasher.Dispose(); $stream.Dispose() }
+}
 function Sync-PackagedLocalCacheMirrors([string]$VersionPath) {
   $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
   $packagesRoot = Join-Path $localAppData 'Packages'
@@ -41,8 +47,8 @@ function Sync-PackagedLocalCacheMirrors([string]$VersionPath) {
       Copy-Item -LiteralPath $VersionPath -Destination $stagePath -Recurse
       if (Test-Path -LiteralPath $mirrorCurrent) { Remove-Item -LiteralPath $mirrorCurrent -Recurse -Force }
       Move-Item -LiteralPath $stagePath -Destination $mirrorCurrent
-      $sourceHash = (Get-FileHash -LiteralPath (Join-Path $VersionPath 'bin\legion.exe') -Algorithm SHA256).Hash
-      $mirrorHash = (Get-FileHash -LiteralPath (Join-Path $mirrorCurrent 'bin\legion.exe') -Algorithm SHA256).Hash
+      $sourceHash = Get-BinaryHash (Join-Path $VersionPath 'bin\legion.exe')
+      $mirrorHash = Get-BinaryHash (Join-Path $mirrorCurrent 'bin\legion.exe')
       if ($sourceHash -ne $mirrorHash) { throw "Packaged LocalCache mirror hash mismatch: $mirrorHash != $sourceHash" }
       Write-InstallEvent 'localcache-mirror' 'complete' $mirrorCurrent
     } catch {
@@ -113,8 +119,8 @@ try {
     if ($refresh.status -ne 'complete') { throw "Client refresh status=$($refresh.status)" }
   }
   Sync-PackagedLocalCacheMirrors $versionPath
-  $versionHash = (Get-FileHash -LiteralPath (Join-Path $versionPath 'bin\legion.exe') -Algorithm SHA256).Hash
-  $currentHash = (Get-FileHash -LiteralPath $legion -Algorithm SHA256).Hash
+  $versionHash = Get-BinaryHash (Join-Path $versionPath 'bin\legion.exe')
+  $currentHash = Get-BinaryHash $legion
   if ($currentHash -ne $versionHash) { throw "Activation hash mismatch: $currentHash != $versionHash" }
   Remove-Item -LiteralPath $backupPath -Recurse -Force -ErrorAction SilentlyContinue
   [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$versionPath;previous=$null;refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $rootPath 'activation.json') -Encoding UTF8
