@@ -1,1 +1,0 @@
-{"authorized":{"target":"https://example.com/product/","canonical":"https://example.com/product/","deployment_identity":"commit:abc"},"observed":{"target":"https://example.com/product/","canonical":"https://example.com/category/"},"expected":"fail"}

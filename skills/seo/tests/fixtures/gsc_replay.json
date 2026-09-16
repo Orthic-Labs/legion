@@ -1,7 +1,0 @@
-{
-  "aggregate_row": {"clicks": 100, "impressions": 1000, "ctr": 0.1, "position": 6.2},
-  "rows": [
-    {"keys": ["query a", "https://example.com/a"], "clicks": 40, "impressions": 300, "ctr": 0.1333333, "position": 4.5},
-    {"keys": ["query b", "https://example.com/b"], "clicks": 30, "impressions": 250, "ctr": 0.12, "position": 7.1}
-  ]
-}
