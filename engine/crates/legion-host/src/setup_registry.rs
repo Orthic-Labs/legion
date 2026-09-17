@@ -245,6 +245,7 @@ pub fn inspect_client_projection(
     input: &ClientProjectionInput,
 ) -> Result<ClientProjectionInspection, SetupError> {
     validate_projection_input(input)?;
+    let allowed_target_root_link = projection_allowed_target_root_link(input)?;
     let source_available = path_exists(&input.source_root)?;
     let expected = projection_source_files(input)?;
     let ledger = read_projection_ledger(input)?;
@@ -297,7 +298,11 @@ pub fn inspect_client_projection(
             )?;
         } else {
             let allowed_links = projection_link_targets(input)?;
-            ensure_projection_target_safe(input, &allowed_links)?;
+            ensure_projection_target_safe(
+                input,
+                &allowed_links,
+                allowed_target_root_link.as_deref(),
+            )?;
         }
         for (relative, (_, expected_digest)) in &expected {
             let destination = input.target_root.join(relative);
@@ -431,6 +436,7 @@ pub fn repair_client_projection(
     input: &ClientProjectionInput,
 ) -> Result<ClientProjectionRepair, SetupError> {
     validate_projection_input(input)?;
+    let allowed_target_root_link = projection_allowed_target_root_link(input)?;
     let before = inspect_client_projection(input)?;
     let expected = projection_source_files(input)?;
     if expected.is_empty() {
@@ -561,10 +567,17 @@ pub fn repair_client_projection(
             )?;
         } else {
             let allowed_links = projection_link_targets(input)?;
-            ensure_projection_target_safe(input, &allowed_links)?;
+            ensure_projection_target_safe(
+                input,
+                &allowed_links,
+                allowed_target_root_link.as_deref(),
+            )?;
         }
     } else {
-        ensure_projection_parent_safe(&input.target_root)?;
+        ensure_projection_parent_safe_with_allowed_root(
+            &input.target_root,
+            allowed_target_root_link.as_deref(),
+        )?;
         fs::create_dir_all(&input.target_root).map_err(io)?;
     }
     let root_owned = prior_ledger
@@ -592,7 +605,12 @@ pub fn repair_client_projection(
                 .and_then(|value| value.files.get(relative));
             if actual != *source_digest {
                 if owned.is_some() {
-                    write_projection_file(&input.target_root, &destination, source)?;
+                    write_projection_file(
+                        &input.target_root,
+                        &destination,
+                        source,
+                        allowed_target_root_link.as_deref(),
+                    )?;
                     repaired.push(destination.clone());
                     next_files.insert(relative.clone(), source_digest.clone());
                 } else {
@@ -643,7 +661,12 @@ pub fn repair_client_projection(
             if unowned_skill_parent {
                 preserved.push(destination.clone());
             } else {
-                write_projection_file(&input.target_root, &destination, source)?;
+                write_projection_file(
+                    &input.target_root,
+                    &destination,
+                    source,
+                    allowed_target_root_link.as_deref(),
+                )?;
                 repaired.push(destination.clone());
                 next_files.insert(relative.clone(), source_digest.clone());
             }
@@ -2033,7 +2056,11 @@ fn validate_projection_input(input: &ClientProjectionInput) -> Result<(), SetupE
         &input.source_root,
         allowed_source_root.as_deref(),
     )?;
-    ensure_projection_parent_safe(&input.target_root)?;
+    let allowed_target_root_link = projection_allowed_target_root_link(input)?;
+    ensure_projection_parent_safe_with_allowed_root(
+        &input.target_root,
+        allowed_target_root_link.as_deref(),
+    )?;
     let state_marker = input.state_root.join(".legion-owned");
     let state_marker_metadata = fs::symlink_metadata(&state_marker).map_err(|_| {
         err(
@@ -3288,6 +3315,42 @@ fn path_exists(path: &Path) -> Result<bool, SetupError> {
     }
 }
 
+/// A client may relocate one of its top-level state roots (for example
+/// `~/.claude`) through a symlink. Allow that one boundary only after proving
+/// it is a resolved directory directly below the declared host home. Nested
+/// links remain forbidden by every projection-tree check.
+fn projection_allowed_target_root_link(
+    input: &ClientProjectionInput,
+) -> Result<Option<PathBuf>, SetupError> {
+    let Some(home) = input.host_config_root.as_deref() else {
+        return Ok(None);
+    };
+    let relative = match input.target_root.strip_prefix(home) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+    let Some(Component::Normal(first)) = relative.components().next() else {
+        return Ok(None);
+    };
+    let root = home.join(first);
+    let metadata = match fs::symlink_metadata(&root) {
+        Ok(value) => value,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(io(error)),
+    };
+    if !metadata.file_type().is_symlink() {
+        return Ok(None);
+    }
+    let resolved = fs::canonicalize(&root).map_err(io)?;
+    if !fs::metadata(&resolved).map_err(io)?.is_dir() {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            format!("client root symlink is not a directory: {}", root.display()),
+        ));
+    }
+    Ok(Some(root))
+}
+
 fn ensure_projection_parent_safe(path: &Path) -> Result<(), SetupError> {
     ensure_projection_parent_safe_with_allowed_root(path, None)
 }
@@ -3403,14 +3466,19 @@ fn projection_scan_roots(input: &ClientProjectionInput) -> Vec<PathBuf> {
 fn ensure_projection_target_safe(
     input: &ClientProjectionInput,
     allowed_links: &[(PathBuf, PathBuf)],
+    allowed_target_root_link: Option<&Path>,
 ) -> Result<(), SetupError> {
     if input.projection != "devin-user" {
         return ensure_projection_tree_safe_with_allowed_links(
             &input.target_root,
             allowed_links,
+            allowed_target_root_link,
         );
     }
-    ensure_projection_parent_safe(&input.target_root)?;
+    ensure_projection_parent_safe_with_allowed_root(
+        &input.target_root,
+        allowed_target_root_link,
+    )?;
     if path_exists(&input.target_root)? {
         let metadata = fs::symlink_metadata(&input.target_root).map_err(io)?;
         if metadata.file_type().is_symlink() || !metadata.is_dir() {
@@ -3424,7 +3492,11 @@ fn ensure_projection_target_safe(
         }
     }
     for root in projection_scan_roots(input) {
-        ensure_projection_tree_safe_with_allowed_links(&root, allowed_links)?;
+        ensure_projection_tree_safe_with_allowed_links(
+            &root,
+            allowed_links,
+            allowed_target_root_link,
+        )?;
     }
     Ok(())
 }
@@ -3486,8 +3558,9 @@ fn projection_root_links_to(target: &Path, source: &Path) -> Result<bool, SetupE
 fn ensure_projection_tree_safe_with_allowed_links(
     root: &Path,
     allowed_links: &[(PathBuf, PathBuf)],
+    allowed_target_root_link: Option<&Path>,
 ) -> Result<(), SetupError> {
-    ensure_projection_parent_safe(root)?;
+    ensure_projection_parent_safe_with_allowed_root(root, allowed_target_root_link)?;
     if !path_exists(root)? {
         return Ok(());
     }
@@ -3512,7 +3585,11 @@ fn ensure_projection_tree_safe_with_allowed_links(
             continue;
         }
         if metadata.is_dir() {
-            ensure_projection_tree_safe_with_allowed_links(&path, allowed_links)?;
+            ensure_projection_tree_safe_with_allowed_links(
+                &path,
+                allowed_links,
+                allowed_target_root_link,
+            )?;
         }
     }
     Ok(())
@@ -3775,14 +3852,19 @@ fn digest_path(path: &Path) -> Result<String, SetupError> {
     Ok(digest_bytes(&read(path)?))
 }
 
-fn write_projection_file(root: &Path, destination: &Path, source: &Path) -> Result<(), SetupError> {
+fn write_projection_file(
+    root: &Path,
+    destination: &Path,
+    source: &Path,
+    allowed_target_root_link: Option<&Path>,
+) -> Result<(), SetupError> {
     if !destination.starts_with(root) {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
             "projection destination escapes target root",
         ));
     }
-    ensure_projection_parent_safe(destination)?;
+    ensure_projection_parent_safe_with_allowed_root(destination, allowed_target_root_link)?;
     let parent = destination.parent().ok_or_else(|| {
         err(
             SetupErrorCode::PathEscapeRefused,
@@ -4666,6 +4748,48 @@ mod tests {
         assert!(ledger.files.contains_key("plugin.json"));
         assert!(ledger.files.contains_key(".claude-plugin/plugin.json"));
         assert!(!result.repaired.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn repair_allows_one_symlinked_client_root_but_writes_only_below_it() {
+        use std::os::unix::fs::symlink;
+
+        let root = TestRoot::new("projection-symlinked-client-root");
+        let mut input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let home = input.host_config_root.clone().expect("host home");
+        let relocated = root.0.join("relocated-claude");
+        fs::create_dir_all(&relocated).unwrap();
+        symlink(&relocated, home.join(".claude")).unwrap();
+        input.target_root = home.join(".claude/skills/legion");
+
+        let result = repair_client_projection(&input).unwrap();
+
+        assert_eq!(result.inspection.state, "current");
+        assert!(relocated.join("skills/legion/plugin.json").is_file());
+        assert!(read_projection_ledger(&input).unwrap().is_some());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_client_root_still_rejects_nested_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let root = TestRoot::new("projection-symlinked-client-root-nested-link");
+        let mut input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let home = input.host_config_root.clone().expect("host home");
+        let relocated = root.0.join("relocated-claude");
+        let outside = root.0.join("outside");
+        fs::create_dir_all(&relocated).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        symlink(&relocated, home.join(".claude")).unwrap();
+        symlink(&outside, relocated.join("skills")).unwrap();
+        input.target_root = home.join(".claude/skills/legion");
+
+        assert_eq!(
+            inspect_client_projection(&input).unwrap_err().code,
+            SetupErrorCode::PathEscapeRefused
+        );
     }
 
     #[test]
