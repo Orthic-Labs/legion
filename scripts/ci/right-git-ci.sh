@@ -3,6 +3,22 @@ set -euo pipefail
 
 pnpm install --frozen-lockfile
 pnpm legion:check
+
+# Node integration tests exercise installed native CLI behavior. Assemble its
+# exact CI candidate first, then expose it only through the explicit test seam.
+if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
+  (
+    cd engine
+    cargo check --workspace --all-targets --locked
+    cargo test --locked
+    cargo build --locked --bins
+  )
+
+  pnpm native:assemble -- --profile debug --out "${RUNNER_TEMP}/legion-install" --force
+  node scripts/ci/native-installed-smoke.mjs "${RUNNER_TEMP}/legion-install"
+  export LEGION_TEST_NATIVE_CLI_PATH="${RUNNER_TEMP}/legion-install/bin/legion.exe"
+fi
+
 pnpm test
 
 # The research-core parity suite uses pytest fixtures (monkeypatch, tmp_path),
@@ -24,18 +40,3 @@ pnpm test:python
 node bench/run-bench.mjs
 node bench/run-provider-selection-benchmark.mjs
 node tests/run-audit-conformance-tests.mjs
-
-if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
-  (
-    cd engine
-    # Fail on a compile error before spending the test phase on it: a missing
-    # dependency or a type mismatch used to surface only after the suite, or
-    # later still in the installer build. Test compilation reuses this cache.
-    cargo check --workspace --all-targets --locked
-    cargo test --locked
-    cargo build --locked --bins
-  )
-
-  pnpm native:assemble -- --profile debug --out "${RUNNER_TEMP}/legion-install" --force
-  node scripts/ci/native-installed-smoke.mjs "${RUNNER_TEMP}/legion-install"
-fi

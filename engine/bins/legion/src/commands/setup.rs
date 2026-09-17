@@ -4022,7 +4022,7 @@ mod tests {
             "fidelity": "Full"
         }]);
         let mut live_identity = installed_health_identity(&temp.0);
-        live_identity["generation"] = json!("0.3.14:current");
+        live_identity["generation"] = json!("0.3.15:current");
         live_identity["projections"] = json!({
             "piSkills": {
                 "clientId": "pi",

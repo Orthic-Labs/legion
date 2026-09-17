@@ -14,6 +14,13 @@ function version() {
  * development checkout or staged repository executable.
  */
 export function resolveNativeCli(env = process.env) {
+  if (env.LEGION_TEST_NATIVE_CLI_PATH) {
+    const path = resolve(env.LEGION_TEST_NATIVE_CLI_PATH);
+    if (!existsSync(path) || !lstatSync(path).isFile() || lstatSync(path).isSymbolicLink()) {
+      throw new Error('LEGION_TEST_NATIVE_CLI_PATH must name a regular native executable');
+    }
+    return path;
+  }
   if (!env.LOCALAPPDATA) return null;
   const path = resolve(env.LOCALAPPDATA, 'Orthic Labs', 'Legion', 'current', 'bin', 'legion.exe');
   if (!existsSync(path) || !lstatSync(path).isFile() || lstatSync(path).isSymbolicLink()) return null;
