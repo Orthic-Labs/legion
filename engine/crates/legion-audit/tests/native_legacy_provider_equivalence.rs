@@ -9,7 +9,10 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
     path::PathBuf,
-    sync::Arc,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -26,6 +29,8 @@ use legion_provider_sdk::{
 };
 use serde_json::{json, Value};
 use sha2::Digest;
+
+static NEXT_FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 use tokio_util::sync::CancellationToken;
 
 const NODE_REGISTRY: &str = concat!(
@@ -306,7 +311,8 @@ fn fixture_root() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let root = std::env::temp_dir().join(format!("legion-legacy-equivalence-{suffix}"));
+    let id = NEXT_FIXTURE_ID.fetch_add(1, Ordering::Relaxed);
+    let root = std::env::temp_dir().join(format!("legion-legacy-equivalence-{suffix}-{id}"));
     fs::create_dir_all(root.join("src-tauri/capabilities")).unwrap();
     for (path, body) in [
         ("src/main.rs", "fn main() {}\n"),
