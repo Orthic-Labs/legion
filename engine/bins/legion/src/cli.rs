@@ -1667,7 +1667,7 @@ fn finish(result: CommandResult) -> i32 {
                 .and_then(Value::as_str)
             {
                 Some("incomplete") | Some("unproven") | Some("partial") | Some("failed")
-                | Some("cancelled") | Some("unavailable") => 2,
+                | Some("cancelled") | Some("unavailable") | Some("unknown") => 2,
                 Some("fail") | Some("denied") => 1,
                 _ => 0,
             }
