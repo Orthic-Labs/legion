@@ -9,7 +9,7 @@ use tokio_util::sync::CancellationToken;
 /// in a later process.
 #[derive(Debug, Args)]
 pub struct PlanArgs {
-    #[arg(default_value = ".", trailing_var_arg = true, allow_hyphen_values = true)]
+    #[arg(default_value = ".", allow_hyphen_values = true)]
     pub root: PathBuf,
     #[arg(long)]
     pub json: bool,

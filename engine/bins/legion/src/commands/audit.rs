@@ -5,7 +5,7 @@ use std::{path::PathBuf, sync::Arc};
 use tokio_util::sync::CancellationToken;
 #[derive(Debug, Args)]
 pub struct AuditArgs {
-    #[arg(default_value = ".", trailing_var_arg = true, allow_hyphen_values = true)]
+    #[arg(default_value = ".", allow_hyphen_values = true)]
     pub root: PathBuf,
     #[arg(long)]
     pub plan_only: bool,
