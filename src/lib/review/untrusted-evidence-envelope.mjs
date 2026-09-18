@@ -38,7 +38,7 @@ export const REVIEW_FAMILIES = Object.freeze([
 export const DEFAULT_EVIDENCE_MAX_BYTES = 8192;
 
 // Characters that can rewrite what a human or a model believes it is reading.
-const BIDI = /[‎‏؜‪-‮⁦-⁩]/g;
+const BIDI = new RegExp('[' + String.fromCodePoint(0x200e, 0x200f, 0x061c, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069) + ']', 'g');
 const ZERO_WIDTH = /[​-‍⁠﻿]/g;
 // C0/C1 controls, minus the newline and tab that carry display meaning.
 const CONTROL = /[\0---]/g;
