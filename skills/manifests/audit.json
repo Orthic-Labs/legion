@@ -63,7 +63,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:afac59eb5b794abd2683ab736cb084677edb8994f343113903d30f892b90add5"
+      "digest": "sha256:cc0158e9a6f921a424748a9fb8e9a3702c0c62b0add744e9fa56ddef32cdd91c"
     },
     {
       "path": "agents/openai.yaml",
@@ -108,12 +108,12 @@
     {
       "path": "references/lens-routing.md",
       "uri": "legion-skill://audit/references/lens-routing.md",
-      "digest": "sha256:f7e27cbc2929577128b657e5b81a69b177f873bd4fd31756bb6230bbd44bd4bb"
+      "digest": "sha256:88479944ef1606e884bbbc5707a394c29641425ec6bd46d92fa4739ef3213295"
     },
     {
       "path": "references/manual.md",
       "uri": "legion-skill://audit/references/manual.md",
-      "digest": "sha256:44867d858a96bdd351c5eba9f4fce5f0c0eae8d6cca085aba373760fcb8b3360"
+      "digest": "sha256:b3d6df67c3e9ecd127027be65266f0d5cddd509e4122c1a96c7461de4275abcd"
     },
     {
       "path": "references/migration-safety.md",
