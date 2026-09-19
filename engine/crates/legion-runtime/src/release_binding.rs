@@ -430,7 +430,8 @@ pub fn stable_install_root(path: impl AsRef<Path>) -> Option<PathBuf> {
 /// Resolve an outer launcher symlink only when it reaches this product's
 /// stable executable. The evidence remains lexical `current/bin/legion`, so
 /// a launcher cannot redirect binding into an arbitrary immutable generation;
-/// only an exact resolved executable is admitted.
+/// only an exact resolved executable is admitted. This also keeps launcher
+/// compatibility covered by native CI whenever this binding changes.
 fn stable_current_executable_path(path: &Path, current_root: &Path) -> Option<PathBuf> {
     let expected = current_root.join("bin").join(if cfg!(windows) {
         "legion.exe"
