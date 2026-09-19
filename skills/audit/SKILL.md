@@ -63,8 +63,8 @@ overrides it.
    audit incomplete.
 6. Read [engine interface](references/engine-interface.md) for scanner, report, & CLI contracts.
 7. Read [lens routing](references/lens-routing.md); fan every applicable reasoning contract to one
-   native subagent in one parallel wave. Inline execution is fallback only when seats are
-   unavailable. Reason only inside frozen-plan providers.
+   native subagent in one parallel wave, always using lowest available tier. Inline execution is
+   fallback only when no native seat is available. Reason only inside frozen-plan providers.
 8. Adjudicate each security candidate independently; no generator closes its own finding.
 9. Deduplicate, then finalize through [execution contract](references/execution-contract.md) so
    `report.json`, `report.sarif`, & receipts reconcile against exact plan. Missing provider/lens

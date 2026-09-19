@@ -35,11 +35,11 @@ When Blueprint Phase 2 exists, pass `understanding.json.architecture.coverageGap
 
 ## Model routing
 
-- Use strongest available judgment-capable seat for `architecture`, `security`, `schema`, `correctness`, `minimize`,
-  `doc-drift`, `data-safety`, `resilience`, and `release-readiness` because these require raw logic,
-  exact contracts, or failure-mode reasoning.
-- Use a mechanical/fast seat for `ai-slop`, `naming`, `dead-file`, `performance`, `a11y`, and
-  `platform-parity`. A11y and platform parity still receive the relevant raw excerpts.
+- Dispatch every lens to lowest available native tier. Lens category never upgrades model tier.
+- `architecture`, `security`, `schema`, `correctness`, `minimize`, `doc-drift`, `data-safety`,
+  `resilience`, and `release-readiness` receive raw logic, exact contracts, or failure-mode evidence.
+- `ai-slop`, `naming`, `dead-file`, `performance`, `a11y`, and `platform-parity` receive scoped
+  evidence; a11y and platform parity still receive relevant raw excerpts.
 - Conditional lenses spawn only when their trigger fires.
 - `minimize` reads raw bodies and `references/ponytail-lens.md`; a skeleton alone cannot distinguish
   dead abstraction from a real DI, test, or extension seam.

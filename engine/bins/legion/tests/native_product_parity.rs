@@ -195,7 +195,8 @@ fn doctor_reports_missing_binding_and_legacy_mcp_migrations() {
     )
     .unwrap();
 
-    let output = fixture.run(&["doctor", ".", "--json"]);
+    let root = fixture.0.to_string_lossy().into_owned();
+    let output = fixture.run(&["doctor", &root, "--json"]);
     assert_eq!(output.status.code(), Some(0));
     let report = output_json(&output);
     assert_eq!(report["binding"]["receiptPresent"], false);

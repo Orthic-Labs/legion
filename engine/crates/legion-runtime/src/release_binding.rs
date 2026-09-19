@@ -422,20 +422,43 @@ pub fn is_stable_current_executable(path: &Path) -> bool {
 /// the user-facing `current` path even when that directory is a Windows
 /// junction to an immutable versioned generation.
 pub fn stable_install_root(path: impl AsRef<Path>) -> Option<PathBuf> {
-    let path = path.as_ref();
     let product_root = stable_product_root()?;
     let current_root = product_root.join("current");
-    is_stable_current_executable_at(path, &current_root).then_some(product_root)
+    stable_current_executable_path(path.as_ref(), &current_root).map(|_| product_root)
+}
+
+/// Resolve an outer launcher symlink only when it reaches this product's
+/// stable executable. The evidence remains lexical `current/bin/legion`, so
+/// a launcher cannot redirect binding into an arbitrary immutable generation.
+fn stable_current_executable_path(path: &Path, current_root: &Path) -> Option<PathBuf> {
+    let expected = current_root.join("bin").join(if cfg!(windows) {
+        "legion.exe"
+    } else {
+        "legion"
+    });
+    if is_stable_current_executable_at(path, current_root) {
+        return Some(expected);
+    }
+    let (Ok(resolved_path), Ok(resolved_expected)) =
+        (fs::canonicalize(path), fs::canonicalize(&expected))
+    else {
+        return None;
+    };
+    same_path(&resolved_path, &resolved_expected).then_some(expected)
 }
 
 /// Classify one executable without loading release files. This is useful for
 /// status output when an installed manifest is missing or invalid.
 pub fn runtime_origin_for_executable(path: impl Into<PathBuf>) -> RuntimeOriginEvidence {
     let executable = path.into();
-    match stable_install_root(&executable) {
-        Some(root) => RuntimeOriginEvidence {
+    let installed = stable_product_root().and_then(|root| {
+        let current_root = root.join("current");
+        stable_current_executable_path(&executable, &current_root).map(|stable| (root, stable))
+    });
+    match installed {
+        Some((root, stable_executable)) => RuntimeOriginEvidence {
             origin: RuntimeOrigin::Installed,
-            executable,
+            executable: stable_executable,
             install_root: Some(root),
             generation: None,
             stable_current: true,
@@ -479,7 +502,7 @@ pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError>
             path: current_root.clone(),
             source,
         })?;
-    if !is_stable_current_executable_at(&executable, &current_root) {
+    if !is_stable_current_executable_at(&evidence.executable, &current_root) {
         return Err(ReleaseBindingError::Mismatch {
             component: "resolved executable",
             expected: current_root.join("bin").join(if cfg!(windows) {
@@ -514,11 +537,11 @@ pub fn load_installed_release() -> Result<InstalledRelease, ReleaseBindingError>
         &manifest.runtime.architecture,
         current_runtime_architecture(),
     )?;
-    check_file("runtime digest", &manifest.runtime.sha256, &executable)?;
+    check_file("runtime digest", &manifest.runtime.sha256, &evidence.executable)?;
     Ok(InstalledRelease {
         manifest,
         manifest_path,
-        executable_path: executable,
+        executable_path: evidence.executable,
     })
 }
 
@@ -558,10 +581,12 @@ pub fn verify_stable_current_binding(
         });
     }
     let current_root = root.join("current");
+    let runtime_path = stable_current_executable_path(&inputs.runtime_path, &current_root)
+        .unwrap_or_else(|| inputs.runtime_path.clone());
     if !is_stable_current_executable_at(&evidence.executable, &current_root)
-        || !is_stable_current_executable_at(&inputs.runtime_path, &current_root)
+        || !is_stable_current_executable_at(&runtime_path, &current_root)
         || path_has_symlink_component(&current_root, &evidence.executable)
-        || path_has_symlink_component(&current_root, &inputs.runtime_path)
+        || path_has_symlink_component(&current_root, &runtime_path)
     {
         return Err(ReleaseBindingError::Mismatch {
             component: "stable current executable",
@@ -578,11 +603,11 @@ pub fn verify_stable_current_binding(
             remediation: REPAIR_COMMAND,
         });
     }
-    if !same_path(&evidence.executable, &inputs.runtime_path)
+    if !same_path(&evidence.executable, &runtime_path)
         && !(cfg!(windows)
             && windows_localcache_equivalent(
                 &evidence.executable,
-                &inputs.runtime_path,
+                &runtime_path,
                 root,
             ))
     {

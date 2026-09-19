@@ -60,7 +60,7 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
 | 0 · Blueprint grounding (if available) | Check freshness; query the current graph + flow inventory; use `.agent/` document/claim artifacts as the verified companion layer |
 | 1 · Scanners (`collect-facts.mjs`) | Consume fresh Blueprint hygiene facts first; run only missing/stale checks in a **parallel**, bounded pool `min(cpus-1,4)`. Size metrics nominate review candidates; they do not emit architecture findings. |
 | 1b · `build` / install check | **Sequential, alone**, after the pool (builds/installs are serial) |
-| 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native host subagents** (one fresh subagent per lens; fast seats for mechanical lenses, strongest available seats for judgment lenses; see Lens fan-out). Running lenses inline in the main session is fallback. **NO external model APIs** — no api-worker or HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
+| 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native host subagents** (one fresh subagent per lens, always on lowest available tier; see Lens fan-out). Running lenses inline in the main session is fallback only when no native seat is available. **NO external model APIs** — no api-worker or HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
 | 3 · Synthesize → render → open | Sequential |
 
 ## Procedure
@@ -169,8 +169,9 @@ metadata is advisory context; scanner coverage remains honest — a scoped repor
 unscanned checks were clean, and none of this turns `/audit` into single-PR review.
 
 2. **Run applicable lenses over `facts.json` + repo — as parallel native host subagents,
-   one fresh subagent per lens, all in ONE wave; inline in main session is always-legal
-   fallback.** NO external model APIs (locked 2026-07-05). Model routing, structured task bodies,
+   one fresh subagent per lens, all in ONE wave, always on lowest available tier; inline in main
+   session is fallback only when no native seat is available.** NO external model APIs (locked
+   2026-07-05). Model routing, structured task bodies,
    secret-safe inputs, and the skel-vs-RAW excerpt-compression split are owned by
    `references/lens-routing.md` — read it before this stage. Each lens is fed its facts (table
    below), then reasons: verify, contextualize, prioritize. A finding MUST point to a real
