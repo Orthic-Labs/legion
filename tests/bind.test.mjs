@@ -119,8 +119,7 @@ test('codex bind writes managed agent pointers and is idempotent', () => {
     const config = readFileSync(join(dir, '.codex', 'config.toml'), 'utf8');
     assert.match(config, /# >>> legion:managed-block v1 >>>/);
     assert.match(config, /config_file = "agents\/sage.toml"/);
-    assert.match(config, /command = "legion"/);
-    assert.match(config, /args = \["serve", "--stdio"\]/);
+    assert.doesNotMatch(config, /\[mcp_servers\.legion\]|command = "legion"|serve", "--stdio/);
     assert.doesNotMatch(config, /node|server\.mjs|\/lib\/integrations\//);
     const sage = readFileSync(join(dir, '.codex', 'agents', 'sage.toml'), 'utf8');
     assert.match(sage, /\nname = "sage"/);
@@ -145,7 +144,6 @@ test('codex bind migrates the prior Seer-era unmanaged tables without touching u
       'model = "gpt"', '',
       '[agents.sage]', 'description = "old"', 'config_file = "agents/sage.toml"', '',
       '[agents.seer]', 'description = "old"', 'config_file = "agents/seer.toml"', '',
-      '[mcp_servers.legion]', 'command = "node"', 'args = ["old.mjs"]', '',
       '[history]', 'persistence = "save-all"', '',
     ].join('\n'));
     const written = bind(['--write', '--harness', 'codex', dir]);
@@ -183,7 +181,7 @@ test('codex bind refreshes its stale generated current-role block without touchi
     assert.match(config, /# >>> legion:managed-block v1 >>>/);
     assert.match(config, /Optional cross-cutting design and adjudication authority/);
     assert.doesNotMatch(config, /old\.mjs|description = "old"/);
-    for (const header of ['agents.sage', 'agents.alchemist', 'agents.oracle', 'agents.covenant-seat', 'mcp_servers.legion']) {
+    for (const header of ['agents.sage', 'agents.alchemist', 'agents.oracle', 'agents.covenant-seat']) {
       assert.equal((config.match(new RegExp(`^\\[${header.replace('.', '\\.')}\\]$`, 'gm')) ?? []).length, 1, header);
     }
     assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
@@ -191,7 +189,7 @@ test('codex bind refreshes its stale generated current-role block without touchi
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('codex bind removes a duplicate legacy MCP table outside its managed block', () => {
+test('codex bind removes a retired MCP table outside its managed block', () => {
   const dir = mkdtempSync(join(tmpdir(), 'legion-codex-duplicate-mcp-'));
   try {
     mkdirSync(join(dir, '.codex'), { recursive: true });
@@ -201,7 +199,7 @@ test('codex bind removes a duplicate legacy MCP table outside its managed block'
     writeFileSync(path, `${managed}\n[mcp_servers.legion]\ncommand = "node"\nargs = ["old.mjs"]\n`);
     assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
     const repaired = readFileSync(path, 'utf8');
-    assert.equal((repaired.match(/^\[mcp_servers\.legion\]$/gm) ?? []).length, 1);
+    assert.equal((repaired.match(/^\[mcp_servers\.legion\]$/gm) ?? []).length, 0);
     assert.doesNotMatch(repaired, /old\.mjs/);
     assert.equal(bind(['--write', '--harness', 'codex', dir]).status, 0);
     assert.equal(readFileSync(path, 'utf8'), repaired);
