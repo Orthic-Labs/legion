@@ -71,25 +71,13 @@ pub fn require_mutation_capability(host_mutation_capability: bool) -> Result<(),
 }
 
 fn within_primary_worktree(candidate: &Path, repo_root: &Path) -> bool {
-    let root = repo_root.to_path_buf();
-    let path = candidate.to_path_buf();
-    if path == root {
-        return true;
-    }
-    let root_with_sep = {
-        let mut s = root.to_string_lossy().to_string();
-        if !s.ends_with(std::path::MAIN_SEPARATOR) {
-            s.push(std::path::MAIN_SEPARATOR);
-        }
-        s
-    };
-    let path_str = path.to_string_lossy().to_string();
-    if !path_str.starts_with(&root_with_sep) {
+    // Component-wise (not string) comparison so `/` and `\` separators and
+    // trailing separators compare the same on every platform.
+    let Ok(rest) = candidate.strip_prefix(repo_root) else {
         return false;
-    }
+    };
     // The git common directory lives under the root but is not the working tree.
-    let sep = std::path::MAIN_SEPARATOR;
-    !path_str.contains(&format!("{sep}.git{sep}"))
+    !rest.components().any(|c| c.as_os_str() == ".git")
 }
 
 #[derive(Debug, Clone)]
