@@ -17,18 +17,25 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use legion_audit::wf_port::wf005::gauntlet::{run_gauntlet, GauntletOptions};
 
 const FIXTURES_ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/wf_wf005");
 
+static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+
 fn unique_dir(label: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let dir = std::env::temp_dir().join(format!("wf005-gauntlet-{label}-{}-{nanos}", std::process::id()));
+    let counter = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!(
+        "wf005-gauntlet-{label}-{}-{nanos}-{counter}",
+        std::process::id()
+    ));
     fs::create_dir_all(&dir).expect("create materialised fixture dir");
     dir
 }

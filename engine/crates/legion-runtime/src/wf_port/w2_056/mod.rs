@@ -45,6 +45,9 @@ pub use verify::{verify_skill_bytes, verify_skill_catalog, VerifyFinding, Verify
 #[cfg(test)]
 pub(crate) mod test_support {
     use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
     pub struct TempDir(PathBuf);
 
@@ -52,12 +55,13 @@ pub(crate) mod test_support {
         pub fn new() -> Self {
             let mut path = std::env::temp_dir();
             let unique = format!(
-                "legion-wf-w2-056-{}-{}",
+                "legion-wf-w2-056-{}-{}-{}",
                 std::process::id(),
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_nanos()
+                    .as_nanos(),
+                NEXT_ID.fetch_add(1, Ordering::Relaxed)
             );
             path.push(unique);
             std::fs::create_dir_all(&path).unwrap();

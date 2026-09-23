@@ -326,7 +326,10 @@ mod tests {
     use super::*;
 
     fn nonce() -> u128 {
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() ^ (std::process::id() as u128)
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+        (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() ^ (std::process::id() as u128))
+            .wrapping_add(NEXT_ID.fetch_add(1, Ordering::Relaxed) as u128)
     }
 
     #[test]

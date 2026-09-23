@@ -321,8 +321,11 @@ mod tests {
     use super::*;
 
     fn nonce() -> u128 {
+        use std::sync::atomic::{AtomicU64, Ordering};
         use std::time::{SystemTime, UNIX_EPOCH};
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() ^ (std::process::id() as u128)
+        static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+        (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() ^ (std::process::id() as u128))
+            .wrapping_add(NEXT_ID.fetch_add(1, Ordering::Relaxed) as u128)
     }
 
     fn temp_journal_path(label: &str) -> std::path::PathBuf {

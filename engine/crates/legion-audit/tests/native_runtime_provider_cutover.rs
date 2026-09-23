@@ -2,7 +2,9 @@
 use legion_audit::{AuditProvider, InventoryEntry, InventoryEnvelope, NativeProviderRegistry, ProviderExecutor, ProviderKind};
 use legion_contracts::{ProviderSpec, ProviderStatus};
 use serde_json::Value;
-use std::{collections::{BTreeMap, BTreeSet}, fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+use std::{collections::{BTreeMap, BTreeSet}, fs, path::PathBuf, sync::atomic::{AtomicU64, Ordering}, time::{SystemTime, UNIX_EPOCH}};
+
+static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
 const TESTED_RUNTIME_IDS: [&str; 29] = [
     "architecture.core", "code.c-family", "code.dotnet", "code.go", "code.javascript", "code.jvm", "code.long-tail", "code.mobile", "code.php-ruby", "code.python", "code.rust", "compatibility.core", "container.iac", "dependency.osv", "docs.contract", "framework.backend", "framework.data", "framework.frontend", "governance.policy", "imported.sarif", "legacy.accessibility.internal-suite", "legacy.framework.major-suite", "legacy.visual.core", "requirements.traceability", "secrets.current-history", "security.opengrep", "structural.ast-grep", "supply-chain.license-sbom-provenance", "test-quality.core",
@@ -29,7 +31,12 @@ fn provider(spec: &ProviderSpec) -> AuditProvider {
 }
 
 fn fixture_root(label: &str) -> PathBuf {
-    let root = std::env::temp_dir().join(format!("legion-runtime-cutover-{label}-{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+    let root = std::env::temp_dir().join(format!(
+        "legion-runtime-cutover-{label}-{}-{}-{}",
+        std::process::id(),
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
+        NEXT_ID.fetch_add(1, Ordering::Relaxed)
+    ));
     fs::create_dir_all(root.join("src")).unwrap();
     for (path, body) in [
         ("src/lib.rs", "fn main() {}\n"), ("src/index.js", "export const value = 1;\n"),

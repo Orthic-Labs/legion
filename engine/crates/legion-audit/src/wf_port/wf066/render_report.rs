@@ -1449,6 +1449,18 @@ fn render_decomposition_plan(l: &mut Vec<String>, plan: &Value, _workspace: &Pat
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_scratch_path(prefix: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "{prefix}-{}-{}-{}",
+            std::process::id(),
+            now_unix_secs() as u64,
+            NEXT_ID.fetch_add(1, Ordering::Relaxed)
+        ))
+    }
 
     #[test]
     fn quality_gate_clean_requires_all_relevant_checks_to_run_with_zero_findings() {
@@ -1613,7 +1625,7 @@ mod tests {
             "checks": [{ "check": "lint", "status": "ran", "findings_count": 0, "exit_code": 0 }],
         });
         let options = RenderOptions {
-            trajectory_history: Some(std::env::temp_dir().join(format!("wf066-traj-{}.json", now_unix_secs() as u64))),
+            trajectory_history: Some(unique_scratch_path("wf066-traj").with_extension("json")),
             ..Default::default()
         };
         let rendered = render_report(&facts, None, &options).unwrap();
@@ -1625,7 +1637,7 @@ mod tests {
     #[test]
     fn trajectory_first_run_has_no_prior_snapshot() {
         let findings = vec![json!({ "file": "a.rs", "line": 1, "category": "security", "severity": "high", "title": "t" })];
-        let history_path = std::env::temp_dir().join(format!("wf066-traj-first-{}.json", now_unix_secs() as u64));
+        let history_path = unique_scratch_path("wf066-traj-first").with_extension("json");
         let _ = fs::remove_file(&history_path);
         let trajectory = compute_trajectory(&findings, &history_path, Some(json!({})));
         assert!(trajectory.summary["vs_prior_run"].is_null());
@@ -1639,7 +1651,7 @@ mod tests {
             "run_at": "1000",
             "fingerprints": { fp.clone(): { "severity": "high", "first_seen": "500", "last_seen": "900", "loose": loose_fingerprint(&findings[0]) } },
         });
-        let history_path = std::env::temp_dir().join(format!("wf066-traj-match-{}.json", now_unix_secs() as u64));
+        let history_path = unique_scratch_path("wf066-traj-match").with_extension("json");
         let trajectory = compute_trajectory(&findings, &history_path, Some(prior));
         let v = &trajectory.summary["vs_prior_run"];
         assert_eq!(v["resolved"], json!(0));

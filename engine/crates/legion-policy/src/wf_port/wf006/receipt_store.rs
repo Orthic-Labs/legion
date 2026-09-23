@@ -229,8 +229,11 @@ mod tests {
     }
 
     fn rand_suffix() -> u64 {
+        use std::sync::atomic::{AtomicU64, Ordering};
         use std::time::{SystemTime, UNIX_EPOCH};
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64
+        static NEXT_ID: AtomicU64 = AtomicU64::new(0);
+        (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64)
+            .wrapping_add(NEXT_ID.fetch_add(1, Ordering::Relaxed))
     }
 
     #[test]

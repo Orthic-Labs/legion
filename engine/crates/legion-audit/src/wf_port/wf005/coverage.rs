@@ -8,11 +8,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Value;
 
 use super::diff::DiffFile;
+
+static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct CoverageLineResult {
@@ -43,7 +46,12 @@ fn unique_temp_dir(prefix: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let dir = std::env::temp_dir().join(format!("{prefix}-{}-{}", std::process::id(), nanos));
+    let dir = std::env::temp_dir().join(format!(
+        "{prefix}-{}-{}-{}",
+        std::process::id(),
+        nanos,
+        NEXT_ID.fetch_add(1, Ordering::Relaxed)
+    ));
     let _ = fs::create_dir_all(&dir);
     dir
 }
