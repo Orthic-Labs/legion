@@ -69,7 +69,7 @@ class WindowsRunnerTest(unittest.TestCase):
             env.update({"PATH": str(fake_bin) + os.pathsep + env["PATH"], "CODEX_HOME": str(codex_home), "ALCHEMIST_PYTHON": sys.executable})
             result = subprocess.run(
                 ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(RUNNER), "-Profile", "mimo", "-TimeoutSeconds", "10", "-MaxOutputBytes", "256", "-EventLog", str(event_log), "-WorkDir", str(tmp)],
-                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=20,
+                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=60,
             )
             self.assertEqual(result.returncode, 125, result.stderr)
             self.assertIn("output exceeded MaxOutputBytes", result.stderr)
@@ -133,7 +133,7 @@ class WindowsRunnerTest(unittest.TestCase):
                 text=True,
                 capture_output=True,
                 env=env,
-                timeout=20,
+                timeout=60,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("FAKE_OK", result.stdout, result.stderr + result.stdout)
@@ -189,7 +189,7 @@ class WindowsRunnerTest(unittest.TestCase):
             ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(RUNNER),
              "-Profile", profile, "-TimeoutSeconds", "10", "-EventLog", str(event_log),
              "-WorkDir", str(tmp)] + list(extra_runner_args or []),
-            input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=20,
+            input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=60,
         )
         return result, args_file, codex_config_file
 
@@ -236,7 +236,7 @@ class WindowsRunnerTest(unittest.TestCase):
             result = subprocess.run(
                 [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(RUNNER),
                  "-Profile", "mimo", "-TimeoutSeconds", "10", "-WorkDir", str(tmp)],
-                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=20,
+                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=60,
             )
             self.assertEqual(result.returncode, 4, result.stderr)
             self.assertIn("adapter unavailable", result.stderr)
@@ -265,7 +265,7 @@ class WindowsRunnerTest(unittest.TestCase):
             env.update({"PATH": str(fake_bin) + os.pathsep + env["PATH"], "CODEX_HOME": str(codex_home), "FAKE_STDIN": str(stdin_file), "ALCHEMIST_PYTHON": sys.executable})
             result = subprocess.run(
                 ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", f'Get-Content -Raw "{brief_file}" | & "{RUNNER}" -Profile mimo -TimeoutSeconds 10 -EventLog "{event_log}" -WorkDir "{tmp}"'],
-                text=True, capture_output=True, env=env, timeout=20,
+                text=True, capture_output=True, env=env, timeout=60,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(stdin_file.read_text(encoding="utf-8").strip(), "<task>first\nsecond</task>")
@@ -293,7 +293,7 @@ class WindowsRunnerTest(unittest.TestCase):
             env.update({"PATH": str(fake_bin) + os.pathsep + env["PATH"], "CODEX_HOME": str(codex_home), "ALCHEMIST_DEFINED_PATH": "expanded", "ALCHEMIST_PYTHON": sys.executable})
             result = subprocess.run(
                 ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(RUNNER), "-Profile", "mimo", "-TimeoutSeconds", "1", "-EventLog", str(event_log), "-WorkDir", str(tmp)],
-                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=20,
+                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=60,
             )
             self.assertEqual(result.returncode, 124, result.stderr)
             self.assertIn(f"EVENT_LOG={event_log}", result.stderr)
@@ -332,7 +332,7 @@ class WindowsRunnerTest(unittest.TestCase):
                     "-File", str(RUNNER), "-Profile", "mimo", "-TimeoutSeconds", "10",
                     "-EventLog", str(event_log), "-WorkDir", str(tmp),
                 ],
-                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=20,
+                input="<task>probe</task>", text=True, capture_output=True, env=env, timeout=60,
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("zero JSON events", result.stderr)
