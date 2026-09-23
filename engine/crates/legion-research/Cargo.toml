@@ -5,6 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+serde_yaml.workspace = true
+hmac.workspace = true
 regex.workspace = true
 serde_json.workspace = true
 legion-contracts = { path = "../legion-contracts" }
