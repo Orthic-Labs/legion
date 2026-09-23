@@ -4,6 +4,11 @@
 //! through the real `EffectExecutor` subprocess route — exactly as
 //! `legion` bin's `native_audit_external_tool` wires it — via tiny fake
 //! executables, not a fabricated `ExternalProjectTool`/`ExecutionReceipt`.
+//!
+//! Unix-only: relies on shell-script fake executables and POSIX permission
+//! bits (`chmod 0o755`) to make the resolver see them as runnable tools.
+
+#![cfg(unix)]
 
 use std::{
     fs,
