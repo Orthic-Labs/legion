@@ -630,7 +630,7 @@ mod tests {
 
     #[test]
     fn biome_counts_diagnostics_array() {
-        let outcome = lint_json(&json(fixture!("biome.json"))).expect("biome shape recognized");
+        let outcome = lint_json(&json(fixture!("biome-lint-output.json"))).expect("biome shape recognized");
         assert_eq!(outcome.rule, "legacy.lint.biome");
         assert_eq!(outcome.findings_count, Some(2));
     }

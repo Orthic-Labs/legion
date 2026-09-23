@@ -28,8 +28,10 @@ fn fixture_root() -> PathBuf {
 }
 
 fn domains_registry() -> Value {
-    let text =
-        std::fs::read_to_string(fixture_root().join("domains.json")).expect("read domains.json");
+    let text = std::fs::read_to_string(
+        fixture_root().join("src/registry/routing/domains.json"),
+    )
+    .expect("read domains.json");
     serde_json::from_str(&text).expect("parse domains.json")
 }
 

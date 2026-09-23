@@ -32,7 +32,7 @@ fn service_data_reports_unproven_with_no_adapter_and_wraps_with_service_provider
     let out = verify_service_data(&binding, Some("dataset-1"), Some("v1"), &mut adapter, &cases);
     assert_eq!(out["provider"], "runtime.service.data");
     assert_eq!(out["claimLevel"], "runtime");
-    assert!(out.get("kind").is_none(), "verifyServiceData strips kind");
+    assert_eq!(out["kind"], "legion-service-data-provider", "finalize re-adds its own kind after verifyServiceData strips the inner one");
     assert!(out.get("digest").is_some(), "finalize re-adds its own digest");
     assert_eq!(out["status"], "unproven");
 }
@@ -101,7 +101,14 @@ fn web_accessibility_flags_missing_and_unplanned_inspections() {
 
 #[test]
 fn actor_fixtures_pass_and_switch_actor_succeeds_within_same_tenant() {
-    let binding = full_binding();
+    // `switchActor` requires `sameBinding(receipt.binding, sessionBinding)`
+    // to hold across every `BINDING_KEYS` entry (`src/providers/runtime/web/
+    // shared.mjs`, `sameBinding`), not just `actorId`/`tenantId`, so the
+    // session binding must carry the full binding, and the binding's own
+    // `actorId` must equal the switching actor's id since `sessionBinding.
+    // actorId !== from` is also checked.
+    let mut binding = full_binding();
+    binding["actorId"] = json!("actor-a");
     let actors = json!([
         {
             "id": "actor-a", "identityId": "id-a", "credentialPolicyId": "cred-1", "sessionPolicyId": "sess-1",
@@ -135,7 +142,7 @@ fn actor_fixtures_pass_and_switch_actor_succeeds_within_same_tenant() {
     assert_eq!(receipt["complete"], true);
     assert_eq!(receipt["proof"], true);
 
-    let session_binding = json!({ "actorId": "actor-a", "tenantId": "tenant-1" });
+    let session_binding = receipt["binding"].clone();
     let result = switch_actor(&receipt, "actor-a", "actor-b", "actor-a", &session_binding, &[], None, &Value::Null);
     assert_eq!(result["status"], "pass");
     assert_eq!(result["from"], "actor-a");

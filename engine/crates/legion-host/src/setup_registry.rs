@@ -3769,8 +3769,17 @@ fn paths_equal(left: &Path, right: &Path) -> bool {
                     && path_starts_with(&right, &left),
                 _ => false,
             }
+    } else if left == right {
+        true
     } else {
-        left == right
+        // A ledger written under a mixed-separator path (a Windows-influenced
+        // value that reached a non-Windows state root, or vice versa) is not
+        // a different root, just a different spelling of the same one:
+        // backslash is never a meaningful path separator here, so normalize
+        // it to `/` before the exact, case-sensitive comparison this branch
+        // otherwise keeps.
+        let normalize = |path: &Path| path.to_string_lossy().replace('\\', "/");
+        normalize(left) == normalize(right)
     }
 }
 
@@ -4045,20 +4054,6 @@ fn err(code: SetupErrorCode, remediation: impl Into<String>) -> SetupError {
 }
 fn io(error: std::io::Error) -> SetupError {
     err(SetupErrorCode::StateSerializationFailed, error.to_string())
-}
-/// Remove a symlink entry itself (never its target). `rmdir` refuses a
-/// symlink outright on Unix (ENOTDIR) even when it points at a directory, so
-/// unlink is the correct call there; Windows draws the opposite distinction
-/// and requires `RemoveDirectory` for a directory-type reparse point.
-fn remove_symlink(path: &Path) -> Result<(), SetupError> {
-    #[cfg(windows)]
-    {
-        fs::remove_dir(path).or_else(|_| fs::remove_file(path)).map_err(io)
-    }
-    #[cfg(not(windows))]
-    {
-        fs::remove_file(path).map_err(io)
-    }
 }
 fn read(path: &Path) -> Result<Vec<u8>, SetupError> {
     fs::read(path).map_err(io)

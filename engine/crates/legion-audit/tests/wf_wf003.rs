@@ -34,8 +34,20 @@ fn run_git(dir: &Path, args: &[&str]) {
 /// then layers `fixtures/wf_wf003/<name>/changed` on top uncommitted —
 /// mirroring `materialise()` in gauntlet.test.mjs.
 fn materialise(name: &str) -> PathBuf {
+    // Matches JS `materialise()` (`src/lib/gauntlet/tests/gauntlet.test.mjs`),
+    // which uses `mkdtempSync` for a unique directory per call. A
+    // `process::id()`-only path collided across tests that cargo runs in
+    // parallel threads within one process and that share a fixture `name`
+    // (e.g. two tests both materialising "sample-diff"): one thread's
+    // `remove_dir_all` could wipe another thread's already-committed repo,
+    // surfacing as "nothing to commit" from `git commit`.
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let unique = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let src = fixtures_root().join(name);
-    let dir = std::env::temp_dir().join(format!("wf003-gauntlet-{name}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "wf003-gauntlet-{name}-{}-{unique}",
+        std::process::id()
+    ));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(&dir).unwrap();
     copy_dir(&src.join("base"), &dir);

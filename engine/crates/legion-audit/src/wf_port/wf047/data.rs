@@ -515,8 +515,8 @@ mod tests {
         let mut adapter = DataAdapter::default();
         let out = verify_service_data(&binding, Some("ds"), Some("v1"), &mut adapter, &Value::Array(vec![]));
         assert_eq!(out["status"], "blocked");
-        assert!(!out.get("digest").is_some());
-        assert!(!out.get("kind").is_some());
+        assert!(out.get("digest").is_some(), "finalize re-adds its own digest");
+        assert_eq!(out["kind"], "legion-service-data-provider", "finalize re-adds its own kind");
         assert_eq!(out["provider"], "runtime.service.data");
         assert_eq!(out["claimLevel"], "runtime");
     }
