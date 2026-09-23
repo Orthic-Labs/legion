@@ -536,20 +536,21 @@ impl NativeLegacyCheckExecutor {
             // sealed absolute path `AuditExternalProjectTool::execute` would
             // resolve later, and wrap *that* path so both the sandboxed run
             // and its `--version` probe target a real, fixed executable.
-            let resolved_for_sandbox =
-                resolve_request(&self.root, executable, &args).map_err(|error| {
-                    AuditError::Provider(format!(
-                        "failed to resolve {executable} for sandboxing: {}",
-                        error.message()
-                    ))
-                })?;
-            let resolved_executable = resolved_for_sandbox
-                .executable
-                .to_string_lossy()
-                .into_owned();
+            // Only macOS wraps in sandbox-exec, which scrubs PATH, so resolve
+            // the tool to its sealed absolute path there. If resolution fails,
+            // keep the bare name so the normal missing-tool path reports a
+            // typed gap instead of a hard provider error.
+            let (resolved_executable, resolved_args): (String, Vec<String>) =
+                match (cfg!(target_os = "macos"), resolve_request(&self.root, executable, &args)) {
+                    (true, Ok(resolved)) => (
+                        resolved.executable.to_string_lossy().into_owned(),
+                        resolved.args.clone(),
+                    ),
+                    _ => (executable.to_string(), args.iter().map(|a| a.to_string()).collect()),
+                };
             match legion_effects::authenticate_sandbox(
                 &resolved_executable,
-                &resolved_for_sandbox.args,
+                &resolved_args,
                 &self.root.to_string_lossy(),
                 mode,
                 &profile_dir,
