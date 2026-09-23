@@ -24,6 +24,8 @@ impl Fixture {
         // after chdir, which returns the real path (symlinks resolved, e.g.
         // macOS's /var -> /private/var). Canonicalize here so paths this
         // fixture computes match what the product actually reports.
+        // Unix only: on Windows canonicalize adds a `\\?\` prefix the CLI never prints.
+        #[cfg(unix)]
         let root = std::fs::canonicalize(&root).unwrap();
         Self(root)
     }

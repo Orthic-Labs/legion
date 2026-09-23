@@ -71,12 +71,19 @@ fn provider(id: &str, selector: Value) -> AuditProvider {
     }
 }
 
+/// Parallel tests must never share a scratch root (clock resolution alone collides).
+static ROOT_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn root() -> PathBuf {
     let suffix = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system clock")
         .as_nanos();
-    let root = std::env::temp_dir().join(format!("legion-native-legacy-cutover-{suffix}"));
+    let root = std::env::temp_dir().join(format!(
+        "legion-native-legacy-cutover-{}-{suffix}-{}",
+        std::process::id(),
+        ROOT_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
     fs::create_dir_all(root.join("src-tauri")).expect("temporary repository");
     // macOS `std::env::temp_dir()` returns a path under `/var/folders/...`,
     // which is itself a symlink to `/private/var/folders/...`. The product

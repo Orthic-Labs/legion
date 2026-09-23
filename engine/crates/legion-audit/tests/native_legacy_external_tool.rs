@@ -17,14 +17,18 @@ use serde_json::json;
 use sha2::Digest;
 use tokio_util::sync::CancellationToken;
 
+/// Parallel tests must never share a scratch root (clock resolution alone collides).
+static ROOT_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn root() -> PathBuf {
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     let root = std::env::temp_dir().join(format!(
-        "legion-external-test-{}-{nonce}",
-        std::process::id()
+        "legion-external-test-{}-{nonce}-{}",
+        std::process::id(),
+        ROOT_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     fs::create_dir_all(&root).unwrap();
     root

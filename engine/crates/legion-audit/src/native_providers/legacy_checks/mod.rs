@@ -528,9 +528,28 @@ impl NativeLegacyCheckExecutor {
         let (executable, args, sandbox_receipt, version_args) = if needs_sandbox {
             let mode = sandbox_mode_for_check(contract.check);
             let profile_dir = self.root.join(".legion-cache").join("audit-sandbox");
+            // `executable` here is still the bare tool name (e.g. "jscpd").
+            // sandbox-exec runs the wrapped command with a scrubbed
+            // environment, so a bare name relying on PATH lookup inside the
+            // sandbox is not guaranteed to resolve (node_modules/.bin tools
+            // in particular are not on PATH at all). Resolve to the same
+            // sealed absolute path `AuditExternalProjectTool::execute` would
+            // resolve later, and wrap *that* path so both the sandboxed run
+            // and its `--version` probe target a real, fixed executable.
+            let resolved_for_sandbox =
+                resolve_request(&self.root, executable, &args).map_err(|error| {
+                    AuditError::Provider(format!(
+                        "failed to resolve {executable} for sandboxing: {}",
+                        error.message()
+                    ))
+                })?;
+            let resolved_executable = resolved_for_sandbox
+                .executable
+                .to_string_lossy()
+                .into_owned();
             match legion_effects::authenticate_sandbox(
-                executable,
-                &args,
+                &resolved_executable,
+                &resolved_for_sandbox.args,
                 &self.root.to_string_lossy(),
                 mode,
                 &profile_dir,
