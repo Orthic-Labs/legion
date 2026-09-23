@@ -716,7 +716,17 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
     let registry =
         NativeProviderRegistry::new(&root).with_external_project_tool(Arc::new(FakeTool {
             state: ExecutionState::Completed,
-            body: Some(br#"{"complete":true,"status":"ok","coverageGaps":[]}"#.to_vec()),
+            // `duplication` (jscpd)'s parser (`legacy_checks::parsers::jscpd`)
+            // requires `statistics.total.clones` or an array `duplicates`
+            // field — an explicit "malformed output" rule ported from JS
+            // (`count === null -> status 'error'`), not a generic
+            // complete/status/coverageGaps envelope. Since this fixture body
+            // is shared across every external provider (including the
+            // on-disk `_jscpd/jscpd-report.json` this FakeTool also writes
+            // it to), it needs `duplicates: []` so jscpd's own schema is
+            // satisfied without disturbing the other 21 providers' parsers,
+            // which ignore the extra key.
+            body: Some(br#"{"complete":true,"status":"ok","coverageGaps":[],"duplicates":[]}"#.to_vec()),
         }));
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let mut checked = 0;

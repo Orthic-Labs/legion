@@ -189,6 +189,13 @@ fn eligible_reconciled_paths(ids: &[&str]) -> serde_json::Value {
             json!({
                 "id": id,
                 "provider": "security.attack-path-synthesis",
+                // Each per-path hypothesis carries its own `binding`
+                // (`tests/security-chain-pipeline.test.mjs`'s `path()`
+                // fixture), which `createChainAdjudicationPacket` reads via
+                // `path.binding` before comparing it against the plan's
+                // binding — omitting it makes `assertArtifactBinding` see a
+                // non-object binding.
+                "binding": chain_binding(),
                 "reconciliation": { "eligibleForChainAdjudication": true },
                 "steps": [{ "candidateId": "c1" }],
                 "joins": [],

@@ -259,7 +259,20 @@ fn verdict_input_from_value(raw: &Value) -> SecurityVerdictInput {
             .and_then(Value::as_array)
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
             .unwrap_or_default(),
-        proof: raw.get("proof").and_then(Value::as_str).map(String::from),
+        // JS `proof` (`src/adapters/security-adjudication.mjs`) is only
+        // ever truthiness-checked (`if (!result.proof)`), and its own test
+        // fixtures always give it an object (e.g. `{ kind: 'repro',
+        // artifact: '...' }`), never a bare string — `Value::as_str` threw
+        // that object away as `None`, silently dropping a present proof
+        // and routing an otherwise-valid TRUE_POSITIVE verdict into
+        // `invalidVerdicts` instead of the surviving-verdict branch. Fall
+        // back to the JSON-stringified form for any non-string, non-null
+        // proof so "is a proof present" still holds.
+        proof: raw.get("proof").and_then(|v| match v {
+            Value::Null => None,
+            Value::String(s) => Some(s.clone()),
+            other => Some(other.to_string()),
+        }),
         impact: raw.get("impact").and_then(Value::as_str).map(String::from),
         rationale: raw.get("rationale").and_then(Value::as_str).map(String::from),
         devils_advocate: raw.get("devilsAdvocate").and_then(Value::as_str).map(String::from),

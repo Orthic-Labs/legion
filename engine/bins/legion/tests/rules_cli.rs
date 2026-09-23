@@ -56,7 +56,11 @@ fn native_rules_evaluate_local_inventory_bound_source() {
         result["inventoryDigest"]
     );
 
-    let result_path = root.join("rule-result.json");
+    // Artifacts live outside the scanned root so writing them cannot change
+    // the inventory the rule result was bound to.
+    let artifacts = root.with_extension("artifacts");
+    std::fs::create_dir_all(&artifacts).unwrap();
+    let result_path = artifacts.join("rule-result.json");
     std::fs::write(&result_path, &output.stdout).unwrap();
     let plan = serde_json::json!({
         "providers": [{
@@ -87,9 +91,9 @@ fn native_rules_evaluate_local_inventory_bound_source() {
             "selectable": true
         }]
     });
-    let plan_path = root.join("provider-plan.json");
+    let plan_path = artifacts.join("provider-plan.json");
     std::fs::write(&plan_path, serde_json::to_vec_pretty(&plan).unwrap()).unwrap();
-    let audit_out = root.join("audit");
+    let audit_out = root.join(".audit/run");
     let audit = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args([
             "audit",

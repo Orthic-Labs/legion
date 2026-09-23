@@ -25,7 +25,17 @@ fn full_binding() -> Value {
 }
 
 #[test]
-fn service_data_reports_unproven_with_no_adapter_and_wraps_with_service_provider_fields() {
+fn service_data_reports_blocked_with_no_adapter_and_wraps_with_service_provider_fields() {
+    // The lone case here is the bare string "case-1", which normalizes to
+    // `{ id: 'case-1' }` with no `operationType`. Per JS
+    // (`src/providers/runtime/web/data/index.mjs`), `definitionGaps` flags
+    // that as `data-case-definition-untyped:case-1`, which forces the
+    // `preflightInvalid` branch before `adapter.exercise` is ever
+    // consulted — see `data.rs`'s own
+    // `verify_service_data_blocks_without_adapter` unit test, which ports
+    // the identical scenario and asserts "blocked", not "unproven". The
+    // status-precedence chain (`statuses.has('blocked') ? 'blocked' :
+    // ...`) resolves to "blocked" before it can ever reach "unproven".
     let binding = full_binding();
     let mut adapter = DataAdapter::default();
     let cases = json!(["case-1"]);
@@ -34,7 +44,7 @@ fn service_data_reports_unproven_with_no_adapter_and_wraps_with_service_provider
     assert_eq!(out["claimLevel"], "runtime");
     assert_eq!(out["kind"], "legion-service-data-provider", "finalize re-adds its own kind after verifyServiceData strips the inner one");
     assert!(out.get("digest").is_some(), "finalize re-adds its own digest");
-    assert_eq!(out["status"], "unproven");
+    assert_eq!(out["status"], "blocked");
 }
 
 #[test]
