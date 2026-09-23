@@ -1874,7 +1874,7 @@ def main() -> int:
         assert "references/manual.md" in skill_text
         manual_text = (SKILL_DIR / "references" / "manual.md").read_text(encoding="utf-8")
         assert "scripts/validate-dispatch.py" in manual_text
-        assert "--packet-type legacy` only for explicit legacy compatibility" in skill_text
+        assert "--packet-type legacy` only for explicit legacy compatibility" in " ".join(manual_text.split())
     print("PASS: dispatch validator accepts durable packet + rejects structural, semantic, status, script, path, temporary-storage, receipt, and typed-authority bypasses")
     return 0
 
