@@ -11,13 +11,14 @@ if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
     cd engine
     cargo check --workspace --all-targets --locked
     cargo test --locked
-    cargo build --locked --bins
   )
-
-  pnpm native:assemble -- --profile debug --out "${RUNNER_TEMP}/legion-install" --force
-  node scripts/ci/native-installed-smoke.mjs "${RUNNER_TEMP}/legion-install"
-  export LEGION_TEST_NATIVE_CLI_PATH="${RUNNER_TEMP}/legion-install/bin/legion.exe"
 fi
+
+# The Node suite needs the native CLI whether or not Rust changed in this push.
+(cd engine && cargo build --locked --bins)
+pnpm native:assemble -- --profile debug --out "${RUNNER_TEMP}/legion-install" --force
+node scripts/ci/native-installed-smoke.mjs "${RUNNER_TEMP}/legion-install"
+export LEGION_TEST_NATIVE_CLI_PATH="${RUNNER_TEMP}/legion-install/bin/legion.exe"
 
 pnpm test
 
