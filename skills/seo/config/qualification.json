@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "provider_replay_required": ["gsc_search_analytics", "google_generative_export", "bing_ai_export"],
-  "repository_gates": ["seo_closure", "seo_python_tests", "general_legion_ci", "third_party_notices"],
-  "runtime_gates": ["project_doctor", "credential_state_no_secret_leak", "owned_site_local_audit", "gsc_live_smoke_when_configured", "ga4_live_smoke_when_configured", "crux_pagespeed_live_smoke_when_configured", "bing_live_smoke_when_supported_and_configured", "google_generative_export_when_available", "bing_ai_export_when_available"],
-  "installed_path_gates": ["packaged_scripts_present", "skill_router_present", "config_present", "python_entrypoints_import_or_fail_degraded", "update_preserves_project_state", "uninstall_preserves_user_project_state_unless_explicitly_requested"],
-  "claim_rule": "Repository qualification may certify implementation closure. Only observed configured runtime evidence may certify provider availability. Neither certifies ranking, citation, lead, conversion, or revenue improvement."
-}
