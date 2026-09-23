@@ -11,10 +11,10 @@ use legion_runtime::p5_core::{
 use serde_json::json;
 
 fn temp_dir(label: &str) -> std::path::PathBuf {
-    let nonce = std::time::SystemTime::now()
+    let nonce = ((std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
-        .as_nanos()
+        .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
         ^ (std::process::id() as u128);
     std::env::temp_dir().join(format!("p5d-kernel-it-{label}-{nonce}"))
 }

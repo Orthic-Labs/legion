@@ -25,10 +25,10 @@ use serde_json::json;
 use tokio_util::sync::CancellationToken;
 
 fn root(tag: &str) -> PathBuf {
-    let nonce = SystemTime::now()
+    let nonce = ((SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_nanos();
+        .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }));
     let root = std::env::temp_dir().join(format!(
         "legion-report-source-test-{tag}-{}-{nonce}",
         std::process::id()

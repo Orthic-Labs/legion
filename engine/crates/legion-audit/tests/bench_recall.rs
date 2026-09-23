@@ -97,10 +97,10 @@ fn provider(id: &str, selector: Value) -> AuditProvider {
 }
 
 fn temp_root(tag: &str) -> PathBuf {
-    let suffix = SystemTime::now()
+    let suffix = ((SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system clock")
-        .as_nanos();
+        .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }));
     let root = std::env::temp_dir().join(format!("legion-bench-recall-{tag}-{suffix}"));
     fs::create_dir_all(&root).expect("temporary bench root");
     root

@@ -58,10 +58,10 @@ fn provider(id: &str, selector: Value) -> AuditProvider {
 }
 
 fn root() -> PathBuf {
-    let suffix = SystemTime::now()
+    let suffix = ((SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system clock")
-        .as_nanos();
+        .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }));
     let root = std::env::temp_dir().join(format!("legion-decomposition-parity-{suffix}"));
     fs::create_dir_all(&root).expect("temporary repository");
     root

@@ -8,10 +8,10 @@ fn temp_cwd(name: &str) -> PathBuf {
     let path = std::env::temp_dir().join(format!(
         "legion-judgment-{}-{}",
         name,
-        std::time::SystemTime::now()
+        ((std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_nanos()
+            .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
     ));
     std::fs::create_dir_all(&path).expect("temp cwd");
     path

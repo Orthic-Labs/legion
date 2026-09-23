@@ -23,10 +23,10 @@ fn tmp_dir(label: &str) -> PathBuf {
     p.push(format!(
         "legion-review-wf_w2_050-it-{label}-{}-{}",
         std::process::id(),
-        std::time::SystemTime::now()
+        ((std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
     ));
     fs::create_dir_all(&p).unwrap();
     p

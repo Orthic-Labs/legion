@@ -21,10 +21,10 @@ fn tempdir(prefix: &str) -> PathBuf {
     let unique = format!(
         "{prefix}-{}-{}",
         std::process::id(),
-        std::time::SystemTime::now()
+        ((std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
     );
     dir.push(unique);
     fs::create_dir_all(&dir).unwrap();

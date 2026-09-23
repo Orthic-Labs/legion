@@ -79,10 +79,10 @@ fn local_corpus_provider_search_and_open() {
     let dir = std::env::temp_dir().join(format!(
         "legion_wf027_it_local_corpus_{}_{}",
         std::process::id(),
-        std::time::SystemTime::now()
+        ((std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos()).wrapping_shl(20) | ({ static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0); u128::from(SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) }))
     ));
     fs::create_dir_all(&dir).unwrap();
     fs::write(dir.join("note.md"), "zephyr wake word governance").unwrap();
