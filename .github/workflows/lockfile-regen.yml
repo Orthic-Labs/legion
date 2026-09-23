@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 jobs:
   regen:
-    runs-on: ubuntu-24.04
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Regenerate lockfile
@@ -21,7 +21,7 @@ jobs:
           name: cargo-lock
           path: engine/Cargo.lock
   rust-check:
-    runs-on: ubuntu-24.04
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: cargo check (all targets)
@@ -35,7 +35,7 @@ jobs:
             engine/check.log
             engine/Cargo.lock
   rust-test:
-    runs-on: ubuntu-24.04
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: cargo test (lib, bins, tests)
