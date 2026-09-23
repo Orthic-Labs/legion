@@ -525,7 +525,12 @@ fn embedded_iot_hardcoded_wifi_secret_flagged() {
 
 #[test]
 fn embedded_iot_shared_device_key_flagged() {
-    let ctx = Context::new().with_file("main.c", "const char* DEVICE_KEY = \"fleetwide-shared-secret\";");
+    // The rule's pattern (`src/providers/security/packs/embedded-iot.mjs`)
+    // is `\b(?:DEVICE_SECRET|DEVICE_KEY|SHARED_DEVICE_KEY)\s*"[^"\n]{4,}"`
+    // — no `=` between the identifier and the quote, unlike the sibling
+    // hardcoded-secret rule's pattern — so `DEVICE_KEY = "..."` does not
+    // match in JS either; only `DEVICE_KEY "..."` does.
+    let ctx = Context::new().with_file("main.c", "const char* DEVICE_KEY \"fleetwide-shared-secret\";");
     let obs = embedded_iot::analyze(&ctx);
     assert_eq!(find(&obs, "embedded-iot.identity.shared-static-device-key").len(), 1);
 }

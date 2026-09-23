@@ -789,7 +789,16 @@ fn benchmark_record_for_falls_back_to_unmeasured_when_stale() {
     let result = measure_fixture_set(&provider, &binding_for(), runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
     let record = benchmark_record_for(&result, &binding_for());
     assert_eq!(record.status, "measured");
-    let stale_record = benchmark_record_for(&result, &ProviderBinding::default());
+    // `isResultFresh` (`tools/audit/provider-benchmarks.mjs`) only compares
+    // against `current` when `current`'s own lists are non-empty — an
+    // empty/default `current` is "uncomparable" and is ignored, not
+    // treated as stale (see that file's doc comment and
+    // `tests/audit-provider-benchmarks.test.mjs`'s own staleness case,
+    // which mutates a digest rather than passing an empty binding). So a
+    // genuinely stale binding needs a differing recorded digest.
+    let mut mismatched = binding_for();
+    mismatched.implementation_digests[0].digest = format!("sha256:{}", "d".repeat(64));
+    let stale_record = benchmark_record_for(&result, &mismatched);
     assert_eq!(stale_record.status, "unproven");
     assert_eq!(stale_record.qualification_digest, None);
 }

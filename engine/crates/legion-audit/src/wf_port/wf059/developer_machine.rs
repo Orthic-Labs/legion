@@ -117,8 +117,13 @@ const RULES: &[Rule] = &[
     },
 ];
 
-/// Non-global-vs-global exec-loop semantics do not matter in Rust: `find_iter`
-/// already yields every non-overlapping match, mirroring `rawMatches`.
+/// JS's `rawMatches` (`src/providers/security/packs/developer-machine.mjs`)
+/// returns at most one match per file for a non-global pattern (a bare
+/// `.exec(text)` call, no `/g` flag) — none of these four rules' patterns
+/// carry `/g`, so each contributes at most one `Match` per file, not every
+/// non-overlapping hit. `find_iter` would over-report (e.g. a line
+/// containing both "child_process" and "exec(" would double-count), so
+/// each loop below takes only the first match, mirroring `pattern.exec`.
 fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
     let mut out = Vec::new();
     match id {
@@ -131,7 +136,7 @@ fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
                 if text.is_empty() {
                     continue;
                 }
-                for m in COMMAND_INVOCATION_PATTERN.find_iter(text) {
+                if let Some(m) = COMMAND_INVOCATION_PATTERN.find(text) {
                     out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
                 }
             }
@@ -145,7 +150,7 @@ fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
                 if text.is_empty() {
                     continue;
                 }
-                for m in EDITOR_CONFIG_COMMAND_PATTERN.find_iter(text) {
+                if let Some(m) = EDITOR_CONFIG_COMMAND_PATTERN.find(text) {
                     out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
                 }
             }
@@ -156,7 +161,7 @@ fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
                 if text.is_empty() {
                     continue;
                 }
-                for m in CREDENTIAL_STORE_PATTERN.find_iter(text) {
+                if let Some(m) = CREDENTIAL_STORE_PATTERN.find(text) {
                     out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
                 }
             }
@@ -185,7 +190,7 @@ fn matches_for_rule(id: &str, ctx: &Context) -> Vec<Match> {
                 if text.is_empty() {
                     continue;
                 }
-                for m in SANDBOX_BYPASS_PATTERN.find_iter(text) {
+                if let Some(m) = SANDBOX_BYPASS_PATTERN.find(text) {
                     out.push(Match { file: file.clone(), line: line_of(text, m.start()), snippet: m.as_str().to_string() });
                 }
             }
