@@ -191,6 +191,7 @@ pub struct VendorCandidate {
     pub adverse_case_economics: Option<AdverseCaseEconomics>,
 }
 
+#[derive(Debug)]
 pub struct VendorSelectionOutcome {
     pub decision: Decision,
     pub missing_economic_metrics: Vec<&'static str>,

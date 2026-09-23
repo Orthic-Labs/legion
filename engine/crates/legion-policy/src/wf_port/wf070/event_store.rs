@@ -415,6 +415,7 @@ fn set_trajectory_replay(state: &CanonVal, last_event_digest: &str, replay_state
     next
 }
 
+#[derive(Debug)]
 pub struct EventsResult {
     pub state: CanonVal,
     pub state_fingerprint: String,
@@ -423,6 +424,7 @@ pub struct EventsResult {
     pub event_count: i64,
 }
 
+#[derive(Debug)]
 pub struct AcceptResult {
     pub event: CanonVal,
     pub state: CanonVal,
@@ -629,6 +631,7 @@ mod tests {
         assert_eq!(accepted.state.get("task").unwrap().get("architecture_status").unwrap().as_str(), Some("TAILORED"));
 
         // Re-replay from scratch must reconstruct the identical state.
+        drop(event_store);
         let mut event_store2 = ArchitectureEventStore::new(event_store_receipt_store(&mut store), &key_ring, "k1", Box::new(|| "2026-01-01T00:00:00Z".to_string())).unwrap();
         let replayed2 = event_store2.replay("lineage-1", &initial).unwrap();
         assert_eq!(replayed2.event_count, 1);

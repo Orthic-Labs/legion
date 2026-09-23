@@ -298,7 +298,7 @@ pub struct ClaimContext<'a> {
 
 impl Default for ClaimContext<'_> {
     fn default() -> Self {
-        Self { evidence_classes: &[], stale_evidence_count: 0, enforcement_health: "unsupported", fields: &[], waived_by: None }
+        Self { evidence_classes: &[], stale_evidence_count: 0, enforcement_health: "unsupported", fields: &[], waived_by: None, stale_evidence_count: 0 }
     }
 }
 
@@ -535,7 +535,7 @@ mod tests {
     #[test]
     fn evaluate_claim_prerequisites_allows_missing_field_when_waived() {
         let engine = PolicyEngine::new(bundle());
-        let ctx = ClaimContext { evidence_classes: &["test-run"], enforcement_health: "observed", fields: &[], waived_by: Some("operator") };
+        let ctx = ClaimContext { evidence_classes: &["test-run"], enforcement_health: "observed", fields: &[], waived_by: Some("operator"), stale_evidence_count: 0 };
         let d = engine.evaluate_claim_prerequisites("L1", &ctx);
         assert!(d.allowed);
     }
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn evaluate_claim_prerequisites_denies_missing_field_without_waiver() {
         let engine = PolicyEngine::new(bundle());
-        let ctx = ClaimContext { evidence_classes: &["test-run"], enforcement_health: "observed", fields: &[], waived_by: None };
+        let ctx = ClaimContext { evidence_classes: &["test-run"], enforcement_health: "observed", fields: &[], waived_by: None, stale_evidence_count: 0 };
         let d = engine.evaluate_claim_prerequisites("L1", &ctx);
         assert_eq!(d.code, Some("ARC_CLAIM_PREREQUISITE_UNMET"));
     }

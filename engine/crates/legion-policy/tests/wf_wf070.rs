@@ -112,6 +112,7 @@ fn route_then_transition_then_replay_round_trips() {
     // 4. A fresh store replaying the same events from the same initial
     //    state must land on the identical final state fingerprint —
     //    the whole point of an authenticated trajectory.
+    drop(event_store);
     let mut event_store2 = ArchitectureEventStore::new(&mut store, &key_ring, "k1", Box::new(|| "2026-09-23T00:00:00Z".to_string())).unwrap();
     let replayed2 = event_store2.replay("lineage-wf070", &initial).unwrap();
     assert_eq!(replayed2.event_count, 3);
