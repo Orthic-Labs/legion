@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: cargo check (all targets)
         working-directory: engine
-        run: cargo check --workspace --all-targets --message-format short 2>&1 | tee check.log; exit ${PIPESTATUS[0]}
+        run: cargo check --workspace --all-targets --keep-going --message-format short 2>&1 | tee check.log; exit ${PIPESTATUS[0]}
       - if: always()
         uses: actions/upload-artifact@v4
         with:
