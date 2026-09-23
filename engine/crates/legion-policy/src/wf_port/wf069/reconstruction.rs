@@ -342,10 +342,10 @@ pub fn execute_adversarial_ai_reconstruction_case(
 ) -> ReconstructionCase {
     match id {
         "AE-ADVERSARIAL-009" => ReconstructionCase::AiReadiness(assess_ai_readiness(
-            readiness_input.cloned_or_default(),
+            &readiness_input.cloned_or_default(),
         )),
         "AE-ADVERSARIAL-010" => ReconstructionCase::ArchitectureReconstruction(
-            assess_architecture_reconstruction(reconstruction_input.cloned_or_default()),
+            assess_architecture_reconstruction(&reconstruction_input.cloned_or_default()),
         ),
         _ => ReconstructionCase::UnknownCase,
     }

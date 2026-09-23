@@ -343,3 +343,28 @@ mod tests {
         assert_eq!(ok.get("a"), Some(&Json::I64(1)));
     }
 }
+
+/// HMAC-SHA256 (RFC 2104) over `sha2`, matching Node's `createHmac('sha256', key)`.
+pub fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    const BLOCK: usize = 64;
+    let mut k = [0u8; BLOCK];
+    if key.len() > BLOCK {
+        k[..32].copy_from_slice(&Sha256::digest(key));
+    } else {
+        k[..key.len()].copy_from_slice(key);
+    }
+    let mut ipad = [0x36u8; BLOCK];
+    let mut opad = [0x5cu8; BLOCK];
+    for i in 0..BLOCK {
+        ipad[i] ^= k[i];
+        opad[i] ^= k[i];
+    }
+    let inner = Sha256::new().chain_update(ipad).chain_update(message).finalize();
+    Sha256::new().chain_update(opad).chain_update(inner).finalize().into()
+}
+
+/// Lowercase-hex HMAC-SHA256.
+pub fn hmac_sha256_hex(key: &[u8], message: &[u8]) -> String {
+    hex::encode(hmac_sha256(key, message))
+}

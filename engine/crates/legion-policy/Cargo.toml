@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+serde_json.workspace = true
 regex.workspace = true
 hex.workspace = true
 sha2.workspace = true
