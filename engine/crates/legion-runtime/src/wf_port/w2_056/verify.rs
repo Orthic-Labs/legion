@@ -312,10 +312,15 @@ mod tests {
     fn rejects_path_escape() {
         let dir = TempDir::new();
         write(dir.path(), "skills/demo/SKILL.md", "x");
+        // The output path is joined as `skills/demo/<record.path>`: two `..`
+        // only walks back up to `package_root` itself (still contained), so
+        // a third `..` is required to actually escape it (mirrors
+        // `classify_resource`'s `PACKAGE_INTERNAL` escape math in
+        // dependency_closure.rs, verified against verify.mjs's `safePath`).
         let manifest = json!({
             "id": "demo",
             "files": [
-                {"path": "../../etc/passwd", "digest": "sha256:x", "uri": "legion-skill://demo/x"},
+                {"path": "../../../etc/passwd", "digest": "sha256:x", "uri": "legion-skill://demo/x"},
             ]
         });
         let result = verify_skill_catalog(dir.path(), &[manifest], false);

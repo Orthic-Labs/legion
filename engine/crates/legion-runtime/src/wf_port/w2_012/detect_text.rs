@@ -821,7 +821,13 @@ mod tests {
 
     #[test]
     fn analyze_aphoristic_cadence_needs_3_constructions() {
-        let text = "Not a bug. A feature. Not a hack. A design choice. Not slow. Fast enough.";
+        // Spec regex `NOT_A_RE` (detect-text.mjs:295) requires literally
+        // "Not a "/"Not an " before the lowercase word, so "Not slow." does
+        // not match it (confirmed against the JS regex directly: the
+        // original text here only produced 2 matches, below the count<3
+        // threshold). Use a third genuine "Not a X. A Y." construction so
+        // the finding actually fires.
+        let text = "Not a bug. A feature. Not a hack. A design choice. Not a flaw. A design decision.";
         let out = analyze_aphoristic_cadence(text);
         assert!(out.is_some());
     }

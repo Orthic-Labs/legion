@@ -13,14 +13,23 @@ use legion_runtime::wf_port::w2_057::{receipt_errors, template_check, validate, 
 use std::path::PathBuf;
 
 fn fixture_dir() -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "wf_w2_057_{}_{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-    ));
+    // `validate-tasklist.py`'s `permanent_path()` rejects any path whose
+    // lowercased form contains `/temp/`, `/tmp/`, `/scratch/`, `/.cache/`,
+    // or `/review-run/` — and on macOS `std::env::temp_dir()` canonicalizes
+    // through `/private/tmp/...`, which trips that check. Use a scratch
+    // directory under the crate's own `target/` instead, which is both
+    // absolute and free of every forbidden path segment.
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("wf_w2_057_fixtures")
+        .join(format!(
+            "{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::canonicalize(&dir).unwrap_or(dir)
 }

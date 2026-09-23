@@ -721,7 +721,10 @@ mod tests {
 
     #[test]
     fn room_id_slugifies_and_trims() {
-        assert_eq!(room_id(Path::new("/tmp/My Run!!2024")), "council-my-run-2024");
+        // Spec (src/lib/review/agent_room_driver.py:77-79) maps each
+        // character individually to '-' with no run-collapsing, then only
+        // strips leading/trailing '-': "!!" becomes two dashes, not one.
+        assert_eq!(room_id(Path::new("/tmp/My Run!!2024")), "council-my-run--2024");
         assert_eq!(room_id(Path::new("---weird---")), "council-weird");
         assert_eq!(room_id(Path::new("plain")), "council-plain");
     }

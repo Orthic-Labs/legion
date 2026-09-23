@@ -335,7 +335,7 @@ fn read_json(path: &Path) -> Option<Value> {
 }
 
 /// Literal port of `AUTHORITY_ID` from `src/packages/contracts/enums.mjs`.
-const AUTHORITY_ID: &[&str] = &["legion", "sage", "alchemist", "oracle", "arcane"];
+const AUTHORITY_ID: &[&str] = &["legion", "sage", "alchemist", "oracle", "arcane", "kernel"];
 
 /// Literal port of `ROSTER_ROLE_IDS` (`ROLE_IDS`) from `src/lib/roster/index.mjs`.
 const ROSTER_ROLE_IDS: &[&str] = &["sage", "alchemist", "oracle"];

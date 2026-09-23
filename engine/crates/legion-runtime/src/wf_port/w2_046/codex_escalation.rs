@@ -51,8 +51,14 @@ static RESULT: LazyLock<Regex> = LazyLock::new(|| {
     .unwrap()
 });
 
-static HEREDOC: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?m)<<-?'?(\w+)'?\s*\n([\s\S]*?)\n\s*\1\s*$").unwrap());
+// The JS spec's heredoc pattern (`<<-?'?(\w+)'?\s*\n([\s\S]*?)\n\s*\1\s*$`)
+// uses a `\1` backreference to the opening delimiter. Rust's `regex` crate
+// has no backreference support (it can't be compiled), so the delimiter is
+// captured with an opening-only regex and the matching closer is found with
+// a second regex built from that captured word, which reproduces the same
+// lazy "first line that is just the delimiter" behaviour.
+static HEREDOC_OPEN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)<<-?'?(\w+)'?\s*\n").unwrap());
 static DQUOTED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#""((?:\\.|[^"\\])*)""#).unwrap());
 static SQUOTED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"'((?:\\.|[^'\\])*)'").unwrap());
 static NOT_A_PATH: LazyLock<Regex> =
@@ -143,14 +149,31 @@ pub fn evidence_count(prompt: &str) -> u32 {
     count
 }
 
+/// Extracts a heredoc body from `command`, matching the JS spec's
+/// `<<-?'?(\w+)'?\s*\n([\s\S]*?)\n\s*\1\s*$` (lazy body up to the first line
+/// that is just the opening delimiter, optionally indented).
+fn heredoc_body(command: &str) -> Option<String> {
+    let open = HEREDOC_OPEN.captures(command)?;
+    let delim = open.get(1)?.as_str();
+    let body_start = open.get(0)?.end();
+    let rest = &command[body_start..];
+    let closer = Regex::new(&format!(r"(?m)^\s*{}\s*$", regex::escape(delim))).ok()?;
+    let close_m = closer.find(rest)?;
+    let mut body_end = close_m.start();
+    if body_end > 0 && rest.as_bytes()[body_end - 1] == b'\n' {
+        body_end -= 1;
+    }
+    Some(rest[..body_end].to_string())
+}
+
 /// The prompt body carried inline: a heredoc, else the longest quoted
 /// string. Port of `promptArgument`.
 pub fn prompt_argument(command: &str) -> String {
     let Some(m) = CODEX.find(command) else {
         return String::new();
     };
-    if let Some(h) = HEREDOC.captures(command) {
-        return h.get(2).map(|g| g.as_str().to_string()).unwrap_or_default();
+    if let Some(body) = heredoc_body(command) {
+        return body;
     }
     let tail = &command[m.end()..];
     let mut longest = String::new();
@@ -260,7 +283,13 @@ mod tests {
 
     #[test]
     fn inline_quoted_prompt_with_two_attempts_is_allowed() {
-        let prompt = "I tried running the build and it failed with TypeError. I also attempted a clean install and it errored with ENOENT.";
+        // "errored" does not satisfy RESULT (`\berrors?\b` needs a word
+        // boundary right after "error"/"errors", which "errored" lacks, and
+        // it isn't a `\w+Error\b`/`\w+Exception\b` match either), confirmed
+        // against the JS spec: `evidenceCount(...)` returns 1 for this
+        // prompt, not 2. Use "errors out" so the second attempt names a
+        // failure the RESULT pattern actually recognizes.
+        let prompt = "I tried running the build and it failed with TypeError. I also attempted a clean install and it errors out with ENOENT.";
         let command = format!("codex exec \"{prompt}\"");
         let r = evaluate_codex_escalation(&command, |_| None);
         assert!(r.allowed);
@@ -296,7 +325,11 @@ mod tests {
     #[test]
     fn source_file_extracts_piped_filename() {
         assert_eq!(source_file("cat prompt.txt | codex exec"), "prompt.txt");
-        assert_eq!(source_file("codex exec < 'my prompt.txt'"), "my prompt.txt");
+        // The capture group `[^\s|<>]+` stops at whitespace, so a quoted
+        // path containing a space is only partially captured — confirmed
+        // against the JS spec (`sourceFile("codex exec < 'my prompt.txt'")`
+        // returns `"my"`, not the full quoted path).
+        assert_eq!(source_file("codex exec < 'my prompt.txt'"), "my");
         assert_eq!(source_file("ls"), "");
     }
 

@@ -617,7 +617,12 @@ mod tests {
         assert!(!result.ok);
         assert_eq!(result.code, "missing-internal");
 
-        let escape_entry = json!({"class": "PACKAGE_INTERNAL", "path": "../../outside.txt"});
+        // `skill_root` is `packageRoot/skills/demo`: two `..` only walks back
+        // up to `packageRoot` itself (landing on `packageRoot/outside.txt`,
+        // still contained); a third `..` is required to actually escape, per
+        // `resolve(skillRoot, entry.path)` / `relative(packageRoot, target)`
+        // in dependency-closure.mjs (verified against Node's `path` module).
+        let escape_entry = json!({"class": "PACKAGE_INTERNAL", "path": "../../../outside.txt"});
         let result = classify_resource(&escape_entry, dir.path(), &skill_root, &registry());
         assert!(!result.ok);
         assert_eq!(result.code, "escapes-package");

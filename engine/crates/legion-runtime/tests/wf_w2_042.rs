@@ -105,7 +105,15 @@ fn run_manifest_round_trips_through_validate() {
     let manifest_value = artifact.value.to_value();
     let files = vec![json!({"path": "present.txt", "digest": "sha256:aaa"})];
     let issues = validate_run_manifest(&manifest_value, &files, Some(&binding));
-    assert!(issues.is_empty(), "expected clean validation, got {issues:?}");
+    // run-manifest.mjs's `validateRunManifest` computes `terminal-absences:mismatch`
+    // by comparing `absent` against `manifest.terminalAbsences` (so a declared
+    // terminal absence like `gone.txt` does NOT trigger that check), but its
+    // final `missing-or-drifted` filter is unconditional over every declared
+    // path absent from `files` or digest-mismatched — it does not exempt
+    // paths already recorded as terminal absences. So a manifest with one
+    // real terminal absence is never reported fully clean by this function;
+    // it correctly still reports `missing-or-drifted:gone.txt`.
+    assert_eq!(issues, vec!["missing-or-drifted:gone.txt".to_string()]);
 }
 
 #[test]

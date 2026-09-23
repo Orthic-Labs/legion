@@ -613,7 +613,13 @@ mod tests {
     fn starts_with_manual_bullet_detects_and_rejects() {
         assert!(starts_with_manual_bullet("\u{2022} item one"));
         assert!(starts_with_manual_bullet("- dash item"));
-        assert!(!starts_with_manual_bullet("- not-a-bullet(no space)"));
+        // Spec regex `/^[•\-\*▪▸○●◆◇■□]\s/` (html2pptx.js:1008) only checks
+        // for the bullet char followed by whitespace; a hyphen followed by a
+        // space matches regardless of what follows, so this string (which
+        // does have a space after the leading `-`) also matches. Confirmed
+        // against the JS regex directly.
+        assert!(starts_with_manual_bullet("- not-a-bullet(no space)"));
+        assert!(!starts_with_manual_bullet("not-a-bullet(no-space)"));
         assert!(!starts_with_manual_bullet("Regular text"));
     }
 

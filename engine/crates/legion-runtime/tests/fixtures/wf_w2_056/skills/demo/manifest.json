@@ -5,8 +5,17 @@
   "entry": "SKILL.md",
   "provenance": {},
   "licenseState": "public-domain",
-  "profiles": {"audit": {}},
+  "rightsReceipt": {"kind": "public-domain"},
+  "rootUri": "legion-skill://demo/",
+  "profiles": {
+    "audit": {"mutation": false, "publish": false},
+    "authoring": {"mutation": true, "publish": true}
+  },
   "files": [
-    {"path": "SKILL.md", "digest": "sha256:0"}
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://demo/SKILL.md",
+      "digest": "sha256:23ec5a554205e7349b87cd4141130d69de74ad7c37149db4c91729a9deff0ba0"
+    }
   ]
 }

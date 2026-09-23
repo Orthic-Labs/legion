@@ -1310,10 +1310,12 @@ mod tests {
     use std::fs;
 
     fn tempdir() -> std::path::PathBuf {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let base = std::env::temp_dir().join(format!(
             "legion-room-protocol-test-{}-{}",
             std::process::id(),
-            crate::wf_port::w2_054::now_iso().replace([':', '+', '.'], "-")
+            n
         ));
         fs::create_dir_all(&base).unwrap();
         base
@@ -1361,6 +1363,9 @@ mod tests {
     fn idempotent_same_request_id_different_payload_conflicts() {
         let root = tempdir();
         let mut room = RoomProtocol::new("r1", root, seats(), "review", "abstain").unwrap();
+        // raise_finding is only permitted in PeerDebate/Dispositions; advance there first.
+        room.advance("mod", "Positions", "a1").unwrap();
+        room.advance("mod", "PeerDebate", "a2").unwrap();
         room.raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "req1").unwrap();
         let err = room.raise_finding("author", "different", "P1", "why", &[], "fix", 0.5, "req1").unwrap_err();
         assert_eq!(err.code, "request_id_conflict");
@@ -1373,7 +1378,10 @@ mod tests {
         room.advance("mod", "Positions", "req1").unwrap();
         room.post("author", "position", "my position", "p1", None, &[], &json!({})).unwrap();
         room.post("impl", "position", "other position", "p2", None, &[], &json!({})).unwrap();
-        let visible_to_impl = room.visible_events("impl", 0).unwrap();
+        // Cursor 1 skips the moderator's phase-advance event (seq 1), which is
+        // always visible regardless of phase; only "position" events are
+        // filtered by seat during the Positions phase.
+        let visible_to_impl = room.visible_events("impl", 1).unwrap();
         assert_eq!(visible_to_impl.len(), 1);
         assert_eq!(visible_to_impl[0]["seat_id"], json!("impl"));
     }
@@ -1411,7 +1419,10 @@ mod tests {
         room.advance("mod", "Positions", "a1").unwrap();
         room.advance("mod", "PeerDebate", "a2").unwrap();
         room.advance("mod", "Dispositions", "a3").unwrap();
-        let finding = room.raise_finding("author", "claim", "P1", "why", &[], "fix", 0.5, "rf1").unwrap();
+        // self_resolution_forbidden only fires once the `author_required` check
+        // (actor == finding.author_seat) already passes, so the same seat must
+        // both raise the finding and dispose of it to reach that branch.
+        let finding = room.raise_finding("impl", "claim", "P1", "why", &[], "fix", 0.5, "rf1").unwrap();
         let finding_id = finding["finding_id"].as_str().unwrap().to_string();
         let file = root.join("out.txt");
         fs::write(&file, b"data").unwrap();

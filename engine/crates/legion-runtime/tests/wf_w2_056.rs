@@ -117,7 +117,9 @@ fn loader_loads_and_projects_the_ready_file() {
     let (_, digest) = verify_skill_bytes(&bytes, "");
 
     let mut manifest = demo_manifest();
-    manifest["files"] = serde_json::json!([{"path": "SKILL.md", "digest": digest}]);
+    manifest["files"] = serde_json::json!([
+        {"path": "SKILL.md", "uri": "legion-skill://demo/SKILL.md", "digest": digest},
+    ]);
     let mut manifests = BTreeMap::new();
     manifests.insert("demo".to_string(), manifest);
 
@@ -136,7 +138,9 @@ fn loader_loads_and_projects_the_ready_file() {
 fn loader_reports_corrupt_on_digest_mismatch() {
     let root = fixture_root();
     let mut manifest = demo_manifest();
-    manifest["files"] = serde_json::json!([{"path": "SKILL.md", "digest": "sha256:deadbeef"}]);
+    manifest["files"] = serde_json::json!([
+        {"path": "SKILL.md", "uri": "legion-skill://demo/SKILL.md", "digest": format!("sha256:{}", "d".repeat(64))},
+    ]);
     let mut manifests = BTreeMap::new();
     manifests.insert("demo".to_string(), manifest);
 

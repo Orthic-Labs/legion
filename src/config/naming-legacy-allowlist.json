@@ -30,11 +30,11 @@
         "sorcerer"
       ],
       "occurrences": {
-        "nemesis": 11,
-        "forge": 81,
-        "seer": 29,
-        "sentinel": 18,
-        "sorcerer": 13
+        "nemesis": 13,
+        "forge": 91,
+        "seer": 36,
+        "sentinel": 30,
+        "sorcerer": 15
       },
       "class": "R2",
       "reason": "legacy-token classification source"
@@ -615,6 +615,95 @@
       },
       "class": "R5",
       "reason": "naming-migration compatibility fixtures (Rust port of naming contract tests)"
+    },
+    {
+      "path": "engine/crates/legion-review/src/wf_port/w2_052/packet.rs",
+      "tokens": [
+        "sentinel"
+      ],
+      "occurrences": {
+        "sentinel": 1
+      },
+      "class": "R2",
+      "reason": "sentinel used as plain English (error-string sentinel value), not the legacy authority alias"
+    },
+    {
+      "path": "engine/crates/legion-review/src/wf_port/w2_053/openai_compat.rs",
+      "tokens": [
+        "sentinel"
+      ],
+      "occurrences": {
+        "sentinel": 1
+      },
+      "class": "R2",
+      "reason": "sentinel used as plain English (SSE [DONE] sentinel), not the legacy authority alias"
+    },
+    {
+      "path": "engine/crates/legion-runtime/src/wf_port/w2_023/seeds.rs",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 5
+      },
+      "class": "R2",
+      "reason": "forge used as plain English in seed-palette mood/strategy prose, not the legacy authority alias"
+    },
+    {
+      "path": "engine/crates/legion-runtime/src/wf_port/w2_045/mod.rs",
+      "tokens": [
+        "seer"
+      ],
+      "occurrences": {
+        "seer": 1
+      },
+      "class": "R2",
+      "reason": "seer cited in module docs as the legacy oracle packet-type alias name being documented, not renamed"
+    },
+    {
+      "path": "engine/crates/legion-runtime/src/wf_port/w2_047/mod.rs",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 3
+      },
+      "class": "R2",
+      "reason": "Forge cited in module docs identifying the un-ported legacy-bridge compatibility module by name"
+    },
+    {
+      "path": "engine/crates/legion-runtime/src/wf_port/w2_049/mod.rs",
+      "tokens": [
+        "seer",
+        "nemesis",
+        "forge",
+        "sentinel",
+        "sorcerer"
+      ],
+      "occurrences": {
+        "seer": 5,
+        "nemesis": 3,
+        "forge": 1,
+        "sentinel": 1,
+        "sorcerer": 1
+      },
+      "class": "R2",
+      "reason": "literal port of the JS naming-check TOKENS/authority constants it audits, not new legacy usage"
+    },
+    {
+      "path": "engine/crates/legion-runtime/tests/wf_w2_049.rs",
+      "tokens": [
+        "seer",
+        "forge",
+        "sentinel"
+      ],
+      "occurrences": {
+        "seer": 7,
+        "forge": 3,
+        "sentinel": 1
+      },
+      "class": "R2",
+      "reason": "test fixtures exercising the naming-check port with sample legacy tokens, ported from the JS test suite"
     }
   ]
 }

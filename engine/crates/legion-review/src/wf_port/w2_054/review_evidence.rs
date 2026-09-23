@@ -1391,10 +1391,12 @@ mod tests {
     use std::fs;
 
     fn tempdir() -> PathBuf {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let base = std::env::temp_dir().join(format!(
             "legion-review-evidence-test-{}-{}",
             std::process::id(),
-            now_iso().replace([':', '+', '.'], "-")
+            n
         ));
         fs::create_dir_all(&base).unwrap();
         base
@@ -1465,6 +1467,11 @@ mod tests {
         let state_path = root.join(STATE_NAME);
         let digest = "a".repeat(64);
         schedule_finding(&state_path, "f1", "phase-a", "phase-b", "claim", "missing", &digest).unwrap();
+        // Reconcile at the owner phase first, which flips the scheduled
+        // finding to "Open" (mirrors `reconcile_moves_scheduled_to_open_at_owner_phase`);
+        // only an Open finding gets the specific "cannot be rescheduled" message.
+        let phases = vec!["phase-a".to_string(), "phase-b".to_string(), "phase-c".to_string()];
+        reconcile_scheduled_findings(&state_path, "phase-b", &phases).unwrap();
         let err = schedule_finding(&state_path, "f1", "phase-a", "phase-b", "claim", "missing", &digest).unwrap_err();
         assert!(err.to_string().contains("cannot be rescheduled"));
     }

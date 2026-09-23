@@ -134,17 +134,22 @@ mod tests {
     }
 
     // Building a real `std::process::Output` requires actually spawning a
-    // process (its fields are otherwise unconstructable outside `std`), so
-    // this test helper spawns a trivial real command rather than faking the
-    // struct.
-    fn fake_output(_returncode: i32, expected_stdout: &str, _expected_stderr: &str) -> Output {
-        let script = if cfg!(windows) {
-            format!("echo {}", expected_stdout.trim_end())
-        } else {
-            format!("printf '%s' {:?}", expected_stdout)
-        };
+    // process (its `ExitStatus` field is otherwise unconstructable outside
+    // `std`), so this test helper spawns a trivial real command to obtain a
+    // genuine exit status, then overwrites `stdout`/`stderr` (both public
+    // fields) with the exact bytes under test. Routing the desired bytes
+    // through a shell command line (`echo`/`printf`) was fragile: `cmd.exe`'s
+    // `echo` appends its own CRLF and `sh`'s `printf '%s' "hello\n"` receives
+    // the *escaped* two-character sequence `\n` from Rust's `{:?}` debug
+    // formatting rather than a real newline byte, so neither reproduced the
+    // input verbatim on either platform.
+    fn fake_output(returncode: i32, expected_stdout: &str, expected_stderr: &str) -> Output {
         let shell = if cfg!(windows) { "cmd" } else { "sh" };
         let flag = if cfg!(windows) { "/C" } else { "-c" };
-        Command::new(shell).arg(flag).arg(script).output().expect("spawn shell")
+        let script = format!("exit {returncode}");
+        let mut output = Command::new(shell).arg(flag).arg(script).output().expect("spawn shell");
+        output.stdout = expected_stdout.as_bytes().to_vec();
+        output.stderr = expected_stderr.as_bytes().to_vec();
+        output
     }
 }

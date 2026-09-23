@@ -82,8 +82,14 @@ fn clean_path_value_and_is_absolute_path_agree_on_declared_label_values() {
 
 #[test]
 fn resolve_declared_path_and_canonical_locator_round_trip_repo_relative_paths() {
+    // `repository_root` (ported from `validate-dispatch.py`) walks up from
+    // the artifact looking for `.git`, which in this monorepo layout is the
+    // top-level `legion/` directory, not the `legion-runtime` crate root —
+    // so a "repo-relative" declared path must be relative to `legion/`,
+    // i.e. include the `engine/crates/legion-runtime/` prefix.
     let artifact = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
-    let resolved = resolve_declared_path("src/wf_port/w2_045/mod.rs", &artifact);
+    let resolved =
+        resolve_declared_path("engine/crates/legion-runtime/src/wf_port/w2_045/mod.rs", &artifact);
     assert!(resolved.ends_with("src/wf_port/w2_045/mod.rs"));
     assert_eq!(
         canonical_locator(&resolved),

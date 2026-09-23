@@ -231,11 +231,14 @@ mod tests {
 
     #[test]
     fn parse_args_flag_wins_over_positional_music() {
-        // --music= given, so the 2nd positional does NOT get treated as music.
+        // Spec (add-music.sh:55-57): INPUT/CUSTOM_MUSIC/OUTPUT read fixed
+        // POSITIONAL[0]/[1]/[2] slots, not a shifting sequence — consuming
+        // "--music=" out of the arg list leaves POSITIONAL[2] empty, so
+        // "leftover" (POSITIONAL[1]) does NOT fill `out`. Confirmed by
+        // running the bash snippet directly: OUTPUT is empty.
         let a = parse_args(["in.mp4", "--music=custom.mp3", "leftover"]);
         assert_eq!(a.music.as_deref(), Some("custom.mp3"));
-        // leftover positional fills `out` per the legacy-positional slots.
-        assert_eq!(a.out.as_deref(), Some("leftover"));
+        assert_eq!(a.out, None);
     }
 
     #[test]
