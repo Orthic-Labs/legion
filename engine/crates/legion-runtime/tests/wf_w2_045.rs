@@ -74,9 +74,9 @@ fn direct_scope_path_forbids_absolute_and_parent_escaping_declarations() {
 fn clean_path_value_and_is_absolute_path_agree_on_declared_label_values() {
     // Mirrors how storage_errors() reads "**Validated artifact path:**"
     // label values straight out of dispatch Markdown.
-    let declared = "  `/Volumes/D/claude/legion/docs/dispatch.md`  ";
+    let declared = "  `/workspace/legion/docs/dispatch.md`  ";
     let cleaned = clean_path_value(declared);
-    assert_eq!(cleaned, "/Volumes/D/claude/legion/docs/dispatch.md");
+    assert_eq!(cleaned, "/workspace/legion/docs/dispatch.md");
     assert!(is_absolute_path(&cleaned));
 }
 
