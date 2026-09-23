@@ -132,7 +132,7 @@
     {
       "path": "tests/test_windows_runner.py",
       "uri": "legion-skill://alchemist/tests/test_windows_runner.py",
-      "digest": "sha256:19ae1158cba87c63fa8d24ef9e5cb204d5bfb054156533aac26fb2661a0382d4"
+      "digest": "sha256:6b8b7d24a371e679f943e6bf5e470f50d457e86d7b131308412b3b1f0a9797ca"
     }
   ]
 }
