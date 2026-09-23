@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 
 use legion_audit::native_providers::security::adapter::SecurityProviderExecutor;
 use legion_audit::native_providers::security::common::digest;
-use legion_audit::plan::AuditProvider;
+use legion_audit::AuditProvider;
 use serde_json::json;
 
 fn provider(id: &str) -> AuditProvider {

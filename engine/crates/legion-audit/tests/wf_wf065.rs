@@ -139,7 +139,7 @@ fn resolve_root_positional_skips_value_flag_arguments() {
     let no_root: Vec<String> = ["--only", "apple_platform"].into_iter().map(String::from).collect();
     assert_eq!(resolve_root_positional(&no_root), None);
 
-    let bare: Vec<String> = ["/repo".to_string()];
+    let bare: Vec<String> = vec!["/repo".to_string()];
     assert_eq!(resolve_root_positional(&bare), Some("/repo".to_string()));
 }
 

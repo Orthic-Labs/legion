@@ -205,7 +205,7 @@ fn stable_id_matches_known_vector() {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(b"path-denominator\0\"[]\"");
-    let expected = format!("sha256:{:x}", hasher.finalize());
+    let expected = format!("sha256:{}", hex::encode(hasher.finalize()));
     assert_eq!(digest, expected);
 }
 

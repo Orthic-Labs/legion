@@ -11,6 +11,7 @@ mod report;
 mod verify;
 mod worktree;
 pub mod native_providers;
+pub mod p12_pipeline;
 pub mod wf_port;
 
 pub use dag::topological;
@@ -18,7 +19,7 @@ pub use error::AuditError;
 pub use execution::{execute, execute_with_cancellation, ExecutionReport, ProviderExecution, ProviderExecutor};
 pub use integrity::{canonical_bytes, digest, plan_digest, sign, verify};
 pub use inventory::{
-    FilesystemInventorySource, InventoryDenominator, InventoryEntry, InventoryEnvelope,
+    FilesystemInventorySource, InventoryDenominator, InventorySource, InventoryEntry, InventoryEnvelope,
     InventorySnapshot,
 };
 pub use normalize::{normalize, normalize_all};
