@@ -9,15 +9,19 @@ use std::{
 
 struct Fixture(PathBuf);
 
+/// Parallel tests must never share a scratch root.
+static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 impl Fixture {
     fn new() -> Self {
         let root = std::env::temp_dir().join(format!(
-            "legion-cutover-cli-{}-{}",
+            "legion-cutover-cli-{}-{}-{}",
             std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(root.join("home")).unwrap();
         // The child process resolves its working directory via getcwd(2)
