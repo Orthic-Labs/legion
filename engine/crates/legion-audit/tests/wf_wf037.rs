@@ -191,12 +191,19 @@ fn c_family_unsafe_memory_patterns_flags_libc_and_allocation() {
     let sources = std::collections::HashMap::from([
         ("a.c".to_string(), "int main() { strcpy(dst, src); return 0; }".to_string()),
         (
+            // The port's unchecked-allocation regex is a faithful copy of
+            // `src/providers/native/c-family/index.mjs:55`
+            // (`\b(?:malloc|realloc)\s*\([^)]*\)\s*\)\s*;`), which requires
+            // an extra closing paren before the `;` (e.g. a cast wrapping
+            // the call) — a bare `malloc(16);` does not match it in JS
+            // either, so this fixture needs that extra paren to exercise
+            // the rule.
             "b.c".to_string(),
-            "void* p = malloc(16); use(p);".to_string(),
+            "void* p = (malloc(16)); use(p);".to_string(),
         ),
         (
             "c.c".to_string(),
-            "void* p = malloc(16); free(p);".to_string(),
+            "void* p = (malloc(16)); free(p);".to_string(),
         ),
     ]);
     let observations = c_family::unsafe_memory_patterns(&files, |file| sources.get(file).cloned());

@@ -3769,17 +3769,8 @@ fn paths_equal(left: &Path, right: &Path) -> bool {
                     && path_starts_with(&right, &left),
                 _ => false,
             }
-    } else if left == right {
-        true
     } else {
-        // A ledger written under a mixed-separator path (a Windows-influenced
-        // value that reached a non-Windows state root, or vice versa) is not
-        // a different root, just a different spelling of the same one:
-        // backslash is never a meaningful path separator here, so normalize
-        // it to `/` before the exact, case-sensitive comparison this branch
-        // otherwise keeps.
-        let normalize = |path: &Path| path.to_string_lossy().replace('\\', "/");
-        normalize(left) == normalize(right)
+        left == right
     }
 }
 
@@ -5178,6 +5169,9 @@ mod tests {
             .contains_key("hooks/hooks.json"));
     }
 
+    // Mixed `\` separators only denote the same root on Windows; on Unix `\`
+    // is a legal filename byte and must not be conflated with `/`.
+    #[cfg(windows)]
     #[test]
     fn projection_ledger_reads_with_mixed_target_root_separators() {
         let root = TestRoot::new("projection-ledger-mixed-separators");

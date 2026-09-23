@@ -299,7 +299,7 @@ fn credentials_match_digest_is_literal_prefix_of_matched_text() {
     let observations = credentials::analyze(&context);
     let hit = observations.iter().find(|o| o.rule_id == "credentials.format").unwrap();
     // Matched text is "AKIAIOSFODNN7EXAMPLE" (20 chars); slice(0, 16) keeps the first 16.
-    assert_eq!(hit.detector_metadata["matchDigest"], "sha256:AKIAIOSFODNN7EX");
+    assert_eq!(hit.detector_metadata["matchDigest"], "sha256:AKIAIOSFODNN7EXA");
 }
 
 #[test]

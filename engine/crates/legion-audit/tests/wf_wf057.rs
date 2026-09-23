@@ -192,8 +192,14 @@ fn automation_clean_when_permissions_block_present() {
 
 #[test]
 fn automation_flags_updater_insecure_transport() {
+    // The rule's `insecureTransport` regex
+    // (`src/providers/security/packs/automation.mjs`) is
+    // `/(?:update|download|artifact)[\s\S]{0,180}http:\/\//i` — it requires
+    // the keyword to precede the `http://` URL, not just appear anywhere in
+    // the text (the original fixture had "update" only in the URL path,
+    // after "http://", so it did not match in JS either).
     let model = model_for(&["app-update.yml"]);
-    let c = ctx(&model, &[("app-update.yml", "url: http://cdn.example.com/update\n")]);
+    let c = ctx(&model, &[("app-update.yml", "updateUrl: http://cdn.example.com/latest.yml\n")]);
     let out = automation::analyze(&c);
     let hits: Vec<_> = out
         .iter()

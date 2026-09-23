@@ -60,11 +60,20 @@ async fn qualify_tool_reports_available_with_first_output_line_as_version() {
         eprintln!("skipping: node not available");
         return;
     }
+    // `qualify_tool`'s `env` replaces (not merges into) the child's
+    // environment, matching JS `spawn(executable, versionArgs, {env})`
+    // (`src/lib/providers/executor/tool-identity.mjs`) — with a bare
+    // executable name and no `PATH` the OS can't resolve it in either
+    // runtime, so this passes the current process's `PATH` through
+    // explicitly rather than asserting resolution with none at all.
+    let env = std::env::var("PATH")
+        .map(|path| vec![("PATH".to_string(), path)])
+        .unwrap_or_default();
     let result = qualify_tool(
         &node_executable(),
         &["--version".to_string()],
         None,
-        &[],
+        &env,
         5000,
     )
     .await;

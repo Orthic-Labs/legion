@@ -3,7 +3,7 @@
 
 use serde_json::{json, Value};
 
-use super::shared::{binding_missing_gaps, denominator, exact_binding, finalize, sort_by_id, unique_sorted};
+use super::shared::{binding_missing_gaps, denominator, finalize, sort_by_id, unique_sorted};
 
 /// Port of `inspectWebBackend({ binding, endpoints })`.
 pub fn inspect_web_backend(binding: &Value, endpoints: &Value) -> Value {
@@ -103,7 +103,7 @@ pub fn inspect_web_backend(binding: &Value, endpoints: &Value) -> Value {
             "status": status,
             "terminal": true,
             "claimLevel": "source",
-            "binding": exact_binding(binding).binding,
+            "binding": binding,
             "denominator": counts.to_value(),
             "receipts": receipts,
             "coverageGaps": gaps,

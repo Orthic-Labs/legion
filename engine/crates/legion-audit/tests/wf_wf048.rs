@@ -274,10 +274,33 @@ impl DataExerciseAdapter for FixtureAdapter {
         let rows: Vec<Value> = cases
             .iter()
             .map(|case| {
+                // `data-case-artifacts-invalid` fires whenever a case has
+                // zero valid artifacts (`src/providers/runtime/web/data/
+                // index.mjs`: `if (!artifactResults.length || ...)`), so a
+                // "passes" fixture needs at least one artifact that
+                // satisfies `sanitizeProducedArtifact` (matching
+                // content/digest) and `artifactResult`'s own field checks
+                // (kind, caseId, datasetId, schemaVersion, engineVersion,
+                // binding).
+                let content = "ok";
+                let content_digest = format!(
+                    "sha256:{}",
+                    hex::encode(<sha2::Sha256 as sha2::Digest>::digest(content.as_bytes()))
+                );
+                let artifact = json!({
+                    "kind": "data-result",
+                    "caseId": case["id"],
+                    "datasetId": dataset,
+                    "schemaVersion": schema_version,
+                    "engineVersion": case["engine"]["version"],
+                    "binding": binding,
+                    "content": content,
+                    "digest": content_digest,
+                });
                 json!({
                     "id": case["id"], "operationType": case["operationType"], "terminal": true, "status": self.status,
                     "binding": binding, "observed": {"ok": true}, "durableResult": {"rows": 1},
-                    "artifacts": [],
+                    "artifacts": [artifact],
                 })
             })
             .collect();

@@ -460,9 +460,16 @@ fn mobile_exported_component_produces_inter_app_reachability_fact() {
 
 #[test]
 fn mobile_matched_config_file_with_missing_text_reports_coverage_gap() {
+    // `sawMobileSignal` is never set on the `text === undefined` branch
+    // (`src/providers/security/model-extractors/mobile.mjs`, the `continue`
+    // right after pushing `missing-rendered-configuration`), so with no
+    // other mobile signal in the denominator the trailing `if
+    // (!sawMobileSignal)` also fires, giving two coverage gaps here, not
+    // one.
     let out = extract_mobile(&[("app/src/main/AndroidManifest.xml".to_string(), None)], &[]);
-    assert_eq!(out.coverage_gaps.len(), 1);
-    assert_eq!(out.coverage_gaps[0]["kind"], "missing-rendered-configuration");
+    assert_eq!(out.coverage_gaps.len(), 2);
+    assert!(out.coverage_gaps.iter().any(|g| g["kind"] == "missing-rendered-configuration"));
+    assert!(out.coverage_gaps.iter().any(|g| g["kind"] == "mobile-context-not-detected"));
 }
 
 // --- native-workspace.mjs: derived from source's own documented behaviour --
@@ -503,9 +510,13 @@ fn abuse_observability_login_call_site_produces_finding() {
 
 #[test]
 fn abuse_observability_webhook_call_site_is_high_severity() {
+    // The rule's pattern (`src/providers/security/packs/abuse-observability.mjs`)
+    // is `/(?:webhook|callback)\s*\([^\n]*(?!signature|hmac|verify)/i`, which
+    // needs "webhook"/"callback" immediately followed by `(` (a function
+    // call/definition site), not the word appearing inside a route string.
     let files = [ObservabilityFile {
         path: "src/webhooks.js",
-        text: "app.post('/webhook', (req, res) => { handle(req.body); })",
+        text: "function webhook(req, res) { handle(req.body); }",
         artifact_id: None,
         artifact_evidence_refs: &[],
     }];
