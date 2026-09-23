@@ -120,6 +120,7 @@ fn default_threshold_is_400_loc_not_800() {
 
 #[test]
 fn file_below_threshold_is_not_flagged() {
+    let _guard = THRESHOLD_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = root();
     fs::write(root.join("small.ts"), lines_of(50)).unwrap();
     let inv = inventory(&["small.ts"]);
@@ -191,6 +192,7 @@ fn config_file_threshold_is_read_when_env_is_absent() {
 
 #[test]
 fn test_classified_oversized_file_is_low_severity_not_runtime() {
+    let _guard = THRESHOLD_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = root();
     fs::write(root.join("big.test.ts"), lines_of(450)).unwrap();
     let inv = inventory(&["big.test.ts"]);
@@ -240,6 +242,7 @@ fn mechanical_split_across_parts_dir_reconstructs_logical_loc() {
 
 #[test]
 fn generated_and_vendored_paths_are_excluded() {
+    let _guard = THRESHOLD_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = root();
     fs::create_dir_all(root.join("dist")).unwrap();
     fs::write(root.join("dist/bundle.js"), lines_of(500)).unwrap();

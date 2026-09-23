@@ -439,6 +439,17 @@ impl ExternalProjectTool for FakeTool {
                     bytes: body.len(),
                     immutable: true,
                 });
+                // `cargo_deny` reads its JSON from stderr
+                // (`report_source_for("cargo_deny")` is `ReportSource::Stderr`),
+                // so mirror the body there too, as the real tool would.
+                let err_path = PathBuf::from(&request.cwd).join("provider-result.stderr.json");
+                fs::write(&err_path, body).unwrap();
+                receipt.stderr = Some(legion_effects::ArtifactRecord {
+                    path: "provider-result.stderr.json".into(),
+                    digest: format!("sha256:{}", hex::encode(sha2::Sha256::digest(body))),
+                    bytes: body.len(),
+                    immutable: true,
+                });
                 // `duplication` (jscpd) reads its report from a file under
                 // the `--output` dir the real executor passes it
                 // (`report_source_for("duplication")` in legacy_checks/mod.rs
