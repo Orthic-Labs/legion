@@ -16,7 +16,7 @@ pub struct ImportedSarif {
 
 pub fn ingest_sarif(
     artifact: Option<&Value>,
-    raw_bytes: &[u8],
+    raw_bytes: Option<&[u8]>,
     binding: &Value,
     expected_digest: Option<&str>,
     tool_identity: &Value,
@@ -24,6 +24,7 @@ pub fn ingest_sarif(
     let parsed = match artifact {
         Some(value) => value.clone(),
         None => {
+            let raw_bytes = raw_bytes.ok_or_else(|| "unsupported SARIF schema".to_string())?;
             serde_json::from_slice(raw_bytes).map_err(|e| format!("invalid SARIF JSON: {e}"))?
         }
     };
@@ -38,6 +39,9 @@ pub fn ingest_sarif(
     {
         return Err("imported artifact binding mismatch".into());
     }
+    let Some(raw_bytes) = raw_bytes else {
+        return Err("immutable SARIF raw bytes required".into());
+    };
     let actual_digest = digest(raw_bytes);
     if expected_digest.is_none_or(|expected| expected != actual_digest) {
         return Err("imported artifact digest mismatch".into());
@@ -68,11 +72,7 @@ pub fn analyze(input: &Value) -> Value {
     let mut normalized = Vec::new();
     let mut gaps = Vec::new();
     for item in &supplied {
-        let raw = item
-            .get("rawBytes")
-            .and_then(Value::as_str)
-            .map(str::as_bytes)
-            .unwrap_or_default();
+        let raw = item.get("rawBytes").and_then(Value::as_str).map(str::as_bytes);
         let binding = item
             .get("binding")
             .or_else(|| input.get("plan").and_then(|p| p.get("repositoryBinding")))

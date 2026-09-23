@@ -27,8 +27,6 @@ pub struct AuditArgs {
     pub width: u32,
     #[arg(long, default_value_t = 800)]
     pub height: u32,
-    #[arg(long = "blueprint-out")]
-    pub blueprint_out: Option<PathBuf>,
     #[arg(long)]
     pub r#type: Option<String>,
     #[arg(long)]
@@ -43,10 +41,6 @@ pub struct AuditArgs {
     pub profile: String,
     #[arg(long)]
     pub out: Option<PathBuf>,
-    #[arg(long = "blueprint-packet")]
-    pub blueprint_packet: Option<PathBuf>,
-    #[arg(long = "expected-generation")]
-    pub expected_generation: Option<String>,
     #[arg(long = "provider-plan")]
     pub provider_plan: Option<PathBuf>,
     #[arg(long = "provider-result")]
@@ -118,25 +112,6 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     if selected_specs.is_empty() {
         return Err(CommandError::usage("provider selection produced an empty plan"));
     }
-    let blueprint_dependent = selected_specs.iter().any(|provider| {
-        provider
-            .consumes
-            .iter()
-            .any(|item| item == "blueprint-packet")
-    });
-    let blueprint_degradations = if context_notices.is_empty() || !blueprint_dependent {
-        Vec::new()
-    } else {
-        let reason = if context_notices
-            .iter()
-            .any(|notice| notice.contains("was not provided"))
-        {
-            "blueprint-unavailable"
-        } else {
-            "blueprint-invalid"
-        };
-        super::audit_blueprint_degradations(&selected_specs, "audit", reason)
-    };
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
             repository_id: root.to_string_lossy().into_owned(),
@@ -181,8 +156,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "processState": "not-run",
                 "completionValidation": "not-run",
                 "gaps": ["plan-only"],
-                "inputGaps": native_audit_input_gaps(&args),
-                "blueprintDegradations": blueprint_degradations
+                "inputGaps": native_audit_input_gaps(&args)
             });
             if let Some(out) = &args.out {
                 write_artifact(
@@ -229,16 +203,6 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     .claims
                     .insert("contextNotices".into(), json!(context_notices));
             }
-            if !blueprint_degradations.is_empty() {
-                report.claims.insert(
-                    "blueprintDegradations".into(),
-                    json!(blueprint_degradations),
-                );
-                report.gaps.push("blueprint-degradation".into());
-                report.gaps.sort();
-                report.gaps.dedup();
-                report.status = legion_contracts::ReportStatus::Incomplete;
-            }
             let report_status = match report.status {
                 legion_contracts::ReportStatus::Clean => "pass",
                 legion_contracts::ReportStatus::Findings => "findings",
@@ -277,7 +241,6 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                     "scope": scope.plan_json(),
                     "binding": {
                         "repositoryRevision": execution.generation,
-                        "blueprint": {"generationId": execution.generation},
                         "inventoryDigest": execution.inventory_digest,
                     },
                     "seal": {
@@ -341,8 +304,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "qualityGate": if status == "pass" && report.gaps.is_empty() { "proven" } else { "unproven" },
                 "processExecution": "complete",
                 "processState": "complete",
-                "completionValidation": "not-run",
-                "blueprintDegradations": blueprint_degradations
+                "completionValidation": "not-run"
             }))
         }
         _ => Err(CommandError::internal(
@@ -388,13 +350,9 @@ fn lexical_normalize(path: &std::path::Path) -> std::path::PathBuf {
 
 fn native_inventory_binding(
     root: &std::path::Path,
-    args: &AuditArgs,
+    _args: &AuditArgs,
 ) -> Result<Value, CommandError> {
-    let (source, _) = super::audit_inventory_source(
-        root,
-        args.blueprint_packet.as_deref(),
-        args.expected_generation.clone(),
-    )?;
+    let source = super::audit_inventory_source(root)?;
     let inventory = source
         .inventory(&root.to_string_lossy())
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
@@ -497,10 +455,10 @@ fn native_audit_input_gaps(args: &AuditArgs) -> Vec<String> {
     let mut gaps = Vec::new();
     if args.native_rule_manifest.is_some() { gaps.push("native-provider-composition-partial".into()); }
     // Visual options (--url/--surfaces/--visual-spec/--visual-baselines/--width/
-    // --height) and --blueprint-out stay accepted-and-inert without a gap record:
-    // Node's bare CLI behaves the same way (the frozen registry has no visual.core
-    // provider, and blueprint packet publication is host-owned), so recording a gap
-    // here would diverge from Node by forcing Incomplete where Node completes.
+    // --height) stay accepted-and-inert without a gap record: Node's bare CLI
+    // behaves the same way (the frozen registry has no visual.core provider),
+    // so recording a gap here would diverge from Node by forcing Incomplete
+    // where Node completes.
     gaps
 }
 
@@ -722,13 +680,13 @@ fn native_rule_diagnostic_application(
         "cleanClaim": "finding-producing",
         "controlIds": [], "scopes": [], "selectable": true
     })).map_err(|error| CommandError::internal(error.to_string()))?;
-    let (source, notices) = super::audit_inventory_source(root, args.blueprint_packet.as_deref(), args.expected_generation.clone())?;
+    let source = super::audit_inventory_source(root)?;
     let executor = super::rules::NativeRuleProviderExecutor::new(root.to_path_buf(), manifest.to_path_buf(), 1_048_576)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
     let application = legion_application::NativeApplicationConfig::for_audit_executor(
-        root.to_string_lossy().into_owned(), source, vec![provider], Arc::new(executor),
+        root.to_string_lossy().into_owned(), source, vec![provider], Arc::new(executor), Some(root.to_path_buf()),
     ).map_err(|error| CommandError::incomplete(error.to_string()))?;
-    Ok((application, notices))
+    Ok((application, Vec::new()))
 }
 
 fn native_registry_application(
@@ -756,11 +714,7 @@ fn native_registry_application(
         .map(serde_json::from_value)
         .collect::<Result<Vec<legion_contracts::ProviderSpec>, _>>()
         .map_err(|error| CommandError::usage(format!("invalid provider specification: {error}")))?;
-    let (source, notices) = super::audit_inventory_source(
-        root,
-        args.blueprint_packet.as_deref(),
-        args.expected_generation.clone(),
-    )?;
+    let source = super::audit_inventory_source(root)?;
     let external_tool = native_audit_external_tool(root);
     let executor = std::sync::Arc::new(
         legion_audit::NativeProviderRegistry::new(root.to_path_buf())
@@ -771,9 +725,10 @@ fn native_registry_application(
         source,
         providers,
         executor,
+        Some(root.to_path_buf()),
     )
     .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    Ok((application, notices))
+    Ok((application, Vec::new()))
 }
 
 fn native_audit_external_tool(
@@ -831,11 +786,7 @@ fn direct_application(
             "direct Audit requires at least one --provider-result",
         ));
     }
-    let (source, context_notices) = super::audit_inventory_source(
-        root,
-        args.blueprint_packet.as_deref(),
-        args.expected_generation.clone(),
-    )?;
+    let source = super::audit_inventory_source(root)?;
     let specifications = read_provider_plan(plan)?;
     let results = args
         .provider_results
@@ -847,9 +798,10 @@ fn direct_application(
         source,
         specifications,
         results,
+        Some(root.to_path_buf()),
     )
     .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    Ok((application, context_notices))
+    Ok((application, Vec::new()))
 }
 
 fn read_provider_plan(
@@ -924,7 +876,6 @@ mod closure_tests {
             visual_baselines: None,
             width: 1280,
             height: 800,
-            blueprint_out: None,
             r#type: None,
             base: None,
             base_commit: None,
@@ -932,8 +883,6 @@ mod closure_tests {
             json: false,
             profile: "standard".into(),
             out: None,
-            blueprint_packet: None,
-            expected_generation: None,
             provider_plan: None,
             provider_results: Vec::new(),
             native_rule_manifest: None,
@@ -1020,7 +969,6 @@ mod closure_tests {
             visual_baselines: None,
             width: 1280,
             height: 800,
-            blueprint_out: None,
             r#type: None,
             base: None,
             base_commit: None,
@@ -1028,8 +976,6 @@ mod closure_tests {
             json: false,
             profile: "standard".into(),
             out: None,
-            blueprint_packet: None,
-            expected_generation: None,
             provider_plan: None,
             provider_results: Vec::new(),
             native_rule_manifest: None,

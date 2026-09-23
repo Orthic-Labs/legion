@@ -1184,6 +1184,173 @@ fn sort_projections(projections: &mut [ClaudeStandaloneProjection]) {
     });
 }
 
+/// One standalone `~/.claude/skills/<id>` entry moved out of the way because
+/// it is stale pre-plugin Legion residue: same id as a current Legion skill,
+/// carrying Legion package markers, but differing from canonical content.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct QuarantinedLegacyCopy {
+    pub id: String,
+    pub from: PathBuf,
+    pub to: PathBuf,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct LegacyQuarantineReport {
+    pub quarantined: Vec<QuarantinedLegacyCopy>,
+}
+
+/// Quarantine (never delete) standalone `~/.claude/skills/<id>` entries that
+/// are proven stale Legion residue, so a session stops loading a pre-plugin
+/// fork instead of the current plugin-owned skill.
+///
+/// An entry is quarantined only when all of the following hold:
+/// - its id matches a current Legion skill id;
+/// - it carries Legion package markers (`RIGHTS.json`, `dependencies.json`,
+///   an `agents/openai.yaml`, and a `SKILL.md` with a `name:` frontmatter
+///   field), proving it is a Legion package rather than an unrelated
+///   directory that happens to share a name (`content`, `skills-catalog`,
+///   `run-evals.mjs`, and similar entries never match and are left alone);
+/// - its content differs from the canonical release copy — an entry that is
+///   byte-identical to canonical is not stale, it is redundant, and removing
+///   it is not this function's job;
+/// - it is a real directory, not a symlink (a link is plugin discovery
+///   state, already handled by `inspect_state`, never a standalone copy).
+///
+/// Quarantined entries move to
+/// `<resolved_client_root>/.legion-quarantine/<UTC timestamp>/skills/<id>`,
+/// created fresh for each call so repeated runs never collide.
+pub fn quarantine_legacy_legion_copies(
+    resolved_client_root: &Path,
+    standalone_skills_root: &Path,
+    canonical_skills_root: &Path,
+    current_skill_ids: &[String],
+) -> Result<LegacyQuarantineReport, HostError> {
+    let mut quarantined = Vec::new();
+    if !is_directory(standalone_skills_root) {
+        return Ok(LegacyQuarantineReport { quarantined });
+    }
+    let normalized_current = normalized_skill_ids(current_skill_ids)?;
+    let entries = standalone_entries(standalone_skills_root)?;
+    let mut quarantine_batch_root: Option<PathBuf> = None;
+    for (id, path) in entries {
+        if normalized_current.binary_search(&id).is_err() {
+            continue;
+        }
+        let metadata = match fs::symlink_metadata(&path) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            continue;
+        }
+        if !has_legion_package_markers(&path) {
+            continue;
+        }
+        let canonical = canonical_skills_root.join(&id);
+        if !is_directory(&canonical) {
+            continue;
+        }
+        if exact_directory_tree(&path, &canonical) {
+            continue;
+        }
+        let batch_root = match &quarantine_batch_root {
+            Some(root) => root.clone(),
+            None => {
+                let root = resolved_client_root
+                    .join(".legion-quarantine")
+                    .join(quarantine_timestamp())
+                    .join("skills");
+                quarantine_batch_root = Some(root.clone());
+                root
+            }
+        };
+        let destination = batch_root.join(&id);
+        if let Some(parent) = destination.parent() {
+            fs::create_dir_all(parent).map_err(|error| HostError::Io {
+                path: parent.to_path_buf(),
+                reason: error.to_string(),
+            })?;
+        }
+        fs::rename(&path, &destination).map_err(|error| HostError::Io {
+            path: path.clone(),
+            reason: error.to_string(),
+        })?;
+        quarantined.push(QuarantinedLegacyCopy {
+            id,
+            from: path,
+            to: destination,
+        });
+    }
+    Ok(LegacyQuarantineReport { quarantined })
+}
+
+/// Proves a directory is a Legion package rather than an unrelated entry
+/// that merely shares a skill id: it must carry every marker a Legion
+/// package build produces.
+fn has_legion_package_markers(path: &Path) -> bool {
+    regular_file(&path.join("RIGHTS.json"))
+        && regular_file(&path.join("dependencies.json"))
+        && regular_file(&path.join("agents").join("openai.yaml"))
+        && skill_md_has_name_frontmatter(&path.join("SKILL.md"))
+}
+
+/// A minimal frontmatter check: the file starts with a `---` delimited block
+/// containing a `name:` field. No YAML parser is pulled in for this — the
+/// package shape only needs to be told apart from an unrelated directory,
+/// not fully validated.
+fn skill_md_has_name_frontmatter(path: &Path) -> bool {
+    if !regular_file(path) {
+        return false;
+    }
+    let Ok(contents) = fs::read_to_string(path) else {
+        return false;
+    };
+    let Some(rest) = contents.strip_prefix("---") else {
+        return false;
+    };
+    let Some(end) = rest.find("\n---") else {
+        return false;
+    };
+    rest[..end]
+        .lines()
+        .any(|line| line.trim_start().starts_with("name:"))
+}
+
+/// A compact sortable UTC timestamp (`YYYYMMDDTHHMMSSZ`) with no date-time
+/// dependency: civil date arithmetic from days-since-epoch (Howard Hinnant's
+/// `civil_from_days`), applied to `SystemTime`.
+fn quarantine_timestamp() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let total_seconds = now.as_secs() as i64;
+    let days = total_seconds.div_euclid(86_400);
+    let seconds_of_day = total_seconds.rem_euclid(86_400);
+    let (year, month, day) = civil_from_days(days);
+    let hour = seconds_of_day / 3600;
+    let minute = (seconds_of_day % 3600) / 60;
+    let second = seconds_of_day % 60;
+    format!("{year:04}{month:02}{day:02}T{hour:02}{minute:02}{second:02}Z")
+}
+
+/// Howard Hinnant's `civil_from_days`: converts a day count since
+/// 1970-01-01 into a proleptic-Gregorian (year, month, day).
+fn civil_from_days(days: i64) -> (i64, u32, u32) {
+    let z = days + 719_468;
+    let era = (if z >= 0 { z } else { z - 146_096 }) / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = (if mp < 10 { mp + 3 } else { mp - 9 }) as u32;
+    let year = if m <= 2 { y + 1 } else { y };
+    (year, m, d)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1546,5 +1713,131 @@ mod tests {
 
         assert!(!remove_projection_checked(&link, &snapshot).unwrap());
         assert!(link.exists());
+    }
+
+    fn write_legion_package(root: &Path, id: &str, skill_md_body: &str) {
+        let path = root.join(id);
+        fs::create_dir_all(path.join("agents")).unwrap();
+        fs::write(path.join("RIGHTS.json"), b"{}").unwrap();
+        fs::write(path.join("dependencies.json"), b"{}").unwrap();
+        fs::write(path.join("agents").join("openai.yaml"), b"name: legion\n").unwrap();
+        fs::write(
+            path.join("SKILL.md"),
+            format!("---\nname: {id}\n---\n{skill_md_body}"),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn stale_legion_copy_with_markers_is_quarantined() {
+        let temp = TempRoot::new("quarantine-stale");
+        let standalone = temp.0.join(".claude/skills");
+        let canonical = temp.0.join("release/skills");
+        write_legion_package(&standalone, "audit", "stale body");
+        write_legion_package(&canonical, "audit", "current body");
+
+        let report = quarantine_legacy_legion_copies(
+            &temp.0,
+            &standalone,
+            &canonical,
+            &["audit".to_string()],
+        )
+        .unwrap();
+
+        assert_eq!(report.quarantined.len(), 1);
+        assert_eq!(report.quarantined[0].id, "audit");
+        assert!(!standalone.join("audit").exists());
+        assert!(report.quarantined[0].to.is_dir());
+        assert!(report.quarantined[0]
+            .to
+            .starts_with(temp.0.join(".legion-quarantine")));
+        assert!(report.quarantined[0].to.join("SKILL.md").is_file());
+    }
+
+    #[test]
+    fn legion_copy_identical_to_canonical_is_left_alone() {
+        let temp = TempRoot::new("quarantine-identical");
+        let standalone = temp.0.join(".claude/skills");
+        let canonical = temp.0.join("release/skills");
+        write_legion_package(&standalone, "audit", "same body");
+        write_legion_package(&canonical, "audit", "same body");
+
+        let report = quarantine_legacy_legion_copies(
+            &temp.0,
+            &standalone,
+            &canonical,
+            &["audit".to_string()],
+        )
+        .unwrap();
+
+        assert!(report.quarantined.is_empty());
+        assert!(standalone.join("audit").exists());
+    }
+
+    #[test]
+    fn non_legion_entry_is_never_touched() {
+        let temp = TempRoot::new("quarantine-non-legion");
+        let standalone = temp.0.join(".claude/skills");
+        let canonical = temp.0.join("release/skills");
+        // Named exactly like a current skill id but carries none of the
+        // Legion package markers: an unrelated directory the operator made.
+        fs::create_dir_all(standalone.join("content")).unwrap();
+        fs::write(standalone.join("content").join("notes.md"), b"mine").unwrap();
+        write_legion_package(&canonical, "content", "canonical body");
+
+        let report = quarantine_legacy_legion_copies(
+            &temp.0,
+            &standalone,
+            &canonical,
+            &["content".to_string()],
+        )
+        .unwrap();
+
+        assert!(report.quarantined.is_empty());
+        assert!(standalone.join("content").join("notes.md").is_file());
+    }
+
+    #[test]
+    fn entry_not_among_current_skill_ids_is_left_alone() {
+        let temp = TempRoot::new("quarantine-not-current");
+        let standalone = temp.0.join(".claude/skills");
+        let canonical = temp.0.join("release/skills");
+        write_legion_package(&standalone, "retired-thing", "stale body");
+        write_legion_package(&canonical, "audit", "current body");
+
+        let report = quarantine_legacy_legion_copies(
+            &temp.0,
+            &standalone,
+            &canonical,
+            &["audit".to_string()],
+        )
+        .unwrap();
+
+        assert!(report.quarantined.is_empty());
+        assert!(standalone.join("retired-thing").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn plugin_discovery_symlink_is_never_quarantined() {
+        use std::os::unix::fs::symlink;
+
+        let temp = TempRoot::new("quarantine-symlink");
+        let standalone = temp.0.join(".claude/skills");
+        let canonical = temp.0.join("release/skills");
+        write_legion_package(&canonical, "audit", "current body");
+        fs::create_dir_all(&standalone).unwrap();
+        symlink(canonical.join("audit"), standalone.join("audit")).unwrap();
+
+        let report = quarantine_legacy_legion_copies(
+            &temp.0,
+            &standalone,
+            &canonical,
+            &["audit".to_string()],
+        )
+        .unwrap();
+
+        assert!(report.quarantined.is_empty());
+        assert!(standalone.join("audit").exists());
     }
 }

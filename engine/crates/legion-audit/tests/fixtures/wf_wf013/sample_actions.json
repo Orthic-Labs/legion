@@ -1,0 +1,10 @@
+[
+  { "type": "waitFor", "selector": "#app", "timeout": 10000 },
+  { "type": "hover", "selector": ".menu-trigger", "settle": 150 },
+  { "type": "click", "selector": ".menu-trigger" },
+  { "type": "assertVisible", "selector": ".menu-panel" },
+  { "type": "assertText", "selector": ".menu-panel h2", "text": "Settings" },
+  { "type": "type", "text": "hello world" },
+  { "type": "press", "key": "Enter" },
+  { "type": "screenshot", "out": ".cache/qa-shots/menu-open.png" }
+]

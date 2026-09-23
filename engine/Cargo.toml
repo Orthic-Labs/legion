@@ -23,8 +23,11 @@ members = [
     "crates/legion-topology",
 
     "bins/legion",
+    "bins/legion-dev",
     "bins/legion-hook",
     "bins/legion-mcp",
+
+    "xtask",
 ]
 
 [workspace.package]

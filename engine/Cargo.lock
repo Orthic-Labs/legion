@@ -1003,6 +1003,7 @@ dependencies = [
  "legion-provider-sdk",
  "legion-rules",
  "legion-runtime",
+ "regex",
  "serde",
  "serde_json",
  "sha2",
@@ -1041,6 +1042,7 @@ name = "legion-decisions"
 version = "0.3.15"
 dependencies = [
  "legion-contracts",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",
@@ -1069,6 +1071,7 @@ dependencies = [
  "hex",
  "legion-contracts",
  "legion-runtime",
+ "regex",
  "serde",
  "serde_json",
  "sha2",
@@ -1141,10 +1144,14 @@ dependencies = [
 name = "legion-policy"
 version = "0.3.15"
 dependencies = [
+ "hex",
  "legion-contracts",
  "legion-policy-model",
  "proptest",
+ "regex",
+ "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.20",
 ]
 
@@ -1166,6 +1173,7 @@ dependencies = [
  "futures-util",
  "legion-contracts",
  "legion-effects",
+ "regex",
  "reqwest",
  "secrecy",
  "serde",
@@ -1190,7 +1198,9 @@ dependencies = [
  "legion-contracts",
  "legion-provider-sdk",
  "legion-runtime",
+ "regex",
  "serde",
+ "serde_json",
  "sha2",
 ]
 
@@ -1198,11 +1208,15 @@ dependencies = [
 name = "legion-review"
 version = "0.3.15"
 dependencies = [
+ "hex",
+ "icu_normalizer",
  "legion-contracts",
  "legion-provider-sdk",
  "legion-runtime",
+ "regex",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.20",
 ]
 
@@ -1226,9 +1240,16 @@ dependencies = [
  "async-trait",
  "legion-catalog",
  "legion-contracts",
+ "hex",
+ "legion-catalog",
+ "legion-contracts",
  "legion-policy",
  "legion-provider-sdk",
+ "regex",
  "serde",
+ "serde_json",
+ "sha2",
+ "thiserror 2.0.20",
  "tokio",
  "tokio-util",
 ]

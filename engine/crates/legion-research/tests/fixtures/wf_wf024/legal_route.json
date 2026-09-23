@@ -1,0 +1,5 @@
+{
+  "domain": "legal",
+  "subject": {"country": "US", "area": "civil", "issue": "contract dispute"},
+  "forbidden_resources": []
+}

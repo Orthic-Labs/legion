@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use legion_contracts::ProviderSpec;
 
@@ -9,7 +10,20 @@ use crate::{
     error::AuditError,
     integrity::{plan_digest, sign},
     inventory::{InventoryDenominator, InventoryEnvelope},
+    native_providers::reasoning::{lens_plan, triggers},
 };
+
+/// A conditional-lens provider excluded from a frozen plan because its
+/// deterministic trigger was checked over the frozen inventory and did not
+/// fire. Recorded so the exclusion is provably-checked, not silently
+/// dropped or gated on external Blueprint provenance (Legion has none).
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExcludedConditionalProvider {
+    pub id: String,
+    pub lens: String,
+    pub reason: String,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -22,8 +36,6 @@ pub enum ProviderKind {
     TypedExternalProjectTool,
     #[serde(rename = "host-service")]
     HostService,
-    #[serde(rename = "optional-blueprint-evidence")]
-    OptionalBlueprintEvidence,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -58,6 +70,12 @@ pub struct AuditPlan {
     pub providers: Vec<AuditProvider>,
     #[serde(default)]
     pub bounds: BTreeMap<String, Value>,
+    /// Conditional-lens providers excluded because their trigger was
+    /// checked and did not fire. Empty when `compile` was called without a
+    /// filesystem root (trigger evaluation needs real file contents) or
+    /// when every conditional trigger fired.
+    #[serde(default)]
+    pub excluded_conditional_providers: Vec<ExcludedConditionalProvider>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -68,11 +86,72 @@ pub struct FrozenPlan {
 }
 
 impl AuditPlan {
+    /// Compiles a frozen plan without evaluating conditional-lens triggers
+    /// (`excluded_conditional_providers` is always empty). Trigger
+    /// evaluation needs real file contents for two of the five conditional
+    /// lenses, which this entry point has no filesystem root to read.
+    /// Prefer `compile_with_root` wherever a root is available.
     pub fn compile(
         inventory: &InventoryEnvelope,
         specs: &[ProviderSpec],
     ) -> Result<Self, AuditError> {
+        Self::compile_with_root(None, inventory, specs)
+    }
+
+    /// Compiles a frozen plan, additionally gating conditional-lens
+    /// providers (`reasoning.a11y`, `reasoning.data-safety`,
+    /// `reasoning.resilience`, `reasoning.platform-parity`,
+    /// `reasoning.release-readiness`) on their deterministic trigger: each
+    /// is checked with `reasoning::triggers::evaluate_trigger` over the
+    /// frozen inventory's paths, and one that is checked-and-not-fired is
+    /// excluded from the plan with its reason recorded in
+    /// `excluded_conditional_providers`, never silently dropped. This is
+    /// the only exclusion `compile` performs; nothing here (or anywhere in
+    /// Rust) excludes or degrades a provider for missing Blueprint — Legion
+    /// has no dependency on it.
+    pub fn compile_with_root(
+        root: Option<&Path>,
+        inventory: &InventoryEnvelope,
+        specs: &[ProviderSpec],
+    ) -> Result<Self, AuditError> {
         inventory.validate()?;
+        if specs.is_empty() {
+            return Err(AuditError::Invalid(
+                "audit plan requires at least one frozen provider".into(),
+            ));
+        }
+        let mut excluded_conditional_providers = Vec::new();
+        let filtered_specs: Vec<ProviderSpec>;
+        let specs: &[ProviderSpec] = if let Some(root) = root {
+            let paths: Vec<String> = inventory.paths().map(str::to_owned).collect();
+            filtered_specs = specs
+                .iter()
+                .filter(|spec| {
+                    if !lens_plan::is_conditional_lens_provider(spec.id.as_str()) {
+                        return true;
+                    }
+                    let Some(lens) = lens_plan::lens_id_for_provider(spec.id.as_str()) else {
+                        return true;
+                    };
+                    let Some(evaluation) = triggers::evaluate_trigger(root, lens, &paths) else {
+                        return true;
+                    };
+                    if evaluation.fired {
+                        return true;
+                    }
+                    excluded_conditional_providers.push(ExcludedConditionalProvider {
+                        id: spec.id.to_string(),
+                        lens: lens.to_owned(),
+                        reason: evaluation.reason,
+                    });
+                    false
+                })
+                .cloned()
+                .collect();
+            filtered_specs.as_slice()
+        } else {
+            specs
+        };
         if specs.is_empty() {
             return Err(AuditError::Invalid(
                 "audit plan requires at least one frozen provider".into(),
@@ -115,7 +194,6 @@ impl AuditPlan {
                         }
                     },
                     "reasoning-contract" => ProviderKind::HostService,
-                    "optional-blueprint-evidence" => ProviderKind::OptionalBlueprintEvidence,
                     "external-process" => ProviderKind::TypedExternalProjectTool,
                     "built-in" | "declarative-rule" => ProviderKind::RustAlgorithm,
                     _ => {
@@ -159,8 +237,6 @@ impl AuditPlan {
                             ProviderKind::RustAlgorithm => "rust-algorithm",
                             ProviderKind::TypedExternalProjectTool => "typed-external-project-tool",
                             ProviderKind::HostService => "host-service",
-                            ProviderKind::OptionalBlueprintEvidence =>
-                                "optional-blueprint-evidence",
                             ProviderKind::EffectExecutor => "effect-executor",
                             ProviderKind::BuiltIn => "built-in",
                         }),
@@ -184,13 +260,6 @@ impl AuditPlan {
                             .unwrap_or(true)),
                     ),
                     ("cleanClaim".into(), serde_json::json!(spec.clean_claim)),
-                    (
-                        "blueprintDependent".into(),
-                        serde_json::json!(spec
-                            .consumes
-                            .iter()
-                            .any(|item| item == "blueprint-packet")),
-                    ),
                 ]);
                 Ok::<_, AuditError>(AuditProvider {
                     id: spec.id.to_string(),
@@ -243,6 +312,7 @@ impl AuditPlan {
             inventory_digest: inventory.digest.clone(),
             providers,
             bounds: BTreeMap::new(),
+            excluded_conditional_providers,
         })
     }
 

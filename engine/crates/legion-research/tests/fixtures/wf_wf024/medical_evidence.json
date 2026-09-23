@@ -1,0 +1,8 @@
+[
+  {
+    "id": "e1",
+    "study_design": "RCT",
+    "pico": {"population": "adults with migraine"},
+    "applicability": "general population"
+  }
+]

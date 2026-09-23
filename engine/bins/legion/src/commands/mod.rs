@@ -34,7 +34,7 @@ pub mod state;
 pub mod topology;
 pub mod languages;
 pub mod verify;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::{path::{Path, PathBuf}, sync::Arc};
 pub type CommandResult = Result<Value, CommandError>;
 
@@ -65,88 +65,15 @@ pub fn audit_signing_key() -> Result<Vec<u8>, CommandError> {
             CommandError::incomplete("native audit requires host-injected AUDIT_PLAN_SIGNING_KEY")
         })
 }
+/// Legion's sole inventory source: a read-only local filesystem walk. Legion
+/// (Rust) has no dependency on an external context engine — there is no
+/// packet to consume, so there is no degraded/fallback path to report on.
 pub fn audit_inventory_source(
     root: &Path,
-    packet: Option<&Path>,
-    expected_generation: Option<String>,
-) -> Result<(Arc<dyn legion_audit::BlueprintInventorySource>, Vec<String>), CommandError> {
-    if let Some(packet) = packet {
-        let blueprint = std::fs::canonicalize(packet)
-            .map_err(|error| error.to_string())
-            .and_then(|path| {
-                legion_audit::FileBlueprintInventorySource::new(path, expected_generation)
-                    .map_err(|error| error.to_string())
-            });
-        match blueprint {
-            Ok(source) => return Ok((Arc::new(source), Vec::new())),
-            Err(error) => {
-                let fallback = legion_audit::FilesystemInventorySource::new(root)
-                    .map_err(|fallback| CommandError::incomplete(fallback.to_string()))?;
-                return Ok((
-                    Arc::new(fallback),
-                    vec![format!(
-                        "Blueprint was unavailable ({error}). Audit continued with its own read-only repository inventory. Use Membrane as context engine and provide a fresh Blueprint packet for richer context."
-                    )],
-                ));
-            }
-        }
-    }
-    let fallback = legion_audit::FilesystemInventorySource::new(root)
-        .map_err(|error| CommandError::incomplete(error.to_string()))?;
-    Ok((
-        Arc::new(fallback),
-        vec![
-            "Blueprint was not provided. Audit continued with its own read-only repository inventory. Use Membrane as context engine and provide a fresh Blueprint packet for richer context."
-                .into(),
-        ],
-    ))
-}
-
-/// Stable, machine-readable degradation projection. Text notices remain for humans,
-/// while this object is the only semantic representation consumed by Audit clients.
-pub fn audit_blueprint_degradations(
-    providers: &[legion_contracts::ProviderSpec],
-    operation: &str,
-    reason_code: &str,
-) -> Vec<Value> {
-    let unaffected = providers
-        .iter()
-        .filter(|provider| {
-            !provider
-                .consumes
-                .iter()
-                .any(|item| item == "blueprint-packet")
-        })
-        .map(|provider| provider.id.to_string())
-        .collect::<Vec<_>>();
-    let mut unaffected = unaffected;
-    unaffected.sort();
-    unaffected.dedup();
-    let mut dependent = providers
-        .iter()
-        .filter(|provider| {
-            provider
-                .consumes
-                .iter()
-                .any(|item| item == "blueprint-packet")
-        })
-        .map(|provider| provider.id.to_string())
-        .collect::<Vec<_>>();
-    dependent.sort();
-    dependent.dedup();
-    dependent
-        .into_iter()
-        .map(|provider| {
-            json!({
-                "provider": provider,
-                "operation": operation,
-                "reasonCode": reason_code,
-                "structuralCoverageLimits": ["symbols", "dependencies", "graph relationships"],
-                "recommendation": "Provide a fresh host-published Blueprint packet for structural coverage.",
-                "unaffectedProviders": unaffected.clone(),
-            })
-        })
-        .collect()
+) -> Result<Arc<legion_audit::FilesystemInventorySource>, CommandError> {
+    legion_audit::FilesystemInventorySource::new(root)
+        .map(Arc::new)
+        .map_err(|error| CommandError::incomplete(error.to_string()))
 }
 #[derive(Debug)]
 pub struct CommandError {
@@ -199,55 +126,27 @@ pub fn io_error(error: impl std::fmt::Display) -> CommandError {
 mod tests {
     use super::*;
 
-    fn provider(id: &str, consumes: &[&str]) -> legion_contracts::ProviderSpec {
-        legion_contracts::ProviderSpec {
-            schema_version: 2,
-            id: legion_contracts::ProviderId::new(id).expect("provider id"),
-            provider_version: "1".into(),
-            family: "fixture".into(),
-            lens_ids: Vec::new(),
-            role: "deterministic".into(),
-            phase: "source".into(),
-            depends_on: Vec::new(),
-            consumes: consumes.iter().map(|item| (*item).into()).collect(),
-            produces: vec!["provider-result".into()],
-            selector: json!({"op": "always"}),
-            denominator_kind: "repository-inventory".into(),
-            runner: json!({"kind": "built-in"}),
-            host_capabilities: Vec::new(),
-            execution: json!({}),
-            reasoning: json!({}),
-            benchmark: json!({}),
-            clean_claim: "finding-producing".into(),
-            control_ids: Vec::new(),
-            scopes: Vec::new(),
-            selectable: true,
-        }
-    }
-
+    /// `audit_inventory_source` is Legion's sole inventory source: a local
+    /// filesystem walk, with no packet, no fallback, and no degradation
+    /// reporting (there is nothing external to degrade from). This
+    /// replaces the retired `blueprint_degradation_is_per_dependent_provider`
+    /// coverage of the removed Blueprint-packet degradation path.
     #[test]
-    fn blueprint_degradation_is_per_dependent_provider() {
-        let degradations = audit_blueprint_degradations(
-            &[
-                provider("blueprint.second", &["blueprint-packet"]),
-                provider("unaffected", &["repository-inventory"]),
-                provider("blueprint.first", &["blueprint-packet"]),
-            ],
-            "audit",
-            "blueprint-unavailable",
-        );
-        assert_eq!(degradations.len(), 2);
-        assert_eq!(
-            degradations
-                .iter()
-                .map(|item| item["provider"].as_str().unwrap())
-                .collect::<Vec<_>>(),
-            ["blueprint.first", "blueprint.second"]
-        );
-        for degradation in degradations {
-            assert_eq!(degradation["operation"], "audit");
-            assert_eq!(degradation["reasonCode"], "blueprint-unavailable");
-            assert_eq!(degradation["unaffectedProviders"], json!(["unaffected"]));
-        }
+    fn audit_inventory_source_walks_the_local_filesystem_only() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-command-inventory-source-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/lib.rs"), "fn one() {}\n").unwrap();
+        let root = std::fs::canonicalize(root).unwrap();
+
+        let source = audit_inventory_source(&root).unwrap();
+        let inventory = source.inventory(&root.to_string_lossy()).unwrap();
+        assert_eq!(inventory.paths().collect::<Vec<_>>(), ["src/lib.rs"]);
+        assert!(inventory.generation.starts_with("filesystem:sha256:"));
+
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

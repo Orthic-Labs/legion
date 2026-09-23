@@ -1,0 +1,7 @@
+Analyzing dependencies of 3 crates...
+crate-a:
+  unused-dep-one
+  unused-dep-two
+crate-b:
+  unused-dep-three
+If you believe cargo-machete has detected a false positive, please open an issue.

@@ -20,10 +20,6 @@ use std::{
 pub struct RulesArgs {
     #[arg(long)]
     pub manifest: Option<PathBuf>,
-    #[arg(long = "blueprint-packet")]
-    pub blueprint_packet: Option<PathBuf>,
-    #[arg(long = "expected-generation")]
-    pub expected_generation: Option<String>,
     #[arg(long, default_value = ".")]
     pub root: PathBuf,
     #[arg(long)]
@@ -254,7 +250,6 @@ fn evaluate_native_rules(
             ("findingTitles".into(), Value::Object(titles)),
             ("findingMessages".into(), Value::Object(messages)),
             ("selector".into(), selector.clone()),
-            ("blueprintDegradations".into(), json!([])),
             (
                 "packs".into(),
                 json!(selected.keys().cloned().collect::<Vec<_>>()),
@@ -302,11 +297,8 @@ pub fn run(args: RulesArgs) -> CommandResult {
         .map_err(|error| CommandError::usage(error.to_string()))?;
     let selected = select_packs(compiled, &args.packs)?;
     let repository_id = root.to_string_lossy().into_owned();
-    let (source, context_notices) = super::audit_inventory_source(
-        &root,
-        args.blueprint_packet.as_deref(),
-        args.expected_generation,
-    )?;
+    let source = super::audit_inventory_source(&root)?;
+    let context_notices: Vec<String> = Vec::new();
     let inventory = source
         .inventory(&repository_id)
         .map_err(|error| CommandError::incomplete(error.to_string()))?;
@@ -404,10 +396,9 @@ pub fn run(args: RulesArgs) -> CommandResult {
     }
 
     let complete = gaps.is_empty() && files.len() == denominator.entries.len();
-    // Rules consumes the read-only filesystem inventory directly; it is not an
-    // explicitly Blueprint-dependent operation, so context absence cannot
-    // degrade its provider result.
-    let degradations: Vec<Value> = Vec::new();
+    // Rules consumes Legion's own read-only filesystem inventory directly —
+    // its sole and only source, not a fallback from an external context
+    // engine — so there is no degradation concept to report.
     let result = ProviderResult {
         schema_version: 1,
         provider,
@@ -434,7 +425,6 @@ pub fn run(args: RulesArgs) -> CommandResult {
             ("findingTitles".into(), Value::Object(titles)),
             ("findingMessages".into(), Value::Object(messages)),
             ("selector".into(), selector.clone()),
-            ("blueprintDegradations".into(), json!(degradations)),
             (
                 "packs".into(),
                 json!(selected.keys().cloned().collect::<Vec<_>>()),
@@ -456,7 +446,6 @@ pub fn run(args: RulesArgs) -> CommandResult {
         "selector": selector,
         "denominatorDigest": denominator.digest,
         "contextNotices": context_notices,
-        "blueprintDegradations": degradations,
         "providerResult": result,
     }))
 }

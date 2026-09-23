@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-operation-envelope-v1",
+  "title": "OperationEnvelope",
+  "description": "Canonical operation request/result envelope. Invocation state, domain outcome, & claim boundary remain orthogonal rather than collapsing into one status.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/OperationRequest" },
+    { "$ref": "#/$defs/OperationResult" }
+  ],
+  "$defs": {
+    "OperationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion", "kind", "envelopeKind", "operationId", "operationVersion",
+        "requestId", "runId", "callerAuthority", "authorityAssertion", "input", "sourceRevision", "requestedAt"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "legion-operation-envelope" },
+        "envelopeKind": { "const": "request" },
+
+        "operationId": { "type": "string", "minLength": 1, "description": "Registered operation identifier, e.g. 'legion.task.start'." },
+        "operationVersion": { "type": "string", "minLength": 1 },
+
+        "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "taskId": { "type": ["string", "null"], "pattern": "^ktask_[0-9A-HJKMNP-TV-Z]{26}$" },
+
+        "callerAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"] },
+        "authorityAssertion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["assertedBy", "perMessage", "verificationMethod"],
+          "properties": {
+            "assertedBy": { "type": "string", "minLength": 1, "description": "Concrete identity asserting callerAuthority for this specific message (process/capability/session identity)." },
+            "perMessage": {
+              "type": "boolean",
+              "description": "States whether authority was authenticated for this message or inherited from connection-level trust; consumers must not hide that distinction."
+            },
+            "verificationMethod": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] }
+          },
+          "description": "Added mid-freeze at coordinator direction from the S00 baseline. Distinct from callerAuthority (which authority role is claimed) — this is how strongly Arcane can trust that claim for this one message."
+        },
+        "input": { "type": "object", "description": "Operation-specific input payload, validated against its registered input schema." },
+
+        "idempotencyKey": { "type": ["string", "null"] },
+        "sourceRevision": { "type": "string", "minLength": 7 },
+        "requestedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "OperationResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion", "kind", "envelopeKind", "operationId", "operationVersion",
+        "requestId", "runId", "invocationState", "domainOutcome", "claimBoundary",
+        "artifacts", "warnings", "nextActions", "error", "sourceRevision"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "legion-operation-envelope" },
+        "envelopeKind": { "const": "result" },
+
+        "operationId": { "type": "string", "minLength": 1 },
+        "operationVersion": { "type": "string", "minLength": 1 },
+        "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+        "taskId": { "type": ["string", "null"], "pattern": "^ktask_[0-9A-HJKMNP-TV-Z]{26}$" },
+
+        "invocationState": {
+          "enum": ["ACCEPTED", "RUNNING", "INPUT_REQUIRED", "CANCELLED", "EXPIRED", "FAILED_INVOCATION", "COMPLETED"],
+          "description": "Kernel-owned axis: did the operation itself run to completion? Orthogonal to domainOutcome and claimBoundary."
+        },
+        "domainOutcome": {
+          "enum": ["REPAIR", "BLOCKED_DECISION", "NEEDS_AMENDMENT", "OUT_OF_SCOPE", "BUDGET_STOP", "FAILED_CONTRACT", "COMPLETE"],
+          "description": "Reuses ALCHEMIST_STATE as an engineering-outcome axis: did requested change happen as intended?"
+        },
+        "claimBoundary": {
+          "enum": ["CLEAN_WITHIN_DECLARED_SCOPE", "PARTIALLY_PROVEN", "UNPROVEN", "EVIDENCE_INSUFFICIENT", "NOT_APPLICABLE"],
+          "description": "What result may honestly claim, independent of whether it ran or succeeded."
+        },
+
+        "artifacts": { "type": "array", "items": { "type": "string" }, "description": "artifactId references (legion-artifact-v1)." },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "nextActions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["action"],
+            "properties": {
+              "action": { "type": "string", "minLength": 1 },
+              "reason": { "type": ["string", "null"] },
+              "owner": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "error": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": { "type": "string", "minLength": 1 },
+            "message": { "type": "string", "minLength": 1 },
+            "remediation": { "type": ["string", "null"] },
+            "retriable": { "type": "boolean", "default": false }
+          }
+        },
+
+        "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+        "receiptRefs": { "type": "array", "items": { "type": "string" } },
+
+        "sourceRevision": { "type": "string", "minLength": 7 },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  }
+}

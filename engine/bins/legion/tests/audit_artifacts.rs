@@ -1,7 +1,26 @@
 use std::{collections::BTreeMap, process::Command, sync::Arc};
 
-use legion_audit::{FileBlueprintInventorySource, InventoryEntry, InventoryEnvelope};
+use legion_audit::{AuditError, FilesystemInventorySource, InventoryEnvelope, InventorySource};
 use legion_contracts::{Coverage, ProviderId, ProviderResult, ProviderSpec, ProviderStatus};
+
+/// Fixed-snapshot inventory fixture. Replaces the retired
+/// `FileBlueprintInventorySource`: Legion (Rust) has no Blueprint/Membrane
+/// packet to read, so a unit-level fixture that needs an exact, precomputed
+/// inventory (independent of whatever else the test directory contains)
+/// supplies it directly, the same way `StaticInventorySource` does inside
+/// `legion_application`.
+struct FixedInventorySource(InventoryEnvelope);
+
+impl InventorySource for FixedInventorySource {
+    fn inventory(&self, repository_id: &str) -> Result<InventoryEnvelope, AuditError> {
+        if self.0.repository_id != repository_id {
+            return Err(AuditError::SourceDrift(format!(
+                "no configured inventory for repository {repository_id}"
+            )));
+        }
+        Ok(self.0.clone())
+    }
+}
 
 #[test]
 fn configured_audit_writes_reconciled_json_and_sarif() {
@@ -10,36 +29,26 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         std::process::id(),
         std::thread::current().name().unwrap_or("fixture")
     ));
-    std::fs::create_dir_all(root.join("src")).unwrap();
-    std::fs::write(root.join("src/lib.rs"), "pub fn fixture() {}\n").unwrap();
-    std::fs::create_dir_all(root.join("docs")).unwrap();
-    std::fs::write(root.join("docs/readme.md"), "fixture\n").unwrap();
+    // Source files live in an isolated subdirectory so the frozen inventory
+    // (and its digest) reflects exactly these two files, not whatever other
+    // fixture artifacts (provider-plan.json, out/, ...) this test also
+    // writes under `root`.
+    let source_root = root.join("source");
+    std::fs::create_dir_all(source_root.join("src")).unwrap();
+    std::fs::write(source_root.join("src/lib.rs"), "pub fn fixture() {}\n").unwrap();
+    std::fs::create_dir_all(source_root.join("docs")).unwrap();
+    std::fs::write(source_root.join("docs/readme.md"), "fixture\n").unwrap();
     let root = std::fs::canonicalize(root).unwrap();
-    let repository_id = root.to_string_lossy().into_owned();
+    let source_root = std::fs::canonicalize(source_root).unwrap();
+    let repository_id = source_root.to_string_lossy().into_owned();
     let provider_id = ProviderId::new("fixture-provider").unwrap();
-    let inventory = InventoryEnvelope::new(
-        &repository_id,
-        "fixture-generation",
-        vec![
-            InventoryEntry {
-                path: "docs/readme.md".into(),
-                symbols: Vec::new(),
-                dependencies: Vec::new(),
-                package_scripts: Vec::new(),
-                source_file: true,
-                digest: None,
-            },
-            InventoryEntry {
-                path: "src/lib.rs".into(),
-                symbols: Vec::new(),
-                dependencies: Vec::new(),
-                package_scripts: Vec::new(),
-                source_file: true,
-                digest: None,
-            },
-        ],
-    )
-    .unwrap();
+    // Legion's own read-only filesystem walk is the sole inventory source;
+    // use it here too so the fixture's digest matches exactly what the CLI
+    // invocation below computes for the same `source_root`.
+    let inventory = FilesystemInventorySource::new(&source_root)
+        .unwrap()
+        .inventory(&repository_id)
+        .unwrap();
     let result = ProviderResult {
         schema_version: 1,
         provider: provider_id.clone(),
@@ -67,7 +76,7 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         role: "deterministic".into(),
         phase: "source".into(),
         depends_on: Vec::new(),
-        consumes: vec!["blueprint-packet".into()],
+        consumes: vec!["repository-inventory".into()],
         produces: vec!["provider-result".into()],
         selector: serde_json::json!({"op": "always"}),
         denominator_kind: "selected-scope".into(),
@@ -85,44 +94,20 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
         scopes: Vec::new(),
         selectable: true,
     };
-    let packet = serde_json::json!({
-        "schema": "membrane.blueprint-packet.v1",
-        "status": "ready",
-        "state": "ready",
-        "generationId": "fixture-generation",
-        "manifestDigest": format!("sha256:{}", "1".repeat(64)),
-        "sourceObservation": {"kind": "fixture"},
-        "files": ["docs/readme.md", "src/lib.rs"],
-        "fileCount": 2,
-        "sourceFileCount": 2,
-        "parsedExtensions": ["md", "rs"],
-        "unsupportedExtensions": [],
-        "overlay": {"state": "ready", "dirtyTracked": 0, "untracked": 0}
-    });
-    std::fs::write(
-        root.join("blueprint-packet.json"),
-        serde_json::to_vec_pretty(&packet).unwrap(),
-    )
-    .unwrap();
     let invalid_result = {
         let mut invalid = result.clone();
         invalid.coverage.as_mut().unwrap().denominator_digest =
             format!("sha256:{}", "0".repeat(64));
         invalid
     };
-    let source = Arc::new(
-        FileBlueprintInventorySource::new(
-            root.join("blueprint-packet.json"),
-            Some("fixture-generation".into()),
-        )
-        .unwrap(),
-    );
+    let source: Arc<dyn InventorySource> = Arc::new(FixedInventorySource(inventory.clone()));
     assert!(
         legion_application::NativeApplicationConfig::for_audit_artifacts(
             repository_id.clone(),
             source,
             vec![specification.clone()],
             vec![invalid_result],
+            Some(source_root.clone()),
         )
         .is_err()
     );
@@ -145,10 +130,6 @@ fn configured_audit_writes_reconciled_json_and_sarif() {
             "--out",
             out.to_str().unwrap(),
             "--json",
-            "--blueprint-packet",
-            root.join("blueprint-packet.json").to_str().unwrap(),
-            "--expected-generation",
-            "fixture-generation",
             "--provider-plan",
             plan_path.to_str().unwrap(),
             "--provider-result",

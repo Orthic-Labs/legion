@@ -22,6 +22,7 @@ pub mod agent;
 pub mod canonical;
 pub mod host;
 pub mod id;
+pub mod l2_port;
 pub mod plan;
 pub mod policy;
 pub mod provider;

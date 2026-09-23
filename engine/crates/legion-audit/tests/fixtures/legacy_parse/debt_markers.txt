@@ -1,0 +1,4 @@
+src/foo.rs:12: // TODO: handle this edge case
+src/bar.rs:44: // ponytail: minimal mechanism, upgrade later
+src/baz.rs:9: // ponytail: quick hack, no real reason given
+src/qux.rs:2: // FIXME broken retry loop

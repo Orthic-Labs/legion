@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-claim-v1",
+  "title": "Claim",
+  "description": "Authority-scoped claim. Sage vocabulary is exceptional adjudication only, Alchemist vocabulary is bounded transformation evidence, & Oracle vocabulary is independent Completion Validation. Arcane validates prerequisites/evidence bindings without inventing semantic claims.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "claimId", "claimingAuthority", "name",
+    "subjectType", "subjectId", "evidenceRefs", "prerequisites", "status", "sourceRevision"
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "claimingAuthority": { "const": "sage" },
+        "name": { "enum": ["ADJUDICATION_MADE", "SEMANTIC_CONFLICT_RESOLVED", "ACCEPTANCE_SEMANTICS_SEALED", "ADJUDICATED_CONTRACT_SEALED"] }
+      }
+    },
+    {
+      "properties": {
+        "claimingAuthority": { "const": "alchemist" },
+        "name": { "enum": ["EFFECT_APPLIED", "CANDIDATE_READY", "DECLARED_CHECKS_PASSED", "IMPLEMENTATION_MATCHES_CONTRACT", "LOCAL_EXECUTION_VERIFIED"] }
+      }
+    },
+    {
+      "properties": {
+        "claimingAuthority": { "const": "oracle" },
+        "name": { "enum": ["COMPLETION_VALIDATED", "COMPLETION_BLOCKED", "UNKNOWN", "NOT_APPLICABLE", "EVIDENCE_INSUFFICIENT"] }
+      }
+    }
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-claim" },
+
+    "claimId": { "type": "string", "pattern": "^clm_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "claimingAuthority": { "enum": ["sage", "alchemist", "oracle"] },
+    "name": {
+      "enum": [
+        "ADJUDICATION_MADE", "SEMANTIC_CONFLICT_RESOLVED", "ACCEPTANCE_SEMANTICS_SEALED", "ADJUDICATED_CONTRACT_SEALED",
+        "EFFECT_APPLIED", "CANDIDATE_READY", "DECLARED_CHECKS_PASSED", "IMPLEMENTATION_MATCHES_CONTRACT", "LOCAL_EXECUTION_VERIFIED",
+        "COMPLETION_VALIDATED", "COMPLETION_BLOCKED", "UNKNOWN", "NOT_APPLICABLE", "EVIDENCE_INSUFFICIENT"
+      ]
+    },
+
+    "subjectType": { "type": "string", "minLength": 1, "description": "For example execution-contract, execution-task, or completion-subject." },
+    "subjectId": { "type": "string", "minLength": 1 },
+    "subjectVersion": { "type": ["integer", "null"], "minimum": 1 },
+
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "prerequisites": { "type": "array", "items": { "type": "string" }, "description": "Prerequisite claim/evidence ids that must hold before Arcane may validate this claim." },
+
+    "status": {
+      "enum": ["PENDING", "VALIDATED", "REJECTED"],
+      "description": "PENDING until Arcane validates prerequisites & evidence bindings."
+    },
+    "arcaneValidation": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "validatedAt": { "type": "string", "format": "date-time" },
+        "receiptRef": { "type": ["string", "null"] },
+        "reason": { "type": ["string", "null"] }
+      }
+    },
+
+    "sourceRevision": { "type": "string", "minLength": 7 }
+  }
+}

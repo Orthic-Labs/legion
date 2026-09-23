@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-execution-contract-v1",
+  "title": "ExecutionContract",
+  "description": "Versioned ExecutionContract for work that uses the governed contract substrate. Ambient work remains outside this schema. Legion plus the producing capability materialize settled contracts; executability requires openQuestions == [].",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "contractId", "version", "sourceRevision",
+    "objective", "currentState", "desiredState",
+    "requirements", "decisions", "invariants", "nonGoals",
+    "scope", "artifacts",
+    "tasks", "dependencies",
+    "acceptanceCriteria", "declaredChecks", "evidenceRequirements",
+    "authorizedEffectClasses", "repairLatitude",
+    "stopConditions", "escalationConditions", "rollback",
+    "openQuestions"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-execution-contract" },
+
+    "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
+    "version": { "type": "integer", "minimum": 1, "description": "Explicit immutable contract version; semantic changes produce a versioned amendment." },
+    "sourceRevision": { "type": "string", "minLength": 7 },
+    "advisoryProfile": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["schemaVersion", "kind", "bundleId", "bundleVersion", "profileId", "manifestDigest", "profileDigest", "mutationAllowed", "publishAllowed", "externalOnly"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "arcane-advisory-profile-binding" },
+        "bundleId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "bundleVersion": { "type": "string", "minLength": 1 },
+        "profileId": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "manifestDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "profileDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "mutationAllowed": { "type": "boolean" },
+        "publishAllowed": { "type": "boolean" },
+        "externalOnly": { "type": "boolean" }
+      }
+    },
+
+    "objective": { "type": "string", "minLength": 1 },
+    "currentState": { "type": "string", "minLength": 1 },
+    "desiredState": { "type": "string", "minLength": 1 },
+
+    "requirements": { "type": "array", "items": { "$ref": "#/$defs/requirement" } },
+    "decisions": { "type": "array", "items": { "$ref": "#/$defs/decision" } },
+    "invariants": { "type": "array", "items": { "$ref": "#/$defs/invariant" } },
+    "nonGoals": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonGoal" },
+      "description": "Typed non-goals settled by the producing capability and materialized with the contract."
+    },
+
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["own", "read", "forbidden"],
+      "properties": {
+        "own": { "type": "array", "items": { "type": "string" } },
+        "read": { "type": "array", "items": { "type": "string" } },
+        "forbidden": { "type": "array", "items": { "type": "string" } }
+      },
+      "description": "OWN/READ/FORBIDDEN scope; disjoint OWN partitions permit parallel work."
+    },
+
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact", "bounded"],
+      "properties": {
+        "exact": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactUnit" },
+          "description": "Every item's latitude MUST be EXACT."
+        },
+        "bounded": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifactUnit" },
+          "description": "Every item's latitude MUST be BOUNDED and declare locked[]/freedom[]."
+        }
+      },
+      "description": "Executable artifacts are EXACT or BOUNDED. OPEN items remain in openQuestions until resolved by their producing capability, with Sage attached only for material unresolved adjudication."
+    },
+
+    "tasks": { "type": "array", "items": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" }, "description": "References to legion-execution-task-v1 records by id; the full ExecutionTask objects are stored separately, not inlined, to avoid dual-sourcing task state." },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "reason"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "reason": {
+            "type": "string",
+            "enum": ["dependency-edge", "shared-mutable-resource", "ordering-invariant"],
+            "description": "Every serial edge names its dependency, shared resource, or ordering invariant."
+          },
+          "resourceKey": { "type": ["string", "null"], "description": "Required in practice when reason == 'shared-mutable-resource' (concurrency key). Not enforced structurally here; see FREEZE.md open questions." }
+        }
+      }
+    },
+
+    "acceptanceCriteria": { "type": "array", "items": { "$ref": "#/$defs/acceptanceCriterion" } },
+    "declaredChecks": { "type": "array", "items": { "type": "string" } },
+    "evidenceRequirements": { "type": "array", "items": { "type": "string" } },
+
+    "authorizedEffectClasses": {
+      "type": "array",
+      "items": { "enum": ["FILE_WRITE", "FILE_DELETE", "FILE_MOVE", "COMMAND_EXEC", "NETWORK_EGRESS", "PROCESS_SPAWN", "CREDENTIAL_ACCESS", "DEPENDENCY_INSTALL", "VCS_COMMIT", "VCS_PUSH", "PUBLISH", "EXTERNAL_SIDE_EFFECT"] }
+    },
+    "repairLatitude": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Bounded mechanical-repair latitude statements."
+    },
+
+    "stopConditions": { "type": "array", "items": { "type": "string" } },
+    "escalationConditions": { "type": "array", "items": { "type": "string" } },
+    "rollback": { "type": "array", "items": { "type": "string" } },
+
+    "openQuestions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/openQuestion" },
+      "description": "MUST be empty for executability. Non-empty is a valid draft but cannot be sealed or executed."
+    }
+    ,"budget": { "$ref": "#/$defs/contractBudget" }
+  },
+
+  "$defs": {
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^R-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 },
+        "rationale": { "type": ["string", "null"] }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^D-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 },
+        "rationale": { "type": ["string", "null"] },
+        "alternativesConsidered": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^I-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "nonGoal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^NG-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "acceptanceCriterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^AC-\\d+$" },
+        "statement": { "type": "string", "minLength": 1 },
+        "verifiesDecisions": { "type": "array", "items": { "type": "string", "pattern": "^D-\\d+$" } }
+      }
+    },
+    "artifactUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "latitude"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "latitude": { "enum": ["EXACT", "BOUNDED"] },
+        "content": {
+          "type": ["string", "null"],
+          "description": "Required in practice for latitude == 'EXACT': the artifact is completely determined. Executable validation enforces this invariant."
+        },
+        "locked": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Immutable constraints for BOUNDED artifact work."
+        },
+        "freedom": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Declared implementation freedom for BOUNDED artifact work."
+        }
+      }
+    },
+    "openQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "question"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "question": { "type": "string", "minLength": 1 },
+        "blocksArtifacts": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+    ,"contractBudget": {"type":"object","additionalProperties":false,"required":["objectiveLineageId","objectiveDigest","legionBlastMapCapMs","sagePlanningCapMs","maxContractVersions"],"properties":{"objectiveLineageId":{"type":"string","minLength":1},"objectiveDigest":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"legionBlastMapCapMs":{"type":"integer","minimum":1},"sagePlanningCapMs":{"type":"integer","minimum":1},"maxContractVersions":{"const":2}}}
+  }
+}

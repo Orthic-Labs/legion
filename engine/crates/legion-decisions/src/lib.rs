@@ -5,6 +5,7 @@ pub mod migrate_jsonl;
 pub mod model;
 pub mod query;
 pub mod store;
+pub mod l1b_port;
 
 pub use error::DecisionError;
 pub use migrate_jsonl::{

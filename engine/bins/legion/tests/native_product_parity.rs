@@ -35,7 +35,6 @@ impl Fixture {
             .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
             .env_remove("LEGION_M1_CONFIG")
             .env_remove("ARCANE_KEY_DIR")
-            .env_remove("LEGION_MEMBRANE_PACKET")
             .env_remove("AUDIT_NETWORK_GUARD")
             .env_remove("AUDIT_PLAN_SIGNING_KEY");
         command

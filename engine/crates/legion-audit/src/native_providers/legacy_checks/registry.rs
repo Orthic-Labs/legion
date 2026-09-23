@@ -93,7 +93,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         selector: SOURCE,
         command: CommandShape::Named {
             tool: "jscpd",
-            args: &["--format", "json"],
+            args: &[".", "--reporters", "json", "--min-lines", "20", "--silent"],
         },
     },
     LegacyCheckSpec {
@@ -210,7 +210,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         selector: r#"{"op":"anyPath","patterns":["**/Dockerfile","**/Containerfile"]}"#,
         command: CommandShape::Named {
             tool: "hadolint",
-            args: &["--format", "json"],
+            args: &["--format", "json", "Dockerfile"],
         },
     },
     LegacyCheckSpec {
@@ -222,7 +222,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         selector: r#"{"op":"anyPath","patterns":[".github/workflows/**"]}"#,
         command: CommandShape::Named {
             tool: "actionlint",
-            args: &["-format", "json"],
+            args: &["-format", "{{json .}}"],
         },
     },
     LegacyCheckSpec {
@@ -294,7 +294,7 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         selector: RUST_SOURCES,
         command: CommandShape::Named {
             tool: "cargo-geiger",
-            args: &["--output-format", "Json"],
+            args: &["--output-format", "Json", "--quiet"],
         },
     },
     LegacyCheckSpec {
@@ -306,7 +306,22 @@ pub const LEGACY_CHECK_SPECS: &[LegacyCheckSpec] = &[
         selector: SOURCE,
         command: CommandShape::Named {
             tool: "semgrep",
-            args: &["--json"],
+            args: &[
+                "--config",
+                "auto",
+                "--json",
+                "--quiet",
+                "--exclude",
+                "vendor",
+                "--exclude",
+                "qwik",
+                "--exclude",
+                ".audit",
+                "--exclude",
+                ".agent",
+                "--exclude",
+                "dist",
+            ],
         },
     },
     LegacyCheckSpec {

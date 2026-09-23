@@ -1,7 +1,7 @@
 use crate::{
     error::{Result, RuleError},
     lexical::LexicalEngine,
-    schema::{AnalysisRulePack, BlueprintSelector, NativePackManifest, RuleClass},
+    schema::{AnalysisRulePack, StructuralSelector, NativePackManifest, RuleClass},
 };
 use std::collections::BTreeMap;
 
@@ -11,7 +11,7 @@ pub struct CompiledRules {
     pub version: String,
     pub class: RuleClass,
     pub lexical: Option<LexicalEngine>,
-    pub structural: Vec<BlueprintSelector>,
+    pub structural: Vec<StructuralSelector>,
 }
 
 pub struct RuleCompiler;
@@ -32,7 +32,7 @@ impl RuleCompiler {
                 for rule in &pack.rules {
                     let selector = rule.selector.clone().ok_or_else(|| {
                         RuleError::InvalidPack(format!(
-                            "Class B rule {} has no Blueprint selector",
+                            "Class B rule {} has no structural selector",
                             rule.id
                         ))
                     })?;
@@ -93,7 +93,7 @@ impl CompiledRules {
         self.lexical.as_ref().map(|engine| engine.evaluate(files))
     }
 
-    pub fn selectors(&self) -> &[BlueprintSelector] {
+    pub fn selectors(&self) -> &[StructuralSelector] {
         &self.structural
     }
 }

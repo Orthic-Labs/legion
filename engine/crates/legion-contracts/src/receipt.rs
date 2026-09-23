@@ -58,7 +58,6 @@ pub enum ExecutorMechanismClass {
     Builtin,
     Process,
     Lsp,
-    Membrane,
     TinyModel,
     SemanticModel,
     Human,

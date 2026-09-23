@@ -6,6 +6,7 @@ pub mod executor;
 pub mod platform;
 pub mod receipt;
 pub mod request;
+pub mod sandbox;
 
 pub use artifact::{ArtifactRecord, ArtifactSink, ArtifactWriter};
 pub use error::EffectError;
@@ -17,3 +18,4 @@ pub use receipt::{
     TimingEvidence,
 };
 pub use request::{ExternalToolRequest, RedactedRequest, SandboxReceipt, Sensitivity, ToolOrigin};
+pub use sandbox::{authenticate as authenticate_sandbox, SandboxAuthentication, SandboxGap, SandboxMode};

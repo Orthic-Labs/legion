@@ -1,0 +1,14 @@
+{
+  "message": {
+    "items": [
+      {
+        "DOI": "10.9999/devonian-alloys",
+        "URL": "https://journal.example/paper",
+        "title": ["Ossified Alloys of the Late Devonian"],
+        "publisher": "Example University Press",
+        "type": "journal-article",
+        "relation": {}
+      }
+    ]
+  }
+}

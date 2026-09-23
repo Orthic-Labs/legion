@@ -6,6 +6,7 @@ pub mod error;
 pub mod normalize;
 pub mod provider;
 pub mod receipt;
+pub mod review_port;
 
 pub use adjudication::{adjudicate, AdjudicatedResult, Adjudication, AdjudicationRequest};
 pub use candidate::{

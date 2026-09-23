@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-blocker-v1",
+  "title": "Blocker",
+  "description": "Execution blocker raised when bounded transformation cannot continue without changing settled meaning, ownership, scope, or acceptance. Contracts never mutate silently.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "blockerId", "contractId", "taskId",
+    "expected", "observed", "affectedDecisions", "completedWork", "safeCurrentState",
+    "questionRequiringAuthority", "classification", "status", "raisedBy", "raisedAt", "sourceRevision"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-blocker" },
+
+    "blockerId": { "type": "string", "pattern": "^B-\\d+$" },
+    "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
+    "taskId": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" },
+
+    "expected": { "type": "string", "minLength": 1 },
+    "observed": { "type": "string", "minLength": 1 },
+    "evidenceRefs": { "type": "array", "items": { "type": "string" } },
+    "affectedDecisions": { "type": "array", "items": { "type": "string", "pattern": "^D-\\d+$" } },
+    "completedWork": { "type": "string" },
+    "safeCurrentState": { "type": "string" },
+    "questionRequiringAuthority": { "type": "string", "minLength": 1 },
+
+    "classification": {
+      "enum": ["CLEARLY_SEMANTIC", "POSSIBLY_CONTRACT_SAFE"],
+      "description": "Classification is evidence for routing: material unresolved semantics attach Sage; optional Covenant BLOCKER_CONSULT may challenge a proposed contract-safe resolution."
+    },
+    "status": { "enum": ["OPEN", "COVENANT_CONSULTED", "AMENDED", "RESOLVED"] },
+    "covenantRequestId": { "type": ["string", "null"], "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "covenantRecordId": { "type": ["string", "null"], "pattern": "^CV-\\d+$" },
+    "amendmentId": { "type": ["string", "null"], "pattern": "^A-\\d+$" },
+
+    "raisedBy": { "const": "alchemist", "description": "A governed execution blocker is raised by its Alchemist execution authority." },
+    "raisedAt": { "type": "string", "format": "date-time" },
+    "sourceRevision": { "type": "string", "minLength": 7 }
+  }
+}

@@ -95,6 +95,112 @@ pub fn inventory_manifests(projection: &Value) -> Vec<Value> {
         .collect()
 }
 
+// --- OSV-Scanner v2 (src/providers/osv/index.mjs port) ---
+// Distinguishes direct/transitive/reachable-unknown and preserves
+// package/lockfile evidence. The vulnerability database is never updated
+// during an offline audit.
+
+pub fn osv_command(
+    resolved_osv_scanner: impl Into<String>,
+    output_path: impl Into<String>,
+    repository_root: impl Into<String>,
+    policy: Option<&Value>,
+    offline_db: Option<&str>,
+) -> Value {
+    let repository_root = repository_root.into();
+    let mut env = serde_json::Map::new();
+    if let Some(db) = offline_db {
+        env.insert("OSV_SCANNER_OFFLINE_DB".into(), Value::String(db.into()));
+    }
+    json!({
+        "executable": resolved_osv_scanner.into(),
+        "args": ["scan", "--format", "json", "--output", output_path.into(), repository_root.clone()],
+        "cwd": repository_root,
+        "timeoutMs": policy.and_then(|p| p.get("providerTimeoutMs")).and_then(Value::as_u64).unwrap_or(120_000),
+        "maxOutputBytes": policy.and_then(|p| p.get("maxOutputBytes")).and_then(Value::as_u64).unwrap_or(8_388_608),
+        "environmentKeys": ["PATH", "HOME", "USERPROFILE", "TEMP", "TMP", "OSV_SCANNER_OFFLINE_DB"],
+        "env": Value::Object(env),
+    })
+}
+
+pub fn normalize_vulnerability(vuln: &Value, provider: Option<&str>, provider_version: Option<&str>) -> Value {
+    let source = vuln
+        .get("related")
+        .or_else(|| vuln.get("aliases"))
+        .cloned()
+        .unwrap_or_else(|| Value::Array(vec![]));
+    let source_slice: Vec<Value> = source
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .take(10)
+        .collect();
+    let package = vuln.get("package");
+    json!({
+        "schemaVersion": 1,
+        "kind": "legion-osv-vulnerability",
+        "provider": provider.unwrap_or("osv.scanner"),
+        "providerVersion": provider_version.unwrap_or("2.0.0"),
+        "id": vuln.get("id").or_else(|| vuln.get("ghsa_id")).cloned().unwrap_or(Value::Null),
+        "package": {
+            "name": package.and_then(|p| p.get("name")).cloned().unwrap_or(Value::Null),
+            "ecosystem": package.and_then(|p| p.get("ecosystem")).cloned().unwrap_or(Value::Null),
+            "version": package.and_then(|p| p.get("version")).or_else(|| package.and_then(|p| p.get("purl"))).cloned().unwrap_or(Value::Null),
+            "purl": package.and_then(|p| p.get("purl")).cloned().unwrap_or(Value::Null),
+        },
+        "summary": vuln.get("summary").cloned().unwrap_or(Value::Null),
+        "severity": vuln.get("severity").cloned().unwrap_or_else(|| vuln.get("database_specific").and_then(|d| d.get("severity")).cloned().unwrap_or(Value::Null)),
+        "references": source_slice,
+        "reachability": "unknown",
+        "evidenceRefs": [],
+    })
+}
+
+pub fn normalize_scan_result(
+    raw: &Value,
+    provider: Option<&str>,
+    provider_version: Option<&str>,
+    offline_db: Option<&str>,
+    db_digest: Option<&str>,
+) -> Value {
+    let provider = provider.unwrap_or("osv.scanner");
+    let provider_version = provider_version.unwrap_or("2.0.0");
+    let mut vulnerabilities = Vec::new();
+    let mut examined = Vec::new();
+    for result in array(raw.get("results")) {
+        for source in array(result.get("packages")) {
+            let package_id = source
+                .get("package")
+                .and_then(|p| p.get("purl"))
+                .or_else(|| source.get("package").and_then(|p| p.get("name")))
+                .cloned()
+                .unwrap_or(Value::Null);
+            examined.push(package_id);
+            for vuln in array(source.get("vulnerabilities")) {
+                vulnerabilities.push(normalize_vulnerability(&vuln, Some(provider), Some(provider_version)));
+            }
+        }
+    }
+    let coverage_gaps: Vec<Value> = array(raw.get("scan_incomplete_reasons"))
+        .into_iter()
+        .map(|reason| json!({"kind": "osv-incomplete", "reason": reason}))
+        .collect();
+    json!({
+        "schemaVersion": 1,
+        "kind": "legion-osv-result",
+        "provider": provider,
+        "providerVersion": provider_version,
+        "offline": offline_db.is_some(),
+        "databaseDigest": db_digest.map(Value::from).unwrap_or(Value::Null),
+        "packageCount": examined.len(),
+        "vulnerabilities": vulnerabilities,
+        "examined": examined,
+        "complete": raw.get("scan_complete").and_then(Value::as_bool).unwrap_or(true),
+        "coverageGaps": coverage_gaps,
+    })
+}
+
 pub fn analyze(input: &Value) -> Value {
     let manifests = inventory_manifests(input.get("projection").unwrap_or(&Value::Null));
     let receipts = array(

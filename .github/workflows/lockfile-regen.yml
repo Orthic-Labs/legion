@@ -1,0 +1,22 @@
+name: lockfile-regen
+# Temporary: regenerates engine/Cargo.lock on CI for the audit-rust-port branch,
+# because local cargo is GitHub-Actions-only by RightKit policy. Remove after merge.
+on:
+  push:
+    branches: [audit-rust-port]
+  workflow_dispatch:
+jobs:
+  regen:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Regenerate lockfile
+        working-directory: engine
+        run: |
+          rustup show
+          cargo generate-lockfile
+          cargo metadata --format-version 1 --locked > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cargo-lock
+          path: engine/Cargo.lock

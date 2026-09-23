@@ -50,7 +50,7 @@ fn spec(id: &str) -> ProviderSpec {
         role: "adjudicator".into(),
         phase: "judgment".into(),
         depends_on: Vec::new(),
-        consumes: vec!["blueprint-packet".into()],
+        consumes: vec!["repository-inventory".into()],
         produces: vec!["provider-result".into()],
         selector: json!({"op":"always"}),
         denominator_kind: "first-party-source-files".into(),

@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+regex.workspace = true
 async-trait.workspace = true
 futures-util.workspace = true
 legion-contracts = { path = "../legion-contracts" }

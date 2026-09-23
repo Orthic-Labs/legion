@@ -14,7 +14,7 @@ pub enum RuleError {
     SourceUnavailable(String),
     #[error("invalid structural source result: {0}")]
     InvalidSource(String),
-    #[error("blueprint generation mismatch: expected {expected}, got {actual}")]
+    #[error("structural generation mismatch: expected {expected}, got {actual}")]
     GenerationMismatch { expected: String, actual: String },
 }
 

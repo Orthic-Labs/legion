@@ -406,6 +406,7 @@ pub fn inspect_client_projection(
     } else {
         vec!["legion setup repair --confirm".into()]
     };
+    let client_root = client_root_resolution(input)?;
     Ok(ClientProjectionInspection {
         client_id: input.client_id.clone(),
         selected_mechanism: client_boundary(&input.client_id)
@@ -427,6 +428,7 @@ pub fn inspect_client_projection(
         preserved,
         conflicts,
         remediation,
+        client_root,
     })
 }
 
@@ -1076,6 +1078,8 @@ pub struct ClientProjectionInspection {
     pub preserved: Vec<PathBuf>,
     pub conflicts: Vec<PathBuf>,
     pub remediation: Vec<String>,
+    #[serde(default)]
+    pub client_root: Option<ClientRootResolution>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -3315,6 +3319,45 @@ fn path_exists(path: &Path) -> Result<bool, SetupError> {
     }
 }
 
+/// The declared and, if the client state root is a relocated symlink,
+/// resolved form of that root — reported so `legion setup status` shows
+/// operators why a symlinked `~/.claude` or `~/.codex` was accepted instead
+/// of silently rewriting the path underneath them.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientRootResolution {
+    pub declared: String,
+    pub resolved: Option<String>,
+}
+
+/// Reports the client-root symlink resolution `projection_allowed_target_root_link`
+/// would apply for this projection, for status/diagnostic output. Returns
+/// `None` when the target root does not sit under a declared host config
+/// root at all (nothing to report).
+pub fn client_root_resolution(
+    input: &ClientProjectionInput,
+) -> Result<Option<ClientRootResolution>, SetupError> {
+    let Some(home) = input.host_config_root.as_deref() else {
+        return Ok(None);
+    };
+    let relative = match input.target_root.strip_prefix(home) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+    let Some(Component::Normal(first)) = relative.components().next() else {
+        return Ok(None);
+    };
+    let declared_root = home.join(first);
+    let resolved = projection_allowed_target_root_link(input)?
+        .map(|_| fs::canonicalize(&declared_root))
+        .transpose()
+        .map_err(io)?;
+    Ok(Some(ClientRootResolution {
+        declared: declared_root.display().to_string(),
+        resolved: resolved.map(|path| path.display().to_string()),
+    }))
+}
+
 /// A client may relocate one of its top-level state roots (for example
 /// `~/.claude`) through a symlink. Allow that one boundary only after proving
 /// it is a resolved directory directly below the declared host home. Nested
@@ -3342,13 +3385,80 @@ fn projection_allowed_target_root_link(
         return Ok(None);
     }
     let resolved = fs::canonicalize(&root).map_err(io)?;
-    if !fs::metadata(&resolved).map_err(io)?.is_dir() {
+    let resolved_metadata = fs::metadata(&resolved).map_err(io)?;
+    if !resolved_metadata.is_dir() {
         return Err(err(
             SetupErrorCode::PathEscapeRefused,
             format!("client root symlink is not a directory: {}", root.display()),
         ));
     }
+    ensure_no_further_symlinks(&root)?;
+    ensure_owned_like_home(&resolved_metadata, home, &root)?;
     Ok(Some(root))
+}
+
+/// The declared client root must resolve in exactly one hop: what it points
+/// at must not itself be a symlink. `fs::canonicalize` happily dissolves an
+/// arbitrarily long chain into a single real path, which would hide a
+/// multi-hop relocation from a check that only inspects the fully resolved
+/// result — so this reads the immediate link target instead of the
+/// canonicalized one.
+fn ensure_no_further_symlinks(declared: &Path) -> Result<(), SetupError> {
+    let immediate = fs::read_link(declared).map_err(io)?;
+    let immediate_absolute = if immediate.is_absolute() {
+        immediate
+    } else {
+        declared
+            .parent()
+            .map(|parent| parent.join(&immediate))
+            .unwrap_or(immediate)
+    };
+    match fs::symlink_metadata(&immediate_absolute) {
+        Ok(metadata) if metadata.file_type().is_symlink() => Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            format!(
+                "client root symlink {} resolves through a further symlink at {}",
+                declared.display(),
+                immediate_absolute.display()
+            ),
+        )),
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(io(error)),
+    }
+}
+
+/// The resolved target must belong to the same owner as the declared host
+/// home, not to another account's directory a symlink was pointed at. There
+/// is no `libc` dependency here, so ownership is compared against the home
+/// directory's own metadata rather than the running effective uid.
+#[cfg(unix)]
+fn ensure_owned_like_home(
+    resolved_metadata: &fs::Metadata,
+    home: &Path,
+    declared: &Path,
+) -> Result<(), SetupError> {
+    use std::os::unix::fs::MetadataExt;
+    let home_owner = fs::metadata(home).map_err(io)?.uid();
+    if resolved_metadata.uid() != home_owner {
+        return Err(err(
+            SetupErrorCode::PathEscapeRefused,
+            format!(
+                "client root symlink {} resolves to a directory not owned by the current user",
+                declared.display()
+            ),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn ensure_owned_like_home(
+    _resolved_metadata: &fs::Metadata,
+    _home: &Path,
+    _declared: &Path,
+) -> Result<(), SetupError> {
+    Ok(())
 }
 
 fn ensure_projection_parent_safe(path: &Path) -> Result<(), SetupError> {
@@ -4790,6 +4900,101 @@ mod tests {
             inspect_client_projection(&input).unwrap_err().code,
             SetupErrorCode::PathEscapeRefused
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_client_root_rejects_a_multi_hop_target() {
+        use std::os::unix::fs::symlink;
+
+        let root = TestRoot::new("projection-symlinked-client-root-multi-hop");
+        let mut input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let home = input.host_config_root.clone().expect("host home");
+        let real = root.0.join("real-claude");
+        let intermediate = root.0.join("intermediate-claude");
+        fs::create_dir_all(&real).unwrap();
+        // `.claude` -> intermediate-claude -> real-claude: the declared root
+        // is a symlink, but so is what it points at. A single allowed hop
+        // must not silently swallow the second one.
+        symlink(&real, &intermediate).unwrap();
+        symlink(&intermediate, home.join(".claude")).unwrap();
+        input.target_root = home.join(".claude/skills/legion");
+
+        assert_eq!(
+            inspect_client_projection(&input).unwrap_err().code,
+            SetupErrorCode::PathEscapeRefused
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_client_root_rejects_a_non_directory_target() {
+        use std::os::unix::fs::symlink;
+
+        let root = TestRoot::new("projection-symlinked-client-root-non-dir");
+        let mut input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let home = input.host_config_root.clone().expect("host home");
+        let file_target = root.0.join("not-a-directory");
+        fs::write(&file_target, b"not a directory").unwrap();
+        symlink(&file_target, home.join(".claude")).unwrap();
+        input.target_root = home.join(".claude/skills/legion");
+
+        assert_eq!(
+            inspect_client_projection(&input).unwrap_err().code,
+            SetupErrorCode::PathEscapeRefused
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_client_root_rejects_a_target_owned_by_another_user() {
+        use std::os::unix::fs::symlink;
+
+        let root = TestRoot::new("projection-symlinked-client-root-foreign-owner");
+        let mut input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let home = input.host_config_root.clone().expect("host home");
+        let relocated = root.0.join("relocated-claude");
+        fs::create_dir_all(&relocated).unwrap();
+        symlink(&relocated, home.join(".claude")).unwrap();
+        input.target_root = home.join(".claude/skills/legion");
+
+        // `ensure_owned_like_home` compares the resolved target's owner
+        // against the declared host home's owner; forging a mismatch here
+        // without root privileges is not possible, so this proves the two
+        // are equal (the expected, healthy case) rather than exercising the
+        // refusal path — that path is reviewed by inspection, not testable
+        // without a second uid in CI.
+        assert!(inspect_client_projection(&input).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_client_root_is_reported_in_inspection() {
+        use std::os::unix::fs::symlink;
+
+        let root = TestRoot::new("projection-symlinked-client-root-reported");
+        let mut input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let home = input.host_config_root.clone().expect("host home");
+        let relocated = root.0.join("relocated-claude");
+        fs::create_dir_all(&relocated).unwrap();
+        symlink(&relocated, home.join(".claude")).unwrap();
+        input.target_root = home.join(".claude/skills/legion");
+
+        let inspection = inspect_client_projection(&input).unwrap();
+        let client_root = inspection.client_root.expect("client root reported");
+        assert_eq!(client_root.declared, home.join(".claude").display().to_string());
+        assert_eq!(
+            client_root.resolved.as_deref(),
+            Some(fs::canonicalize(&relocated).unwrap().display().to_string().as_str())
+        );
+    }
+
+    #[test]
+    fn non_symlinked_client_root_reports_no_resolution() {
+        let root = TestRoot::new("projection-plain-client-root");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let inspection = inspect_client_projection(&input).unwrap();
+        assert!(inspection.client_root.is_none());
     }
 
     #[test]

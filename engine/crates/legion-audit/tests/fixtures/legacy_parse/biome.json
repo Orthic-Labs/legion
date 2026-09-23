@@ -1,0 +1,1 @@
+{"diagnostics":[{"category":"lint/suspicious/noExplicitAny","severity":"warning"},{"category":"lint/style/useConst","severity":"error"}]}

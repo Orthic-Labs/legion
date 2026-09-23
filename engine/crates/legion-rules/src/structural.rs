@@ -1,12 +1,12 @@
 use crate::{
     error::{Result, RuleError},
-    schema::{BlueprintMatch, BlueprintResult, BlueprintSelector, EvidenceTier},
+    schema::{StructuralMatch, StructuralQueryResult, StructuralSelector, EvidenceTier},
 };
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-pub trait BlueprintSource: Send + Sync {
-    fn query(&self, selector: &BlueprintSelector) -> Result<BlueprintResult>;
+pub trait StructuralSource: Send + Sync {
+    fn query(&self, selector: &StructuralSelector) -> Result<StructuralQueryResult>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -15,13 +15,13 @@ pub struct StructuralEvidence {
     pub selector_id: String,
     pub generation: String,
     pub evidence_tier: EvidenceTier,
-    pub matches: Vec<BlueprintMatch>,
+    pub matches: Vec<StructuralMatch>,
     pub complete: bool,
     pub gaps: Vec<String>,
 }
 
-pub fn execute_selector<S: BlueprintSource>(
-    selector: &BlueprintSelector,
+pub fn execute_selector<S: StructuralSource>(
+    selector: &StructuralSelector,
     source: &S,
 ) -> Result<StructuralEvidence> {
     selector.validate()?;
@@ -39,7 +39,7 @@ pub fn execute_selector<S: BlueprintSource>(
     }
     if result.evidence_tier != selector.expected_evidence_tier {
         result.complete = false;
-        result.gaps.push("blueprint-evidence-tier-mismatch".into());
+        result.gaps.push("structural-evidence-tier-mismatch".into());
     }
     result.matches.sort_by(|left, right| {
         left.id
@@ -69,8 +69,8 @@ pub struct StructuralEvaluation {
     pub gaps: Vec<String>,
 }
 
-pub fn evaluate<S: BlueprintSource>(
-    selectors: &[BlueprintSelector],
+pub fn evaluate<S: StructuralSource>(
+    selectors: &[StructuralSelector],
     source: &S,
 ) -> StructuralEvaluation {
     let mut evidence = Vec::new();
@@ -103,21 +103,21 @@ pub fn evaluate<S: BlueprintSource>(
     }
 }
 
-/// Evaluate a Blueprint-dependent rule set while preserving typed degradation
-/// when host-published Blueprint context is absent. The Rules crate does not
-/// discover, open, or synthesize a Blueprint store.
-pub fn evaluate_optional<S: BlueprintSource>(
-    selectors: &[BlueprintSelector],
+/// Evaluate a structural-source-dependent rule set while preserving typed degradation
+/// when a host-published structural-evidence source is absent. The Rules crate does not
+/// discover, open, or synthesize a structural-evidence store.
+pub fn evaluate_optional<S: StructuralSource>(
+    selectors: &[StructuralSelector],
     source: Option<&S>,
 ) -> StructuralEvaluation {
     source.map_or_else(
-        || StructuralEvaluation::unavailable(selectors, "blueprint-unavailable"),
+        || StructuralEvaluation::unavailable(selectors, "structural-source-unavailable"),
         |source| evaluate(selectors, source),
     )
 }
 
 impl StructuralEvaluation {
-    pub fn unavailable(selectors: &[BlueprintSelector], reason: impl Into<String>) -> Self {
+    pub fn unavailable(selectors: &[StructuralSelector], reason: impl Into<String>) -> Self {
         let reason = reason.into();
         let mut ordered = selectors.to_vec();
         ordered.sort_by(|left, right| left.selector_id.cmp(&right.selector_id));
@@ -143,14 +143,14 @@ impl StructuralEvaluation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::schema::{BlueprintOperation, EvidenceTier};
+    use crate::schema::{StructuralOperation, EvidenceTier};
     use std::sync::Mutex;
 
-    fn selector(id: &str) -> BlueprintSelector {
-        BlueprintSelector {
+    fn selector(id: &str) -> StructuralSelector {
+        StructuralSelector {
             schema_version: 1,
             selector_id: id.into(),
-            operation: BlueprintOperation::Files,
+            operation: StructuralOperation::Files,
             repository_id: None,
             path_prefix: None,
             symbol: None,
@@ -166,16 +166,16 @@ mod tests {
         tier: EvidenceTier,
     }
 
-    impl BlueprintSource for FixtureSource {
-        fn query(&self, selector: &BlueprintSelector) -> Result<BlueprintResult> {
+    impl StructuralSource for FixtureSource {
+        fn query(&self, selector: &StructuralSelector) -> Result<StructuralQueryResult> {
             self.calls
                 .lock()
                 .unwrap()
                 .push(selector.selector_id.clone());
-            Ok(BlueprintResult {
+            Ok(StructuralQueryResult {
                 generation: "generation-1".into(),
                 evidence_tier: self.tier,
-                matches: vec![BlueprintMatch {
+                matches: vec![StructuralMatch {
                     id: "file:src/lib.rs".into(),
                     path: Some("src/lib.rs".into()),
                     symbol: None,
@@ -201,17 +201,17 @@ mod tests {
         );
         assert!(result
             .gaps
-            .contains(&"blueprint-evidence-tier-mismatch".into()));
+            .contains(&"structural-evidence-tier-mismatch".into()));
     }
 
     #[test]
-    fn absent_blueprint_is_typed_degradation() {
+    fn absent_structural_source_is_typed_degradation() {
         let result = evaluate_optional::<FixtureSource>(&[selector("a")], None);
         assert!(!result.complete);
-        assert_eq!(result.gaps, vec!["blueprint-unavailable".to_owned()]);
+        assert_eq!(result.gaps, vec!["structural-source-unavailable".to_owned()]);
         assert_eq!(
             result.evidence[0].gaps,
-            vec!["blueprint-unavailable".to_owned()]
+            vec!["structural-source-unavailable".to_owned()]
         );
     }
 }

@@ -10,9 +10,8 @@ use std::{
 use async_trait::async_trait;
 
 use legion_audit::{
-    verify_binding, verify_execution, AuditError, AuditPlan, AuditProvider,
-    BlueprintInventorySource, ExecutionReport, FileBlueprintInventorySource, InventoryEnvelope,
-    ProviderExecutor,
+    verify_binding, verify_execution, AuditError, AuditPlan, AuditProvider, ExecutionReport,
+    InventoryEnvelope, InventorySource, ProviderExecutor,
 };
 use legion_catalog::{Catalog, CatalogError};
 use legion_contracts::task::RequestEnvelope;
@@ -626,7 +625,11 @@ pub struct NativeApplicationConfig {
     profile: Option<legion_runtime::AgentProfile>,
     registry: Option<Arc<ProviderRegistry>>,
     policy: Option<Arc<dyn EffectPolicy>>,
-    inventory_source: Option<Arc<dyn BlueprintInventorySource>>,
+    inventory_source: Option<Arc<dyn InventorySource>>,
+    /// Repository root, when known, threaded into `AuditPlan::compile_with_root`
+    /// so conditional-lens providers can be gated on their deterministic
+    /// trigger. `None` falls back to `AuditPlan::compile`'s no-gating behavior.
+    root: Option<PathBuf>,
     provider_executor: Option<Arc<dyn ProviderExecutor>>,
     catalog_source: Option<Arc<dyn CatalogSource>>,
     report_source: Option<Arc<dyn ReportSource>>,
@@ -790,13 +793,17 @@ impl NativeApplicationConfig {
     }
 
     /// Compose one standalone Audit from an inventory source, an exact selected
-    /// provider plan, and typed host-injected results. Inventory may come from
-    /// Blueprint or Audit's read-only filesystem fallback.
+    /// provider plan, and typed host-injected results. Inventory comes solely
+    /// from Audit's own read-only filesystem walk (`FilesystemInventorySource`)
+    /// or an injected fixture; Legion has no external context-engine dependency.
+    /// `root`, when supplied, gates conditional-lens providers on their
+    /// deterministic trigger (see `AuditPlan::compile_with_root`).
     pub fn for_audit_artifacts(
         repository_id: impl Into<String>,
-        inventory_source: Arc<dyn BlueprintInventorySource>,
+        inventory_source: Arc<dyn InventorySource>,
         provider_specs: Vec<ProviderSpec>,
         provider_results: Vec<ProviderResult>,
+        root: Option<PathBuf>,
     ) -> Result<NativeApplication, NativeApplicationError> {
         let repository_id = repository_id.into();
         let inventory = inventory_source.inventory(&repository_id)?;
@@ -805,7 +812,7 @@ impl NativeApplicationConfig {
                 "standalone Audit requires selected provider specifications".into(),
             ));
         }
-        let frozen_plan = AuditPlan::compile(&inventory, &provider_specs)
+        let frozen_plan = AuditPlan::compile_with_root(root.as_deref(), &inventory, &provider_specs)
             .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
         let mut results = BTreeMap::new();
         for result in provider_results {
@@ -954,7 +961,7 @@ impl NativeApplicationConfig {
             targets: vec![repository_id],
             extensions: BTreeMap::new(),
         };
-        NativeApplicationConfig::new()
+        let mut config = NativeApplicationConfig::new()
             .with_profile(profile)
             .with_registry(Arc::new(registry))
             .with_policy(Arc::new(CanonicalEffectPolicy {
@@ -970,8 +977,11 @@ impl NativeApplicationConfig {
             .with_provider_executor(Arc::new(StaticProviderExecutor { results }))
             .with_catalog_source(Arc::new(StaticCatalogSource { catalog }))
             .with_report_source(Arc::new(StaticReportSource { report }))
-            .with_provider_specs(provider_specs)
-            .build()
+            .with_provider_specs(provider_specs);
+        if let Some(root) = root {
+            config = config.with_root(root);
+        }
+        config.build()
     }
 
     /// Compose standalone Audit from a real in-process ProviderExecutor.
@@ -979,9 +989,10 @@ impl NativeApplicationConfig {
     /// one concrete native implementation rather than precomputed results.
     pub fn for_audit_executor(
         repository_id: impl Into<String>,
-        inventory_source: Arc<dyn BlueprintInventorySource>,
+        inventory_source: Arc<dyn InventorySource>,
         provider_specs: Vec<ProviderSpec>,
         provider_executor: Arc<dyn ProviderExecutor>,
+        root: Option<PathBuf>,
     ) -> Result<NativeApplication, NativeApplicationError> {
         let repository_id = repository_id.into();
         let inventory = inventory_source.inventory(&repository_id)?;
@@ -990,7 +1001,7 @@ impl NativeApplicationConfig {
                 "standalone Audit requires selected provider specifications".into(),
             ));
         }
-        AuditPlan::compile(&inventory, &provider_specs)
+        AuditPlan::compile_with_root(root.as_deref(), &inventory, &provider_specs)
             .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
         for specification in &provider_specs {
             specification
@@ -1079,7 +1090,7 @@ impl NativeApplicationConfig {
             targets: vec![repository_id],
             extensions: BTreeMap::new(),
         };
-        NativeApplicationConfig::new()
+        let mut config = NativeApplicationConfig::new()
             .with_profile(profile)
             .with_registry(Arc::new(registry))
             .with_policy(Arc::new(CanonicalEffectPolicy {
@@ -1095,8 +1106,11 @@ impl NativeApplicationConfig {
             .with_provider_executor(provider_executor)
             .with_catalog_source(Arc::new(StaticCatalogSource { catalog }))
             .with_report_source(Arc::new(StaticReportSource { report }))
-            .with_provider_specs(provider_specs)
-            .build()
+            .with_provider_specs(provider_specs);
+        if let Some(root) = root {
+            config = config.with_root(root);
+        }
+        config.build()
     }
 
     pub fn with_profile(mut self, profile: legion_runtime::AgentProfile) -> Self {
@@ -1114,8 +1128,13 @@ impl NativeApplicationConfig {
         self
     }
 
-    pub fn with_inventory_source(mut self, source: Arc<dyn BlueprintInventorySource>) -> Self {
+    pub fn with_inventory_source(mut self, source: Arc<dyn InventorySource>) -> Self {
         self.inventory_source = Some(source);
+        self
+    }
+
+    pub fn with_root(mut self, root: impl Into<PathBuf>) -> Self {
+        self.root = Some(root.into());
         self
     }
 
@@ -1168,7 +1187,7 @@ impl NativeApplicationConfig {
         let inventory_source =
             self.inventory_source
                 .ok_or(NativeApplicationError::MissingComponent {
-                    component: "BlueprintInventorySource",
+                    component: "InventorySource",
                 })?;
         let provider_executor =
             self.provider_executor
@@ -1188,6 +1207,7 @@ impl NativeApplicationConfig {
         Ok(NativeApplication {
             engine: LegionEngine::new(profile, registry).with_policy(policy),
             inventory_source,
+            root: self.root,
             provider_executor,
             catalog_source,
             report_source,
@@ -1208,10 +1228,10 @@ struct VersionedApplicationConfig {
     providers: Vec<ConfiguredProviderDocument>,
     #[serde(default)]
     inventory: Vec<InventoryEnvelope>,
+    /// Repository root, when known, threaded into `AuditPlan::compile_with_root`
+    /// for conditional-lens trigger gating. Optional and additive.
     #[serde(default)]
-    blueprint_packet_path: Option<String>,
-    #[serde(default)]
-    blueprint_expected_generation: Option<String>,
+    root: Option<String>,
     catalog: Catalog,
     report: ReportV1,
 }
@@ -1225,7 +1245,13 @@ struct ConfiguredProviderDocument {
 
 impl VersionedApplicationConfig {
     fn into_runtime_config(self) -> Result<NativeApplicationConfig, NativeApplicationError> {
-        if self.schema_version != 1 {
+        // Bumped from schema 1: the Blueprint packet inventory source
+        // (`blueprintPacketPath`/`blueprintExpectedGeneration`) was removed.
+        // Legion (Rust) has no dependency on an external context engine;
+        // `inventory` (the static fixture source) is now the only accepted
+        // inventory input. A schema-1 document with those fields now fails
+        // this version check rather than being silently reinterpreted.
+        if self.schema_version != 2 {
             return Err(NativeApplicationError::Configuration(format!(
                 "unsupported application schema version {}",
                 self.schema_version
@@ -1240,16 +1266,9 @@ impl VersionedApplicationConfig {
         self.report
             .validate()
             .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
-        let has_static_inventory = !self.inventory.is_empty();
-        let has_blueprint_packet = self.blueprint_packet_path.is_some();
-        if has_static_inventory == has_blueprint_packet {
+        if self.inventory.is_empty() {
             return Err(NativeApplicationError::Configuration(
-                "configure exactly one inventory source: inventory or blueprintPacketPath".into(),
-            ));
-        }
-        if !has_blueprint_packet && self.blueprint_expected_generation.is_some() {
-            return Err(NativeApplicationError::Configuration(
-                "blueprintExpectedGeneration requires blueprintPacketPath".into(),
+                "configure at least one static inventory snapshot".into(),
             ));
         }
         for inventory in &self.inventory {
@@ -1327,18 +1346,9 @@ impl VersionedApplicationConfig {
             .map(|provider| provider.definition.id.clone());
         let profile = legion_runtime::AgentProfile::new(self.profile)
             .map_err(|error| NativeApplicationError::Configuration(error.to_string()))?;
-        let inventory_source: Arc<dyn BlueprintInventorySource> = if let Some(packet_path) =
-            self.blueprint_packet_path
-        {
-            Arc::new(
-                FileBlueprintInventorySource::new(packet_path, self.blueprint_expected_generation)
-                    .map_err(NativeApplicationError::Audit)?,
-            )
-        } else {
-            Arc::new(StaticInventorySource {
-                snapshots: self.inventory,
-            })
-        };
+        let inventory_source: Arc<dyn InventorySource> = Arc::new(StaticInventorySource {
+            snapshots: self.inventory,
+        });
         let results = self
             .providers
             .iter()
@@ -1358,6 +1368,9 @@ impl VersionedApplicationConfig {
                 report: self.report,
             }))
             .with_provider_specs(self.provider_specs);
+        if let Some(root) = self.root {
+            config = config.with_root(root);
+        }
         if let Some(provider_id) = configured_provider {
             config = config.with_run_source(Arc::new(DefaultRunSource {
                 repository_id: configured_repository,
@@ -1499,7 +1512,7 @@ struct StaticInventorySource {
     snapshots: Vec<InventoryEnvelope>,
 }
 
-impl BlueprintInventorySource for StaticInventorySource {
+impl InventorySource for StaticInventorySource {
     fn inventory(&self, repository_id: &str) -> Result<InventoryEnvelope, AuditError> {
         self.snapshots
             .iter()
@@ -1846,7 +1859,8 @@ impl Provider for ConfiguredProvider {
 /// In-process composition root. Policy and provider state live in LegionEngine only.
 pub struct NativeApplication {
     engine: LegionEngine,
-    inventory_source: Arc<dyn BlueprintInventorySource>,
+    inventory_source: Arc<dyn InventorySource>,
+    root: Option<PathBuf>,
     provider_executor: Arc<dyn ProviderExecutor>,
     catalog_source: Arc<dyn CatalogSource>,
     report_source: Arc<dyn ReportSource>,
@@ -1870,7 +1884,8 @@ impl NativeApplication {
         signing_key: Option<Vec<u8>>,
     ) -> Result<NativeOperationResult, NativeApplicationError> {
         let inventory = self.inventory_source.inventory(&repository_id)?;
-        let plan = AuditPlan::compile(&inventory, &providers)?.freeze(signing_key.as_deref())?;
+        let plan = AuditPlan::compile_with_root(self.root.as_deref(), &inventory, &providers)?
+            .freeze(signing_key.as_deref())?;
         verify_binding(&plan, &inventory, signing_key.as_deref())?;
         Ok(NativeOperationResult::Verification {
             repository_id,
@@ -1894,7 +1909,8 @@ impl NativeApplication {
         cancellation: tokio_util::sync::CancellationToken,
     ) -> Result<NativeOperationResult, NativeApplicationError> {
         let plan_inventory = self.inventory_source.inventory(&repository_id)?;
-        let pending = AuditPlan::compile(&plan_inventory, &providers)?;
+        let pending =
+            AuditPlan::compile_with_root(self.root.as_deref(), &plan_inventory, &providers)?;
         let plan = match signing_key.as_deref() { Some(key) => pending.freeze(Some(key))?, None => pending.freeze_source_diagnostic()? };
         let execution_inventory = self.inventory_source.inventory(&repository_id)?;
         verify_binding(&plan, &execution_inventory, signing_key.as_deref())?;
@@ -1959,7 +1975,8 @@ impl NativeApplication {
             } => {
                 let inventory = self.inventory_source.inventory(&repository_id)?;
                 let plan =
-                    AuditPlan::compile(&inventory, &providers)?.freeze(signing_key.as_deref())?;
+                    AuditPlan::compile_with_root(self.root.as_deref(), &inventory, &providers)?
+                        .freeze(signing_key.as_deref())?;
                 Ok(NativeOperationResult::Plan {
                     repository_id,
                     plan_digest: plan.digest().into(),
@@ -1978,7 +1995,8 @@ impl NativeApplication {
             } => {
                 let plan_inventory: InventoryEnvelope =
                     self.inventory_source.inventory(&repository_id)?;
-                let pending = AuditPlan::compile(&plan_inventory, &providers)?;
+                let pending =
+                    AuditPlan::compile_with_root(self.root.as_deref(), &plan_inventory, &providers)?;
                 let plan = match signing_key.as_deref() {
                     Some(key) => pending.freeze(Some(key))?,
                     None => pending.freeze_source_diagnostic()?,

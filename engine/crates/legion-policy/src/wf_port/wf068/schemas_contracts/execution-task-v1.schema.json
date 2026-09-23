@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-execution-task-v1",
+  "title": "ExecutionTask",
+  "description": "Durable ExecutionTask inside an ExecutionContract. Legion plus the producing capability materialize task meaning; WorkerCapsule is an optional zero-context mechanical projection for dispatched execution.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "taskId", "contractId", "title",
+    "ownScope", "readScope", "dependsOn", "implementsDecisions",
+    "latitude", "declaredChecks", "status", "assignedAuthority"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-execution-task" },
+
+    "taskId": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" },
+    "contractId": { "type": "string", "pattern": "^EC-\\d+$" },
+    "kernelTaskId": {
+      "type": ["string", "null"],
+      "pattern": "^ktask_[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "Optional cross-reference to the runtime lifecycle task handle."
+    },
+
+    "title": { "type": "string", "minLength": 1 },
+    "description": { "type": ["string", "null"] },
+
+    "ownScope": { "type": "array", "items": { "type": "string" }, "description": "Disjoint OWN scope partitions permit parallel work." },
+    "readScope": { "type": "array", "items": { "type": "string" } },
+
+    "dependsOn": { "type": "array", "items": { "type": "string", "pattern": "^T-\\d+(\\.\\d+)*$" } },
+    "implementsDecisions": { "type": "array", "items": { "type": "string", "pattern": "^D-\\d+$" } },
+    "verifiedByAcceptance": { "type": "array", "items": { "type": "string", "pattern": "^AC-\\d+$" } },
+
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "exact": { "type": "array", "items": { "type": "string" }, "description": "artifactUnit ids from the owning ExecutionContract." },
+        "bounded": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "latitude": { "enum": ["EXACT", "BOUNDED", "OPEN"] },
+    "declaredChecks": { "type": "array", "items": { "type": "string" } },
+    "evidenceRequirements": { "type": "array", "items": { "type": "string" } },
+
+    "status": {
+      "enum": ["REPAIR", "BLOCKED_DECISION", "NEEDS_AMENDMENT", "OUT_OF_SCOPE", "BUDGET_STOP", "FAILED_CONTRACT", "COMPLETE"],
+      "description": "Execution outcome vocabulary remains orthogonal to runtime invocation state."
+    },
+
+    "assignedAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"] },
+
+    "routingDecision": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "Optional host routing projection records abstract model tier, profile, predicted cost, & reason.",
+      "properties": {
+        "modelTier": { "enum": ["FRONTIER", "MID", "CHEAP_STRICT", "NONE"] },
+        "workerProfile": { "enum": ["strict", "standard", "advanced"] },
+        "predictedCostUsd": { "type": ["number", "null"], "minimum": 0 },
+        "predictedFailureProbability": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "required": ["modelTier", "reason"]
+    }
+    ,"budgetSeal": {"type":"object","additionalProperties":false,"required":["contractId","contractVersion","contractDigest","taskDigest","scopeDigest","activeTimeCapMs","progressDeadlineMs","evidenceReferences"],"properties":{"contractId":{"type":"string","pattern":"^EC-\\d+$"},"contractVersion":{"type":"integer","minimum":1},"contractDigest":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"taskDigest":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"scopeDigest":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"activeTimeCapMs":{"type":"integer","minimum":1},"progressDeadlineMs":{"type":"integer","minimum":1},"evidenceReferences":{"type":"array","minItems":1,"items":{"type":"string","minLength":1}}}}
+  }
+}

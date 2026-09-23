@@ -6,6 +6,8 @@ pub mod model;
 pub mod receipt;
 pub mod source;
 pub mod token;
+pub mod l1_port;
+pub mod l1b_port;
 
 pub use builder::HandoffBuilder;
 pub use error::{HandoffError, Result, SourceError, SourceErrorCode};

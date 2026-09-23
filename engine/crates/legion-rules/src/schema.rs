@@ -194,7 +194,7 @@ pub struct RuleSpec {
     #[serde(default)]
     pub remediation: Option<String>,
     #[serde(default)]
-    pub selector: Option<BlueprintSelector>,
+    pub selector: Option<StructuralSelector>,
     #[serde(default)]
     pub implementation_key: Option<String>,
 }
@@ -250,7 +250,7 @@ impl RuleSpec {
             (RuleClass::B, RuleKind::Structural) => {
                 let selector = self.selector.as_ref().ok_or_else(|| {
                     RuleError::InvalidPack(format!(
-                        "structural rule {} has no Blueprint selector",
+                        "structural rule {} has no structural selector",
                         self.id
                     ))
                 })?;
@@ -457,10 +457,10 @@ impl CoverageSpec {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct BlueprintSelector {
+pub struct StructuralSelector {
     pub schema_version: u32,
     pub selector_id: String,
-    pub operation: BlueprintOperation,
+    pub operation: StructuralOperation,
     #[serde(default)]
     pub repository_id: Option<String>,
     #[serde(default)]
@@ -476,11 +476,11 @@ pub struct BlueprintSelector {
     pub expected_generation: Option<String>,
 }
 
-impl BlueprintSelector {
+impl StructuralSelector {
     pub fn validate(&self) -> Result<()> {
         if self.schema_version != 1 {
             return Err(RuleError::InvalidPack(
-                "unsupported Blueprint selector version".into(),
+                "unsupported structural selector version".into(),
             ));
         }
         validate_identifier("selector id", &self.selector_id)?;
@@ -494,7 +494,7 @@ impl BlueprintSelector {
         ] {
             if value.is_some_and(|value| value.trim().is_empty() || value.contains('\0')) {
                 return Err(RuleError::InvalidPack(format!(
-                    "Blueprint selector {name} must be non-empty when present"
+                    "structural selector {name} must be non-empty when present"
                 )));
             }
         }
@@ -504,7 +504,7 @@ impl BlueprintSelector {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum BlueprintOperation {
+pub enum StructuralOperation {
     Files,
     Symbols,
     References,
@@ -526,7 +526,7 @@ pub enum EvidenceTier {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct BlueprintMatch {
+pub struct StructuralMatch {
     pub id: String,
     pub path: Option<String>,
     pub symbol: Option<String>,
@@ -535,25 +535,25 @@ pub struct BlueprintMatch {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct BlueprintResult {
+pub struct StructuralQueryResult {
     pub generation: String,
     pub evidence_tier: EvidenceTier,
-    pub matches: Vec<BlueprintMatch>,
+    pub matches: Vec<StructuralMatch>,
     #[serde(default)]
     pub complete: bool,
     #[serde(default)]
     pub gaps: Vec<String>,
 }
 
-impl BlueprintResult {
+impl StructuralQueryResult {
     pub fn validate(&self) -> Result<()> {
-        validate_identifier("Blueprint generation", &self.generation)?;
+        validate_identifier("structural generation", &self.generation)?;
         let mut ids = std::collections::BTreeSet::new();
         for matched in &self.matches {
-            validate_identifier("Blueprint match id", &matched.id)?;
+            validate_identifier("structural match id", &matched.id)?;
             if !ids.insert(matched.id.as_str()) {
                 return Err(RuleError::InvalidPack(format!(
-                    "duplicate Blueprint match id: {}",
+                    "duplicate structural match id: {}",
                     matched.id
                 )));
             }
@@ -563,21 +563,21 @@ impl BlueprintResult {
             ] {
                 if value.is_some_and(|value| value.is_empty() || value.contains('\0')) {
                     return Err(RuleError::InvalidPack(format!(
-                        "Blueprint match {} has invalid {field}",
+                        "structural match {} has invalid {field}",
                         matched.id
                     )));
                 }
             }
             if matched.evidence.trim().is_empty() {
                 return Err(RuleError::InvalidPack(format!(
-                    "Blueprint match {} has no evidence",
+                    "structural match {} has no evidence",
                     matched.id
                 )));
             }
         }
         if self.gaps.iter().any(|gap| gap.trim().is_empty()) {
             return Err(RuleError::InvalidPack(
-                "Blueprint result gaps must be non-empty".into(),
+                "structural result gaps must be non-empty".into(),
             ));
         }
         Ok(())

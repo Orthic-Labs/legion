@@ -9,6 +9,7 @@ pub mod error;
 pub mod install;
 pub mod legacy_claude;
 pub mod ownership;
+pub mod p4_port;
 pub mod projection;
 pub mod reasoning;
 pub mod setup_registry;
@@ -37,9 +38,10 @@ pub use install::{
     rollback, FileEffects, Mutation, MutationKind, MutationPlan, TransactionPreimage,
 };
 pub use legacy_claude::{
-    inspect_claude_legacy, repair_claude_legacy, ClaudeLegacyInput, ClaudeLegacyInspection,
-    ClaudeLegacyRepair, ClaudePluginCacheGeneration, ClaudeProjectionOwnership,
-    ClaudeSkillsRootKind, ClaudeStandaloneProjection, RETIRED_SKILL_IDS,
+    inspect_claude_legacy, quarantine_legacy_legion_copies, repair_claude_legacy,
+    ClaudeLegacyInput, ClaudeLegacyInspection, ClaudeLegacyRepair, ClaudePluginCacheGeneration,
+    ClaudeProjectionOwnership, ClaudeSkillsRootKind, ClaudeStandaloneProjection,
+    LegacyQuarantineReport, QuarantinedLegacyCopy, RETIRED_SKILL_IDS,
 };
 pub use ownership::{
     digest_bytes, marker_for, owned_block, parse_marker, validate_relative_path,
@@ -49,11 +51,12 @@ pub use projection::{
     project_instructions, project_mcp, project_skills, CollisionPolicy, ProjectionItem,
 };
 pub use setup_registry::{
-    platform_state_root, BackupRecord, BoundRelease, ClientEvidence, ClientSelector, ClientStatus,
-    ConfirmedSetup, DetectedClient, DevelopmentClientOverride, DevelopmentSetupContext,
-    OnDiskSetupStore, PlanConfirmation, PlannedMutation, RecoveryReport, RollbackPlan,
-    RuntimeLease, SetupAction, SetupError, SetupErrorCode, SetupExecution, SetupPreview,
-    SetupRegistry, SetupRequest, SetupState, SetupStore, StateLock, SETUP_REGISTRY_SCHEMA_VERSION,
+    client_root_resolution, platform_state_root, BackupRecord, BoundRelease, ClientEvidence,
+    ClientRootResolution, ClientSelector, ClientStatus, ConfirmedSetup, DetectedClient,
+    DevelopmentClientOverride, DevelopmentSetupContext, OnDiskSetupStore, PlanConfirmation,
+    PlannedMutation, RecoveryReport, RollbackPlan, RuntimeLease, SetupAction, SetupError,
+    SetupErrorCode, SetupExecution, SetupPreview, SetupRegistry, SetupRequest, SetupState,
+    SetupStore, StateLock, SETUP_REGISTRY_SCHEMA_VERSION,
 };
 pub use uninstall::{
     plan_uninstall, uninstall, uninstall_transactional, OwnedTarget, UninstallResult,

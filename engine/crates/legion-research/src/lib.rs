@@ -7,6 +7,8 @@ pub mod receipt;
 pub mod report;
 pub mod source;
 pub mod workflow;
+pub mod research_port;
+pub mod wf_port;
 
 pub use budget::{BudgetAccount, BudgetLimits, BudgetSnapshot, BudgetUsage};
 pub use error::ResearchError;

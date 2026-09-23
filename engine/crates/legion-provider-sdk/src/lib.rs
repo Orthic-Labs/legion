@@ -13,6 +13,7 @@ pub mod result;
 pub mod retry;
 pub mod stream;
 pub mod testkit;
+pub mod l1b_port;
 
 pub use auth::{
     authorize_credential_access, CredentialAuthorizer, CredentialEffectDecision, CredentialReceipt,

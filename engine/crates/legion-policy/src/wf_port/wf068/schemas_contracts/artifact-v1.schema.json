@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-artifact-v1",
+  "title": "Artifact",
+  "description": "Shared content-addressed Artifact wire object with sensitivity, retention, & redaction metadata. Reused by execution contracts, worker capsules, operation results, & Legion results.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "artifactId", "artifactKind", "digest", "bytes", "immutable", "producerAuthority", "sourceRevision", "sensitivity", "retention", "redaction", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-artifact" },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "artifactKind": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Domain kind of the artifact content, e.g. 'patch', 'exact-code', 'schema', 'fixture', 'test', 'report', 'log', 'evidence'. Not a closed enum in source docs — free string by design (judgment call, see FREEZE.md J-11)."
+    },
+    "path": {
+      "type": ["string", "null"],
+      "description": "Repository-relative path when the artifact materializes as a file; null for non-file artifacts."
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mediaType": {
+      "type": ["string", "null"]
+    },
+    "immutable": {
+      "type": "boolean",
+      "description": "Content digest for immutable artifact identity."
+    },
+    "producerAuthority": {
+      "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"]
+    },
+    "producerVersion": {
+      "type": ["string", "null"]
+    },
+    "sourceRevision": {
+      "type": "string",
+      "minLength": 7
+    },
+    "denominatorDigest": {
+      "type": ["string", "null"],
+      "description": "Present when the artifact is bound to an Oracle denominator (target/control/provider set), matching the legion artifact-record-v1 'denominatorDigest' field intent."
+    },
+    "sensitivity": {
+      "type": "string",
+      "enum": ["public", "internal", "restricted", "secret"],
+      "description": "Sensitivity & retention metadata for this artifact."
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy"],
+      "properties": {
+        "policy": { "type": "string", "minLength": 1 },
+        "expiresAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applied", "metadata"],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "metadata": { "type": "array" }
+      },
+      "description": "Secret-redaction metadata recorded before persistence."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

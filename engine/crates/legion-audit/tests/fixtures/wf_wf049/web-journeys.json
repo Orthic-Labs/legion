@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "web",
+  "kind": "platform-scenario-plan",
+  "journeys": [
+    { "id": "control:auth-expiry", "controlId": "auth-expiry", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:auth-expiry", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false },
+    { "id": "control:cancel", "controlId": "cancel", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:cancel", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false },
+    { "id": "control:concurrency", "controlId": "concurrency", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:concurrency", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false },
+    { "id": "control:connectivity", "controlId": "connectivity", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:connectivity", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false },
+    { "id": "control:deep-link", "controlId": "deep-link", "routeId": "route:deep", "route": "/deep", "stateId": "loaded", "actionId": "action:navigate-deep", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": true },
+    { "id": "control:direct-link", "controlId": "direct-link", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:navigate-direct", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": true, "deepApplicable": false },
+    { "id": "control:error", "controlId": "error", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:error", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false },
+    { "id": "control:forms", "controlId": "forms", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:forms", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false },
+    { "id": "control:history", "controlId": "history", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:history", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false },
+    { "id": "control:refresh", "controlId": "refresh", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:refresh", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false },
+    { "id": "control:tabs", "controlId": "tabs", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:tabs", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false },
+    { "id": "control:uploads", "controlId": "uploads", "routeId": "route:home", "route": "/", "stateId": "loaded", "actionId": "action:uploads", "matrixCombinationId": "desktop-chromium", "protocolIds": ["http"], "applicable": true, "directApplicable": false, "deepApplicable": false }
+  ],
+  "protocols": [
+    { "id": "protocol:http", "protocolId": "http", "applicable": true },
+    { "id": "protocol:websocket", "protocolId": "websocket", "applicable": false, "reason": "not-used" }
+  ]
+}

@@ -1,0 +1,1 @@
+{"files":["src/unused-a.ts","src/unused-b.ts"],"issues":{"src/dead.ts":[{"type":"exports","symbol":"foo"}],"src/other.ts":[{"type":"exports","symbol":"bar"}],"src/third.ts":[{"type":"exports","symbol":"baz"}]}}

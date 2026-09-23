@@ -8,7 +8,6 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio_util::sync::CancellationToken;
 
-const BLUEPRINT_TIMEOUT_MS: u64 = 15_000;
 const SEMANTIC_TIMEOUT_MS: u64 = 3_000;
 const SEMANTIC_PROBES: [&str; 13] = [
     "generated-input-rejection",
@@ -151,72 +150,6 @@ fn installed_roots() -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
 
 fn coverage_families() -> Vec<String> {
     vec!["framework.react".into(), "framework.tauri".into()]
-}
-
-fn packet_projection(root: &Path, env: &HashMap<String, String>) -> (Value, Value) {
-    let requested = env.get("LEGION_MEMBRANE_PACKET").map(PathBuf::from);
-    let candidate = requested.clone().or_else(|| {
-        let path = root.join(".audit/blueprint/packet.json");
-        path.is_file().then_some(path)
-    });
-    let mode = if requested.is_some() {
-        "packet-file"
-    } else {
-        "bounded-one-shot"
-    };
-    let Some(path) = candidate else {
-        return (
-            json!({"status":"unavailable","reason":"membrane-blueprint-transport-unavailable"}),
-            json!({"mode":mode,"state":"missing"}),
-        );
-    };
-    let Some(packet) = read_json(&path) else {
-        return (
-            json!({"status":"unavailable","reason":"membrane-blueprint-packet-invalid"}),
-            json!({"mode":mode,"state":"missing"}),
-        );
-    };
-    let schema = packet
-        .get("schema")
-        .and_then(Value::as_str)
-        .unwrap_or_default();
-    if !matches!(
-        schema,
-        "membrane.context-packet.v1" | "membrane.blueprint-packet.v1"
-    ) || packet.get("status").and_then(Value::as_str) == Some("unavailable")
-    {
-        return (
-            json!({"status":"unavailable","reason":"membrane-blueprint-packet-invalid"}),
-            json!({"mode":mode,"state":"missing"}),
-        );
-    }
-    if schema == "membrane.blueprint-packet.v1" {
-        let valid = std::fs::canonicalize(&path)
-            .ok()
-            .and_then(|absolute| {
-                legion_audit::FileBlueprintInventorySource::new(absolute, None).ok()
-            })
-            .is_some();
-        if !valid {
-            return (
-                json!({"status":"unavailable","reason":"membrane-blueprint-packet-invalid"}),
-                json!({"mode":mode,"state":"missing"}),
-            );
-        }
-    }
-    let stale = packet.get("stale").and_then(Value::as_bool) == Some(true)
-        || packet.get("state").and_then(Value::as_str) == Some("stale")
-        || packet.get("status").and_then(Value::as_str) == Some("stale")
-        || packet
-            .get("freshness")
-            .and_then(Value::as_object)
-            .and_then(|v| v.get("fresh"))
-            .and_then(Value::as_bool)
-            == Some(false);
-    (
-        packet,
-        json!({"mode":mode,"state":if stale {"stale"} else {"ready"}}),
-    )
 }
 
 fn semantic_health(env: &HashMap<String, String>) -> Value {
@@ -780,17 +713,6 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
     let root = absolute_root(&args.root);
     let env = std::env::vars().collect::<HashMap<_, _>>();
     lifecycle("started", json!({"root":root}));
-    lifecycle(
-        "blueprint-probe-started",
-        json!({"timeoutMs":BLUEPRINT_TIMEOUT_MS}),
-    );
-    let (projection, metadata) = packet_projection(&root, &env);
-    lifecycle(
-        "blueprint-probe-finished",
-        json!({"status":projection.get("status").and_then(Value::as_str).unwrap_or("ready")}),
-    );
-    let stale = metadata["state"] == "stale";
-    let available = projection.get("status").and_then(Value::as_str) != Some("unavailable");
     lifecycle("semantic-probes-started", Value::Null);
     let semantic = semantic_health(&env);
     lifecycle(
@@ -807,12 +729,6 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
         json!({"state":host.pointer("/hostRequirements/state").cloned().unwrap_or(Value::Null)}),
     );
     let mut gaps = Vec::new();
-    if !available {
-        gaps.push(json!({"kind":"membrane-unavailable","detail":projection.get("reason").cloned().unwrap_or(Value::Null)}));
-    }
-    if !available || stale {
-        gaps.push(json!({"kind":"blueprint-stale","detail":if stale {Value::String("Membrane packet freshness check failed".into())} else {projection.get("reason").cloned().unwrap_or(Value::Null)}}));
-    }
     if semantic["healthy"] != true {
         gaps.push(json!({"kind":"arcane-semantic-health-unhealthy","detail":semantic["probes"].as_array().into_iter().flatten().filter(|p| p["ok"] == false).map(|p| json!({"id":p["id"],"error":p["error"]})).collect::<Vec<_>>() }));
     }
@@ -842,9 +758,6 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
     let languages = coverage_families();
     let selected = Vec::<String>::new();
     let mut commands = Vec::new();
-    if !available {
-        commands.push("Start Membrane context transport, then rerun legion doctor.".to_owned());
-    }
     if !env.contains_key("AUDIT_NETWORK_GUARD") {
         commands.push("Set AUDIT_NETWORK_GUARD=active for project-executing providers.".to_owned());
     }
@@ -879,7 +792,7 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
                 .to_owned(),
         );
     }
-    let report = json!({"schemaVersion":1,"kind":"legion-doctor","repository":{"root":root},"blueprint":{"state":if !available {"missing"} else if stale {"stale"} else {"ready"},"mode":metadata["mode"],"packetDigest":projection.get("packetDigest").cloned().unwrap_or(Value::Null)},"coverage":{"languages":languages,"frameworks":[],"systems":[],"unsupported":[]},"providers":{"selected":selected,"blocked":[],"missingTools":[]},"hostCapabilities":{"networkSandbox":env.get("AUDIT_NETWORK_GUARD").map(|v| v == "active").unwrap_or(false),"signing":env.get("AUDIT_PLAN_SIGNING_KEY").is_some_and(|v| !v.is_empty()),"browser":false,"toolchains":runtime_toolchains()},"arcane":{"semanticHealth":semantic},"host":host,"naming":{"schemaVersion":naming["schemaVersion"],"kind":naming["kind"],"status":naming["status"],"canonicalAuthorities":naming["canonicalAuthorities"],"deprecatedAliases":naming["deprecatedAliases"],"unclassified":naming["unclassified"],"bindings":bindings},"binding":binding_section(&root),"cleanClaimPossible":false,"gaps":gaps,"commands":commands});
+    let report = json!({"schemaVersion":1,"kind":"legion-doctor","repository":{"root":root},"coverage":{"languages":languages,"frameworks":[],"systems":[],"unsupported":[]},"providers":{"selected":selected,"blocked":[],"missingTools":[]},"hostCapabilities":{"networkSandbox":env.get("AUDIT_NETWORK_GUARD").map(|v| v == "active").unwrap_or(false),"signing":env.get("AUDIT_PLAN_SIGNING_KEY").is_some_and(|v| !v.is_empty()),"browser":false,"toolchains":runtime_toolchains()},"arcane":{"semanticHealth":semantic},"host":host,"naming":{"schemaVersion":naming["schemaVersion"],"kind":naming["kind"],"status":naming["status"],"canonicalAuthorities":naming["canonicalAuthorities"],"deprecatedAliases":naming["deprecatedAliases"],"unclassified":naming["unclassified"],"bindings":bindings},"binding":binding_section(&root),"cleanClaimPossible":false,"gaps":gaps,"commands":commands});
     lifecycle(
         "finished",
         json!({"gaps":report["gaps"].as_array().map_or(0,Vec::len)}),
@@ -890,12 +803,30 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn absent_packet_is_typed_missing_projection() {
-        let root = std::env::temp_dir().join(format!("legion-doctor-{}", std::process::id()));
-        let (packet, metadata) = packet_projection(&root, &HashMap::new());
-        assert_eq!(packet["status"], "unavailable");
-        assert_eq!(metadata["state"], "missing");
+    /// Legion (Rust) has no Membrane/Blueprint dependency: doctor's report
+    /// carries no blueprint probe state, key, or gap at all, rather than a
+    /// typed "missing" projection for an external transport it no longer
+    /// checks. Replaces the retired
+    /// `absent_packet_is_typed_missing_projection`.
+    #[tokio::test]
+    async fn doctor_report_carries_no_blueprint_or_membrane_state() {
+        let root = std::env::temp_dir().join(format!("legion-doctor-report-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let report = run(
+            RootArgs {
+                root: root.clone(),
+                json: true,
+            },
+            CancellationToken::new(),
+        )
+        .await
+        .expect("doctor runs against an empty repository");
+        assert!(report.get("blueprint").is_none());
+        let rendered = serde_json::to_string(&report).unwrap();
+        assert!(!rendered.to_ascii_lowercase().contains("blueprint"));
+        assert!(!rendered.to_ascii_lowercase().contains("membrane"));
+        std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
     fn codex_trust_never_manufactures_hashes() {

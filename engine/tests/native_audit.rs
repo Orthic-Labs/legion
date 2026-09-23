@@ -302,7 +302,10 @@ fn selector_denominator_is_frozen_and_not_an_arbitrary_fixture() {
     )
     .unwrap();
     let provider = &plan.providers[0];
-    assert_eq!(provider.bounds["blueprintDependent"], false);
+    // Legion (Rust) has no Blueprint dependency: the frozen bounds carry no
+    // blueprint-provenance bit, only local-inventory-derived fields.
+    assert!(!provider.bounds.contains_key("blueprintDependent"));
+    assert!(plan.excluded_conditional_providers.is_empty());
     assert_eq!(provider.configuration["denominatorDigest"], subset_digest);
     assert_eq!(provider.configuration["denominatorCount"], 1);
 }

@@ -27,6 +27,12 @@ use crate::{
     plan::{AuditProvider, FrozenPlan, ProviderKind},
 };
 
+pub mod excerpts;
+pub mod lens_plan;
+pub mod lens_schemas;
+pub mod triggers;
+pub mod security_adjudication;
+
 pub const REASONING_RECEIPT_SCHEMA_VERSION: u32 = 1;
 pub const REASONING_RECEIPT_KIND: &str = "legion-reasoning-receipt";
 pub const REASONING_INVOCATION_KIND: &str = "legion-reasoning-invocation";
@@ -269,7 +275,14 @@ impl ReasoningProviderExecutor {
             )));
         }
         let denominator = reasoning_denominator(plan, provider, inventory)?;
-        let request = build_invocation(plan, provider, inventory, &denominator, &self.invocation_epoch)?;
+        let request = build_invocation(
+            plan,
+            provider,
+            inventory,
+            &denominator,
+            &self.invocation_epoch,
+            &self.root,
+        )?;
         request
             .validate()
             .map_err(|error| AuditError::Invalid(error.to_owned()))?;
@@ -402,6 +415,7 @@ fn build_invocation(
     inventory: &InventoryEnvelope,
     denominator: &InventoryDenominator,
     invocation_epoch: &str,
+    root: &Path,
 ) -> Result<ReasoningInvocation, AuditError> {
     let contract = provider
         .configuration
@@ -420,6 +434,40 @@ fn build_invocation(
         .iter()
         .map(|entry| entry.path.clone())
         .collect::<Vec<_>>();
+    // Per-lens work-packet planning (question, applicability trigger, excerpt
+    // scoping, report schema, model tier, verify-pass requirement, ponytail
+    // tags, cues) per skills/audit/references/{lens-routing,manual,
+    // ponytail-lens,lens-cues}.md. `None` only for
+    // `legacy.security.adjudication`, which carries its own independent
+    // packet shape via `security_adjudication.rs`.
+    let lens_plan = lens_plan::lens_plan_packet_value(&provider.id);
+    let lens_id = lens_plan::lens_id_for_provider(&provider.id);
+    // Scoped excerpts: RAW (bounded, file:line anchored, secret-redacted)
+    // for security/schema/correctness/performance/minimize/doc-drift,
+    // SKELETON (signatures/declarations, no bodies) for
+    // architecture/ai-slop/naming/dead-file, per lens-routing.md's
+    // "Excerpt compression" section. `None` only for
+    // `legacy.security.adjudication`, which is not lens-routed here.
+    let excerpts = lens_plan::lens_plan_excerpt_mode(&provider.id)
+        .map(|mode| excerpts::build_excerpts(root, &paths, mode))
+        .map(|excerpts| serde_json::to_value(excerpts).unwrap_or(Value::Null));
+    // Conditional-lens trigger evidence: the actual local check over this
+    // provider's denominator, not just the trigger description carried in
+    // `lensPlan`. `None` for always-applicable and unowned lenses.
+    let trigger_evidence = lens_id
+        .and_then(|lens| triggers::evaluate_trigger(root, lens, &paths))
+        .map(|evaluation| {
+            json!({
+                "fired": evaluation.fired,
+                "reason": evaluation.reason,
+                "evidencePaths": evaluation.evidence_paths,
+            })
+        });
+    // Full report-schema body for the lens's finding shape (id, lens,
+    // severity, confidence, file:line evidence, failure scenario, action,
+    // verify status, plus lens-specific extras), matching the id carried
+    // in `lensPlan.reportSchema`.
+    let report_schema_body = lens_id.and_then(lens_schemas::lens_report_schema);
     let packet = json!({
         "schemaVersion": 1,
         "kind": "legion-reasoning-packet",
@@ -434,6 +482,10 @@ fn build_invocation(
             "denominatorDigest": denominator.digest,
             "denominatorCount": denominator.entries.len(),
         },
+        "lensPlan": lens_plan,
+        "excerpts": excerpts,
+        "triggerEvidence": trigger_evidence,
+        "reportSchemaBody": report_schema_body,
         "projection": inventory,
         "artifactIds": [],
     });
@@ -518,6 +570,28 @@ fn verify_response(
         return Err("reasoning receipt denominator count mismatch".into());
     }
     verify_authenticated_receipt(receipt, key)?;
+    // Reconciliation-path schema validation: when a host reports lens
+    // findings under `details.lensFindings`, every finding must satisfy the
+    // owning lens's full report schema (lens_schemas.rs) before it is
+    // accepted. A lens with no registered schema, or a result that carries
+    // no `lensFindings` at all (e.g. `legacy.security.adjudication`, which
+    // has its own independent packet/result shape), is left unvalidated
+    // here rather than rejected.
+    if let Some(lens) = lens_plan::lens_id_for_provider(&request.provider_id) {
+        if let Some(findings) = response.result.details.get("lensFindings") {
+            let findings = findings.as_array().cloned().ok_or_else(|| {
+                "reasoning result details.lensFindings must be an array".to_owned()
+            })?;
+            lens_schemas::validate_lens_output(lens, &findings).map_err(|errors| {
+                let joined = errors
+                    .iter()
+                    .map(|error| format!("{}: {}", error.field, error.reason))
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                format!("reasoning result for lens {lens} failed report-schema validation: {joined}")
+            })?;
+        }
+    }
     let mut result = response.result.clone();
     result.details.insert(
         "executionReceipt".into(),

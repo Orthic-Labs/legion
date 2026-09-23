@@ -11,6 +11,7 @@ mod report;
 mod verify;
 mod worktree;
 pub mod native_providers;
+pub mod wf_port;
 
 pub use dag::topological;
 pub use error::AuditError;

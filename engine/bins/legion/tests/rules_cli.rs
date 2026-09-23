@@ -1,7 +1,12 @@
 use std::process::Command;
 
+/// Rewritten from the retired `native_rules_evaluate_blueprint_bound_source`:
+/// Legion (Rust) has no Blueprint/Membrane dependency, so `rules` evaluates
+/// against its own local-filesystem inventory directly — there is no packet
+/// to bind, so the `--blueprint-packet`/`--expected-generation` flags this
+/// test used to pass are gone from the CLI entirely.
 #[test]
-fn native_rules_evaluate_blueprint_bound_source() {
+fn native_rules_evaluate_local_inventory_bound_source() {
     let root = std::env::temp_dir().join(format!(
         "legion-native-rules-{}-{}",
         std::process::id(),
@@ -14,22 +19,6 @@ fn native_rules_evaluate_blueprint_bound_source() {
     )
     .unwrap();
     let root = std::fs::canonicalize(root).unwrap();
-    let packet = serde_json::json!({
-        "schema": "membrane.blueprint-packet.v1",
-        "status": "ready",
-        "state": "ready",
-        "generationId": "fixture-generation",
-        "manifestDigest": format!("sha256:{}", "1".repeat(64)),
-        "sourceObservation": {"kind": "fixture"},
-        "files": ["src/service.rs"],
-        "fileCount": 1,
-        "sourceFileCount": 1,
-        "parsedExtensions": ["rs"],
-        "unsupportedExtensions": [],
-        "overlay": {"state": "ready", "dirtyTracked": 0, "untracked": 0}
-    });
-    let packet_path = root.join("blueprint-packet.json");
-    std::fs::write(&packet_path, serde_json::to_vec_pretty(&packet).unwrap()).unwrap();
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../packs/native/manifest.v1.json");
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
@@ -37,10 +26,6 @@ fn native_rules_evaluate_blueprint_bound_source() {
             "rules",
             "--manifest",
             manifest.to_str().unwrap(),
-            "--blueprint-packet",
-            packet_path.to_str().unwrap(),
-            "--expected-generation",
-            "fixture-generation",
             "--root",
             root.to_str().unwrap(),
             "--provider",
@@ -83,10 +68,10 @@ fn native_rules_evaluate_blueprint_bound_source() {
             "role": "deterministic",
             "phase": "source",
             "dependsOn": [],
-            "consumes": ["blueprint-packet"],
+            "consumes": ["repository-inventory"],
             "produces": ["provider-result"],
             "selector": {"op": "always"},
-            "denominatorKind": "blueprint-inventory",
+            "denominatorKind": "repository-inventory",
             "runner": {"kind": "built-in"},
             "hostCapabilities": [],
             "execution": {},
@@ -110,10 +95,6 @@ fn native_rules_evaluate_blueprint_bound_source() {
             "audit",
             "--out",
             audit_out.to_str().unwrap(),
-            "--blueprint-packet",
-            packet_path.to_str().unwrap(),
-            "--expected-generation",
-            "fixture-generation",
             "--provider-plan",
             plan_path.to_str().unwrap(),
             "--provider-result",
@@ -136,8 +117,13 @@ fn native_rules_evaluate_blueprint_bound_source() {
     assert!(audit_out.join("report.sarif").is_file());
 }
 
+/// Rewritten from the retired `native_audit_continues_without_blueprint`:
+/// Legion (Rust) has no Blueprint/Membrane fallback path to exercise — its
+/// filesystem inventory is the only source, not a degraded fallback — so
+/// this now asserts the plain local-inventory run completes without any
+/// blueprint-flavored context notice.
 #[test]
-fn native_audit_continues_without_blueprint() {
+fn native_audit_runs_on_local_filesystem_inventory_only() {
     let root = std::env::temp_dir().join(format!(
         "legion-native-audit-fallback-{}-{}",
         std::process::id(),
@@ -170,10 +156,9 @@ fn native_audit_continues_without_blueprint() {
     );
     let rules_summary: serde_json::Value = serde_json::from_slice(&rules.stdout).unwrap();
     assert_eq!(rules_summary["status"], "complete");
-    assert!(rules_summary["contextNotices"][0]
-        .as_str()
-        .unwrap()
-        .contains("Audit continued"));
+    // Legion has no external context engine to fall back from: the local
+    // filesystem inventory is the only source, so there is nothing to notice.
+    assert_eq!(rules_summary["contextNotices"], serde_json::json!([]));
     let plan = serde_json::json!({
         "providers": [{
             "schemaVersion": 2,
@@ -230,16 +215,12 @@ fn native_audit_continues_without_blueprint() {
     );
     let summary: serde_json::Value = serde_json::from_slice(&audit.stdout).unwrap();
     assert_eq!(summary["auditStatus"], "pass");
-    assert!(summary["contextNotices"][0]
-        .as_str()
-        .unwrap()
-        .contains("Audit continued"));
+    assert_eq!(summary["contextNotices"], serde_json::json!([]));
     let report: serde_json::Value =
         serde_json::from_slice(&std::fs::read(audit_out.join("report.json")).unwrap()).unwrap();
-    assert!(report["claims"]["contextNotices"][0]
-        .as_str()
-        .unwrap()
-        .contains("Use Membrane as context engine"));
+    // No degraded-context notice is recorded on the report claims either —
+    // there is no external context engine for Legion to have fallen back from.
+    assert!(report["claims"].get("contextNotices").is_none());
     std::fs::remove_dir_all(root).unwrap();
 }
 

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-effect-receipt-v1",
+  "title": "EffectReceipt",
+  "description": "Post-effect receipt separates requested, authorized, & host-observed effect identity plus actual diff, authentication, & replay defense. A model self-report is never an effect receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "receiptId", "requestId", "runId", "contractId", "taskId",
+    "requested", "authorized", "observed", "match", "authentication", "replayDefense",
+    "sourceRevision", "replayOf", "idempotencyKey", "observedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-effect-receipt" },
+
+    "receiptId": { "type": "string", "pattern": "^eff_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "requestId": { "type": "string", "pattern": "^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "contractId": { "type": ["string", "null"], "pattern": "^EC-\\d+$", "description": "Amendment A-ER-1 (2026-08-09): null = ambient observation — a host-observed effect in a session bound to a run but not to a contract. Mirrors evidence-capability-receipt-v1's pre-existing nullable pattern. Rationale: evidence != authorization; recording an uncontracted mutation is never a false clean, refusing to record it is a coverage hole. A post-effect event with no runId at all is STILL refused." },
+    "taskId": { "type": ["string", "null"], "pattern": "^T-\\d+(\\.\\d+)*$", "description": "Amendment A-ER-1 (2026-08-09): null = ambient observation (see contractId)." },
+
+    "requested": { "$ref": "#/$defs/effectIdentity" },
+    "authorized": { "$ref": "#/$defs/effectIdentity" },
+    "observed": { "$ref": "#/$defs/effectIdentity" },
+
+    "match": {
+      "type": "boolean",
+      "description": "True only when requested == authorized == observed on effectClass/target/operation. False triggers Arcane reconciliation, not silent acceptance."
+    },
+
+    "actualDiffDigest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
+    "hostEventRef": { "type": ["string", "null"], "description": "Reference to the host-observed event that grounds 'observed'; model self-report is never sufficient." },
+
+    "authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issuerIdentity", "verificationMethod", "perMessage"],
+      "properties": {
+        "issuerIdentity": { "type": "string", "minLength": 1, "description": "Who/what asserted this effect (process/capability/user identity). Real identity, not a self-hash — S00 finding: predecessor's signature_or_mac authenticates nothing." },
+        "verificationMethod": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] },
+        "perMessage": {
+          "type": "boolean",
+          "description": "S00 finding: predecessor's one real trust primitive (lib/host.js process-identity/code-signing check) authenticates a connection once at MCP startup, not each message. false means this receipt's authentication is inherited from connection-level trust only; true means Arcane verified this specific effect."
+        },
+        "verifiedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "description": "Distinct from effectIdentity.capabilityId: capabilityId names which grant authorized the effect; authentication states how strongly we know who is asserting requested/observed. Added at coordinator direction from the S00 predecessor baseline."
+    },
+    "replayDefense": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nonce", "sequence", "freshnessWindowSeconds"],
+      "properties": {
+        "nonce": { "type": ["string", "null"] },
+        "sequence": { "type": ["integer", "null"], "minimum": 0 },
+        "freshnessWindowSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "freshAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "description": "S00 finding: no nonce/sequence/freshness field exists anywhere in legacy predecessor records; consumeRetry fingerprinting solves duplicate-retry bounding, not adversarial replay. This is greenfield scaffolding for S03, not a migrated mechanism — all fields nullable until S03 defines the real semantics."
+    },
+
+    "sourceRevision": { "type": "string", "minLength": 7 },
+    "replayOf": { "type": ["string", "null"], "pattern": "^eff_[0-9A-HJKMNP-TV-Z]{26}$", "description": "Non-null marks this receipt as a detected replay of a prior receipt." },
+    "idempotencyKey": { "type": ["string", "null"] },
+
+    "result": { "enum": ["applied", "blocked", "failed", "no-op"] },
+    "observedAt": { "type": "string", "format": "date-time" }
+  },
+
+  "$defs": {
+    "effectIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effectClass", "target", "operation"],
+      "properties": {
+        "effectClass": { "enum": ["FILE_WRITE", "FILE_DELETE", "FILE_MOVE", "COMMAND_EXEC", "NETWORK_EGRESS", "PROCESS_SPAWN", "CREDENTIAL_ACCESS", "DEPENDENCY_INSTALL", "VCS_COMMIT", "VCS_PUSH", "PUBLISH", "EXTERNAL_SIDE_EFFECT"] },
+        "target": { "type": "string", "minLength": 1 },
+        "operation": { "type": "string", "minLength": 1 },
+        "capabilityId": { "type": ["string", "null"], "description": "Present on 'authorized'; the Arcane-issued capability grounding this identity." },
+        "at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  }
+}

@@ -1,0 +1,592 @@
+{
+  "schemaVersion": 2,
+  "generatedFrom": [
+    "skills/*/SKILL.md",
+    "skills/*/references/route-resources.json",
+    "src/config/capability-aliases.json",
+    "src/registry/capabilities.json"
+  ],
+  "bundles": [
+    {
+      "id": "ads",
+      "name": "ads",
+      "description": "Audit, plan, create, or optimize paid campaigns across Google, Meta, YouTube, LinkedIn, TikTok, Microsoft, or Apple. Use for PPC, ROAS, CPA, targeting, bidding, retargeting, budgets, creative, or ad-spend questions.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "commercial",
+      "operations": [
+        "analyze",
+        "decide",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "network-request"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/ads/SKILL.md",
+      "manifest": "skills/manifests/ads.json"
+    },
+    {
+      "id": "architect",
+      "name": "architect",
+      "description": "Software and system architecture capability for architecture decisions, ADRs, quality attributes, interfaces, invariants, migrations, and architecture-significant planning.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "decide",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/architect/SKILL.md",
+      "manifest": "skills/manifests/architect.json"
+    },
+    {
+      "id": "audit",
+      "name": "audit",
+      "description": "Diagnose a whole repository through Legion's frozen Audit provider plan. Use for /audit or repository-wide read-only health, security, runtime, & evidence review.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "evaluate",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "process-exec",
+        "artifact-write"
+      ],
+      "hostRequirements": [
+        "blueprint-graph",
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        },
+        {
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/audit/SKILL.md",
+      "manifest": "skills/manifests/audit.json"
+    },
+    {
+      "id": "audit-fix",
+      "name": "audit-fix",
+      "description": "Apply bounded remediation from a frozen Legion Audit report, then rerun its same provider plan. Use only for /audit-fix after /audit evidence exists.",
+      "kind": "capability",
+      "capabilityClass": "workflow",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "evaluate",
+        "execute",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "repository-write",
+        "process-exec"
+      ],
+      "hostRequirements": [
+        "blueprint-graph",
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        },
+        {
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/audit-fix/SKILL.md",
+      "manifest": "skills/manifests/audit-fix.json"
+    },
+    {
+      "id": "audit-visual",
+      "name": "audit-visual",
+      "description": "Enumerate, capture, compare, and reconcile rendered UI evidence through Legion's shared Audit visual provider. Use for /audit-visual, visual regressions, screenshot baselines, or rendered-state coverage.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "evaluate",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write",
+        "process-exec"
+      ],
+      "hostRequirements": [
+        "blueprint-graph",
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        },
+        {
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/audit-visual/SKILL.md",
+      "manifest": "skills/manifests/audit-visual.json"
+    },
+    {
+      "id": "blueprint",
+      "name": "blueprint",
+      "description": "Build, query, or reconcile a repository graph or current-state map when that map is requested or required. Use for /blueprint, repository onboarding, architecture/flow maps, impact analysis, docs reconciliation, or grounding Audit/Architect. Excludes chat transcripts and ordinary bounded file inspection.",
+      "kind": "capability",
+      "capabilityClass": "context",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "process-exec",
+        "artifact-write"
+      ],
+      "hostRequirements": [
+        "blueprint-graph"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "blueprint-graph",
+          "degradation": "Use resident Membrane transport when available, then bounded Blueprint one-shot regardless of enrollment. Return a NO_CAPABILITY result naming blueprint-graph only when both are unavailable; never fall back to ad-hoc grep or present ungraphed results as graph results.",
+          "remedy": "Provide Membrane resident transport or install the Blueprint graph engine and put its `blueprint` executable on PATH, then re-run. This package does not ship it.",
+          "probe": {
+            "kind": "command",
+            "command": "blueprint"
+          }
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/blueprint/SKILL.md",
+      "manifest": "skills/manifests/blueprint.json"
+    },
+    {
+      "id": "brand-identity",
+      "name": "brand-identity",
+      "description": "Create, audit, evolve, or apply brand identities, systems, guidelines, visual identity, voice, naming, logo direction, brand books, rebrands, website or app identity, pitch decks, or social kits.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "design",
+      "operations": [
+        "analyze",
+        "decide",
+        "produce",
+        "evaluate"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/brand-identity/SKILL.md",
+      "manifest": "skills/manifests/brand-identity.json"
+    },
+    {
+      "id": "debugger",
+      "name": "debugger",
+      "description": "Diagnose and repair known failures by reproducing them, isolating evidence, testing disconfirmable hypotheses, establishing root cause, and verifying an authorized routine fix. Do not use for preflight or completion-only verification.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "diagnose",
+        "decide",
+        "execute",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "process-exec",
+        "artifact-write"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/debugger/SKILL.md",
+      "manifest": "skills/manifests/debugger.json"
+    },
+    {
+      "id": "designer",
+      "name": "designer",
+      "description": "Create, critique, redesign, or polish websites, app UI, dashboards, components, static creative, print, motion systems, glass materials, illustration direction, and frontend craft. Route deterministic rendered-state coverage/regression evidence to Audit Visual and identity systems to Brand Identity.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "design",
+      "operations": [
+        "analyze",
+        "decide",
+        "produce",
+        "evaluate"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write"
+      ],
+      "hostRequirements": [
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "python-runtime",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
+          }
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/designer/SKILL.md",
+      "manifest": "skills/manifests/designer.json"
+    },
+    {
+      "id": "foundation",
+      "name": "foundation",
+      "description": "Create, audit, normalize, reconcile, or compare a product's atomic capability foundation. Use for atom inventories, cross-repository implementation bakeoffs, feature ledgers, closure counts, parent-child hierarchies, evidence rows, qualification gates, donor dispositions, or cross-canon standardization. `canon` & `compshop` are retired aliases; `/foundation compare` replaces CompShop.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "evaluate",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/foundation/SKILL.md",
+      "manifest": "skills/manifests/foundation.json"
+    },
+    {
+      "id": "marketing",
+      "name": "marketing",
+      "description": "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "commercial",
+      "operations": [
+        "analyze",
+        "decide",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "network-request"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/marketing/SKILL.md",
+      "manifest": "skills/manifests/marketing.json"
+    },
+    {
+      "id": "qa",
+      "name": "qa",
+      "description": "Add, run, or audit local web or Tauri app QA: hidden servers, deterministic mocks, functional/browser assertions, supporting viewport captures, runtime checks, & contract-test authoring.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "evaluate",
+        "execute",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write",
+        "process-exec"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/qa/SKILL.md",
+      "manifest": "skills/manifests/qa.json"
+    },
+    {
+      "id": "research",
+      "name": "research",
+      "description": "Find and synthesize external information for research deliverables, including market, technical, scientific, medical, legal, competitor, Reddit, audience, trends, scholarly, and NotebookLM research. Excludes local transcript inspection, repository reading, and simple supplied-source reading.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "research",
+      "operations": [
+        "route",
+        "analyze",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write",
+        "network-request"
+      ],
+      "hostRequirements": [
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
+      "scopedRequirementDetails": [
+        {
+          "scope": "provider:browser",
+          "scopeKind": "provider",
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
+        },
+        {
+          "scope": "provider:domain-default",
+          "scopeKind": "provider",
+          "id": "scholarly-search",
+          "kind": "tool",
+          "summary": "Academic and citation-graph retrieval.",
+          "degradation": "Research returns UNPROVEN for scholarly claims.",
+          "remedy": "Expose a scholarly-search tool in the host.",
+          "probe": null
+        },
+        {
+          "scope": "provider:domain-default",
+          "scopeKind": "provider",
+          "id": "web-search",
+          "kind": "tool",
+          "summary": "Live web search and page fetch used by Research browser and domain-default providers.",
+          "degradation": "Research returns UNPROVEN for any claim that required live retrieval.",
+          "remedy": "Expose a web-search tool in the host; Research blocks rather than guessing.",
+          "probe": null
+        },
+        {
+          "scope": "provider:local-corpus",
+          "scopeKind": "provider",
+          "id": "local-corpus",
+          "kind": "tool",
+          "summary": "Retrieval over a caller-supplied local document corpus.",
+          "degradation": "Research skips the local-corpus provider and records it as unrun.",
+          "remedy": "Point the host at a local document corpus for offline retrieval.",
+          "probe": null
+        },
+        {
+          "scope": "provider:notebooklm",
+          "scopeKind": "provider",
+          "id": "notebooklm",
+          "kind": "tool",
+          "summary": "NotebookLM-backed synthesis over a supplied source set.",
+          "degradation": "Research skips the notebooklm provider and records it as unrun.",
+          "remedy": "Provide NotebookLM access in the host.",
+          "probe": null
+        }
+      ],
+      "source": "skills/research/SKILL.md",
+      "manifest": "skills/manifests/research.json"
+    },
+    {
+      "id": "seo",
+      "name": "seo",
+      "description": "Operate SEO, AEO, GEO and AI-search visibility: diagnose, prioritize, improve, verify and measure crawl/indexation, query ownership, SERP fit, content, entities, citations, Google generative visibility, Bing AI citations, CWV, schema, links, local/international/ecommerce search, and traffic or visibility changes.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "commercial",
+      "operations": [
+        "analyze",
+        "diagnose",
+        "decide",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write",
+        "process-exec",
+        "network-request"
+      ],
+      "hostRequirements": [
+        "python-runtime"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "python-runtime",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
+          }
+        }
+      ],
+      "scopedRequirementDetails": [],
+      "source": "skills/seo/SKILL.md",
+      "manifest": "skills/manifests/seo.json"
+    },
+    {
+      "id": "social",
+      "name": "social",
+      "description": "Route Instagram, Pinterest, YouTube, Twitter or X, LinkedIn, Reels, Shorts, pins, threads, calendars, distribution, analytics, and social growth. Use /social or when social strategy or content is the deliverable.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "commercial",
+      "operations": [
+        "analyze",
+        "decide",
+        "produce"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write",
+        "network-request"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/social/SKILL.md",
+      "manifest": "skills/manifests/social.json"
+    },
+    {
+      "id": "writing",
+      "name": "writing",
+      "description": "Route editorial prose, essays, newsletters, scripts, captions, threads, research articles, blogs, SEO posts, conversion copy, bios, DMs, product copy, email, and changelogs. Use when words are the deliverable.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "editorial",
+      "operations": [
+        "analyze",
+        "produce",
+        "evaluate"
+      ],
+      "effects": [
+        "source-read",
+        "artifact-write"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/writing/SKILL.md",
+      "manifest": "skills/manifests/writing.json"
+    },
+    {
+      "id": "commit",
+      "name": "commit",
+      "description": "Review, verify, commit, & push one frozen diff through Legion's guarded Commit workflow. Use for /commit, review and commit, or commit and push.",
+      "kind": "entrypoint",
+      "capabilityClass": null,
+      "discoverability": "explicit",
+      "operations": [
+        "analyze",
+        "evaluate",
+        "execute"
+      ],
+      "effects": [
+        "source-read",
+        "repository-write",
+        "process-exec",
+        "network-request"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [],
+      "source": "skills/commit/SKILL.md",
+      "manifest": "skills/manifests/commit.json"
+    }
+  ]
+}

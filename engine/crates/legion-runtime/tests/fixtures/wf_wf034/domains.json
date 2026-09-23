@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 2,
+  "generatedFrom": [
+    "src/registry/skills/index.json"
+  ],
+  "domains": [
+    {
+      "id": "commercial",
+      "kind": "group",
+      "children": [
+        {
+          "id": "ads"
+        },
+        {
+          "id": "marketing"
+        },
+        {
+          "id": "seo"
+        },
+        {
+          "id": "social"
+        }
+      ]
+    },
+    {
+      "id": "design",
+      "kind": "group",
+      "children": [
+        {
+          "id": "brand-identity"
+        },
+        {
+          "id": "designer"
+        }
+      ]
+    },
+    {
+      "id": "editorial",
+      "kind": "group",
+      "children": [
+        {
+          "id": "writing"
+        }
+      ]
+    },
+    {
+      "id": "engineering",
+      "kind": "group",
+      "children": [
+        {
+          "id": "architect"
+        },
+        {
+          "id": "audit"
+        },
+        {
+          "id": "audit-fix"
+        },
+        {
+          "id": "audit-visual"
+        },
+        {
+          "id": "blueprint"
+        },
+        {
+          "id": "debugger"
+        },
+        {
+          "id": "foundation"
+        },
+        {
+          "id": "qa"
+        }
+      ]
+    },
+    {
+      "id": "research",
+      "kind": "group",
+      "children": [
+        {
+          "id": "research"
+        }
+      ]
+    }
+  ]
+}

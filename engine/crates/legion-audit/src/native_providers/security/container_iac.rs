@@ -107,11 +107,17 @@ pub fn analyze(input: &Value) -> Value {
         .unwrap_or_default();
     let evidence = artifacts.and_then(|a| a.get("iacEvidence"));
     let denominator = infrastructure_denominator(&source, &rendered);
-    let mut gaps = denominator
+    // JS analyze() does `denominator.gaps.map((kind) => ({ kind }))` — the denominator's
+    // `gaps` field is an array of bare strings, but coverageGaps entries are always
+    // `{kind: ...}` objects, matching the shape of every other gap pushed below.
+    let mut gaps: Vec<Value> = denominator
         .get("gaps")
         .and_then(Value::as_array)
         .cloned()
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .into_iter()
+        .map(|g| json!({"kind": g}))
+        .collect();
     let plan_binding = input.get("plan").and_then(|p| p.get("binding"));
     let valid = evidence.is_some_and(|e| {
         same_binding(e.get("binding"), plan_binding)

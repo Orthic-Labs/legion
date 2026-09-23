@@ -1,0 +1,4 @@
+{
+  "usage": {"external_requests": 2, "workers_started": 1, "workers_active": 0},
+  "budget": {"external_requests": 5, "workers": 2}
+}

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "legion-evidence-capability-receipt-v1",
+  "title": "EvidenceCapabilityReceipt",
+  "description": "Reusable consumer-independent evidence observation produced after execution. It transfers no authority & becomes stale when a bound dependency changes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "kind", "evidenceId", "runId", "taskId", "contractId",
+    "producerAuthority", "capability", "observation", "evidenceClass", "authentication", "replayDefense",
+    "sourceRevision", "dependsOn", "stale", "observedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "legion-evidence-capability-receipt" },
+
+    "evidenceId": { "type": "string", "pattern": "^ev_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "runId": { "type": "string", "pattern": "^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "taskId": { "type": ["string", "null"], "pattern": "^T-\\d+(\\.\\d+)*$" },
+    "contractId": { "type": ["string", "null"], "pattern": "^EC-\\d+$" },
+
+    "producerAuthority": { "enum": ["legion", "sage", "alchemist", "oracle", "arcane", "kernel"] },
+    "capability": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What was observed, e.g. 'test-run', 'diagnostic-probe', 'lint-check', 'reproduction'. Free string by design; not a closed enum in source docs."
+    },
+    "observation": {
+      "type": "object",
+      "description": "Producer-specific structured observation payload. Deliberately opaque here because shape varies by evidence capability."
+    },
+
+    "evidenceClass": {
+      "enum": ["deterministic", "measured", "interpretive", "external", "human"],
+      "description": "Values match the existing legion EVIDENCE_CLASS convention (lib/contracts, providers/security/contracts.mjs) by deliberate alignment, duplicated inline rather than imported to avoid a runtime dependency from this package on legion's internal provider pipeline. Judgment call, see FREEZE.md J-5."
+    },
+
+    "authentication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issuerIdentity", "verificationMethod", "perMessage"],
+      "properties": {
+        "issuerIdentity": { "type": "string", "minLength": 1 },
+        "verificationMethod": { "enum": ["host-connection-trust", "capability-signature", "unauthenticated"] },
+        "perMessage": { "type": "boolean" },
+        "verifiedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "description": "Same shape and rationale as legion-effect-receipt-v1's authentication field (S00 predecessor baseline finding: no receipt in the legacy system carries real authentication, only a self-hash)."
+    },
+    "replayDefense": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nonce", "sequence", "freshnessWindowSeconds"],
+      "properties": {
+        "nonce": { "type": ["string", "null"] },
+        "sequence": { "type": ["integer", "null"], "minimum": 0 },
+        "freshnessWindowSeconds": { "type": ["integer", "null"], "minimum": 0 },
+        "freshAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "description": "Same shape and rationale as legion-effect-receipt-v1's replayDefense field (S00 predecessor baseline finding: no nonce/sequence/freshness field exists anywhere in predecessor records)."
+    },
+
+    "sourceRevision": { "type": "string", "minLength": 7 },
+    "dependsOn": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": { "enum": ["decision", "source-revision", "config-digest", "tool-digest", "policy-digest", "evidence"] },
+          "ref": { "type": "string", "minLength": 1 }
+        }
+      },
+      "description": "Dependency-aware invalidation inputs. When any entry changes, this receipt becomes stale."
+    },
+    "stale": { "type": "boolean", "default": false },
+
+    "consumers": {
+      "type": "array",
+      "items": { "enum": ["sage-acceptance", "arcane-proof", "oracle-control"] },
+      "description": "Consumer classes permitted to evaluate this receipt."
+    },
+
+    "observedAt": { "type": "string", "format": "date-time" }
+  }
+}

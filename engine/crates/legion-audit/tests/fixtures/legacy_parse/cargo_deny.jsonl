@@ -1,0 +1,3 @@
+{"type":"diagnostic","fields":{"severity":"error","message":"duplicate crate"}}
+{"type":"diagnostic","fields":{"severity":"warning","message":"license not explicitly allowed"}}
+{"type":"summary","fields":{}}

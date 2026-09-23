@@ -8,6 +8,7 @@
 //! starting a process. Neither a tool name nor parser success is evidence.
 
 mod contracts;
+mod parsers;
 mod registry;
 mod resolver;
 
@@ -96,6 +97,91 @@ where
         request.request_id = audit_artifact_request_id(&request.request_id);
         self.inner.execute(request, cancellation).await
     }
+}
+
+/// Where a legacy check's machine-readable output actually lands. Most tools
+/// print JSON (or JSON-ish text) on stdout, but a minority disagree: `cargo
+/// deny --format json check` streams its JSONL diagnostics on **stderr**, and
+/// `jscpd` writes its JSON report to a file under its `--output` directory
+/// rather than printing anything parseable at all. `execution_from_receipt`
+/// reads whichever stream/file this says to, instead of always assuming
+/// stdout.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ReportSource {
+    Stdout,
+    Stderr,
+    /// Path (relative to the per-run report temp dir) of the report file.
+    File(&'static str),
+}
+
+fn report_source_for(check: &str) -> ReportSource {
+    match check {
+        "cargo_deny" => ReportSource::Stderr,
+        // Matches the JS-side jscpd invocation this check ports: the json
+        // reporter writes `<outDir>/_jscpd/jscpd-report.json`.
+        "duplication" => ReportSource::File("_jscpd/jscpd-report.json"),
+        _ => ReportSource::Stdout,
+    }
+}
+
+/// A per-run directory the executor owns exclusively, outside the project
+/// tree, for checks whose tool writes its report to disk (`ReportSource::
+/// File`). Removed unconditionally on drop so a run never leaks scratch
+/// files into the host temp directory, whether or not the report was read
+/// successfully.
+struct ReportTempDir {
+    path: PathBuf,
+}
+
+impl ReportTempDir {
+    fn create(check: &str) -> std::io::Result<Self> {
+        let sequence = AUDIT_ARTIFACT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "legion-audit-report-{check}-{now}-{sequence}-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&path)?;
+        Ok(Self { path })
+    }
+}
+
+impl Drop for ReportTempDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
+}
+
+/// A report file read back from a `ReportTempDir`, bounded and digested the
+/// same way stdout/stderr artifacts are.
+struct ReportArtifact {
+    name: &'static str,
+    bytes: Vec<u8>,
+    digest: String,
+}
+
+/// Report files are bounded like stdout/stderr (see `ExternalToolRequest`'s
+/// default limits); an oversized report is treated the same as unreadable
+/// artifact bytes rather than silently truncated into invalid JSON.
+const REPORT_ARTIFACT_LIMIT: usize = 8 * 1024 * 1024;
+
+fn read_report_artifact(dir: &Path, source: ReportSource) -> Option<ReportArtifact> {
+    let ReportSource::File(name) = source else {
+        return None;
+    };
+    let bytes = std::fs::read(dir.join(name)).ok()?;
+    if bytes.len() > REPORT_ARTIFACT_LIMIT {
+        return None;
+    }
+    let digest = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
+    Some(ReportArtifact {
+        name,
+        bytes,
+        digest,
+    })
 }
 
 static AUDIT_ARTIFACT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -413,7 +499,24 @@ impl NativeLegacyCheckExecutor {
                 )
                 .map_err(|error| AuditError::Provider(error.to_string()));
         };
-        let (executable, args) = command_parts(contract.command);
+        let (executable, mut args) = command_parts(contract.command);
+        let report_source = report_source_for(contract.check);
+        // A file-backed report is never written into the project tree: the
+        // executor owns a scratch dir for the run's lifetime and the tool is
+        // pointed at it explicitly.
+        let report_temp_dir = match report_source {
+            ReportSource::File(_) => Some(ReportTempDir::create(contract.check).map_err(|error| {
+                AuditError::Provider(format!(
+                    "failed to create report temp dir for {}: {error}",
+                    contract.check
+                ))
+            })?),
+            ReportSource::Stdout | ReportSource::Stderr => None,
+        };
+        if let Some(dir) = &report_temp_dir {
+            args.push("--output".into());
+            args.push(dir.path.to_string_lossy().into_owned());
+        }
         let request_id = format!(
             "audit:{}:{}:{}",
             provider.id,
@@ -421,6 +524,37 @@ impl NativeLegacyCheckExecutor {
             inventory.digest
         );
         let (environment, environment_allowlist) = audit_environment();
+        let needs_sandbox = sandbox_required_check(contract.check);
+        let (executable, args, sandbox_receipt) = if needs_sandbox {
+            let mode = sandbox_mode_for_check(contract.check);
+            let profile_dir = self.root.join(".legion-cache").join("audit-sandbox");
+            match legion_effects::authenticate_sandbox(
+                executable,
+                &args,
+                &self.root.to_string_lossy(),
+                mode,
+                &profile_dir,
+            ) {
+                Ok(auth) => (
+                    auth.wrapped_executable,
+                    auth.wrapped_args,
+                    Some(legion_effects::SandboxReceipt {
+                        id: auth.id,
+                        network: auth.network,
+                        filesystem_scope: auth.filesystem_scope,
+                    }),
+                ),
+                Err(_gap) => {
+                    // Typed degradation: no authenticator is available on
+                    // this host/platform. Leave sandbox unset so the
+                    // effects executor keeps refusing rather than run the
+                    // check unsandboxed.
+                    (executable.to_string(), args, None)
+                }
+            }
+        } else {
+            (executable.to_string(), args, None)
+        };
         let request = ExternalToolRequest {
             request_id,
             provider_id: provider.id.clone(),
@@ -432,7 +566,7 @@ impl NativeLegacyCheckExecutor {
                 .unwrap_or("audit")
                 .into(),
             task_id: Some(contract.check.into()),
-            executable: executable.into(),
+            executable,
             args,
             cwd: self.root.to_string_lossy().into_owned(),
             shell: false,
@@ -440,11 +574,15 @@ impl NativeLegacyCheckExecutor {
             accepted_exit_codes: accepted_exit_codes(contract.check),
             environment,
             environment_allowlist,
-            // Native Audit has no authenticated sandbox receipt. The effects
-            // executor therefore refuses project/network/runtime checks before
-            // process start; safe read-only git and gitleaks checks remain
-            // executable under the explicit Audit policy.
-            requires_network_sandbox: sandbox_required_check(contract.check),
+            // Checks in `sandbox_required_check` now carry an authenticated
+            // `sandbox-exec` receipt on macOS (see `legion_effects::sandbox`).
+            // On hosts/platforms without an authenticator, `sandbox_receipt`
+            // stays `None` and the effects executor refuses the check as
+            // typed degradation. Safe read-only git and gitleaks checks
+            // remain executable under the explicit Audit policy without a
+            // sandbox.
+            requires_network_sandbox: needs_sandbox,
+            sandbox: sandbox_receipt,
             timeout_ms: provider
                 .bounds
                 .get("timeoutMs")
@@ -463,7 +601,21 @@ impl NativeLegacyCheckExecutor {
             ..ExternalToolRequest::default()
         };
         let receipt = tool.execute(request, cancellation).await;
-        let execution = execution_from_receipt(&input, contract.command, &self.root, receipt);
+        let report_artifact = report_temp_dir
+            .as_ref()
+            .and_then(|dir| read_report_artifact(&dir.path, report_source));
+        // Drop (and remove) the scratch dir now that the report has been
+        // read back into memory, rather than leaving it until the process
+        // exits.
+        drop(report_temp_dir);
+        let execution = execution_from_receipt(
+            &input,
+            contract.command,
+            &self.root,
+            receipt,
+            report_source,
+            report_artifact,
+        );
         dispatcher
             .project_result(provider, &input, execution)
             .map_err(|error| AuditError::Provider(error.to_string()))
@@ -515,6 +667,22 @@ fn sandbox_required_check(check: &str) -> bool {
             | "outdated"
             | "cargo_outdated"
     )
+}
+
+/// Network-dependent advisory checks query a registry or vulnerability
+/// database and must keep network access; the sandbox instead denies writes
+/// under the project root so they cannot execute or mutate project code.
+/// Every other sandboxed check executes target-project code, so network is
+/// denied instead.
+fn sandbox_mode_for_check(check: &str) -> legion_effects::SandboxMode {
+    if matches!(
+        check,
+        "deps_cve" | "py_deps_cve" | "cargo_audit" | "cargo_deny" | "outdated" | "cargo_outdated"
+    ) {
+        legion_effects::SandboxMode::AllowNetworkDenyProjectWrite
+    } else {
+        legion_effects::SandboxMode::DenyNetwork
+    }
 }
 
 fn accepted_exit_codes(check: &str) -> BTreeSet<i32> {
@@ -575,6 +743,8 @@ fn execution_from_receipt(
     command: CommandShape,
     root: &Path,
     receipt: legion_provider_sdk::ExecutionReceipt,
+    report_source: ReportSource,
+    report_artifact: Option<ReportArtifact>,
 ) -> LegacyCheckExecution {
     let state = match receipt.state {
         legion_provider_sdk::ExecutionState::Completed => LegacyCheckProcessState::Completed,
@@ -608,13 +778,22 @@ fn execution_from_receipt(
         .as_ref()
         .and_then(|a| readable_artifact(root, a));
     let mut parsed = false;
-    if let Some(bytes) = stdout.as_deref() {
+    let parse_bytes: Option<&[u8]> = match report_source {
+        ReportSource::Stdout => stdout.as_deref(),
+        ReportSource::Stderr => stderr.as_deref(),
+        ReportSource::File(_) => report_artifact.as_ref().map(|report| report.bytes.as_slice()),
+    };
+    if let Some(bytes) = parse_bytes {
         if let Ok(value) = serde_json::from_slice::<Value>(bytes) {
             parsed = parse_external_value(input, &value, &mut output);
         }
         if !parsed {
             parsed = parse_text_output(input, bytes, &mut output);
         }
+    } else if matches!(report_source, ReportSource::File(_)) && receipt.complete {
+        output
+            .coverage_gaps
+            .push("report-artifact-unreadable".into());
     }
     if receipt.complete && parsed && output.coverage.is_none() {
         output.coverage = Some(Coverage {
@@ -641,7 +820,9 @@ fn execution_from_receipt(
         "stdout": receipt.stdout.as_ref().map(|a| json!({"path":a.path,"digest":a.digest,"bytes":a.bytes,"immutable":a.immutable})),
         "stderr": receipt.stderr.as_ref().map(|a| json!({"path":a.path,"digest":a.digest,"bytes":a.bytes,"immutable":a.immutable})),
         "parser": {"attempted":receipt.parser.attempted,"succeeded":receipt.parser.succeeded,"error":receipt.parser.error}, "gaps": receipt.gaps,
-        "requestArgs": args
+        "requestArgs": args,
+        "reportSource": match report_source { ReportSource::Stdout => "stdout", ReportSource::Stderr => "stderr", ReportSource::File(_) => "file" },
+        "report": report_artifact.as_ref().map(|r| json!({"path":r.name,"digest":r.digest,"bytes":r.bytes.len(),"immutable":true})),
     });
     output
         .details
@@ -742,7 +923,7 @@ fn native_operation(input: &LegacyCheckInput, operation: &str) -> LegacyCheckOut
     }
     match input.check.as_str() {
         "apple_platform" => native_apple(&files, &mut output),
-        "decomposition" => native_decomposition(&files, &mut output),
+        "decomposition" => native_decomposition(input, &files, &mut output),
         "negative_space" => native_negative_space(&files, &mut output),
         "tool_coverage" => native_tool_coverage(input, &files, &mut output),
         "react_hooks" => native_react_hooks(&files, &mut output),
@@ -1066,20 +1247,255 @@ fn native_apple(files: &[(InventoryEntry, String)], output: &mut LegacyCheckOutp
     }
 }
 
-fn native_decomposition(files: &[(InventoryEntry, String)], output: &mut LegacyCheckOutput) {
-    for (entry, text) in files {
-        let lines = text.lines().count();
-        if lines > 800 {
-            push_finding(
-                output,
-                "architecture.file-too-large",
-                "warning",
-                &entry.path,
-                1,
-                "source file exceeds the native decomposition threshold",
-            );
+/// Threshold resolution mirrors `decompositionReviewLoc()` in
+/// `tools/audit/collect-facts.mjs`: `CORTEX_DECOMPOSITION_REVIEW_LOC` env var
+/// first, then `.agent/config.json` `hygiene.decompositionReviewLoc`, else the
+/// workspace default of 400. An invalid configured value is surfaced, never
+/// silently dropped.
+fn decomposition_review_loc(root: &std::path::Path) -> (u64, &'static str, Vec<String>) {
+    let mut ignored = Vec::new();
+    let valid = |n: i64| n >= 100;
+    if let Ok(raw) = std::env::var("CORTEX_DECOMPOSITION_REVIEW_LOC") {
+        if !raw.is_empty() {
+            match raw.parse::<i64>() {
+                Ok(n) if valid(n) => return (n as u64, "blueprint-config", ignored),
+                _ => ignored.push(format!(
+                    "CORTEX_DECOMPOSITION_REVIEW_LOC={raw}: must be an integer >= 100"
+                )),
+            }
         }
     }
+    if let Ok(text) = std::fs::read_to_string(root.join(".agent").join("config.json")) {
+        if let Ok(config) = serde_json::from_str::<Value>(&text) {
+            if let Some(configured) = config
+                .get("hygiene")
+                .and_then(|h| h.get("decompositionReviewLoc"))
+            {
+                if let Some(n) = configured.as_i64() {
+                    if valid(n) {
+                        return (n as u64, ".agent/config.json", ignored);
+                    }
+                }
+                ignored.push(format!(
+                    ".agent/config.json hygiene.decompositionReviewLoc={configured}: must be an integer >= 100"
+                ));
+            }
+        }
+    }
+    (400, "workspace-default", ignored)
+}
+
+/// A tracked code file's role, matching `classifyFile()` in collect-facts.mjs.
+/// Conservative: only clearly-test and clearly-config classify as
+/// non-runtime; anything ambiguous stays `runtime`.
+fn classify_decomposition_file(path: &str) -> &'static str {
+    let lower = format!("/{}", path.to_ascii_lowercase());
+    let base = lower.rsplit('/').next().unwrap_or("");
+    let test_dir = ["test", "tests", "spec", "specs", "__tests__", "__mocks__", "e2e", "fixture", "fixtures", "__fixtures__", "cypress", "playwright", ".storybook"];
+    if test_dir
+        .iter()
+        .any(|seg| lower.contains(&format!("/{seg}/")))
+        || [
+            ".test.", ".spec.", ".stories.", ".bench.", ".e2e.", ".cy.",
+        ]
+        .iter()
+        .any(|suffix| base.contains(suffix))
+        || base.ends_with("_test.rs")
+        || base.ends_with("_test.py")
+        || base.ends_with("_test.go")
+        || base.starts_with("test_") && base.ends_with(".py")
+        || base == "conftest.py"
+    {
+        return "test";
+    }
+    if lower.contains("/.github/")
+        || base.ends_with(".config.js")
+        || base.ends_with(".config.ts")
+        || base.ends_with(".config.mjs")
+        || base.ends_with(".config.cjs")
+        || base.ends_with(".setup.js")
+        || base.ends_with(".teardown.js")
+        || base == "dockerfile"
+        || base == "makefile"
+    {
+        return "tooling";
+    }
+    "runtime"
+}
+
+const DECOMPOSITION_CODE_EXTENSIONS: &[&str] = &[
+    "ts", "tsx", "js", "jsx", "mjs", "cjs", "py", "go", "rs", "java", "rb", "php", "c", "cc",
+    "cpp", "h", "hpp", "cs", "swift", "kt", "scala", "sh", "sql",
+];
+
+fn is_decomposition_code_file(path: &str) -> bool {
+    match path.rsplit('.').next() {
+        Some(ext) => DECOMPOSITION_CODE_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()),
+        None => false,
+    }
+}
+
+fn is_generated_or_vendored(path: &str) -> bool {
+    let p = path.replace('\\', "/");
+    p.starts_with("vendor/")
+        || p.starts_with("qwik/")
+        || p.starts_with("dist/")
+        || p.starts_with("src-tauri/gen/")
+        || p.starts_with("src/generated/")
+        || p.contains("/src/generated/")
+        || p.contains("/drizzle/")
+}
+
+/// Native mirror of the `decomposition` check in collect-facts.mjs: size is a
+/// deterministic REVIEW TRIGGER over the configured threshold (workspace
+/// default 400 LOC), never proof that decomposition is needed, so review
+/// candidates are emitted as adjudication-required candidates rather than
+/// findings. Runtime/test/tooling classification and mechanical-split
+/// detection (parts stitched under a `*_parts/`/`partNN` naming convention)
+/// mirror the JS implementation's grouping logic.
+fn native_decomposition(
+    input: &LegacyCheckInput,
+    files: &[(InventoryEntry, String)],
+    output: &mut LegacyCheckOutput,
+) {
+    let (threshold, threshold_source, threshold_ignored) = decomposition_review_loc(&input.root);
+
+    let mut loc_by_file: BTreeMap<&str, u64> = BTreeMap::new();
+    let mut oversized: Vec<(&str, u64, &'static str)> = Vec::new();
+    for (entry, text) in files {
+        if !is_decomposition_code_file(&entry.path) || is_generated_or_vendored(&entry.path) {
+            continue;
+        }
+        let loc = text.lines().count() as u64;
+        loc_by_file.insert(entry.path.as_str(), loc);
+        if loc > threshold {
+            oversized.push((entry.path.as_str(), loc, classify_decomposition_file(&entry.path)));
+        }
+    }
+    oversized.sort_by(|a, b| b.1.cmp(&a.1));
+
+    // Mechanical-split detection: group `*_parts/`-dir or `partNN.<ext>`-named
+    // files by containing directory and reconstruct the logical-unit LOC.
+    let mut groups: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for (entry, _text) in files {
+        if !is_decomposition_code_file(&entry.path) || is_generated_or_vendored(&entry.path) {
+            continue;
+        }
+        let segs: Vec<&str> = entry.path.split(['\\', '/']).collect();
+        if segs.len() < 2 {
+            continue;
+        }
+        let base = segs[segs.len() - 1];
+        let parent = segs[segs.len() - 2];
+        let parent_lower = parent.to_ascii_lowercase();
+        let is_parts_dir = parent_lower == "parts" || parent_lower.ends_with("_parts");
+        let is_part_file = {
+            let name = base.to_ascii_lowercase();
+            name.starts_with("part")
+                && name
+                    .trim_start_matches("part")
+                    .trim_start_matches(['.', '_', '-'])
+                    .chars()
+                    .next()
+                    .is_some_and(|c| c.is_ascii_digit())
+        };
+        if !is_parts_dir && !is_part_file {
+            continue;
+        }
+        let dir = segs[..segs.len() - 1].join("/");
+        groups.entry(dir).or_default().push(entry.path.as_str());
+    }
+    let mut mechanical_splits: Vec<(String, usize, u64, &'static str)> = Vec::new();
+    for (dir, gfiles) in &groups {
+        if gfiles.len() < 2 {
+            continue;
+        }
+        let logical_loc: u64 = gfiles
+            .iter()
+            .map(|f| loc_by_file.get(f).copied().unwrap_or(0))
+            .sum();
+        if logical_loc <= threshold {
+            continue;
+        }
+        let classes: Vec<&'static str> = gfiles
+            .iter()
+            .map(|f| classify_decomposition_file(f))
+            .collect();
+        let class = if classes.contains(&"runtime") {
+            "runtime"
+        } else if classes.contains(&"test") {
+            "test"
+        } else {
+            "tooling"
+        };
+        mechanical_splits.push((dir.clone(), gfiles.len(), logical_loc, class));
+    }
+    mechanical_splits.sort_by(|a, b| b.2.cmp(&a.2));
+
+    let runtime_count = oversized.iter().filter(|(_, _, c)| *c == "runtime").count()
+        + mechanical_splits
+            .iter()
+            .filter(|(_, _, _, c)| *c == "runtime")
+            .count();
+    let test_count = oversized.iter().filter(|(_, _, c)| *c == "test").count()
+        + mechanical_splits
+            .iter()
+            .filter(|(_, _, _, c)| *c == "test")
+            .count();
+    let tooling_count = oversized.iter().filter(|(_, _, c)| *c == "tooling").count()
+        + mechanical_splits
+            .iter()
+            .filter(|(_, _, _, c)| *c == "tooling")
+            .count();
+
+    for (path, loc, class) in &oversized {
+        push_candidate(
+            output,
+            "architecture.decomposition-review-trigger",
+            if *class == "runtime" { "medium" } else { "low" },
+            path,
+            1,
+            &format!(
+                "{loc} LOC exceeds the {threshold} LOC review trigger ({class}); inspect responsibilities, state, callers, dependencies, and tests before treating this as decomposition debt."
+            ),
+        );
+    }
+    for (dir, parts, logical_loc, class) in &mechanical_splits {
+        push_candidate(
+            output,
+            "architecture.decomposition-mechanical-split",
+            if *class == "runtime" { "medium" } else { "low" },
+            dir,
+            1,
+            &format!(
+                "{parts} part files under {dir} reconstruct to {logical_loc} logical LOC ({class}), above the {threshold} LOC review trigger — possible mechanical split evading per-file review."
+            ),
+        );
+    }
+
+    output.details.insert(
+        "threshold".into(),
+        Value::from(threshold),
+    );
+    output
+        .details
+        .insert("thresholdKind".into(), Value::String("review-trigger".into()));
+    output
+        .details
+        .insert("thresholdSource".into(), Value::String(threshold_source.into()));
+    if !threshold_ignored.is_empty() {
+        output.details.insert(
+            "thresholdIgnored".into(),
+            Value::Array(threshold_ignored.into_iter().map(Value::String).collect()),
+        );
+    }
+    output.details.insert(
+        "byClass".into(),
+        json!({"runtime": runtime_count, "test": test_count, "tooling": tooling_count}),
+    );
+    output
+        .details
+        .insert("runtimeReviewCandidates".into(), Value::from(runtime_count));
 }
 
 fn native_negative_space(files: &[(InventoryEntry, String)], output: &mut LegacyCheckOutput) {
@@ -1304,11 +1720,63 @@ fn native_contract_mirror(files: &[(InventoryEntry, String)], output: &mut Legac
     }
 }
 
+/// Fold a per-tool `parsers::ParseOutcome` into `LegacyCheckOutput`, using
+/// the same finding/evidence shape as `push_finding` elsewhere in this file.
+/// Malformed output is coverage-gapped rather than silently treated as a
+/// clean zero-finding scan — same rule the frozen `secrets` handling already
+/// applies below.
+fn apply_parse_outcome(
+    input: &LegacyCheckInput,
+    outcome: parsers::ParseOutcome,
+    output: &mut LegacyCheckOutput,
+) -> bool {
+    output.details.insert(
+        "findingsCount".into(),
+        outcome
+            .findings_count
+            .map(|count| json!(count))
+            .unwrap_or(Value::Null),
+    );
+    for (key, value) in outcome.meta {
+        output.details.insert(key.into(), value);
+    }
+    if outcome.malformed {
+        output
+            .coverage_gaps
+            .push(format!("legacy-tool-output-unparseable:{}", input.check));
+        output.complete = false;
+        return true;
+    }
+    if let Some(count) = outcome.findings_count {
+        if count > 0 {
+            let path = input
+                .denominator
+                .entries
+                .first()
+                .map(|entry| entry.path.as_str())
+                .unwrap_or("provider-artifacts");
+            push_finding(
+                output,
+                outcome.rule,
+                outcome.severity,
+                path,
+                1,
+                &format!("{} reported {} finding(s)", input.check, count),
+            );
+        }
+    }
+    output.complete = true;
+    true
+}
+
 fn parse_external_value(
     input: &LegacyCheckInput,
     value: &Value,
     output: &mut LegacyCheckOutput,
 ) -> bool {
+    if let Some(outcome) = parsers::dispatch_json(input.check.as_str(), value) {
+        return apply_parse_outcome(input, outcome, output);
+    }
     if input.check == "secrets" && value.is_array() {
         let items = value.as_array().expect("checked above");
         let mut redacted = Vec::with_capacity(items.len());
@@ -1389,6 +1857,9 @@ fn parse_text_output(
     output: &mut LegacyCheckOutput,
 ) -> bool {
     let text = String::from_utf8_lossy(bytes);
+    if let Some(outcome) = parsers::dispatch_text(input.check.as_str(), text.as_ref()) {
+        return apply_parse_outcome(input, outcome, output);
+    }
     let mut parsed = false;
     for line in text.lines().filter(|line| !line.trim().is_empty()) {
         parsed = true;

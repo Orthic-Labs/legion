@@ -1,0 +1,7 @@
+{
+  "domain": "medical",
+  "subject": {
+    "issue": "recurrent migraine",
+    "patient": {"kind": "named"}
+  }
+}

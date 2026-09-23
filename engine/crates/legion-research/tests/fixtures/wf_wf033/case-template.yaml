@@ -1,0 +1,98 @@
+# INDIA CONSUMER COMMISSION — MATTER SPEC
+# Copy this file into the private matter folder. Never fill personal data in the
+# shared Research Core directory. generate_pack.py owns structure and cross-references.
+
+output:
+  dir: "./output"
+  case_slug: "Matter"
+  start_number: 1
+
+filing:
+  year: 2026
+  signing_month: ""
+
+commission:
+  tier: "district"       # district | state | national
+  name: "DISTRICT CONSUMER DISPUTES REDRESSAL COMMISSION"
+  place: "<PLACE>"
+
+complainant:
+  name: "<FULL NAME>"
+  age: 0
+  father_name: "<PARENT NAME>"
+  faith: "<OPTIONAL>"
+  address: "<FULL ADDRESS>"
+  email: "<EMAIL>"
+  mobile: "<MOBILE>"
+  city: "<CITY>"
+
+opposite_parties:
+  - name: "<COMPANY OR PERSON>"
+    operating_as: ""
+    cin: ""
+    address: "<REGISTERED OR SERVICE ADDRESS>"
+    email: ""
+    phone: ""
+    is_individual: false
+
+consumer_status:
+  basis: "personal_use"  # personal_use | personal_invoice | livelihood_self_employment
+  narrative: >-
+    <Explain why the complainant is a consumer under Section 2(7).>
+
+money:
+  consideration_paid: 0
+  consideration_words: "Rupees Zero Only"
+  total_claim: 0
+  total_claim_words: "Rupees Zero Only"
+  compensation: 0
+
+nature_of_complaint: >-
+  <Deficiency in service / defect / unfair trade practice.>
+brief_facts: >-
+  <One-paragraph proforma summary.>
+synopsis: >-
+  <Dispute, amount, failure, notices, and relief.>
+
+dates_and_events:
+  - date: "<DD Mon YYYY>"
+    event: "<Event tied to evidence>"
+
+complaint_paragraphs:
+  - "That the Complainant is a consumer within the meaning of Section 2(7) of the Consumer Protection Act, 2019."
+  - "That Opposite Party No. 1 is <description>."
+  - "That on <date>, <material fact and annexure>."
+
+cause_of_action: >-
+  That the cause of action arose on <date> when <event>.
+limitation: >-
+  That the Complaint is within Section 69's limitation period because <calculation>.
+
+jurisdiction_paragraphs:
+  - "That this Commission has pecuniary jurisdiction because <consideration/notification analysis>."
+  - "That this Commission has territorial jurisdiction because <Section 34(2) facts>."
+
+grounds_intro: "That the conduct of the Opposite Parties constitutes:"
+grounds:
+  - "Deficiency in service under Section 2(11), because <facts>."
+  - "Unfair trade practice under Section 2(47), because <facts>."
+
+prayer:
+  - "Direct refund of ₹ <amount>/-;"
+  - "Award compensation of ₹ <amount>/-;"
+  - "Award interest, costs, and such further relief as the Commission deems fit."
+
+annexures:
+  - id: "A-1"
+    description: "<Document description and date>"
+
+affidavit_annexure_note: ""
+
+nch:
+  docket: ""
+  date: ""
+pre_litigation_notice:
+  date: ""
+  cure_expiry: ""
+
+party_in_person: true
