@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 /// `LowerHex`, so format with the `hex` crate instead.
 
 /// Matches the JS `CONTROL_PATTERN`:
-/// `/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F‪-‮⁦-⁩]/g`
+/// `/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u202a-\u202e\u2066-\u2069]/g`
 /// (the bidi-control range is written as escapes here, not as literal
 /// characters, to avoid embedding invisible direction-control codepoints in
 /// this doc comment)
