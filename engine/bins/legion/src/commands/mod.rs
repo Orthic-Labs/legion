@@ -34,6 +34,7 @@ pub mod state;
 pub mod topology;
 pub mod languages;
 pub mod verify;
+use legion_audit::InventorySource as _;
 use serde_json::Value;
 use std::{path::{Path, PathBuf}, sync::Arc};
 pub type CommandResult = Result<Value, CommandError>;

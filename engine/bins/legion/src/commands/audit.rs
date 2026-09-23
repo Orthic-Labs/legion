@@ -1,3 +1,4 @@
+use legion_audit::InventorySource as _;
 use super::{CommandError, CommandResult};
 use clap::Args;
 use serde_json::{json, Value};
