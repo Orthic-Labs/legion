@@ -155,8 +155,14 @@ pub fn document_text(raw: &[u8], content_type: &str) -> (String, String) {
 }
 
 fn extract_visible_text(html: &str) -> (String, String) {
-    let skip_re = Regex::new(r"(?is)<(script|style|noscript|svg)\b[^>]*>.*?</\1>").expect("static regex");
-    let without_skipped = skip_re.replace_all(html, " ");
+    // The `regex` crate does not support backreferences, so the single
+    // Python pattern `<(script|style|noscript|svg)\b[^>]*>.*?</\1>` is
+    // expanded into one non-backreferenced alternative per tag name.
+    let mut without_skipped = html.to_string();
+    for tag in ["script", "style", "noscript", "svg"] {
+        let skip_re = Regex::new(&format!(r"(?is)<{tag}\b[^>]*>.*?</{tag}>")).expect("static regex");
+        without_skipped = skip_re.replace_all(&without_skipped, " ").into_owned();
+    }
     let title_re = Regex::new(r"(?is)<title[^>]*>(.*?)</title>").expect("static regex");
     let title = title_re
         .captures(&without_skipped)

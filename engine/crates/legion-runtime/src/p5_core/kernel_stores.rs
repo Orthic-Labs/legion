@@ -167,6 +167,11 @@ impl EventStore {
                 target.insert(k.clone(), v.clone());
             }
         }
+        let sequence = (self.journal.records.len() + 1) as u64;
+        record
+            .as_object_mut()
+            .expect("record is an object")
+            .insert("sequence".to_string(), json::json!(sequence));
         let digest = event_digest(&record);
         record
             .as_object_mut()
@@ -396,9 +401,16 @@ mod tests {
             "schemaVersion": 1,
             "kind": "legion-artifact",
             "artifactId": "art_01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            "artifactKind": "fixture",
             "digest": digest,
             "bytes": content.len(),
             "immutable": true,
+            "producerAuthority": "legion",
+            "sourceRevision": "abcdef0",
+            "sensitivity": "internal",
+            "retention": { "policy": "standard" },
+            "redaction": { "applied": false, "metadata": [] },
+            "createdAt": "2026-01-01T00:00:00Z",
         });
         {
             let mut store = ArtifactStore::open(&dir).unwrap();

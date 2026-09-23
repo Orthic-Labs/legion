@@ -1303,9 +1303,13 @@ mod tests {
     #[test]
     fn staged_new_dependencies_reads_added_package_json_and_cargo_toml_entries() {
         let root = fixture();
+        // Pretty-printed, one field per line, like a real package.json diff —
+        // `extract_added_dependency` (mirroring JS `stagedNewDependencies`)
+        // only matches a `"name": "value"` pair on its own `+` line, not one
+        // collapsed onto a single line.
         fs::write(
             root.join("pkg-a/package.json"),
-            "{\"name\":\"pkg-a\",\"dependencies\":{\"left-pad\":\"1.0.0\"}}\n",
+            "{\n  \"name\": \"pkg-a\",\n  \"dependencies\": {\n    \"left-pad\": \"1.0.0\"\n  }\n}\n",
         )
         .unwrap();
         git_ok(&root, &["add", "pkg-a/package.json"]);

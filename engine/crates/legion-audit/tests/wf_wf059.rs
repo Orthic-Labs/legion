@@ -17,7 +17,7 @@
 //! transcribing any single upstream `*.test.mjs` file line-for-line, since none of
 //! these five packs had a dedicated JS test file under `tests/` at port time (only
 //! `src/providers/security/packs/*.mjs` themselves) — confirmed by `git -C
-//! /Volumes/D/claude/legion grep -l` over `tests/` for each pack's id and rule ids
+//! <repo> grep -l` over `tests/` for each pack's id and rule ids
 //! coming up empty.
 //!
 //! Requires the integrator to wire `pub mod wf_port;` (with `pub mod wf059;` inside

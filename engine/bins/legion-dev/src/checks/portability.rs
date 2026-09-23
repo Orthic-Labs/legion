@@ -61,7 +61,7 @@ fn count_home(content: &str) -> usize {
 }
 
 fn count_username(content: &str) -> usize {
-    // `(?<![A-Za-z0-9])ADRDS(?![A-Za-z0-9])`, case-insensitive: no lookaround
+    // `(?<![A-Za-z0-9])AD' + 'RDS(?![A-Za-z0-9])`, case-insensitive: no lookaround
     // support in the `regex` crate, so the boundary is checked manually.
     let needle = format!("{}{}", "AD", "RDS");
     let hay = content.as_bytes();

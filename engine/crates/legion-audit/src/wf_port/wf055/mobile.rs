@@ -456,9 +456,14 @@ mod tests {
     #[test]
     fn matched_config_file_with_no_projected_text_reports_missing_rendered_configuration() {
         let out = extract_mobile(&[("app/src/main/AndroidManifest.xml".into(), None)], &[]);
-        assert_eq!(out.coverage_gaps.len(), 1);
+        // JS: the missing-text branch pushes `missing-rendered-configuration`
+        // and `continue`s without setting `sawMobileSignal`; after the loop
+        // `!sawMobileSignal` still holds, so `mobile-context-not-detected`
+        // is pushed too.
+        assert_eq!(out.coverage_gaps.len(), 2);
         assert_eq!(out.coverage_gaps[0]["kind"], "missing-rendered-configuration");
         assert_eq!(out.coverage_gaps[0]["file"], "app/src/main/AndroidManifest.xml");
+        assert_eq!(out.coverage_gaps[1]["kind"], "mobile-context-not-detected");
     }
 
     #[test]

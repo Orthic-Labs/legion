@@ -503,10 +503,18 @@ mod tests {
 
     #[test]
     fn verify_service_data_blocks_on_empty_cases() {
+        // With no case definitions, `!definitions.length` is true in JS
+        // (`src/providers/runtime/web/data/index.mjs`, the big `if`
+        // building `data-preflight-invalid`), so `preflightInvalid` is
+        // true before the adapter is ever consulted. That branch sets
+        // `adapterStatus = 'blocked'` and `cleanup = { status: 'blocked',
+        // ... }` unconditionally, and the final status-precedence chain
+        // (`statuses.has('blocked') ? 'blocked' : ...`) resolves to
+        // "blocked" before it ever reaches the `'unproven'` fallback.
         let binding = full_binding();
         let mut adapter = DataAdapter::default();
         let out = verify_service_data(&binding, Some("ds"), Some("v1"), &mut adapter, &Value::Array(vec![]));
-        assert_eq!(out["status"], "unproven");
+        assert_eq!(out["status"], "blocked");
         assert!(!out.get("digest").is_some());
         assert!(!out.get("kind").is_some());
         assert_eq!(out["provider"], "runtime.service.data");
@@ -515,14 +523,23 @@ mod tests {
 
     #[test]
     fn verify_service_data_blocks_without_adapter() {
+        // The lone case is the bare string "case-1", which normalizes to
+        // `{ id: 'case-1' }` with no `operationType`. `definitionGaps`
+        // (data/index.mjs) returns `data-case-definition-untyped:case-1`
+        // for that, so `executionGaps` is already non-empty before the
+        // preflight `if`, which forces `data-preflight-invalid` and takes
+        // the `preflightInvalid` branch — short-circuiting before
+        // `adapter.exercise` is ever checked, so `adapter-exercise-missing`
+        // is never pushed. Per the same status-precedence chain as above,
+        // the outcome is "blocked", not "unproven".
         let binding = full_binding();
         let mut adapter = DataAdapter::default();
         let cases = Value::Array(vec![Value::String("case-1".to_string())]);
         let out = verify_service_data(&binding, Some("ds"), Some("v1"), &mut adapter, &cases);
-        // No adapter.exercise -> adapter-exercise-missing gap -> unproven.
-        assert_eq!(out["status"], "unproven");
+        assert_eq!(out["status"], "blocked");
         let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
-        assert!(gaps.contains(&"adapter-exercise-missing"));
+        assert!(gaps.contains(&"data-preflight-invalid"));
+        assert!(gaps.contains(&"data-case-definition-untyped:case-1"));
     }
 
     #[test]

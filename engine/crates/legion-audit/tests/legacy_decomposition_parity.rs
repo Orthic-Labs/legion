@@ -19,6 +19,17 @@ use legion_audit::{
     NativeProviderRegistry, ProviderExecutor,
 };
 use serde_json::{json, Value};
+use std::sync::Mutex;
+
+/// `decomposition_review_loc()` in the native provider reads the
+/// `CORTEX_DECOMPOSITION_REVIEW_LOC` process env var, which is global state.
+/// `cargo test` runs tests in this file concurrently on separate threads of
+/// the same process, so any test that depends on that env var being absent
+/// (or on a particular `.agent/config.json` threshold) races against
+/// `env_var_overrides_workspace_default_threshold`, which sets and clears it.
+/// Serialize every threshold-sensitive test on this lock so the env var
+/// mutation in one test can never leak into another's assertions.
+static THRESHOLD_ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn provider(id: &str, selector: Value) -> AuditProvider {
     let contract = spec(id).expect("frozen provider");
@@ -84,6 +95,7 @@ fn lines_of(count: usize) -> String {
 
 #[test]
 fn default_threshold_is_400_loc_not_800() {
+    let _guard = THRESHOLD_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = root();
     // 450 LOC: above the JS workspace default (400) but below the old
     // hardcoded native threshold (800) — must now trigger a review candidate.
@@ -124,6 +136,7 @@ fn file_below_threshold_is_not_flagged() {
 
 #[test]
 fn env_var_overrides_workspace_default_threshold() {
+    let _guard = THRESHOLD_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = root();
     fs::write(root.join("mid.ts"), lines_of(500)).unwrap();
     let inv = inventory(&["mid.ts"]);
@@ -150,6 +163,7 @@ fn env_var_overrides_workspace_default_threshold() {
 
 #[test]
 fn config_file_threshold_is_read_when_env_is_absent() {
+    let _guard = THRESHOLD_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = root();
     fs::write(root.join("mid.ts"), lines_of(500)).unwrap();
     fs::create_dir_all(root.join(".agent")).unwrap();

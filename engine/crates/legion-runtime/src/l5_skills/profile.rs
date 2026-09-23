@@ -30,16 +30,24 @@ fn is_document(path: &str) -> bool {
 /// Join a POSIX-style relative reference against a document's own directory and normalize `.`/`..`.
 fn join_relative(dir: &str, target: &str) -> String {
     let mut segments: Vec<&str> = Vec::new();
+    let mut leading_escapes = 0usize;
     for part in dir.split('/').chain(target.split('/')) {
         match part {
             "" | "." => continue,
             ".." => {
-                segments.pop();
+                if segments.pop().is_none() {
+                    leading_escapes += 1;
+                }
             }
             other => segments.push(other),
         }
     }
-    segments.join("/")
+    let mut parts: Vec<&str> = Vec::with_capacity(leading_escapes + segments.len());
+    for _ in 0..leading_escapes {
+        parts.push("..");
+    }
+    parts.extend(segments);
+    parts.join("/")
 }
 
 fn dirname(path: &str) -> &str {

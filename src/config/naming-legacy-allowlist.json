@@ -30,11 +30,11 @@
         "sorcerer"
       ],
       "occurrences": {
-        "nemesis": 9,
-        "forge": 69,
-        "seer": 27,
-        "sentinel": 14,
-        "sorcerer": 11
+        "nemesis": 11,
+        "forge": 81,
+        "seer": 29,
+        "sentinel": 18,
+        "sorcerer": 13
       },
       "class": "R2",
       "reason": "legacy-token classification source"
@@ -530,6 +530,91 @@
       },
       "class": "R2",
       "reason": "consumer-grounded re-triage names real src/packages/arcane/compatibility/forge/* paths awaiting disposition"
+    },
+    {
+      "path": "engine/crates/legion-audit/src/wf_port/wf055/abuse_resilience.rs",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 2
+      },
+      "class": "R0",
+      "reason": "ordinary security verb (Rust port of abuse-resilience.mjs)"
+    },
+    {
+      "path": "engine/crates/legion-audit/src/wf_port/wf059/crypto_identity_protocols.rs",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 1
+      },
+      "class": "R0",
+      "reason": "ordinary security verb (Rust port of crypto-identity-protocols.mjs)"
+    },
+    {
+      "path": "engine/crates/legion-audit/src/wf_port/wf061/mod.rs",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 4
+      },
+      "class": "R0",
+      "reason": "ordinary security verb (Rust port of mobile/output-handling packs)"
+    },
+    {
+      "path": "engine/crates/legion-audit/src/wf_port/wf066/security_pipeline.rs",
+      "tokens": [
+        "sentinel"
+      ],
+      "occurrences": {
+        "sentinel": 1
+      },
+      "class": "R0",
+      "reason": "Rust port of security-pipeline.mjs"
+    },
+    {
+      "path": "engine/crates/legion-host/src/p4_port/forges.rs",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 2
+      },
+      "class": "R0",
+      "reason": "generic source-code-hosting term (Rust port of forges.mjs)"
+    },
+    {
+      "path": "engine/crates/legion-policy/src/wf_port/wf068/schemas_contracts/legacy-envelope-v1.schema.json",
+      "tokens": [
+        "forge"
+      ],
+      "occurrences": {
+        "forge": 7
+      },
+      "class": "R0",
+      "reason": "legacy envelope schema copied from arcane contracts"
+    },
+    {
+      "path": "engine/crates/legion-runtime/tests/p6_inventory_artifacts_naming.rs",
+      "tokens": [
+        "nemesis",
+        "forge",
+        "seer",
+        "sentinel",
+        "sorcerer"
+      ],
+      "occurrences": {
+        "nemesis": 3,
+        "forge": 3,
+        "seer": 16,
+        "sentinel": 3,
+        "sorcerer": 4
+      },
+      "class": "R5",
+      "reason": "naming-migration compatibility fixtures (Rust port of naming contract tests)"
     }
   ]
 }

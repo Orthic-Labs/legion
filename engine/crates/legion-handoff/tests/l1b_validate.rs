@@ -37,10 +37,10 @@ fn template_text() -> String {
     for i in 1..=3 {
         s.push_str(&format!("### Resume Step {i} — do a thing\n"));
         s.push_str("- **Owner:** somebody\n");
-        s.push_str("- **Working directory / system:** /Volumes/D/claude/legion\n");
+        s.push_str("- **Working directory / system:** /workspace/legion\n");
         s.push_str("- **Exact action:**\n\n```\nrun the verify command\n```\n");
         s.push_str("- **Expected result:** exit code zero success\n");
-        s.push_str("- **Evidence path:** /Volumes/D/claude/legion/evidence.log\n");
+        s.push_str("- **Evidence path:** /workspace/legion/evidence.log\n");
         s.push_str("- **Timeout / retry:** 30 seconds, 2 retries\n");
         s.push_str("- **If failure:** stop and report the failure\n");
         s.push_str("- **Depends on:** previous step completion\n");
@@ -102,9 +102,9 @@ fn table_rows_skips_separator_row() {
 
 #[test]
 fn normalized_path_lowercases_only_on_windows() {
-    assert_eq!(normalized_path("/Volumes/D/Claude/legion", false), "/Volumes/D/Claude/legion");
-    assert_eq!(normalized_path("/Volumes/D/Claude/legion", true), "/volumes/d/claude/legion");
-    assert_eq!(normalized_path("C:/Users/adrian/", false), "C:/Users/adrian");
+    assert_eq!(normalized_path("/Workspace/Repo/legion", false), "/Workspace/Repo/legion");
+    assert_eq!(normalized_path("/Workspace/Repo/legion", true), "/workspace/repo/legion");
+    assert_eq!(normalized_path("C:/Users/example/", false), "C:/Users/example");
 }
 
 #[test]

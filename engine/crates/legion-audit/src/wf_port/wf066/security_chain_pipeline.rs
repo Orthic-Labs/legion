@@ -232,6 +232,7 @@ mod tests {
             "hypotheses": [{
                 "id": "path-1",
                 "provider": "security.attack-path-synthesis",
+                "binding": binding(),
                 "reconciliation": { "eligibleForChainAdjudication": eligible },
                 "steps": [{ "candidateId": "cand-1" }],
                 "joins": [],

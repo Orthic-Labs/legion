@@ -260,7 +260,7 @@ mod tests {
         fs::write(dir.join("cov.json"), cov_json).unwrap();
 
         let files = vec![DiffFile { path: "src.js".to_string(), lines: vec![1, 3] }];
-        let summary = summarise_coverage(None, &files, &dir).unwrap();
+        let summary = summarise_coverage(Some(&dir), &files, &dir).unwrap();
         // line 1 covered (count 1), line 3 uncovered (count 0); line 2/4 not wanted.
         assert_eq!(summary.total, 2);
         assert_eq!(summary.covered, 1);

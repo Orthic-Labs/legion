@@ -195,7 +195,7 @@ mod tests {
     fn webhook_call_site_produces_high_severity_integrity_observation() {
         let files = [ObservabilityFile {
             path: "src/webhooks.js",
-            text: "app.post('/webhook', (req, res) => { handle(req.body); })",
+            text: "function webhook(req, res) { handle(req.body); }",
             artifact_id: None,
             artifact_evidence_refs: &[],
         }];

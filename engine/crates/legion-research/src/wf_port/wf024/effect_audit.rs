@@ -296,7 +296,14 @@ mod tests {
     #[test]
     fn ignores_events_of_other_types() {
         let events = vec![json!({"type": "something.else"})];
-        let manifest = json!({"usage": {}, "budget": {}});
+        // effect_audit.py lines 47-58 build `mismatches` from
+        // `usage.get(key) != value`: an absent manifest key compares as
+        // `None != 0`, which counts as a mismatch. The manifest usage must
+        // carry the expected zeros for `ok` to come back true here.
+        let manifest = json!({
+            "usage": {"external_requests": 0, "workers_started": 0, "workers_active": 0},
+            "budget": {}
+        });
         let result = audit(&manifest, &events);
         assert_eq!(result["ok"], json!(true));
     }

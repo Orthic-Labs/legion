@@ -259,10 +259,11 @@ mod tests {
             crossref_fails: false,
         };
         let r = check_doi(&t, "https://doi.org/DOI:10.1/ABC", None);
-        // normalization strips "https://doi.org/" first, then "doi:" is not
-        // a prefix any more (case mismatch), matching the Python's ordered
-        // `.removeprefix` calls exactly.
-        assert_eq!(r["doi"], json!("doi:10.1/abc"));
+        // retraction.py:42 lowercases the whole string before either
+        // `.removeprefix` call: `doi.strip().lower().removeprefix('https://doi.org/').removeprefix('doi:')`.
+        // Lowering happens first, so "doi:" is present regardless of the
+        // input's original casing and both prefixes strip in order.
+        assert_eq!(r["doi"], json!("10.1/abc"));
     }
 
     #[test]

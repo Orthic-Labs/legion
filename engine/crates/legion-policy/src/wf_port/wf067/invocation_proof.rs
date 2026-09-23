@@ -122,9 +122,20 @@ fn binding_key_json(b: &BindingKey<'_>, session_id: &str) -> Json {
         ("runId".into(), Json::str(b.run_id)),
         ("taskId".into(), Json::str(b.task_id)),
         ("contractId".into(), Json::str(b.contract_id)),
-        ("contractVersion".into(), Json::str(b.contract_version)),
+        ("contractVersion".into(), contract_version_json(b.contract_version)),
         ("contractDigest".into(), Json::str(b.contract_digest)),
     ])
+}
+
+/// The schema (`authority-invocation-proof-v1.schema.json`) declares
+/// `contractVersion` as an integer, matching the host event ledger's
+/// `contractVersion` field. `BindingKey` carries it as `&str` for caller
+/// convenience, so parse it back to the schema's integer form here.
+fn contract_version_json(contract_version: &str) -> Json {
+    match contract_version.parse::<i64>() {
+        Ok(n) => Json::I64(n),
+        Err(_) => Json::str(contract_version),
+    }
 }
 
 fn deny(code: ArcCode, message: impl Into<String>) -> Decision {
@@ -245,7 +256,7 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
             ("runId".into(), Json::str(binding.run_id)),
             ("taskId".into(), Json::str(binding.task_id)),
             ("contractId".into(), Json::str(binding.contract_id)),
-            ("contractVersion".into(), Json::str(binding.contract_version)),
+            ("contractVersion".into(), contract_version_json(binding.contract_version)),
             ("contractDigest".into(), Json::str(binding.contract_digest)),
             ("sourceRevision".into(), source_revision),
             ("turnCorrelationDigest".into(), turn_correlation_digest),
@@ -361,13 +372,13 @@ impl<'a, K: KeyRing, L: LedgerStore> AuthorityInvocationProofIssuer<'a, K, L> {
             return deny(ArcCode::ArcBindingMismatch, "authority proof host binding is unavailable");
         };
         let matches = event.get("observedAuthority").and_then(|v| v.as_str()) == Some("oracle")
-            && field_str(&event, "sessionId") == field_str(proof, "sessionId")
-            && field_str(&event, "runId") == field_str(proof, "runId")
-            && field_str(&event, "taskId") == field_str(proof, "taskId")
-            && field_str(&event, "contractId") == field_str(proof, "contractId")
-            && field_str(&event, "contractVersion") == field_str(proof, "contractVersion")
-            && field_str(&event, "contractDigest") == field_str(proof, "contractDigest")
-            && field_str(&event, "sourceRevision") == field_str(proof, "sourceRevision");
+            && event.get("sessionId") == proof.get("sessionId")
+            && event.get("runId") == proof.get("runId")
+            && event.get("taskId") == proof.get("taskId")
+            && event.get("contractId") == proof.get("contractId")
+            && event.get("contractVersion") == proof.get("contractVersion")
+            && event.get("contractDigest") == proof.get("contractDigest")
+            && event.get("sourceRevision") == proof.get("sourceRevision");
         if !matches {
             return deny(ArcCode::ArcBindingMismatch, "authority proof host binding is unavailable");
         }

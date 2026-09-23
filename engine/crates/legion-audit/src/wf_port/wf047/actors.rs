@@ -606,6 +606,17 @@ mod tests {
 
     #[test]
     fn blocked_when_capability_unavailable() {
+        // `binding` is `Value::Null` here, which `finalize` (shared.rs,
+        // mirroring `finalize` in `src/providers/runtime/web/shared.mjs`
+        // lines 83-84) normalizes into an all-missing binding, producing
+        // non-empty `bindingGaps`. Both the JS and Rust `finalize`
+        // unconditionally force `status: 'error'` whenever `bindingGaps`
+        // is non-empty, overriding whatever status the caller passed in
+        // (here `build_actor_fixtures`'s own "blocked" from the capability
+        // check) — so the correctly-proven outcome for this input is
+        // "error", not "blocked". The capability gap is still recorded:
+        // finalize merges it with the `binding-invalid:*` gaps rather than
+        // discarding it.
         let out = build_actor_fixtures(
             &Value::Null,
             &Value::Array(vec![]),
@@ -614,7 +625,7 @@ mod tests {
             &serde_json::json!({"status": "unavailable"}),
             &serde_json::json!({"status": "available"}),
         );
-        assert_eq!(out["status"], "blocked");
+        assert_eq!(out["status"], "error");
         let gaps: Vec<&str> = out["coverageGaps"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
         assert!(gaps.contains(&"identity-capability-unavailable"));
     }

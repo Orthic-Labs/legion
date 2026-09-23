@@ -51,12 +51,21 @@ fn contradictions_and_citecheck_agree_on_a_disputed_pricing_claim() {
     assert_eq!(derived.contradictions[0].kind, "numeric");
     assert!(derived.consensus.is_empty());
 
-    // A draft citing both conflicting numbers is citation-supported per
-    // sentence even though the claims layer flags the contradiction —
-    // citecheck and contradictions are independent, complementary checks.
+    // citecheck and contradictions are independent, complementary checks:
+    // the E1 sentence's wording ("One source says it costs 10 dollars")
+    // shares only "dollars" with its evidence's content words ("list",
+    // "price", "dollars"), so per citecheck.py's `_verdict` (lines 56-74)
+    // the lexical overlap is 1/5 = 0.20, below both the 0.55 "supported"
+    // floor and the 0.25 floor that applies when the sentence has a
+    // number present in the evidence — so E1 is "unsupported". E2's
+    // sentence overlaps 1/3 = 0.33 with its evidence, clearing the
+    // number-present 0.25 floor, so E2 is "supported". citecheck and
+    // contradictions independently flag the same disputed claim.
     let markdown = "One source says it costs 10 dollars. [+E1]\nAnother says 20 dollars. [+E2]\n";
     let check_result = citecheck_check(markdown, &evidence);
-    assert!(check_result.ok, "{check_result:?}");
+    assert!(!check_result.ok, "{check_result:?}");
+    assert_eq!(check_result.unsupported_or_partial_count, 1);
+    assert_eq!(check_result.unsupported[0].evidence_id, "E1");
 }
 
 // ---- active_run + control, against an in-memory mock manifest store ----

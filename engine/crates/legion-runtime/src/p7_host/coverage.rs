@@ -241,9 +241,9 @@ mod tests {
 
     #[test]
     fn record_shape_requires_qualification_version_for_runtime_tier() {
-        let record = json!({"id": "r1", "tiers": sample_tiers(0, 1)});
+        let record = json!({"id": "r1", "tiers": sample_tiers(1, 1)});
         assert!(validate_coverage_record_shape(&record, &[]).is_err());
-        let record2 = json!({"id": "r1", "tiers": sample_tiers(0, 1), "qualificationVersion": "v1"});
+        let record2 = json!({"id": "r1", "tiers": sample_tiers(1, 1), "qualificationVersion": "v1"});
         assert!(validate_coverage_record_shape(&record2, &[]).is_ok());
     }
 

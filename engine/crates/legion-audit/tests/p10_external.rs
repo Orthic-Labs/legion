@@ -40,9 +40,17 @@ fn validate_external_evidence_never_passes_without_real_signature_verification()
         "issuedAt": "2026-01-01T00:00:00Z", "checkedAt": "2026-01-01T00:00:00Z",
         "expiresAt": "2026-01-02T00:00:00Z", "signedContent": "{}", "signature": "AAAA",
     });
+    // `trustedProducers` must name this evidence's producer so the JS-ported
+    // `else if (trusted) { ... }` branch in validate.mjs:26 is the one taken;
+    // an untrusted producer takes the `producer-untrusted` branch instead and
+    // never reaches signature verification at all.
     let out = external::validate_external_evidence(
         &evidence,
-        &json!({"now": "2026-01-01T00:00:00Z", "maxAgeMs": 60000}),
+        &json!({
+            "now": "2026-01-01T00:00:00Z",
+            "maxAgeMs": 60000,
+            "trustedProducers": [{"id": "acme"}],
+        }),
     );
     assert_eq!(out["status"], "unproven");
     assert!(out["payload"].is_null());

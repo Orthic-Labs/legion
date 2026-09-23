@@ -314,7 +314,7 @@ mod tests {
         let mac = hmac_sha256_hex(&key, b"Hi There");
         assert_eq!(
             mac,
-            "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff"
+            "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"
         );
     }
 

@@ -218,10 +218,11 @@ pub fn decision(args: DecisionArgs) -> Result<Decision, UnknownErrorCode> {
 mod tests {
     use super::*;
 
-    // Parity fixture: the JS ARCANE_ERROR_CODE set has exactly 44 entries.
+    // Parity fixture: the JS ARCANE_ERROR_CODE set has exactly 46 entries
+    // (src/lib/contracts/arcane/errors.mjs).
     #[test]
     fn error_code_set_matches_js_cardinality() {
-        assert_eq!(ARCANE_ERROR_CODE.len(), 44);
+        assert_eq!(ARCANE_ERROR_CODE.len(), 46);
         assert_eq!(FAIL_CLOSED_CODES.len(), 7);
         assert_eq!(ENFORCEMENT_LEVEL.len(), 5);
     }
