@@ -47,8 +47,14 @@ fn codex_escalation_reads_stdin_fixture_and_counts_evidence() {
         assert_eq!(path, "prompt.txt");
         Some(prompt_source.clone())
     });
+    // Spec (`evidenceCount` in `codex-escalation.mjs`): the fixture prompt's
+    // "I also attempted a clean reinstall via pip install -e ." contains
+    // both an `attempted` verb match and a separate `pip install` verb
+    // match more than 20 chars apart, and each has a RESULT
+    // ("failed"/`\w+Error\b` via "ModuleNotFoundError") within 120 chars,
+    // so ATTEMPT/RESULT counts 3 attempts here, not 2.
     assert!(outcome.allowed, "expected evidenced escalation to be allowed: {outcome:?}");
-    assert_eq!(outcome.evidence, Some(2));
+    assert_eq!(outcome.evidence, Some(3));
 }
 
 /// Port of `evaluateCodexEscalation`'s inline-quote path with insufficient
@@ -60,9 +66,13 @@ fn codex_escalation_denies_prose_without_evidence() {
         "codex exec \"I believe this should work, please just handle it for me today\"",
         |_| None,
     );
+    // Spec (`codex-escalation.mjs`): the denial reason string is
+    // "BLOCKED [codex-escalation-gate]: ...". "ARC_ESCALATION_RECURSION" is
+    // a distinct error `code` used only by `selectStrongerWorkingModel`'s
+    // recursion guard, unrelated to this evidence-insufficient denial.
     assert!(!outcome.allowed);
     assert_eq!(outcome.evidence, Some(0));
-    assert!(outcome.reason.unwrap().contains("ARC_ESCALATION"));
+    assert!(outcome.reason.unwrap().contains("BLOCKED [codex-escalation-gate]"));
 }
 
 /// Port of `decision-envelope.mjs`'s `createDecisionEnvelope`, exercising a

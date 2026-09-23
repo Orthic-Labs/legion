@@ -26,13 +26,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: cargo check (all targets)
         working-directory: engine
-        run: cargo check --workspace --all-targets --keep-going --message-format short 2>&1 | tee check.log; exit ${PIPESTATUS[0]}
+        run: cargo check --workspace --all-targets --keep-going --message-format short 2>&1 | tee "$RUNNER_TEMP/check.log"; exit ${PIPESTATUS[0]}
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: check-log
           path: |
-            engine/check.log
+            ${{ runner.temp }}/check.log
             engine/Cargo.lock
   rust-test:
     runs-on: macos-15
@@ -40,12 +40,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: cargo test (lib, bins, tests)
         working-directory: engine
-        run: cargo test --workspace --lib --bins --tests --no-fail-fast 2>&1 | tee test.log; exit ${PIPESTATUS[0]}
+        run: cargo test --workspace --lib --bins --tests --no-fail-fast 2>&1 | tee "$RUNNER_TEMP/test.log"; exit ${PIPESTATUS[0]}
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-log
-          path: engine/test.log
+          path: ${{ runner.temp }}/test.log
   rust-check-windows:
     runs-on: windows-2025
     steps:
@@ -53,12 +53,12 @@ jobs:
       - name: cargo check (windows, all targets)
         working-directory: engine
         shell: bash
-        run: cargo check --workspace --all-targets --keep-going --message-format short 2>&1 | tee check-windows.log; exit ${PIPESTATUS[0]}
+        run: cargo check --workspace --all-targets --keep-going --message-format short 2>&1 | tee "$RUNNER_TEMP/check-windows.log"; exit ${PIPESTATUS[0]}
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: check-windows-log
-          path: engine/check-windows.log
+          path: ${{ runner.temp }}/check-windows.log
   rust-test-windows:
     runs-on: windows-2025
     steps:
@@ -66,9 +66,9 @@ jobs:
       - name: cargo test (windows)
         working-directory: engine
         shell: bash
-        run: cargo test --workspace --lib --bins --tests --no-fail-fast 2>&1 | tee test-windows.log; exit ${PIPESTATUS[0]}
+        run: cargo test --workspace --lib --bins --tests --no-fail-fast 2>&1 | tee "$RUNNER_TEMP/test-windows.log"; exit ${PIPESTATUS[0]}
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-windows-log
-          path: engine/test-windows.log
+          path: ${{ runner.temp }}/test-windows.log

@@ -326,7 +326,12 @@ fn toggles_are_mutually_exclusive() {
     assert_eq!(apply_pick_toggle(false, true), (true, false));
     assert_eq!(apply_pick_toggle(true, false), (false, false));
     assert_eq!(apply_insert_toggle(true, false), (false, true));
-    assert_eq!(apply_insert_toggle(false, true), (true, false));
+    // Spec (`applyInsertToggle` in `insert-ui.mjs`): turning insert OFF
+    // (insertActive true -> nextInsert false) leaves pickActive untouched
+    // (it only forces pickActive false when nextInsert is true), so with
+    // pickActive already false the result is (false, false), not (true,
+    // false).
+    assert_eq!(apply_insert_toggle(false, true), (false, false));
 }
 
 #[test]

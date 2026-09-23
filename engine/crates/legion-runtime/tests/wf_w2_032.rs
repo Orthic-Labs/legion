@@ -201,7 +201,9 @@ fn question_inventory_builds_from_fixture_rows() {
     let q = report
         .questions
         .iter()
-        .find(|q| q.question == "How does seo work?")
+        // Spec (`question_inventory.py`): `q.rstrip('?') + '?'` — no
+        // capitalization is applied.
+        .find(|q| q.question == "how does seo work?")
         .unwrap();
     assert_eq!(q.source, "gsc");
     assert_eq!(q.clicks, Some(20.0));

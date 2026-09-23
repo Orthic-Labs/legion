@@ -203,107 +203,126 @@ pub fn render_seed_report(seed: &Seed) -> String {
     let _ = l;
     let _ = c;
     format!(
-        "BRAND SEED · {id}\n\n\
-Seed color (anchor for your primary brand color):\n\
-  {oklch} — {hue}{mood_hint}\n\n\
-This is the brand's anchor — a single beautiful color. Compose the rest of\n\
-the palette around it using YOUR judgment, the brief (PRODUCT.md /\n\
-DESIGN.md / the user's prompt), and the color-strategy guidance already in\n\
-SKILL.md.\n\n\
-How to use:\n\n\
-1. Read the brief. Write one specific phrase describing the mood this\n\
-   product calls for. Be granular. Good: \"1970s travel poster — sun-baked\n\
-   warmth, considered\", \"midnight jazz club — smoky brass, saxophone\n\
-   light\", \"Scandinavian winter morning — quiet light through frost\". Bad:\n\
-   \"modern and clean\", \"warm and inviting\". The first lets you compose; the\n\
-   second is generic and will produce generic palettes.\n\n\
-2. The seed's hue ({h_deg:.0}°) anchors your primary brand color. You\n\
-   choose L and C to match the mood. The same hue can be deep-and-velvet,\n\
-   bright-and-confident, or pale-and-faded — pick the one the mood demands.\n\
-   Primary's hue should stay within ±10° of the seed.{strategy_hint}\n\n\
-3. Now compose the full palette in OKLCH (5 more roles):\n\
-     • bg       — the most important architectural choice.\n\
-                  CORE PRINCIPLE: the mood lives in the BRAND COLORS\n\
-                  (primary + accent) and typography, NOT in the surface.\n\
-                  Stripe is warm — its purple does that, bg is pure\n\
-                  white. Linear is cool — its blue does that, bg is\n\
-                  pure. Notion is warm — its accents do that, bg is\n\
-                  near-pure-white. Putting warmth in BOTH primary AND\n\
-                  bg is the AI cliché.\n\n\
-                  DEFAULT A — PURE white: exactly oklch(1.000 0.000 0).\n\
-                    Not 0.99, not chroma 0.002. Stripe / Notion / Apple\n\
-                    use literal #ffffff. Don't add hidden warmth.\n\
-                    Refs: Stripe, Notion, Linear (light), Apple.com,\n\
-                    Vercel docs, Figma marketing, Loom, Substack.\n\n\
-                  DEFAULT B — PURE black/near-black: L 0.04-0.12,\n\
-                    chroma exactly 0.000. No hue tint. Vercel is\n\
-                    roughly oklch(0.08 0 0). Pick L for mood; C is 0.\n\
-                    Refs: Vercel, A24, Acne, Apple dark, MUBI.\n\n\
-                  ALT 2 — TINTED: chroma 0.015-0.05.\n\
-                    Use ONLY when:\n\
-                    (a) the mood is EXPLICITLY environmental — the surface\n\
-                        IS part of the brand (1920s lacquered interior,\n\
-                        leather library, ceramic studio, hotel lobby), or\n\
-                    (b) the seed itself is desaturated (chroma < 0.10) and\n\
-                        needs a tinted surface to read as a brand.\n\
-                    NOT for \"feels warm\" / \"modern + warm\" / \"moody\". If\n\
-                    your mood says \"warm\" but doesn't name a specific\n\
-                    environment, use PURE white and let primary carry\n\
-                    the warmth.\n\n\
-                  HEURISTIC: if seed chroma > 0.10 AND mood is product-\n\
-                  focused (not environment-focused), it's almost always\n\
-                  PURE white. Target distribution across many palettes:\n\
-                  ~50% pure white, ~25% pure black, ~25% tinted.\n\
-     • surface  — bg pulled slightly toward ink (10-15% mix). Same hue\n\
-                  family as bg. Used for cards, panels, sections.\n\
-     • ink      — body text color. Must reach ≥7:1 contrast vs bg.\n\
-                  Can carry the brand hue at low chroma in light mode\n\
-                  (slight warmth or coolness toward the brand).\n\
-     • accent   — a SECOND brand color, distinct from primary in BOTH\n\
-                  hue AND lightness. Picked to complement the mood (not\n\
-                  default-complementary across the wheel). Used for\n\
-                  badges, status pills, links, accent rules.\n\
-     • muted    — secondary text. Ink pulled 40% toward bg, keeping ink's\n\
-                  hue. Must reach ≥3.5:1 contrast vs bg.\n\n\
-4. Pick a color STRATEGY (the four steps from SKILL.md):\n\
-     • Restrained: tinted neutrals + accent ≤10% — product default\n\
-     • Committed: one saturated color carries 30-60% — identity-driven\n\
-     • Full palette: 3-4 named roles each used deliberately — brand work\n\
-     • Drenched: the surface IS the color — campaign, hero, statement\n\
-   The brief picks the strategy. A startup dashboard ≠ a perfume brand.\n\n\
-Hard rules (already in SKILL.md, recapped because the seed step is where\n\
-they actually bite):\n\n\
-  - OKLCH only — never hex. Never #RRGGBB.\n\
-  - ink-vs-bg WCAG contrast ≥ 7 (body text must be readable)\n\
-  - primary chroma ≤ 0.23 (above this, primary glows perceptually and\n\
-    no text on it is readable — acid-bright is a UI failure)\n\
-  - if primary L > 0.78, primary chroma ≤ 0.18 (the fluorescent zone)\n\
-  - primary-vs-accent contrast ≥ 1.7 (they must be visually distinct,\n\
-    not two variants of the same hue at similar lightness)\n\
-  - accent must carry readable text on a filled badge/pill: EITHER\n\
-    saturated (chroma ≥ 0.10) OR clearly light (L ≥ 0.85) OR clearly\n\
-    dark (L ≤ 0.30). Never a muddy mid-tone (L 0.45-0.72 + chroma < 0.10)\n\
-    — taupe/mushroom/dusty-grey accents read as weak and can't hold text\n\
-    either way. Saturate it or push its lightness to a clear light/dark.\n\
-  - avoid the saturated AI attractor zones: claude-beige (warm-cream bg\n\
-    + dusty brown primary), forest-green-on-cream, AI-purple-on-white,\n\
-    navy-cream-with-orange-accent\n\n\
-TEXT-ON-COLOR FILLS — pick by perceptual contrast, not just WCAG. The\n\
-rule applies to ANY element where text sits on a saturated color fill:\n\
-primary buttons, accent buttons, badges, status pills, tag highlights,\n\
-filled callouts. Don't only think \"primary button\" — apply consistently.\n\n\
-For any saturated mid-luminance color (L between 0.42 and 0.78, chroma ≥\n\
-0.08), use WHITE text (or near-white from your bg), not dark text — even\n\
-if WCAG says dark technically passes. The Helmholtz-Kohlrausch effect\n\
-makes saturated colors appear brighter than their luminance suggests,\n\
-and dark text on a warm-or-cool-saturated fill reads as muddy.\n\n\
-Convention: Stripe orange CTAs, McDonald's red, every fintech orange\n\
-button, Vercel's filled badges, Linear's status pills — all use white\n\
-text on saturated bg fills.\n\n\
-Dark text is correct only on PALE fills (L > 0.85) or PURE-NEUTRAL fills\n\
-(chroma near 0). Everything else: white text.\n\n\
-Return your composed palette in CSS custom properties using OKLCH, then\n\
-build with it. The seed is the start, not the recipe.\n",
+        "BRAND SEED · {id}
+
+Seed color (anchor for your primary brand color):
+  {oklch} — {hue}{mood_hint}
+
+This is the brand's anchor — a single beautiful color. Compose the rest of
+the palette around it using YOUR judgment, the brief (PRODUCT.md /
+DESIGN.md / the user's prompt), and the color-strategy guidance already in
+SKILL.md.
+
+How to use:
+
+1. Read the brief. Write one specific phrase describing the mood this
+   product calls for. Be granular. Good: \"1970s travel poster — sun-baked
+   warmth, considered\", \"midnight jazz club — smoky brass, saxophone
+   light\", \"Scandinavian winter morning — quiet light through frost\". Bad:
+   \"modern and clean\", \"warm and inviting\". The first lets you compose; the
+   second is generic and will produce generic palettes.
+
+2. The seed's hue ({h_deg:.0}°) anchors your primary brand color. You
+   choose L and C to match the mood. The same hue can be deep-and-velvet,
+   bright-and-confident, or pale-and-faded — pick the one the mood demands.
+   Primary's hue should stay within ±10° of the seed.{strategy_hint}
+
+3. Now compose the full palette in OKLCH (5 more roles):
+     • bg       — the most important architectural choice.
+                  CORE PRINCIPLE: the mood lives in the BRAND COLORS
+                  (primary + accent) and typography, NOT in the surface.
+                  Stripe is warm — its purple does that, bg is pure
+                  white. Linear is cool — its blue does that, bg is
+                  pure. Notion is warm — its accents do that, bg is
+                  near-pure-white. Putting warmth in BOTH primary AND
+                  bg is the AI cliché.
+
+                  DEFAULT A — PURE white: exactly oklch(1.000 0.000 0).
+                    Not 0.99, not chroma 0.002. Stripe / Notion / Apple
+                    use literal #ffffff. Don't add hidden warmth.
+                    Refs: Stripe, Notion, Linear (light), Apple.com,
+                    Vercel docs, Figma marketing, Loom, Substack.
+
+                  DEFAULT B — PURE black/near-black: L 0.04-0.12,
+                    chroma exactly 0.000. No hue tint. Vercel is
+                    roughly oklch(0.08 0 0). Pick L for mood; C is 0.
+                    Refs: Vercel, A24, Acne, Apple dark, MUBI.
+
+                  ALT 2 — TINTED: chroma 0.015-0.05.
+                    Use ONLY when:
+                    (a) the mood is EXPLICITLY environmental — the surface
+                        IS part of the brand (1920s lacquered interior,
+                        leather library, ceramic studio, hotel lobby), or
+                    (b) the seed itself is desaturated (chroma < 0.10) and
+                        needs a tinted surface to read as a brand.
+                    NOT for \"feels warm\" / \"modern + warm\" / \"moody\". If
+                    your mood says \"warm\" but doesn't name a specific
+                    environment, use PURE white and let primary carry
+                    the warmth.
+
+                  HEURISTIC: if seed chroma > 0.10 AND mood is product-
+                  focused (not environment-focused), it's almost always
+                  PURE white. Target distribution across many palettes:
+                  ~50% pure white, ~25% pure black, ~25% tinted.
+     • surface  — bg pulled slightly toward ink (10-15% mix). Same hue
+                  family as bg. Used for cards, panels, sections.
+     • ink      — body text color. Must reach ≥7:1 contrast vs bg.
+                  Can carry the brand hue at low chroma in light mode
+                  (slight warmth or coolness toward the brand).
+     • accent   — a SECOND brand color, distinct from primary in BOTH
+                  hue AND lightness. Picked to complement the mood (not
+                  default-complementary across the wheel). Used for
+                  badges, status pills, links, accent rules.
+     • muted    — secondary text. Ink pulled 40% toward bg, keeping ink's
+                  hue. Must reach ≥3.5:1 contrast vs bg.
+
+4. Pick a color STRATEGY (the four steps from SKILL.md):
+     • Restrained: tinted neutrals + accent ≤10% — product default
+     • Committed: one saturated color carries 30-60% — identity-driven
+     • Full palette: 3-4 named roles each used deliberately — brand work
+     • Drenched: the surface IS the color — campaign, hero, statement
+   The brief picks the strategy. A startup dashboard ≠ a perfume brand.
+
+Hard rules (already in SKILL.md, recapped because the seed step is where
+they actually bite):
+
+  - OKLCH only — never hex. Never #RRGGBB.
+  - ink-vs-bg WCAG contrast ≥ 7 (body text must be readable)
+  - primary chroma ≤ 0.23 (above this, primary glows perceptually and
+    no text on it is readable — acid-bright is a UI failure)
+  - if primary L > 0.78, primary chroma ≤ 0.18 (the fluorescent zone)
+  - primary-vs-accent contrast ≥ 1.7 (they must be visually distinct,
+    not two variants of the same hue at similar lightness)
+  - accent must carry readable text on a filled badge/pill: EITHER
+    saturated (chroma ≥ 0.10) OR clearly light (L ≥ 0.85) OR clearly
+    dark (L ≤ 0.30). Never a muddy mid-tone (L 0.45-0.72 + chroma < 0.10)
+    — taupe/mushroom/dusty-grey accents read as weak and can't hold text
+    either way. Saturate it or push its lightness to a clear light/dark.
+  - avoid the saturated AI attractor zones: claude-beige (warm-cream bg
+    + dusty brown primary), forest-green-on-cream, AI-purple-on-white,
+    navy-cream-with-orange-accent
+
+TEXT-ON-COLOR FILLS — pick by perceptual contrast, not just WCAG. The
+rule applies to ANY element where text sits on a saturated color fill:
+primary buttons, accent buttons, badges, status pills, tag highlights,
+filled callouts. Don't only think \"primary button\" — apply consistently.
+
+For any saturated mid-luminance color (L between 0.42 and 0.78, chroma ≥
+0.08), use WHITE text (or near-white from your bg), not dark text — even
+if WCAG says dark technically passes. The Helmholtz-Kohlrausch effect
+makes saturated colors appear brighter than their luminance suggests,
+and dark text on a warm-or-cool-saturated fill reads as muddy.
+
+Convention: Stripe orange CTAs, McDonald's red, every fintech orange
+button, Vercel's filled badges, Linear's status pills — all use white
+text on saturated bg fills.
+
+Dark text is correct only on PALE fills (L > 0.85) or PURE-NEUTRAL fills
+(chroma near 0). Everything else: white text.
+
+Return your composed palette in CSS custom properties using OKLCH, then
+build with it. The seed is the start, not the recipe.
+",
         id = seed.id,
         oklch = fmt_oklch(seed.oklch),
         hue = hue,

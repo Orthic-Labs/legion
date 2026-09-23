@@ -188,5 +188,7 @@ fn render_seed_report_includes_mood_and_strategy_hints_when_present() {
     assert!(out.contains("BRAND SEED · seed-test"));
     assert!(out.contains("(one read: \"test mood\")"));
     assert!(out.contains("- one example strategy: test strategy"));
-    assert!(out.contains("oklch(0.500 0.100 200.0) — teal"));
+    // hueWord's bucket boundaries are half-open [lo, hi): H=200 falls in
+    // the `H < 230` "sky blue" bucket, not "teal" (`H < 200`).
+    assert!(out.contains("oklch(0.500 0.100 200.0) — sky blue"));
 }

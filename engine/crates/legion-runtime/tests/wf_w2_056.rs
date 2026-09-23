@@ -65,7 +65,13 @@ fn dependency_closure_flags_a_host_capability_with_no_registry_entry() {
     assert!(!result.ok);
     let codes: Vec<&str> = result.findings.iter().map(|f| f.code).collect();
     assert!(codes.contains(&"undeclared-capability"));
-    assert!(codes.contains(&"host-requirement-mismatch"));
+    // Spec (`dependency-closure.mjs`): `declared` (the set compared against
+    // SKILL.md's `hostRequirements`) is populated from every HOST_CAPABILITY
+    // resource entry unconditionally, outside the `classifyResource`
+    // ok-check — a capability missing from the registry still lands in
+    // `declared`. Since the fixture's SKILL.md `hostRequirements` and
+    // `dependencies.json` both name only `browser-automation`, the sets
+    // still match and no `host-requirement-mismatch` finding is produced.
     assert!(codes.contains(&"stale-consumer"));
 }
 

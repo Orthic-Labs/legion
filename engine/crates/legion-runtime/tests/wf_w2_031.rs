@@ -307,8 +307,13 @@ fn indexing_notify_plan_batch_over_quota_truncates_to_200() {
     let urls: Vec<String> = (0..250).map(|i| format!("https://e/{i}")).collect();
     let (planned, warning) = indexing_notify::plan_batch(urls);
     assert_eq!(planned.len(), 200);
+    // Spec (`batch_notify` in `skills/seo/scripts/indexing_notify.py`):
+    // the `len(urls) > 50` check runs unconditionally after the truncation
+    // check and unconditionally overwrites `quota_warning`, so after
+    // truncating to 200 (> 50) the final warning is the "will use N/200"
+    // message, not the "exceeds daily quota" one.
     let warning = warning.expect("warning expected");
-    assert!(warning.contains("Batch size (250) exceeds daily quota (200)"));
+    assert!(warning.contains("Submitting 200 URLs will use 200/200"));
 }
 
 #[test]
@@ -344,7 +349,15 @@ fn indexing_notify_url_with_success_extracts_notify_time() {
 }
 
 #[test]
-fn indexing_notify_batch_notify_stops_on_quota_error() {
+fn indexing_notify_batch_notify_does_not_actually_stop_on_quota_error() {
+    // Spec (`batch_notify` in `skills/seo/scripts/indexing_notify.py`):
+    // the stop check is `if "429" in str(notification.get("error", ""))`,
+    // but `notification["error"]` is already the *categorized* message
+    // from `notify_url`'s `except` block — which for a 429 renders as
+    // "Quota exceeded. Daily limit: ..." and never contains the literal
+    // substring "429". So this stop-on-quota branch is dead code in the
+    // original Python too; batch_notify runs every URL regardless. Ported
+    // faithfully, bug included.
     let client = FakeIndexingClient {
         responses: std::cell::RefCell::new(vec![
             Ok(json!({"urlNotificationMetadata": {"latestUpdate": {"notifyTime": "t1"}}})),
@@ -355,10 +368,10 @@ fn indexing_notify_batch_notify_stops_on_quota_error() {
     let urls = vec!["https://e/1".to_string(), "https://e/2".to_string(), "https://e/3".to_string()];
     let (results, summary, _warning, stop_error) =
         indexing_notify::batch_notify_with(&client, &urls, indexing_notify::NotifyAction::UrlUpdated);
-    assert_eq!(results.len(), 2);
-    assert_eq!(summary.success, 1);
+    assert_eq!(results.len(), 3);
+    assert_eq!(summary.success, 2);
     assert_eq!(summary.error, 1);
-    assert_eq!(stop_error.as_deref(), Some("Stopped: daily quota exceeded."));
+    assert_eq!(stop_error, None);
 }
 
 // ---------------------------------------------------------------------

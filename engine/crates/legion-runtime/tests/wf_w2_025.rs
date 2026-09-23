@@ -204,12 +204,17 @@ fn generate_build_request_body_round_trips_through_json() {
 
 #[test]
 fn generate_extract_image_and_output_filename() {
+    // Spec (`extract_image` in `skills/seo/extensions/banana/scripts/generate.py`):
+    // each part is `if "inlineData" in part: ... elif "text" in part: ...` —
+    // an `elif`, so a single part with both fields set only ever
+    // contributes its image half. Gemini responses split these across
+    // separate parts, so the fixture does too.
     let candidates = vec![(
         Some("STOP".to_string()),
-        vec![ResponsePart {
-            inline_data_b64: Some("aW1hZ2U=".to_string()),
-            text: Some("done".to_string()),
-        }],
+        vec![
+            ResponsePart { inline_data_b64: Some("aW1hZ2U=".to_string()), text: None },
+            ResponsePart { inline_data_b64: None, text: Some("done".to_string()) },
+        ],
     )];
     let extracted = extract_image(&candidates, None).unwrap();
     assert_eq!(extracted.image_data_b64, "aW1hZ2U=");
