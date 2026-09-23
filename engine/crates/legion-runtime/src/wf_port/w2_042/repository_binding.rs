@@ -41,13 +41,13 @@ fn normalize_name(name: &str) -> String {
 /// Port of `parseGitFileList`: dedupes, normalizes separators, and sorts.
 fn parse_git_file_list(output: &[u8]) -> Vec<String> {
     let text = String::from_utf8_lossy(output);
-    let mut names: BTreeSet<String> = text
+    let names: BTreeSet<String> = text
         .split('\0')
         .filter(|s| !s.is_empty())
         .map(normalize_name)
         .collect();
     // BTreeSet already yields sorted, de-duplicated order.
-    names.drain(..).collect::<Vec<_>>()
+    names.into_iter().collect::<Vec<_>>()
 }
 
 /// Port of `gitFiles(root)`. Returns `None` when the directory is not a Git

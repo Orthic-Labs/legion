@@ -38,7 +38,7 @@ fn finding_assembly_matches_js_shape_and_warning_default() {
         "img element has no usable src",
         "",
         "index.html",
-        r#"<img src="#">"#,
+        r##"<img src="#">"##,
         0,
     );
     assert_eq!(f.antipattern, "broken-image");

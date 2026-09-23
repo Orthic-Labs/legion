@@ -671,12 +671,12 @@ mod tests {
 
     #[test]
     fn cancel_process_group_quiesces() {
-        let mut calls = 0;
+        let calls = std::cell::Cell::new(0);
         let result = cancel_process_group(
             "grp",
             2,
-            |_| calls += 1,
-            |_| if calls >= 1 { vec![] } else { vec!["p1".into()] },
+            |_| calls.set(calls.get() + 1),
+            |_| if calls.get() >= 1 { vec![] } else { vec!["p1".into()] },
         )
         .unwrap();
         assert_eq!(result, ("grp".to_string(), true, 1));

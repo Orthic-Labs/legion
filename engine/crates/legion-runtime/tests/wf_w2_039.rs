@@ -35,6 +35,7 @@ fn binding_canonicalize_is_idempotent() {
     assert_eq!(once, twice);
 }
 
+#[derive(Debug)]
 struct Plan {
     binding: Option<serde_json::Value>,
 }

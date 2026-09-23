@@ -95,7 +95,7 @@ fn field_re(label: &str) -> Regex {
 pub fn digest(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 /// Port of `field()`.

@@ -168,7 +168,7 @@ fn gather_signals_smoke_in_a_real_git_repo_with_product_md() {
 
     let signals = gather_signals(&root);
     assert!(signals.setup.has_product);
-    assert_eq!(signals.setup.register.as_deref(), Some("product".to_string()));
+    assert_eq!(signals.setup.register.as_deref(), Some("product"));
     assert!(signals.git.is_repo);
 }
 
