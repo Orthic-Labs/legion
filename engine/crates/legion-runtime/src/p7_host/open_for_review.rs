@@ -13,20 +13,20 @@ pub fn common_parent_dir(paths: &[PathBuf]) -> Option<PathBuf> {
     if paths.len() == 1 {
         return paths[0].parent().map(Path::to_path_buf);
     }
-    let parts: Vec<Vec<String>> = paths
-        .iter()
-        .map(|p| {
-            p.components()
-                .map(|c| c.as_os_str().to_string_lossy().to_string())
-                .collect()
-        })
-        .collect();
+    // Compare and rebuild via `Path::components()`/`PathBuf::push` rather
+    // than joining strings with `MAIN_SEPARATOR_STR`: the root component
+    // (e.g. `/` on a Unix-style path) already carries its own separator
+    // semantics, and re-joining it as a plain string segment doubles up
+    // the separator on Windows (`RootDir` stringifies to `\`, so joining
+    // `["\\", "repo", "docs"]` with `\` produces the UNC-looking
+    // `\\repo\docs` instead of `\repo\docs`).
+    let parts: Vec<Vec<std::path::Component>> = paths.iter().map(|p| p.components().collect()).collect();
     let min_len = parts.iter().map(Vec::len).min().unwrap_or(0);
-    let mut common = Vec::new();
+    let mut common: Vec<std::path::Component> = Vec::new();
     for i in 0..min_len {
-        let seg = &parts[0][i];
-        if parts.iter().all(|p| &p[i] == seg) {
-            common.push(seg.clone());
+        let seg = parts[0][i];
+        if parts.iter().all(|p| p[i] == seg) {
+            common.push(seg);
         } else {
             break;
         }
@@ -34,7 +34,11 @@ pub fn common_parent_dir(paths: &[PathBuf]) -> Option<PathBuf> {
     if common.is_empty() {
         paths[0].parent().map(Path::to_path_buf)
     } else {
-        Some(PathBuf::from(common.join(std::path::MAIN_SEPARATOR_STR)))
+        let mut buf = PathBuf::new();
+        for c in common {
+            buf.push(c.as_os_str());
+        }
+        Some(buf)
     }
 }
 

@@ -44,12 +44,25 @@ fn looks_like_windows_drive_absolute(child: &str) -> bool {
         && (bytes[2] == b'\\' || bytes[2] == b'/')
 }
 
+/// A leading `/` or `\` with no drive letter (e.g. `/etc/passwd`). Node's
+/// `path.isAbsolute` treats this as absolute on win32 (root-relative to
+/// the current drive) as well as on posix, but Rust's `Path::is_absolute`
+/// requires a drive/UNC prefix on Windows and returns `false` for it —
+/// without this check the port would accept root-relative children on
+/// Windows that the JS original and the posix build both reject.
+fn looks_like_root_relative(child: &str) -> bool {
+    matches!(child.as_bytes().first(), Some(b'/') | Some(b'\\'))
+}
+
 /// Port of `safeArtifactPath` in `src/lib/artifacts/paths.mjs`: resolves
 /// `child` against `root` and rejects any path that would escape `root`,
 /// whether via an absolute child, a `..` traversal segment, or (after
 /// normalization) a resolved target outside `root`.
 pub fn safe_artifact_path(root: &Path, child: &str) -> Result<PathBuf, ArtifactPathError> {
-    if child.is_empty() || Path::new(child).is_absolute() || looks_like_windows_drive_absolute(child)
+    if child.is_empty()
+        || Path::new(child).is_absolute()
+        || looks_like_windows_drive_absolute(child)
+        || looks_like_root_relative(child)
     {
         return Err(ArtifactPathError::AbsoluteChild);
     }

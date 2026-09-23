@@ -20,11 +20,40 @@ fn blob_oid_re() -> Regex {
     Regex::new(r"^[0-9a-f]{40}$").unwrap()
 }
 
+/// Strip a Windows `\\?\` verbatim prefix (as produced by
+/// `fs::canonicalize`) so the path is safe to hand to external processes
+/// like `git`, which do not understand the verbatim-path convention.
+/// No-op on non-Windows paths and on paths that never had the prefix.
+fn strip_verbatim_prefix(path: &Path) -> PathBuf {
+    match path.components().next() {
+        Some(std::path::Component::Prefix(prefix)) => match prefix.kind() {
+            std::path::Prefix::VerbatimDisk(disk) => {
+                let mut stripped = PathBuf::from(format!("{}:\\", disk as char));
+                stripped.extend(path.components().skip(2));
+                stripped
+            }
+            std::path::Prefix::VerbatimUNC(server, share) => {
+                let mut stripped = PathBuf::from(format!(
+                    "\\\\{}\\{}\\",
+                    server.to_string_lossy(),
+                    share.to_string_lossy()
+                ));
+                stripped.extend(path.components().skip(3));
+                stripped
+            }
+            _ => path.to_path_buf(),
+        },
+        _ => path.to_path_buf(),
+    }
+}
+
 fn git_blob_oid(file: &Path, repository_root: &Path) -> String {
+    let file = strip_verbatim_prefix(file);
+    let repository_root = strip_verbatim_prefix(repository_root);
     let output = Command::new("git")
         .arg("hash-object")
-        .arg(file)
-        .current_dir(repository_root)
+        .arg(&file)
+        .current_dir(&repository_root)
         .output()
         .unwrap_or_else(|error| panic!("failed to spawn git hash-object: {error}"));
     if !output.status.success() {

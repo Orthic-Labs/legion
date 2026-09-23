@@ -99,6 +99,24 @@ impl JsonlJournal {
 
         let line = json::to_string(&record)
             .map_err(|cause| integrity_error(format!("failed to serialize journal record: {cause}")))?;
+        // Ensure the parent directory still exists before opening for
+        // append. `open()` creates it once, but on Windows a
+        // just-created directory can transiently fail to resolve for a
+        // subsequent open (ERROR_PATH_NOT_FOUND) — re-asserting it here
+        // is cheap and matches JS, which recreates the directory on every
+        // write via `fs.mkdir(..., { recursive: true })`.
+        if let Some(parent) = self.file_path.parent() {
+            fs::create_dir_all(parent).map_err(|cause| {
+                KernelError::new(
+                    "JOURNAL_IO_FAILED",
+                    format!("failed to create journal directory: {cause}"),
+                    KernelErrorOptions {
+                        category: Some("resource".to_string()),
+                        ..Default::default()
+                    },
+                )
+            })?;
+        }
         let mut handle = OpenOptions::new()
             .create(true)
             .append(true)

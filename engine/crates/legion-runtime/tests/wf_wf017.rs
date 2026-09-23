@@ -399,8 +399,15 @@ async fn a_sandbox_is_isolated_outside_the_primary_worktree() {
         .expect("sandbox creates");
     assert_eq!(result.receipt.base_revision, "abc123");
     assert_eq!(result.receipt.base_identity.repository_revision, "abc123");
-    assert_eq!(result.path, "/repo/.git/legion-sandboxes/run-1");
-    assert_ne!(result.path, "/repo");
+    // `result.path` mixes the literal test root string with segments the
+    // product code joins via `Path::join`, so on Windows it legitimately
+    // contains `\` where the fixture wrote `/`. Compare as `Path`s (which
+    // compare component-wise) instead of raw strings.
+    assert_eq!(
+        std::path::Path::new(&result.path),
+        std::path::Path::new("/repo/.git/legion-sandboxes/run-1")
+    );
+    assert_ne!(std::path::Path::new(&result.path), std::path::Path::new("/repo"));
     assert!(assert_primary_repository_untouched(&result.receipt, &repo_ref()).is_ok());
 
     let mut bad_receipt = result.receipt.clone();

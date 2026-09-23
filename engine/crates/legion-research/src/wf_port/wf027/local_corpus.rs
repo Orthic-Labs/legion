@@ -124,6 +124,22 @@ impl LocalCorpusProvider {
             .strip_prefix("file://")
             .ok_or_else(|| WfError::Invalid("local-corpus only opens file:// URLs".into()))?;
         let decoded = percent_decode(rest);
+        // A `file:///C:/...` URL decodes to `/C:/...`; that leading slash
+        // before a Windows drive letter is a URL-path artifact, not part
+        // of the filesystem path, and would otherwise fail to parse as a
+        // rooted Windows path. Strip it. No-op on Unix-style paths.
+        let decoded = {
+            let bytes = decoded.as_bytes();
+            if bytes.len() >= 3
+                && bytes[0] == b'/'
+                && bytes[1].is_ascii_alphabetic()
+                && bytes[2] == b':'
+            {
+                decoded[1..].to_string()
+            } else {
+                decoded
+            }
+        };
         let path = PathBuf::from(decoded);
         let resolved = path
             .canonicalize()
