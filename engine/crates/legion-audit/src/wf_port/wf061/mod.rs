@@ -140,7 +140,7 @@ impl<'a> PackContext<'a> {
     }
 
     /// Mirrors `context.relationsTo(id)`: every relation whose `to` equals `id`.
-    pub fn relations_to(&self, id: &str) -> impl Iterator<Item = &Relation> + '_ {
+    pub fn relations_to<'a>(&'a self, id: &'a str) -> impl Iterator<Item = &'a Relation> + 'a {
         self.relations.iter().filter(move |r| r.to == id)
     }
 

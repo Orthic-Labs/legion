@@ -588,7 +588,7 @@ fn match_objectives(facts: &[Value], model: &Value, objectives: &[Value]) -> Vec
             .filter_map(|f| f.get("id").and_then(Value::as_str).map(str::to_string))
             .collect();
         matched_fact_ids.sort();
-        let mut matched_asset_ids: BTreeSet<String> = matched_facts
+        let matched_asset_ids: BTreeSet<String> = matched_facts
             .iter()
             .filter_map(|f| f.get("object").and_then(Value::as_str))
             .filter(|id| entity_by_id.contains_key(*id))
@@ -622,7 +622,7 @@ fn derive_start(state: &State) -> Value {
         .iter()
         .filter(|join| join.get("fromStep").map(Value::is_null).unwrap_or(true))
         .collect();
-    let mut fact_ids: BTreeSet<String> = initial_joins
+    let fact_ids: BTreeSet<String> = initial_joins
         .iter()
         .filter_map(|j| j.get("fromFactId").and_then(Value::as_str))
         .map(str::to_string)

@@ -217,7 +217,7 @@ pub struct FixturesDoc {
     pub cases: Vec<FixtureCase>,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FixtureStats {
     #[serde(rename = "caseCount")]
     pub case_count: usize,
@@ -322,7 +322,7 @@ fn normalize_candidate(raw: &RawCandidate, fallback_path: &str, case_id: &str) -
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Metrics {
     #[serde(rename = "truePositives")]
     pub true_positives: u64,

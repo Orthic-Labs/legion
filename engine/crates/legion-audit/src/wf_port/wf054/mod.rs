@@ -471,7 +471,7 @@ pub mod http {
             let has_auth = auth_re().is_match(text);
 
             for pattern in route_patterns() {
-                for caps in pattern.regex().captures_iter(text) {
+                for caps in (pattern.regex)().captures_iter(text) {
                     let (method, path): (String, Option<String>) = if pattern.framework == "flask" {
                         let only_group = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
                         (only_group.to_uppercase(), None)
@@ -637,7 +637,7 @@ pub mod data {
             };
 
             for pattern in store_patterns() {
-                if !pattern.regex().is_match(text) {
+                if !(pattern.regex)().is_match(text) {
                     continue;
                 }
                 let evidence_ref = stable_id("data-evidence", &json!({ "file": file, "kind": pattern.kind }));
