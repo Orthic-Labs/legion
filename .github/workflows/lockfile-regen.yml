@@ -59,3 +59,16 @@ jobs:
         with:
           name: check-windows-log
           path: engine/check-windows.log
+  rust-test-windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: cargo test (windows)
+        working-directory: engine
+        shell: bash
+        run: cargo test --workspace --lib --bins --tests --no-fail-fast 2>&1 | tee test-windows.log; exit ${PIPESTATUS[0]}
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-windows-log
+          path: engine/test-windows.log

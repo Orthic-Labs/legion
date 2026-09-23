@@ -190,11 +190,22 @@ fn read_coverage_entries(dir: &Path) -> Vec<V8ScriptCoverage> {
 /// V8 coverage `url` is typically a `file://` URL; `resolve()` in Node
 /// would also accept a plain path. We handle both.
 fn url_to_path(url: &str) -> PathBuf {
-    if let Some(rest) = url.strip_prefix("file://") {
-        PathBuf::from(rest)
-    } else {
-        PathBuf::from(url)
+    let Some(rest) = url.strip_prefix("file://") else {
+        return PathBuf::from(url);
+    };
+    let rest = rest.replace("%20", " ");
+    // `file:///C:/x` on Windows: drop the slash before the drive letter.
+    let bytes = rest.as_bytes();
+    if cfg!(windows) && bytes.len() > 2 && bytes[0] == b'/' && bytes[1].is_ascii_alphabetic() && bytes[2] == b':' {
+        return PathBuf::from(rest[1..].replace('/', "\\"));
     }
+    PathBuf::from(rest)
+}
+
+#[cfg(test)]
+fn path_to_file_url(path: &Path) -> String {
+    let text = path.display().to_string().replace('\\', "/");
+    if text.starts_with('/') { format!("file://{text}") } else { format!("file:///{text}") }
 }
 
 fn normalize_path(p: &Path) -> PathBuf {
@@ -254,8 +265,8 @@ mod tests {
         // whole source (offset 0..8) with count 1, and a range with count 0
         // covering nothing wanted, to exercise both covered/uncovered.
         let cov_json = format!(
-            r#"{{"result":[{{"url":"file://{}","functions":[{{"ranges":[{{"startOffset":0,"endOffset":2,"count":1}},{{"startOffset":4,"endOffset":6,"count":0}}]}}]}}]}}"#,
-            source_path.display()
+            r#"{{"result":[{{"url":"{}","functions":[{{"ranges":[{{"startOffset":0,"endOffset":2,"count":1}},{{"startOffset":4,"endOffset":6,"count":0}}]}}]}}]}}"#,
+            path_to_file_url(&source_path)
         );
         fs::write(dir.join("cov.json"), cov_json).unwrap();
 
