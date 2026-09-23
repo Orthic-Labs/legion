@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-capability-registry",
+  "classes": {
+    "PACKAGE_INTERNAL": "A resource shipped inside the package.",
+    "HOST_CAPABILITY": "A capability the host must provide.",
+    "PROJECT_OVERLAY": "An optional project-supplied overlay.",
+    "HISTORICAL_EVIDENCE": "Inert historical evidence."
+  },
+  "capabilities": {
+    "browser-automation": {
+      "kind": "tool",
+      "summary": "Drives a browser.",
+      "degradation": "Skip browser-dependent steps.",
+      "remedy": "Install a supported browser.",
+      "commands": ["chrome"]
+    }
+  }
+}

@@ -1,3 +1,5 @@
+pub mod w2_058;
+pub mod w2_059;
 pub mod wf001;
 pub mod wf003;
 pub mod wf004;

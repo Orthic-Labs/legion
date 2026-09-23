@@ -1,0 +1,12 @@
+providers:
+  openai:
+    type: openai
+skills:
+  code_review:
+    jurors:
+      - id: primary
+        provider: openai
+        model: gpt-5
+      - id: primary
+        provider: openai
+        model: gpt-5-mini

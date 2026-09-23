@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-skill-dependencies",
+  "resources": [
+    {"class": "HOST_CAPABILITY", "capability": "browser-automation"},
+    {"class": "PACKAGE_INTERNAL", "path": "notes.md"}
+  ]
+}

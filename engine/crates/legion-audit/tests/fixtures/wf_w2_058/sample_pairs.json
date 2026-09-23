@@ -1,0 +1,6 @@
+[
+  { "selector": "body", "foreground": "#000000", "background": "#ffffff" },
+  { "selector": ".muted-caption", "foreground": "#cccccc", "background": "#ffffff", "minimum": 4.5 },
+  { "selector": ".link", "foreground": "#1a73e8", "background": "#ffffff" },
+  { "selector": ".unresolved", "foreground": "var(--fg)", "background": "#ffffff" }
+]

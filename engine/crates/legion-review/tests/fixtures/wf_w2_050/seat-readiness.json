@@ -1,0 +1,8 @@
+{
+  "status": "ready",
+  "seats": [
+    {"seat_id": "seat-claude", "status": "ready", "ready_event_seq": 1},
+    {"seat_id": "seat-codex", "status": "ready", "ready_event_seq": 2},
+    {"seat_id": "seat-minimax", "status": "ready", "ready_event_seq": 3}
+  ]
+}

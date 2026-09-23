@@ -1,0 +1,1 @@
+I tried running the full test suite locally and it failed with AssertionError in test_parser. I also attempted a clean reinstall via pip install -e . and it errored with ModuleNotFoundError.

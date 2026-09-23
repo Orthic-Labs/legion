@@ -1,0 +1,23 @@
+prompt_version: 2
+providers:
+  openai:
+    type: openai
+    base_url: https://api.openai.com
+  anthropic:
+    type: anthropic
+panels:
+  triage:
+    jurors:
+      - id: triage-a
+        provider: openai
+        model: gpt-5
+skills:
+  code_review:
+    rubric: rubrics/code_review.md
+    jurors:
+      - id: primary
+        provider: openai
+        model: gpt-5
+      - id: secondary
+        provider: anthropic
+        model: claude-sonnet-5

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "demo",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "provenance": {},
+  "licenseState": "public-domain",
+  "profiles": {"audit": {}},
+  "files": [
+    {"path": "SKILL.md", "digest": "sha256:0"}
+  ]
+}
