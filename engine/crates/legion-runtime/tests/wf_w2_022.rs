@@ -76,10 +76,14 @@ fn svelte_component_prop_contract_round_trip() {
 
     let contract = build_prop_contract(&exprs);
     assert_eq!(contract[0].prop, "name");
-    assert_eq!(contract[1].prop, "count");
+    // Spec (`svelte-component.mjs` `derivePropName`, confirmed against the JS
+    // source directly): the tail-name regex only matches after `.` or `[`, so
+    // a bare identifier expression like `count` falls through to the
+    // index-based fallback `prop${index}` rather than keeping its own name.
+    assert_eq!(contract[1].prop, "prop1");
 
     let with_props = substitute_exprs_with_props(markup, &contract);
-    assert_eq!(with_props, "<p>{name}</p><span>{count}</span>");
+    assert_eq!(with_props, "<p>{name}</p><span>{prop1}</span>");
 
     let restored = substitute_props_with_exprs(&with_props, &contract);
     assert_eq!(restored, markup);

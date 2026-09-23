@@ -78,7 +78,13 @@ fn root() -> PathBuf {
         .as_nanos();
     let root = std::env::temp_dir().join(format!("legion-native-legacy-cutover-{suffix}"));
     fs::create_dir_all(root.join("src-tauri")).expect("temporary repository");
-    root
+    // macOS `std::env::temp_dir()` returns a path under `/var/folders/...`,
+    // which is itself a symlink to `/private/var/folders/...`. The product
+    // canonicalizes `root` before resolving fixture files (see
+    // `read_denominator` in `src/native_providers/legacy_checks/mod.rs`), so
+    // canonicalize here too and keep every downstream path comparison in
+    // this test file consistent with what the product compares against.
+    fs::canonicalize(&root).expect("canonicalize temporary repository root")
 }
 
 fn inventory(paths: &[&str]) -> InventoryEnvelope {

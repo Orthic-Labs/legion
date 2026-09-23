@@ -190,10 +190,13 @@ fn jscpd_report_is_read_from_its_output_file() {
         "jscpd",
         "#!/bin/sh\n\
          out=\"\"\n\
+         version_only=1\n\
          while [ $# -gt 0 ]; do\n\
          \tif [ \"$1\" = \"--output\" ]; then out=\"$2\"; fi\n\
+         \tif [ \"$1\" != \"--version\" ]; then version_only=0; fi\n\
          \tshift\n\
          done\n\
+         if [ \"$version_only\" = \"1\" ]; then echo 'jscpd 3.5.10'; exit 0; fi\n\
          case \"$out\" in\n\
          \t/*) : ;;\n\
          \t*) echo 'expected an absolute --output dir' >&2; exit 1 ;;\n\

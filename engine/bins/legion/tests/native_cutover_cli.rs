@@ -20,6 +20,11 @@ impl Fixture {
                 .as_nanos()
         ));
         std::fs::create_dir_all(root.join("home")).unwrap();
+        // The child process resolves its working directory via getcwd(2)
+        // after chdir, which returns the real path (symlinks resolved, e.g.
+        // macOS's /var -> /private/var). Canonicalize here so paths this
+        // fixture computes match what the product actually reports.
+        let root = std::fs::canonicalize(&root).unwrap();
         Self(root)
     }
 

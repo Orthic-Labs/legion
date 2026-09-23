@@ -126,7 +126,13 @@ fn inject_tag_insert_remove_and_csp_patch_round_trip() {
 
     let reverted_csp = inject::revert_csp_meta(&patched);
     let removed_tag = inject::remove_tag(&reverted_csp);
-    assert_eq!(removed_tag, original);
+    // Spec (`live-inject.mjs` `insertTag`/`removeTag`, confirmed by running the
+    // JS directly): when the anchor has no existing trailing newline,
+    // `insertTag` adds one before the block, but `removeTag`'s leading-indent
+    // capture is `[ \t]*` only, so that injected `\n` is never reabsorbed.
+    // The round trip is therefore not byte-identical to `original`.
+    let expected = "<html><head><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'\"></head><body>\nhi</body></html>";
+    assert_eq!(removed_tag, expected);
 }
 
 #[test]

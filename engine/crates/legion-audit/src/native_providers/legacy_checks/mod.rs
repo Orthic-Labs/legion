@@ -525,7 +525,7 @@ impl NativeLegacyCheckExecutor {
         );
         let (environment, environment_allowlist) = audit_environment();
         let needs_sandbox = sandbox_required_check(contract.check);
-        let (executable, args, sandbox_receipt) = if needs_sandbox {
+        let (executable, args, sandbox_receipt, version_args) = if needs_sandbox {
             let mode = sandbox_mode_for_check(contract.check);
             let profile_dir = self.root.join(".legion-cache").join("audit-sandbox");
             match legion_effects::authenticate_sandbox(
@@ -535,25 +535,48 @@ impl NativeLegacyCheckExecutor {
                 mode,
                 &profile_dir,
             ) {
-                Ok(auth) => (
-                    auth.wrapped_executable,
-                    auth.wrapped_args,
-                    Some(legion_effects::SandboxReceipt {
-                        id: auth.id,
-                        network: auth.network,
-                        filesystem_scope: auth.filesystem_scope,
-                    }),
-                ),
+                Ok(auth) => {
+                    // The executor's identity check re-invokes the resolved
+                    // `executable` with `--version` to confirm it is the
+                    // real tool (executor.rs's version-probe qualification).
+                    // Once `executable` is `sandbox-exec`, bare `--version`
+                    // is not a valid `sandbox-exec` invocation (it requires
+                    // `-f <profile> -- <command>` first) and the probe
+                    // fails as an unqualified/unsealed executable even
+                    // though the wrapped command itself is fine. Route the
+                    // probe through the same wrapper prefix so it actually
+                    // exercises the real tool's `--version`.
+                    // `wrapped_args` is `["-f", profile, "--", executable,
+                    // ...check_args]` (see `legion_effects::sandbox`); keep
+                    // only the fixed sandbox-invocation prefix (the first
+                    // four elements) plus the real executable, so the probe
+                    // asks the actual tool for its version rather than
+                    // re-running the check's own argv with `--version`
+                    // tacked on.
+                    let mut probe_args: Vec<String> =
+                        auth.wrapped_args.iter().take(4).cloned().collect();
+                    probe_args.push("--version".into());
+                    (
+                        auth.wrapped_executable,
+                        auth.wrapped_args,
+                        Some(legion_effects::SandboxReceipt {
+                            id: auth.id,
+                            network: auth.network,
+                            filesystem_scope: auth.filesystem_scope,
+                        }),
+                        Some(probe_args),
+                    )
+                }
                 Err(_gap) => {
                     // Typed degradation: no authenticator is available on
                     // this host/platform. Leave sandbox unset so the
                     // effects executor keeps refusing rather than run the
                     // check unsandboxed.
-                    (executable.to_string(), args, None)
+                    (executable.to_string(), args, None, None)
                 }
             }
         } else {
-            (executable.to_string(), args, None)
+            (executable.to_string(), args, None, None)
         };
         let request = ExternalToolRequest {
             request_id,
@@ -598,6 +621,7 @@ impl NativeLegacyCheckExecutor {
                 .get("stderrLimit")
                 .and_then(Value::as_u64)
                 .unwrap_or(8 * 1024 * 1024) as usize,
+            version_args: version_args.unwrap_or_else(|| vec!["--version".into()]),
             ..ExternalToolRequest::default()
         };
         let receipt = tool.execute(request, cancellation).await;

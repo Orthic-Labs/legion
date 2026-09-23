@@ -19,14 +19,25 @@ use std::sync::Mutex;
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn fixture(files: &[(&str, &str)]) -> PathBuf {
+    // A counter (not just PID + wall-clock nanos) guarantees uniqueness even
+    // when parallel #[test] threads in this same process call `fixture()`
+    // back-to-back: on Windows, SystemTime::now() resolution is much coarser
+    // than nanoseconds, so two threads can otherwise get the same "unique"
+    // name and race on the same directory, letting one test's fixture files
+    // bleed into another's.
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
     let mut root = std::env::temp_dir();
     let unique = format!(
-        "audit-native-{}-{}",
+        "audit-native-{}-{}-{}-{:?}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_nanos()
+            .as_nanos(),
+        seq,
+        std::thread::current().id()
     );
     root.push(unique);
     fs::create_dir_all(&root).unwrap();

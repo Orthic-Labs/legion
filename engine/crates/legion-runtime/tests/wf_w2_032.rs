@@ -215,5 +215,9 @@ fn question_inventory_builds_from_fixture_rows() {
         .find(|q| q.question == "Is there a free trial?")
         .unwrap();
     assert_eq!(extra.source, "supplied");
-    assert_eq!(extra.intent, "transactional");
+    // Spec (`question_inventory.py` `intent`, confirmed against the Python
+    // source directly): "Is there a free trial?" contains none of the
+    // transactional/commercial/navigational keyword sets, so it falls
+    // through to the default "informational" classification.
+    assert_eq!(extra.intent, "informational");
 }
