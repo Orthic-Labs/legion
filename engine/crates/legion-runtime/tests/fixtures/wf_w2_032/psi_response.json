@@ -1,0 +1,25 @@
+{
+  "analysisUTCTimestamp": "2026-01-01T00:00:00Z",
+  "lighthouseResult": {
+    "categories": {
+      "performance": {"score": 0.76},
+      "seo": {"score": 0.9, "auditRefs": [{"id": "meta-description"}, {"id": "document-title"}]},
+      "accessibility": {"score": 0.85, "auditRefs": [{"id": "color-contrast"}]}
+    },
+    "audits": {
+      "largest-contentful-paint": {"numericValue": 3100.0, "displayValue": "3.1 s", "score": 0.6},
+      "cumulative-layout-shift": {"numericValue": 0.08, "displayValue": "0.08", "score": 0.95},
+      "meta-description": {"score": 1.0, "title": "Document has a meta description"},
+      "document-title": {"score": 1.0, "title": "Document has a title element"},
+      "color-contrast": {"score": 0.5, "title": "Background and foreground colors have a sufficient contrast ratio", "displayValue": ""},
+      "unused-javascript": {"score": 0.4, "title": "Reduce unused JavaScript", "details": {"type": "opportunity", "overallSavingsMs": 850}},
+      "render-blocking-resources": {"score": 0.7, "title": "Eliminate render-blocking resources", "details": {"type": "opportunity", "overallSavingsMs": 210}}
+    }
+  },
+  "loadingExperience": {
+    "metrics": {
+      "LARGEST_CONTENTFUL_PAINT_MS": {"percentile": 3200, "category": "SLOW"},
+      "CUMULATIVE_LAYOUT_SHIFT_SCORE": {"percentile": 9, "category": "FAST"}
+    }
+  }
+}

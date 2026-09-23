@@ -1,0 +1,28 @@
+{
+  "trigger_rule": "review quarterly or after a documented algorithm change",
+  "sources": [
+    {
+      "id": "stale-source",
+      "authority": "google",
+      "url": "https://developers.google.com/search",
+      "checked_at": "2026-01-01",
+      "review_interval_days": 90,
+      "applies_to": ["crawling", "indexing"]
+    },
+    {
+      "id": "fresh-source",
+      "authority": "microsoft",
+      "url": "https://www.bing.com/webmasters",
+      "checked_at": "2026-09-01",
+      "review_interval_days": 90,
+      "applies_to": []
+    },
+    {
+      "id": "bad-row",
+      "authority": "unknown",
+      "url": "https://example.com",
+      "checked_at": "not-a-date",
+      "review_interval_days": 30
+    }
+  ]
+}

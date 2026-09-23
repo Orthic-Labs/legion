@@ -1,0 +1,8 @@
+{
+  "pages": [
+    {"url": "https://example.com/a", "title": "Widgets Co", "meta_desc": "Widgets Co. Learn more."},
+    {"url": "https://example.com/b", "title": "Gadgets Co", "meta_desc": "Gadgets Co. Learn more."},
+    {"url": "https://example.com/c", "title": "Gizmos Co", "meta_desc": "Gizmos Co. Buy now."},
+    {"url": "https://example.com/d", "title": "Thingamajigs", "meta_desc": "A completely unique and original description with no restated title."}
+  ]
+}

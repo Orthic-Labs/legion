@@ -1,0 +1,10 @@
+{
+  "rows": [
+    {"query": "how does seo work", "page": "/guides/seo", "clicks": 12, "impressions": 240, "position": 4.2, "date": "2026-01-01"},
+    {"query": "how does seo work", "page": "/guides/seo", "clicks": 8, "impressions": 150, "position": 3.9, "date": "2026-01-08"},
+    {"query": "seo pricing", "page": "/pricing", "clicks": 20, "impressions": 60, "position": 1.5, "date": "2026-01-01"},
+    {"query": "best seo tool", "page": "/tools/a", "clicks": 40, "impressions": 300, "position": 2.1, "date": "2026-01-01"},
+    {"query": "best seo tool", "page": "/tools/b", "clicks": 5, "impressions": 40, "position": 6.0, "date": "2026-01-01"},
+    {"query": "site login", "page": "/login", "clicks": 3, "impressions": 10, "position": 1.0, "date": "2026-01-01"}
+  ]
+}

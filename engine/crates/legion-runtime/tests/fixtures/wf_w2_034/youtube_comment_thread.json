@@ -1,0 +1,12 @@
+{
+  "snippet": {
+    "topLevelComment": {
+      "snippet": {
+        "authorDisplayName": "Fixture Commenter",
+        "textDisplay": "This is a fixture top-level comment used for port tests.",
+        "likeCount": 42,
+        "publishedAt": "2026-02-01T00:00:00Z"
+      }
+    }
+  }
+}

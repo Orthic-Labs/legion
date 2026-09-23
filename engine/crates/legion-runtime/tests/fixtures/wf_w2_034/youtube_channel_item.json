@@ -1,0 +1,15 @@
+{
+  "snippet": {
+    "title": "Fixture Channel",
+    "description": "A fixture channel description.",
+    "customUrl": "@fixturechannel",
+    "publishedAt": "2020-01-01T00:00:00Z",
+    "country": "US",
+    "thumbnails": {"high": {"url": "https://img.example/channel-high.jpg"}}
+  },
+  "statistics": {
+    "subscriberCount": "4200",
+    "videoCount": "88",
+    "viewCount": "999000"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "id": "pack.universal",
+  "version": 1,
+  "class": "universal",
+  "dependencies": [],
+  "source": { "kind": "internal", "rights": "cleared" },
+  "qualification": "unproven",
+  "controls": [
+    {
+      "id": "ctl.readme-present",
+      "version": 1,
+      "selector": { "op": "always" },
+      "denominator": "target",
+      "evidence": ["fs:readme"],
+      "families": ["hygiene"],
+      "lenses": ["static"],
+      "providers": [],
+      "rules": ["r.readme-present"],
+      "scenarios": ["ctl.readme-present.default"],
+      "decisionMode": "deterministic",
+      "missingEvidenceEffect": "unproven",
+      "claimLevels": ["inventory"],
+      "remediationOwner": "code",
+      "sourceConcepts": ["sc.readme"],
+      "stopShip": false,
+      "benchmark": { "status": "unproven" },
+      "provenance": { "source": "fixture", "lineage": [] }
+    }
+  ]
+}

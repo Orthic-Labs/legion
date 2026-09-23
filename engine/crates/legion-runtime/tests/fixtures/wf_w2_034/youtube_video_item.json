@@ -1,0 +1,27 @@
+{
+  "id": "dQw4w9WgXcQ",
+  "snippet": {
+    "title": "Fixture Video Title",
+    "channelTitle": "Fixture Channel",
+    "channelId": "UCfixture123",
+    "publishedAt": "2026-01-15T12:00:00Z",
+    "description": "A fixture description used for SEO tool port tests.",
+    "tags": ["seo", "fixture"],
+    "categoryId": "27",
+    "thumbnails": {"high": {"url": "https://img.example/high.jpg"}}
+  },
+  "statistics": {
+    "viewCount": "12345",
+    "likeCount": "678",
+    "commentCount": "9",
+    "favoriteCount": "0"
+  },
+  "contentDetails": {
+    "duration": "PT4M13S",
+    "definition": "hd",
+    "caption": "false"
+  },
+  "topicDetails": {
+    "topicCategories": ["https://en.wikipedia.org/wiki/Knowledge"]
+  }
+}

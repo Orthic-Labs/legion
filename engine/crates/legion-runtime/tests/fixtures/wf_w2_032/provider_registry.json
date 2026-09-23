@@ -1,0 +1,35 @@
+{
+  "providers": {
+    "gsc_api": {
+      "class": "first_party",
+      "paid": false,
+      "priority": 10,
+      "capabilities": ["queries", "rank"],
+      "availability": "env_all",
+      "env": ["WF_W2_032_GSC_TOKEN"]
+    },
+    "manual_gsc_export": {
+      "class": "first_party_manual_export",
+      "paid": false,
+      "priority": 5,
+      "capabilities": ["queries"],
+      "availability": "manual"
+    },
+    "paid_rank_provider": {
+      "class": "paid_provider",
+      "paid": true,
+      "priority": 50,
+      "capabilities": ["rank"],
+      "availability": "env_any",
+      "env": ["WF_W2_032_PAID_KEY"]
+    },
+    "local_parser": {
+      "class": "local",
+      "paid": false,
+      "priority": 1,
+      "capabilities": ["parse"],
+      "availability": "builtin"
+    }
+  },
+  "selection_rules": ["prefer first-party evidence over paid providers"]
+}
