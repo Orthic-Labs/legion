@@ -2,14 +2,18 @@
 use serde_json::Value;
 use std::{path::PathBuf, process::{Command, Output}, time::{SystemTime, UNIX_EPOCH}};
 
+/// Parallel tests must never share a scratch root.
+static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 struct Fixture(PathBuf);
 
 impl Fixture {
     fn new() -> Self {
         let root = std::env::temp_dir().join(format!(
-            "legion-migration-paths-{}-{}",
+            "legion-migration-paths-{}-{}-{}",
             std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
+            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         std::fs::create_dir_all(root.join("home")).unwrap();
         Self(root)
