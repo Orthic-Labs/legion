@@ -6,7 +6,7 @@
 //! (`pub mod wf_port;` in lib.rs already exists; `pub mod w2_003;` needs
 //! adding to `engine/crates/legion-runtime/src/wf_port/mod.rs`).
 
-use legion_runtime::wf_port::w2_003::{run, validate, CANONICAL_MODE, HEADINGS, LABELS};
+use legion_runtime::wf_port::w2_003::{run, validate, CANONICAL_MODE};
 use std::path::{Path, PathBuf};
 
 fn fixture_template() -> String {
@@ -39,18 +39,20 @@ fn run_reports_pass_message_for_clean_template_self_check() {
     assert!(outcome.message.starts_with("PASS:"));
 }
 
+// `validate` mirrors the production CLI wrapper
+// (`skills/covenant/scripts/validate-external-review-packet.py`), which
+// short-circuits ahead of the engine validator: when the canonical mode
+// marker is absent from the packet anywhere, that single error is reported
+// immediately instead of the full heading/label sweep.
 #[test]
 fn run_reports_fail_message_with_defect_count() {
     let outcome = run("", Path::new("x.md"), false, true);
     assert_eq!(outcome.exit_code, 1);
-    assert!(outcome.message.starts_with(&format!(
-        "FAIL: {} packet defect(s)",
-        HEADINGS.len() + LABELS.len()
-    )));
+    assert!(outcome.message.starts_with("FAIL: 1 packet defect(s)"));
 }
 
 #[test]
-fn empty_packet_reports_every_missing_heading_and_label() {
+fn empty_packet_reports_missing_canonical_mode_marker() {
     let errors = validate("", Path::new("x.md"), false, true);
-    assert_eq!(errors.len(), HEADINGS.len() + LABELS.len());
+    assert_eq!(errors, vec![format!("Mode must be {CANONICAL_MODE}")]);
 }

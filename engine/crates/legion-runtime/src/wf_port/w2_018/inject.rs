@@ -398,12 +398,23 @@ struct Attr {
 }
 
 fn get_attr(attrs: &str, name: &str) -> Option<Attr> {
-    let re = Regex::new(&format!(r#"(?i)\b{name}\s*=\s*(['"])([\s\S]*?)\1"#)).ok()?;
+    // JS uses a backreference (`(['"])([\s\S]*?)\1`) to require the same
+    // quote character on both sides; the `regex` crate has no backreference
+    // support, so this expands into an explicit alternation over the two
+    // quote characters (mirrors `http_equiv_re` above).
+    let re = Regex::new(&format!(
+        r#"(?i)\b{name}\s*=\s*(?:"([\s\S]*?)"|'([\s\S]*?)')"#
+    ))
+    .ok()?;
     let m = re.captures(attrs)?;
-    let quote = m.get(1)?.as_str().chars().next()?;
+    let (quote, value) = if let Some(v) = m.get(1) {
+        ('"', v.as_str())
+    } else {
+        ('\'', m.get(2)?.as_str())
+    };
     Some(Attr {
         quote,
-        value: m.get(2)?.as_str().to_string(),
+        value: value.to_string(),
         full: m.get(0)?.as_str().to_string(),
     })
 }

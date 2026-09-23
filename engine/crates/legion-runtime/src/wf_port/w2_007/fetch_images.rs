@@ -193,9 +193,14 @@ pub fn build_candidates(query: &str, out_dir: &Path, pages: &[CommonsPage], coun
         let stem: String = fn_base.chars().take(55).collect();
         let filename = format!("{stem}{ext}");
 
+        // Python's `os.path.join` on the forward-slash `out_dir` string this
+        // port is always called with stays forward-slash; `Path::join`
+        // would introduce `\` on Windows, so join as a string instead.
+        let out_dir_str = out_dir.to_string_lossy();
+        let out_dir_str = out_dir_str.trim_end_matches(['/', '\\']);
         candidates.push(ImageCandidate {
             thumb_url: thumb,
-            dest_path: out_dir.join(filename),
+            dest_path: PathBuf::from(format!("{out_dir_str}/{filename}")),
             license,
             artist,
             description_url: ii.descriptionurl.clone().unwrap_or_default(),

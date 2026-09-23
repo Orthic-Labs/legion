@@ -50,7 +50,11 @@ pub fn resolve_live_browser_script_parts(
     if scripts_dir.is_empty() {
         return Err("scriptsDir is required");
     }
-    let dir = Path::new(scripts_dir);
+    // JS `path.join` on this project's script paths always yields
+    // forward-slash strings in practice (scriptsDir is passed in as a
+    // forward-slash path); `Path::join` would introduce `\` on Windows and
+    // break downstream string comparisons, so join components as strings.
+    let dir = scripts_dir.trim_end_matches(['/', '\\']);
     Ok(parts
         .iter()
         .enumerate()
@@ -58,7 +62,7 @@ pub fn resolve_live_browser_script_parts(
             name: part.name,
             file: part.file,
             index,
-            path: dir.join(part.file),
+            path: PathBuf::from(format!("{dir}/{}", part.file)),
         })
         .collect())
 }

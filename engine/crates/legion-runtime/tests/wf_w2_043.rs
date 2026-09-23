@@ -33,13 +33,22 @@ struct TempSurface {
 
 impl TempSurface {
     fn new() -> Self {
+        // Windows' `SystemTime::now()` has coarse (~15ms) resolution, so two
+        // `TempSurface`s created on different test threads within the same
+        // tick can otherwise get an identical nanos value and collide on
+        // the same directory — one test's fixture files then leak into the
+        // other's "empty surface" case. An in-process atomic counter makes
+        // each instance unique regardless of clock granularity.
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let unique = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!(
-            "legion-design-gate-{}-{}",
+            "legion-design-gate-{}-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+            unique
         ));
         fs::create_dir_all(&dir).unwrap();
         TempSurface { dir }

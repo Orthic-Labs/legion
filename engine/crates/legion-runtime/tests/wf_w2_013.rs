@@ -60,7 +60,12 @@ fn walk_dir_and_import_graph_end_to_end() {
     let files = walk_dir(&root);
     let file_names: HashSet<String> = files
         .iter()
-        .map(|p| p.strip_prefix(&root).unwrap().to_string_lossy().to_string())
+        .map(|p| {
+            p.strip_prefix(&root)
+                .unwrap()
+                .to_string_lossy()
+                .replace('\\', "/")
+        })
         .collect();
     assert!(file_names.contains("src/index.ts"));
     assert!(file_names.contains("src/app.ts"));

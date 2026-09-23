@@ -189,7 +189,11 @@ mod tests {
             LoadedSkill::ForbiddenProfile { bundle: "demo".to_string(), path: "SKILL.md".to_string() }
         );
 
-        let result2 = load_skill("legion-skill://demo/SKILL.md", dir.path(), &manifests, "authoring").unwrap();
+        // Spec (`loadSkill` in `src/lib/skills/loader.mjs`): forbidden iff
+        // `!profileContract || profileContract.externalOnly`. A profile the
+        // manifest never declares (`profiles[profile]` is `undefined`) hits
+        // the `!profileContract` arm, independent of `externalOnly`.
+        let result2 = load_skill("legion-skill://demo/SKILL.md", dir.path(), &manifests, "nonexistent").unwrap();
         assert_eq!(
             result2,
             LoadedSkill::ForbiddenProfile { bundle: "demo".to_string(), path: "SKILL.md".to_string() }

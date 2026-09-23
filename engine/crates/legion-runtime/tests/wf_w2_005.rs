@@ -92,7 +92,7 @@ The Covenant packet validator is a Python CLI ported to Rust for legion-runtime.
 
 | Attempt/input | Result | Keep, reject, or reconsider |
 |---|---|---|
-| Ran validator locally | Passed on template | Keep |
+| Ran validator locally | Passed on template | Keep as-is |
 
 ## 7. Evidence Bundle
 

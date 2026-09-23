@@ -74,7 +74,11 @@ fn task_re() -> &'static Regex {
 }
 fn abs_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"^(?:[A-Za-z]:[/\\]|/)").unwrap())
+    // `\\?\C:\...` (and the UNC form `\\?\UNC\server\share\...`) is the
+    // Windows "verbatim prefix" `std::fs::canonicalize` returns; strip it
+    // before matching so a canonicalized fixture/tasklist path is still
+    // recognized as absolute.
+    RE.get_or_init(|| Regex::new(r"^(?:\\\\\?\\)?(?:[A-Za-z]:[/\\]|/)").unwrap())
 }
 fn placeholder_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();

@@ -152,9 +152,34 @@ pub fn is_live_server_pid_reachable(pid: i64) -> bool {
     }
 }
 
-#[cfg(not(unix))]
+/// Windows has no `kill -0` signal-0 probe. Shell out to `tasklist` (no
+/// `unsafe`/FFI allowed in this crate) and check whether it lists a PID
+/// column matching `pid`, which is how Windows reports "no such process"
+/// without an ESRCH-equivalent exit code to key off of.
+#[cfg(windows)]
+pub fn is_live_server_pid_reachable(pid: i64) -> bool {
+    match std::process::Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"])
+        .output()
+    {
+        Ok(output) if output.status.success() => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            // A matching process prints a CSV row starting with its quoted
+            // image name; no match prints an "INFO: No tasks..." line (or
+            // nothing), neither of which contains the PID as a CSV field.
+            stdout
+                .lines()
+                .any(|line| line.split(',').nth(1) == Some(format!("\"{pid}\"").as_str()))
+        }
+        // If we can't even spawn `tasklist`, conservatively assume reachable
+        // rather than deleting live server info we can't verify.
+        _ => true,
+    }
+}
+
+#[cfg(not(any(unix, windows)))]
 pub fn is_live_server_pid_reachable(_pid: i64) -> bool {
-    // No portable signal-0 probe on non-Unix; conservatively assume
+    // No portable signal-0 probe on other platforms; conservatively assume
     // reachable rather than deleting live server info we can't verify.
     true
 }

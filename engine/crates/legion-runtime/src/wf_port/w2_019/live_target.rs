@@ -56,7 +56,9 @@ pub fn resolve_live_target(
     });
 
     let target_options = match &absolute_target_path {
-        Some(p) => json!({ "targetPath": p.to_string_lossy() }),
+        // JS path strings are always forward-slash; normalize so the JSON
+        // shape matches on Windows where `PathBuf::join` uses `\`.
+        Some(p) => json!({ "targetPath": p.to_string_lossy().replace('\\', "/") }),
         None => json!({}),
     };
 

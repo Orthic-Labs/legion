@@ -399,7 +399,12 @@ mod tests {
 
         let mut files: Vec<String> = walk_dir(&root)
             .into_iter()
-            .map(|p| p.strip_prefix(&root).unwrap().to_string_lossy().to_string())
+            .map(|p| {
+                p.strip_prefix(&root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/")
+            })
             .collect();
         files.sort();
         assert_eq!(files, vec!["index.html".to_string(), "src/app.tsx".to_string()]);

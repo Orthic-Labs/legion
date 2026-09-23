@@ -408,15 +408,12 @@ mod tests {
     }
 
     #[test]
-    fn empty_text_reports_every_missing_heading_and_label() {
+    fn empty_text_reports_missing_canonical_mode_marker() {
+        // `validate` mirrors the CLI wrapper's short-circuit: without the
+        // canonical mode marker anywhere in the text, that single error is
+        // reported instead of the full engine heading/label sweep.
         let errors = validate("", &PathBuf::from("x.md"), false, true);
-        assert_eq!(errors.len(), HEADINGS.len() + LABELS.len());
-        for heading in HEADINGS {
-            assert!(errors.contains(&format!("missing or out-of-order heading: {heading}")));
-        }
-        for label in LABELS {
-            assert!(errors.contains(&format!("missing label: {label}")));
-        }
+        assert_eq!(errors, vec![format!("Mode must be {CANONICAL_MODE}")]);
     }
 
     #[test]

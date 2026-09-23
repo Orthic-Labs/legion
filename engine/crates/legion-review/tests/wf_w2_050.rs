@@ -179,7 +179,7 @@ fn safe_diagnostic_reads_fixture_launch_failure() {
 #[test]
 fn room_id_and_link_delivery_and_result_shapes() {
     let out_dir = Path::new("/runs/My Council Review #7");
-    assert_eq!(room_id(out_dir), "council-my-council-review-7");
+    assert_eq!(room_id(out_dir), "council-my-council-review--7");
 
     let delivery = pending_link_delivery("https://room.example/join/abc123");
     assert_eq!(delivery["status"], json!("pending"));

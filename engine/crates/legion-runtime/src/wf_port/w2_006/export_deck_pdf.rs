@@ -13,8 +13,6 @@
 //! in its own renderer and PDF writer reproduces the script's behavior
 //! exactly instead of re-deriving it.
 
-use std::path::PathBuf;
-
 /// Port of `parseArgs`'s default `{ width: 1920, height: 1080 }` plus the
 /// generic `--key value` pair loop (`for (let i = 0; i < a.length; i += 2)`).
 #[derive(Debug, Clone, PartialEq)]
@@ -155,9 +153,13 @@ impl PagePdfOptions {
 }
 
 /// Port of the `file://` URL construction: `'file://' + path.join(slidesDir, f)`.
+///
+/// The JS source always produces forward-slash paths for the URL regardless
+/// of host OS. `PathBuf::join` would use `\` as the separator on Windows, so
+/// the join is done on path components directly and re-assembled with `/`.
 pub fn slide_file_url(slides_dir: &str, file: &str) -> String {
-    let joined = PathBuf::from(slides_dir).join(file);
-    format!("file://{}", joined.to_string_lossy())
+    let trimmed = slides_dir.trim_end_matches(['/', '\\']);
+    format!("file://{trimmed}/{file}")
 }
 
 /// Port of the per-slide progress line: `` `  [${n}/${total}] ${f}` ``.

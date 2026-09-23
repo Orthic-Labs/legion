@@ -106,7 +106,9 @@ fn hue_word_bucket_boundaries_match_source() {
 fn fmt_oklch_matches_source_formatting() {
     assert_eq!(fmt_oklch([0.647, 0.262, 0.3]), "oklch(0.647 0.262 0.3)");
     assert_eq!(fmt_oklch([0.0, 0.0, 0.0]), "oklch(0.000 0.000 0.0)");
-    assert_eq!(fmt_oklch([1.0, 0.2295, 359.95]), "oklch(1.000 0.230 360.0)");
+    // Node: (359.95).toFixed(1) === "359.9" (359.95 is not exactly
+    // representable as an f64; the stored value rounds down at 1 decimal).
+    assert_eq!(fmt_oklch([1.0, 0.2295, 359.95]), "oklch(1.000 0.230 359.9)");
 }
 
 #[test]

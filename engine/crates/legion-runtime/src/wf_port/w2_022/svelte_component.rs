@@ -616,7 +616,11 @@ struct ParamRewrite {
 /// `String(actual)`); callers pass the already-stringified value plus a
 /// `false_like` flag for the falsy-check branch.
 fn rewrite_param_selectors(selector: &str, param_values: Option<&std::collections::HashMap<String, ParamValue>>) -> ParamRewrite {
-    let re = regex::Regex::new(r#"\[data-p-([A-Za-z0-9_-]+)(?:=(["'])(.*?)\2)?\]"#).unwrap();
+    // JS uses a backreference (`=(["'])(.*?)\2`) to require the same quote
+    // character on both sides; the `regex` crate has no backreference
+    // support, so this expands into an explicit alternation over the two
+    // quote characters (mirrors the analogous fix in w2_018's `get_attr`).
+    let re = regex::Regex::new(r#"\[data-p-([A-Za-z0-9_-]+)(?:="(.*?)"|='(.*?)')?\]"#).unwrap();
     let mut keep = true;
     let result = {
         let mut out = String::new();
@@ -626,7 +630,7 @@ fn rewrite_param_selectors(selector: &str, param_values: Option<&std::collection
             out.push_str(&selector[last..m.start()]);
             last = m.end();
             let key = caps.get(1).unwrap().as_str();
-            let expected = caps.get(3).map(|c| c.as_str());
+            let expected = caps.get(2).or_else(|| caps.get(3)).map(|c| c.as_str());
             match param_values.and_then(|pv| pv.get(key)) {
                 None => {
                     // attribute not in paramValues -> drop it (replacement is "")

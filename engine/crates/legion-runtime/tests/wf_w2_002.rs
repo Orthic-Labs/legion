@@ -282,7 +282,7 @@ fn events_from_fixture_run_matches_expected_classification() {
             ("reasoning".to_string(), "Looking at the failing test".to_string()),
             ("command".to_string(), "cargo test --lib".to_string()),
             ("assistant".to_string(), "Fixed the off-by-one error.".to_string()),
-            ("usage".to_string(), "{\"total_tokens\":512,\"type\":\"token_count\"}".to_string()),
+            ("usage".to_string(), "{\"type\":\"token_count\",\"total_tokens\":512}".to_string()),
         ]
     );
 }

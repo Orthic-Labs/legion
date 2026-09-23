@@ -96,7 +96,12 @@ pub fn summarize_manual_log_file(file: Option<&str>, cwd: &Path) -> Option<Strin
         return None;
     }
     let path = Path::new(file);
-    if !path.is_absolute() {
+    // `Path::is_absolute` requires a drive-letter prefix on Windows, so a
+    // POSIX-style `/proj/root/...` fixture/test path (rooted but prefixless)
+    // reads as relative there and skips relativization entirely. JS only
+    // cares whether the path is rooted, so use `has_root` instead, which
+    // agrees with `is_absolute` on Unix and on real Windows `C:\...` paths.
+    if !path.has_root() {
         return Some(file.to_string());
     }
     match path.strip_prefix(cwd) {
