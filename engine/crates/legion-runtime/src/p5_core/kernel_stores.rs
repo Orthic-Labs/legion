@@ -104,6 +104,7 @@ fn event_digest(record: &Value) -> String {
 }
 
 /// Port of `class EventStore`.
+#[derive(Debug)]
 pub struct EventStore {
     pub journal: JsonlJournal,
 }

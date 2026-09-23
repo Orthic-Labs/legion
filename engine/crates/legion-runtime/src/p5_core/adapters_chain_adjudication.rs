@@ -327,15 +327,15 @@ pub fn create_chain_adjudication_packet(
     let path_id = input.path.get("id").cloned().unwrap_or(Value::Null);
     let adjudicator_context_id_value = input.adjudicator.get("contextId").cloned().unwrap_or(Value::Null);
     let packet_id = format!(
-        "sha256:{:x}",
-        Sha256::digest(
+        "sha256:{}",
+        hex::encode(Sha256::digest(
             serde_json::to_vec(&json!({
                 "pathId": path_id,
                 "contextId": adjudicator_context_id_value,
                 "binding": binding,
             }))
             .unwrap_or_default()
-        )
+        ))
     );
 
     let model_slice = slice_model_for_path(input.model, &step_packets);
@@ -386,15 +386,17 @@ pub fn finalize_chain_verdict(
     let step_assessments = require_array(&raw_verdict["stepAssessments"], "stepAssessments")?;
     let join_assessments = require_array(&raw_verdict["joinAssessments"], "joinAssessments")?;
 
+    let empty_steps = Vec::new();
     let expected_steps: std::collections::HashSet<&str> = packet["path"]["steps"]
         .as_array()
-        .unwrap_or(&Vec::new())
+        .unwrap_or(&empty_steps)
         .iter()
         .filter_map(|s| s.get("candidateId").and_then(Value::as_str))
         .collect();
+    let empty_joins = Vec::new();
     let expected_joins: std::collections::HashSet<&str> = packet["path"]["joins"]
         .as_array()
-        .unwrap_or(&Vec::new())
+        .unwrap_or(&empty_joins)
         .iter()
         .filter_map(|j| j.get("id").and_then(Value::as_str))
         .collect();

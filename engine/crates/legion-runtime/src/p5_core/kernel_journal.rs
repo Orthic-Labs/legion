@@ -26,6 +26,7 @@ fn integrity_error(message: impl Into<String>) -> KernelError {
 }
 
 /// Port of `class JsonlJournal`.
+#[derive(Debug)]
 pub struct JsonlJournal {
     pub file_path: PathBuf,
     pub records: Vec<Value>,

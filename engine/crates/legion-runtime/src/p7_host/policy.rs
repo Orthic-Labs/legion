@@ -76,7 +76,7 @@ pub fn evaluate_risk(
         .collect();
     let open: Vec<Value> = active
         .iter()
-        .filter(|r| !binding_mismatch.iter().any(|m| *m == *r))
+        .filter(|r: &&&Value| !binding_mismatch.iter().any(|m: &&Value| **m == ***r))
         .map(|r| (**r).clone())
         .collect();
     RiskEvaluation {

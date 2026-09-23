@@ -192,6 +192,7 @@ pub struct TrustedConfigInput<'a> {
     pub external_evidence: Option<&'a Value>,
 }
 
+#[derive(Debug)]
 pub struct TrustedConfig {
     pub value: Value,
     pub digest: String,

@@ -92,6 +92,7 @@ fn normalize_capabilities(value: &[String], label: &str) -> Result<Vec<String>, 
     Ok(unique)
 }
 
+#[derive(Debug)]
 pub struct CapabilityNegotiation {
     pub available: Vec<String>,
     pub missing: Vec<String>,

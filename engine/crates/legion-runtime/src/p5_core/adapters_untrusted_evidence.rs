@@ -7,8 +7,14 @@
 
 use sha2::{Digest, Sha256};
 
+/// Local hex-encoding shim: sha2 0.11's digest output no longer implements
+/// `LowerHex`, so format with the `hex` crate instead.
+
 /// Matches the JS `CONTROL_PATTERN`:
 /// `/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F‪-‮⁦-⁩]/g`
+/// (the bidi-control range is written as escapes here, not as literal
+/// characters, to avoid embedding invisible direction-control codepoints in
+/// this doc comment)
 fn is_controlled(ch: char) -> bool {
     let code = ch as u32;
     (0x0000..=0x0008).contains(&code)
@@ -21,7 +27,7 @@ fn is_controlled(ch: char) -> bool {
 }
 
 fn sha256_digest(text: &str) -> String {
-    format!("sha256:{:x}", Sha256::digest(text.as_bytes()))
+    format!("sha256:{}", hex::encode(Sha256::digest(text.as_bytes())))
 }
 
 /// Port of `escapeForReasoning(text)`.

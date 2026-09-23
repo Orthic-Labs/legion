@@ -50,7 +50,8 @@ fn dirname(path: &str) -> &str {
 }
 
 fn rewrite_links(value: &str, bundle: &str, path: &str) -> String {
-    let dir = dirname(&path.replace('\\', "/"));
+    let normalized_path = path.replace('\\', "/");
+    let dir = dirname(&normalized_path);
     LINK
         .replace_all(value, |captures: &Captures| {
             let target = &captures["target"];

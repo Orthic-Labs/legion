@@ -195,6 +195,7 @@ pub fn capability_impacts(
     controls
         .iter()
         .flat_map(|control| {
+            let available = &available;
             control
                 .evidence
                 .iter()

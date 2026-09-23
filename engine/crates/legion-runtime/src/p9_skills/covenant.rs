@@ -55,7 +55,7 @@ pub fn canonical(value: &Value) -> String {
 pub fn digest_value(value: &Value) -> String {
     let mut hasher = Sha256::new();
     hasher.update(canonical(value).as_bytes());
-    format!("sha256:{:x}", hasher.finalize())
+    format!("sha256:{}", hex::encode(hasher.finalize()))
 }
 
 /// Mirrors `findForbiddenToken`: recursively scans strings for the forbidden authority tokens.
@@ -111,7 +111,11 @@ where
 /// re-implemented here — see the packet report).
 pub fn validate_record_fields(record: &Value, request: Option<&Value>) -> Vec<String> {
     let mut errors = Vec::new();
-    let get = |v: &Value, k: &str| v.get(k);
+    // A plain fn (rather than a closure) so the borrow's lifetime is tied to
+    // each call site's argument, not fixed to one inferred signature.
+    fn get<'a>(v: &'a Value, k: &str) -> Option<&'a Value> {
+        v.get(k)
+    }
 
     let mode = record.get("mode").and_then(Value::as_str).unwrap_or("");
     if mode == "PACKET_ONLY" {

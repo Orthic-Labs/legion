@@ -14,6 +14,7 @@ pub struct OmittedCase {
     pub mandatory: bool,
 }
 
+#[derive(Debug)]
 pub struct PairwiseResult {
     pub rows: Vec<Row>,
     pub omitted: Vec<OmittedCase>,
