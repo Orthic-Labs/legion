@@ -1064,6 +1064,7 @@ dependencies = [
 name = "legion-effects"
 version = "0.3.15"
 dependencies = [
+ "hex",
  "legion-contracts",
  "legion-policy",
  "libc 1.0.0-alpha.4",
