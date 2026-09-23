@@ -85,7 +85,7 @@ pub fn authenticate(
     let digest = {
         let mut hasher = Sha256::new();
         hasher.update(profile.as_bytes());
-        format!("{:x}", hasher.finalize())
+        hex::encode(hasher.finalize())
     };
     let profile_path = profile_dir.join(format!("audit-{digest}.sb"));
     fs::create_dir_all(profile_dir).map_err(|error| {
