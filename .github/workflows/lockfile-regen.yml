@@ -34,3 +34,15 @@ jobs:
           path: |
             engine/check.log
             engine/Cargo.lock
+  rust-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: cargo test (lib, bins, tests)
+        working-directory: engine
+        run: cargo test --workspace --lib --bins --tests --no-fail-fast 2>&1 | tee test.log; exit ${PIPESTATUS[0]}
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          path: engine/test.log
