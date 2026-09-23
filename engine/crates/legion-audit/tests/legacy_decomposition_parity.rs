@@ -211,6 +211,7 @@ fn test_classified_oversized_file_is_low_severity_not_runtime() {
 
 #[test]
 fn mechanical_split_across_parts_dir_reconstructs_logical_loc() {
+    let _guard = THRESHOLD_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let root = root();
     fs::create_dir_all(root.join("engine/big_parts")).unwrap();
     // Each part is small on its own but the reconstructed logical unit

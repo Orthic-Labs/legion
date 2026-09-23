@@ -725,8 +725,13 @@ fn authorized_external_success_is_receipt_and_denominator_bound_for_all_external
             // on-disk `_jscpd/jscpd-report.json` this FakeTool also writes
             // it to), it needs `duplicates: []` so jscpd's own schema is
             // satisfied without disturbing the other 21 providers' parsers,
-            // which ignore the extra key.
-            body: Some(br#"{"complete":true,"status":"ok","coverageGaps":[],"duplicates":[]}"#.to_vec()),
+            // which ignore the extra key. It also needs a
+            // `metadata.vulnerabilities.total` key so `deps_cve`
+            // (`legacy_checks::parsers::deps_cve`, mirroring
+            // collect-facts.mjs's npm/pnpm-audit parser) finds a proven
+            // zero-vulnerability count instead of treating the body as
+            // unparseable.
+            body: Some(br#"{"complete":true,"status":"ok","coverageGaps":[],"duplicates":[],"metadata":{"vulnerabilities":{"total":0}}}"#.to_vec()),
         }));
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let mut checked = 0;
