@@ -87,6 +87,8 @@ fn percent_decode(input: &str) -> String {
 /// cases used by these callers.
 fn path_to_file_url(path: &Path) -> Option<String> {
     let raw = path.to_str()?;
+    // Windows `canonicalize` yields verbatim `\\?\C:\...` paths.
+    let raw = raw.strip_prefix(r"\\?\").unwrap_or(raw);
     if raw.is_empty() {
         return None;
     }
@@ -195,6 +197,12 @@ mod tests {
 
     static COUNTER: AtomicU64 = AtomicU64::new(0);
 
+    fn canon(p: &Path) -> std::io::Result<PathBuf> {
+        let real = std::fs::canonicalize(p)?;
+        let text = real.to_string_lossy();
+        Ok(text.strip_prefix(r"\\?\").map(PathBuf::from).unwrap_or(real))
+    }
+
     fn temp_dir() -> PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
         let dir = std::env::temp_dir().join(format!(
@@ -223,7 +231,7 @@ mod tests {
     fn matching_direct_invocation_is_true() {
         let dir = temp_dir();
         let script = write_file(&dir, "audit-run.mjs");
-        let real = std::fs::canonicalize(&script).unwrap();
+        let real = canon(&script).unwrap();
         let import_meta_url = path_to_file_url(&real).unwrap();
         assert!(is_main_entrypoint(
             &import_meta_url,
@@ -238,7 +246,7 @@ mod tests {
         let dir = temp_dir();
         let script = write_file(&dir, "audit-run.mjs");
         let other = write_file(&dir, "audit-complete.mjs");
-        let real = std::fs::canonicalize(&other).unwrap();
+        let real = canon(&other).unwrap();
         let import_meta_url = path_to_file_url(&real).unwrap();
         assert!(!is_main_entrypoint(
             &import_meta_url,
@@ -252,7 +260,7 @@ mod tests {
     fn win32_comparison_is_case_insensitive() {
         let dir = temp_dir();
         let script = write_file(&dir, "Audit-Run.mjs");
-        let real = std::fs::canonicalize(&script).unwrap();
+        let real = canon(&script).unwrap();
         let href_lower = path_to_file_url(&real).unwrap().to_lowercase();
         // Simulate a Windows-style argv path whose case differs only in
         // casing from the on-disk file; win32 folding makes them equal.
@@ -274,7 +282,7 @@ mod tests {
     fn round_trip_file_url_conversion() {
         let dir = temp_dir();
         let script = write_file(&dir, "a file.mjs");
-        let real = std::fs::canonicalize(&script).unwrap();
+        let real = canon(&script).unwrap();
         let href = path_to_file_url(&real).unwrap();
         assert!(href.contains("%20"));
         let back = file_url_to_path(&href).unwrap();
