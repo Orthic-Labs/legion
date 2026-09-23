@@ -200,6 +200,10 @@ pub fn verification_projection(facts: &Value) -> Value {
             .cmp(b.get("provider").and_then(Value::as_str).unwrap_or_default())
     });
 
+    let mut plan_provider_ids = as_array(&first(facts, &[&["plan", "denominator", "providerIds"]]));
+    plan_provider_ids.sort_by(|a, b| a.as_str().unwrap_or_default().cmp(b.as_str().unwrap_or_default()));
+    let mut plan_expected_checks = as_array(&first(facts, &[&["plan", "denominator", "expectedChecks"]]));
+    plan_expected_checks.sort_by(|a, b| a.as_str().unwrap_or_default().cmp(b.as_str().unwrap_or_default()));
     json!({
         "schemaVersion": 1,
         "kind": "legion-verification-projection",
@@ -213,27 +217,8 @@ pub fn verification_projection(facts: &Value) -> Value {
             "digest": first(facts, &[&["plan", "seal", "digest"], &["plan", "digest"]]),
             "signature": first(facts, &[&["plan", "seal", "signature"]]),
             "registryDigest": first(facts, &[&["plan", "binding", "registryDigest"]]),
-            "providerIds": {
-                let mut ids = as_array(&first(facts, &[&["plan", "denominator", "providerIds"]]));
-                ids.sort_by(|a, b| a.as_str().unwrap_or_default().cmp(b.as_str().unwrap_or_default()));
-                ids
-            },
-            "expectedChecks": {
-                let mut checks = as_array(&first(facts, &[&["plan", "denominator", "expectedChecks"]]));
-                checks.sort_by(|a, b| a.as_str().unwrap_or_default().cmp(b.as_str().unwrap_or_default()));
-                checks
-            },
-        },
-        "blueprint": {
-            "generationId": first(
-                facts,
-                &[&["blueprint", "generationId"], &["plan", "binding", "blueprint", "generationId"]],
-            ),
-            "manifestDigest": first(
-                facts,
-                &[&["blueprint", "manifestDigest"], &["plan", "binding", "blueprint", "manifestDigest"]],
-            ),
-            "providerVersion": first(facts, &[&["blueprint", "providerVersion"]]),
+            "providerIds": plan_provider_ids,
+            "expectedChecks": plan_expected_checks,
         },
         "networkPolicy": {
             "mode": first(facts, &[&["network_policy", "mode"]]),

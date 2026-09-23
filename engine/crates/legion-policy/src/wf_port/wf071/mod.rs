@@ -28,5 +28,5 @@ pub use calibration_convergence_policy::{
 };
 pub use completion_state::{
     completion_integrated_state, completion_integrated_state_for_repositories,
-    repository_relative, RepositoryScope,
+    path_matches, repository_relative, RepositoryScope,
 };
