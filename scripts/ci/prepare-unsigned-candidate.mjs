@@ -193,7 +193,6 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 		? identity.architecture === "arm64" ? "aarch64-pc-windows-msvc" : "x86_64-pc-windows-msvc"
 		: identity.architecture === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin";
 	runPnpm(["legion:check"], "Legion consistency gate");
-	runPnpm(["test"], "Node tests");
 	// Type-check before the test phase so a compile error is reported in
 	// seconds rather than after the whole suite has been rebuilt.
 	runCommand(
@@ -240,6 +239,23 @@ function assembleAndSmoke({ inputRoot, identity, repositoryRoot, env, commandRun
 		[join(repositoryRoot, "scripts", "ci", "native-installed-smoke.mjs"), inputRoot],
 		{ cwd: repositoryRoot, env: commandEnv, stdio: "inherit", windowsHide: true },
 		"installed-product smoke",
+		commandRunner,
+	);
+	// Node integration tests exercise the installed native CLI, so they run
+	// only after assembly, against that exact candidate (see right-git-ci.sh).
+	runCommand(
+		process.execPath,
+		[pnpmCli, "test"],
+		{
+			cwd: repositoryRoot,
+			env: {
+				...commandEnv,
+				LEGION_TEST_NATIVE_CLI_PATH: join(inputRoot, "bin", identity.platform === "windows" ? "legion.exe" : "legion"),
+			},
+			stdio: "inherit",
+			windowsHide: true,
+		},
+		"Node tests",
 		commandRunner,
 	);
 }
