@@ -41,6 +41,14 @@ fn independence_then_ledger_then_gap_critic_pipeline() {
     let clustered = independence_cluster(&evidence);
     assert_eq!(clustered.unique_voices, 1);
 
+    // gap_critic.py's `review` derives each claim's cluster count from
+    // `s.get('independence_cluster') or s['id']` — it reads the field the
+    // independence pass attaches, falling back to the source id (which
+    // would wrongly count e1/e2 as two separate clusters). Downstream
+    // callers must therefore pass the clustered evidence (with
+    // `independence_cluster` set), not the raw input rows.
+    let evidence = clustered.evidence.clone();
+
     let claims = vec![json!({
         "id": "c1", "claim_type": "benchmark", "text": "Product X leads the benchmark",
         "confidence": "high", "status": "supported", "as_of": "2024-01-01",

@@ -157,7 +157,7 @@ pub fn pairwise(
                     let covered = valid
                         .iter()
                         .any(|row| row.get(&keys[left]) == Some(a) && row.get(&keys[right]) == Some(b));
-                    if !covered {
+                    if covered {
                         let pair = vec![(keys[left].clone(), a.clone()), (keys[right].clone(), b.clone())];
                         let pair_key = Value::Array(
                             pair.iter()

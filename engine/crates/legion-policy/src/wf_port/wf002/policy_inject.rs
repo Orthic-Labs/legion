@@ -321,8 +321,12 @@ mod tests {
         )
         .unwrap();
         // brief-policy.md fallback text starts with "Brief is default" in the
-        // real repo file; assert the toml's non-content key never leaks in.
-        assert!(!injection.additional_context.contains("CUSTOM"));
+        // real repo file; assert the toml's non-content section never leaks
+        // in. (Not a "CUSTOM" substring check: minimize-policy.md's real
+        // content legitimately contains "MIN_CUSTOM".)
+        assert!(injection.additional_context.starts_with("Brief is default"));
+        assert!(!injection.additional_context.contains("[other]"));
+        assert!(!injection.additional_context.contains("key = \"value\""));
         let _ = fs::remove_dir_all(&workspace);
     }
 
