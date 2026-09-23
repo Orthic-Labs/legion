@@ -241,6 +241,7 @@ pub struct CreateRemediationSandboxInput<'a> {
     pub created_at: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct CreateRemediationSandboxOutput {
     pub path: String,
     pub receipt: SandboxReceipt,

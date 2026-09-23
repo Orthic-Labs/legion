@@ -49,7 +49,7 @@ use std::time::{Duration, Instant};
 pub fn sha256_of(value: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(value.as_bytes());
-    format!("sha256:{:x}", hasher.finalize())
+    format!("sha256:{}", hex::encode(hasher.finalize()))
 }
 
 pub fn path_digest(paths: &[String]) -> String {

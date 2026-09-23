@@ -347,7 +347,14 @@ fn prefix_pointer(
     let mut file = fs::File::open(path).map_err(|e| e.to_string())?;
     let mut hasher = Sha256::new();
     let mut take = file.by_ref().take(consumed);
-    std::io::copy(&mut take, &mut hasher).map_err(|e| e.to_string())?;
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = take.read(&mut buf).map_err(|e| e.to_string())?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
     let digest = hex::encode(hasher.finalize());
 
     Ok(SourcePointer {

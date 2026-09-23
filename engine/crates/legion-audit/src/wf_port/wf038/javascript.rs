@@ -87,5 +87,5 @@ pub fn js_fingerprint(file: &str, line: i64, rule_id: &str) -> String {
     hasher.update(file.as_bytes());
     hasher.update(b"\0");
     hasher.update(line.to_string().as_bytes());
-    format!("sha256:{:x}", hasher.finalize())
+    format!("sha256:{}", hex::encode(hasher.finalize()))
 }

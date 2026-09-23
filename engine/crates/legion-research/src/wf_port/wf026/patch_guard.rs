@@ -17,6 +17,7 @@
 //! the packet report for this observation.
 
 use hmac::{Hmac, Mac};
+use hmac::digest::KeyInit;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::fmt;

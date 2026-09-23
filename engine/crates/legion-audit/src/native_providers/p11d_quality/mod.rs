@@ -815,7 +815,7 @@ pub mod ai_quality {
     // metric. Mirrors the JS module-load-time completeness assertion via
     // `dispatch()` covering every `METRICS` entry (exercised by a test).
     // -----------------------------------------------------------------
-    pub fn dispatch(metric: &str, fixture: &Value) -> Result<evaluators::ScorerResult, String> {
+    pub fn dispatch(metric: &str, fixture: &Value) -> Result<ScorerResult, String> {
         use evaluators::*;
         Ok(match metric {
             "declared-task-eval" => score_declared_task_eval(fixture),
@@ -1299,7 +1299,7 @@ pub mod accessibility_suite {
         let expected = result["coverage"]["expectedFiles"].as_u64().unwrap_or(0);
         let zero = expected == 0;
         json!({
-            "status": if zero { "unproven" } else { result["status"].clone() },
+            "status": if zero { Value::String("unproven".to_string()) } else { result["status"].clone() },
             "complete": !zero && result["complete"].as_bool().unwrap_or(false),
             "denominator": {
                 "kind": "accessibility-source-files",

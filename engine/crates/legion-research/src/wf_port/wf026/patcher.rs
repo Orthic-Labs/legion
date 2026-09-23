@@ -11,6 +11,7 @@
 //! `patch_guard::issue_receipt` never produces.
 
 use hmac::{Hmac, Mac};
+use hmac::digest::KeyInit;
 use regex::Regex;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};

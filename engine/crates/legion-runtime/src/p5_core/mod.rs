@@ -42,12 +42,12 @@ pub use core_scheduler::{
 
 pub use adapters_chain_adjudication::{
     create_chain_adjudication_packet, finalize_chain_verdict, ChainAdjudicationError,
-    ChainAdjudicationPacket, ChainVerdict,
+    ChainAdjudicationPacket, ChainVerdict, CreateChainAdjudicationPacketInput,
 };
 pub use adapters_ecosystem_manifests::{read_ecosystem_manifests, EcosystemManifest};
 pub use adapters_untrusted_evidence::{
     bound_packet_evidence, escape_for_reasoning, untrusted_evidence_envelope, BoundEvidence,
-    UntrustedEvidenceEnvelope, PACKET_LIMITS,
+    EvidenceInput, UntrustedEvidenceEnvelope, PACKET_LIMITS,
 };
 pub use contracts_enums::{
     assert_enum, assert_schema_version, assert_schema_version_default, EvidenceClass,

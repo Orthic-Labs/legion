@@ -12,6 +12,7 @@ use serde_json::{json, Value};
 use super::support::WfError;
 
 /// Port of `NotebookLMAdapter`.
+#[derive(Debug)]
 pub struct NotebookLmAdapter {
     executable: PathBuf,
 }

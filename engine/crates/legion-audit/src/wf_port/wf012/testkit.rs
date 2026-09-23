@@ -73,7 +73,7 @@ pub fn stable_id(namespace: &str, value: &Value) -> String {
     hasher.update(namespace.as_bytes());
     hasher.update(b"\0");
     hasher.update(body.as_bytes());
-    format!("sha256:{:x}", hasher.finalize())
+    format!("sha256:{}", hex::encode(hasher.finalize()))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

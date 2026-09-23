@@ -8,6 +8,7 @@ use super::support::{command_json, data_only_envelope, publisher_from_url, seed_
 use super::types::{LocatedPassage, OpenedSource, Provider, SearchHit};
 
 /// Port of `CommandBridgeProvider`.
+#[derive(Debug)]
 pub struct CommandBridgeProvider {
     pub name: String,
     command: Vec<String>,

@@ -140,7 +140,7 @@ impl<'a> PackContext<'a> {
     }
 
     /// Mirrors `context.relationsTo(id)`: every relation whose `to` equals `id`.
-    pub fn relations_to(&self, id: &str) -> impl Iterator<Item = &Relation> {
+    pub fn relations_to(&self, id: &str) -> impl Iterator<Item = &Relation> + '_ {
         self.relations.iter().filter(move |r| r.to == id)
     }
 
@@ -829,11 +829,11 @@ pub mod parser_serialization {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn push_observation(
+    fn push_observation<'a>(
         observations: &mut Vec<Observation>,
         rule_id: &str,
         claim: &str,
-        mut severity_hint: &str,
+        mut severity_hint: &'a str,
         mut uncertainty: Vec<String>,
         attacker_capabilities: &[&str],
         precondition_action: &str,
@@ -845,7 +845,7 @@ pub mod parser_serialization {
         artifact: Option<&Entity>,
         ctx: &PackContext,
         control_types: &[&str],
-        downgrade_severity: &str,
+        downgrade_severity: &'a str,
         mitigated_lexically: bool,
         downgrade_note: &str,
         file: &str,

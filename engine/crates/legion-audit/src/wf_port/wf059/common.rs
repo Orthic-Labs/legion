@@ -132,7 +132,7 @@ impl Context {
     }
 
     /// Mirrors `context.relationsTo(id)`.
-    pub fn relations_to(&self, to: &str) -> impl Iterator<Item = &Relation> {
+    pub fn relations_to(&self, to: &str) -> impl Iterator<Item = &Relation> + '_ {
         self.relations.iter().filter(move |r| r.to == to)
     }
 

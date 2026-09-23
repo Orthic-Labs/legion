@@ -119,9 +119,11 @@ pub fn create_hazard_candidate(input: &Value) -> Result<Value, String> {
         return Err("evidenceRefs must be a non-empty array".to_string());
     }
 
-    let unsafe_states = unique_sorted(&input.get("unsafeStates").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default());
+    let unsafe_states_raw: Vec<String> = input.get("unsafeStates").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
+    let unsafe_states = unique_sorted(&unsafe_states_raw);
     let misuse_sorted = unique_sorted(&misuse_scenarios);
-    let uncertainty = unique_sorted(&input.get("uncertainty").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default());
+    let uncertainty_raw: Vec<String> = input.get("uncertainty").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect()).unwrap_or_default();
+    let uncertainty = unique_sorted(&uncertainty_raw);
     let detector_metadata = input.get("detectorMetadata").cloned().unwrap_or(Value::Object(Map::new()));
 
     // Every outcome class here is high-consequence: the reasoning

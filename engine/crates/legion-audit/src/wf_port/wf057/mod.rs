@@ -146,7 +146,7 @@ impl<'a> PackContext<'a> {
     }
 
     /// Mirrors `context.relationsTo(id)`: relations whose `to` is `id`.
-    pub fn relations_to(&self, id: &str) -> impl Iterator<Item = &Relation> {
+    pub fn relations_to(&self, id: &str) -> impl Iterator<Item = &Relation> + '_ {
         self.relations.iter().filter(move |r| r.to == id)
     }
 

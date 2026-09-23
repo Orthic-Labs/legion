@@ -87,7 +87,7 @@ fn source_revision(root: &Path, include_dirty: bool) -> String {
         hash.update(b"\0");
     }
 
-    let digest = format!("content.sha256:{:x}", hash.finalize());
+    let digest = format!("content.sha256:{}", hex::encode(hash.finalize()));
     if dirty.is_empty() {
         digest
     } else {

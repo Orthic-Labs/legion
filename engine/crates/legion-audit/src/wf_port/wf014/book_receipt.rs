@@ -31,7 +31,7 @@ fn schema_v2() -> Value {
 fn digest(bytes: &[u8]) -> String {
     let mut hash = Sha256::new();
     hash.update(bytes);
-    format!("sha256:{:x}", hash.finalize())
+    format!("sha256:{}", hex::encode(hash.finalize()))
 }
 
 fn resolve_path(root: &Path, rel: &str) -> PathBuf {
