@@ -114,7 +114,7 @@ const SECRET_PATTERNS: &[(&str, &str)] = &[
     ("GitHub token", r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
     ("Slack token", r"\bxox[a-z]-[A-Za-z0-9-]{10,}\b"),
     ("AWS access key", r"\bAKIA[0-9A-Z]{16}\b"),
-);
+];
 
 /// Mirrors Python's `label_value(text, label)`: finds a line `- **Label:** value` and
 /// returns the trimmed value, or `None` if the label line is absent.
