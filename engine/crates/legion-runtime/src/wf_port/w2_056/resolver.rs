@@ -193,6 +193,31 @@ mod tests {
     use serde_json::json;
     use std::fs;
 
+    /// Contract-complete manifest for `id`: satisfies every field
+    /// `l5_skills::contracts::validate_skill_bundle` requires (schema
+    /// version, rights receipt, root URI, audit/authoring profile shape,
+    /// and the entry file being declared), which `validate_capability_selection`
+    /// applies to every manifest exactly as `resolver.mjs` does.
+    fn valid_manifest(id: &str) -> Value {
+        json!({
+            "schemaVersion": 1, "id": id, "version": "1.0.0", "entry": "SKILL.md",
+            "provenance": {}, "licenseState": "public-domain",
+            "rightsReceipt": { "kind": "public-domain" },
+            "rootUri": format!("legion-skill://{id}/"),
+            "profiles": {
+                "audit": {"mutation": false, "publish": false},
+                "authoring": {"mutation": true, "publish": true},
+            },
+            "files": [
+                {
+                    "path": "SKILL.md",
+                    "uri": format!("legion-skill://{id}/SKILL.md"),
+                    "digest": format!("sha256:{}", "a".repeat(64)),
+                },
+            ],
+        })
+    }
+
     fn scaffold() -> TempDir {
         let dir = TempDir::new();
         fs::create_dir_all(dir.path().join("src/config")).unwrap();
@@ -208,15 +233,7 @@ mod tests {
             json!({"bundles": [{"id": "foo", "manifest": "skills/foo/manifest.json"}]}).to_string(),
         )
         .unwrap();
-        fs::write(
-            dir.path().join("skills/foo/manifest.json"),
-            json!({
-                "schemaVersion": 1, "id": "foo", "version": "1.0.0", "entry": "SKILL.md",
-                "provenance": {}, "licenseState": "public-domain"
-            })
-            .to_string(),
-        )
-        .unwrap();
+        fs::write(dir.path().join("skills/foo/manifest.json"), valid_manifest("foo").to_string()).unwrap();
         dir
     }
 
@@ -287,12 +304,8 @@ mod tests {
             .to_string(),
         )
         .unwrap();
-        let manifest = json!({
-            "schemaVersion": 1, "id": "a", "version": "1.0.0", "entry": "SKILL.md",
-            "provenance": {}, "licenseState": "public-domain"
-        });
-        fs::write(dir.path().join("skills/a/manifest.json"), manifest.to_string()).unwrap();
-        fs::write(dir.path().join("skills/b/manifest.json"), manifest.to_string()).unwrap();
+        fs::write(dir.path().join("skills/a/manifest.json"), valid_manifest("a").to_string()).unwrap();
+        fs::write(dir.path().join("skills/b/manifest.json"), valid_manifest("b").to_string()).unwrap();
 
         let ids = vec!["a".to_string(), "b".to_string(), "missing".to_string()];
         let result = validate_capability_selection(&ids, SelectionSource::Semantic, dir.path()).unwrap();
@@ -317,15 +330,7 @@ mod tests {
             .to_string(),
         )
         .unwrap();
-        fs::write(
-            dir.path().join("skills/b/manifest.json"),
-            json!({
-                "schemaVersion": 1, "id": "b", "version": "1.0.0", "entry": "SKILL.md",
-                "provenance": {}, "licenseState": "public-domain"
-            })
-            .to_string(),
-        )
-        .unwrap();
+        fs::write(dir.path().join("skills/b/manifest.json"), valid_manifest("b").to_string()).unwrap();
         let result = validate_capability_selection(&["b".to_string()], SelectionSource::Explicit, dir.path()).unwrap();
         assert_eq!(result.status, "resolved");
         assert_eq!(result.resolved.len(), 1);

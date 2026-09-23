@@ -115,11 +115,38 @@ mod tests {
     use serde_json::json;
     use std::fs;
 
-    fn manifest(profiles: Value, files: Value) -> Value {
+    /// Full contract fields (`schemaVersion`, `rightsReceipt`, `rootUri`,
+    /// `audit`/`authoring` profile shape) required by
+    /// `l5_skills::contracts::validate_skill_bundle`, which `load_skill`
+    /// applies to every manifest exactly as `loader.mjs` does. `entry` is
+    /// kept independent from the queried path so tests can exercise
+    /// "record not declared"/"forbidden profile" without also having to
+    /// declare the entry file among `files`.
+    fn manifest(entry: &str, audit_extra: Value, files: Value) -> Value {
+        let mut audit = json!({"mutation": false, "publish": false});
+        if let (Some(audit_obj), Some(extra_obj)) = (audit.as_object_mut(), audit_extra.as_object()) {
+            for (k, v) in extra_obj {
+                audit_obj.insert(k.clone(), v.clone());
+            }
+        }
+        let mut all_files = files.as_array().cloned().unwrap_or_default();
+        if !all_files.iter().any(|f| f.get("path").and_then(Value::as_str) == Some(entry)) {
+            all_files.push(json!({
+                "path": entry,
+                "uri": format!("legion-skill://demo/{entry}"),
+                "digest": format!("sha256:{}", "a".repeat(64)),
+            }));
+        }
         json!({
-            "schemaVersion": 1, "id": "demo", "version": "1.0.0", "entry": "SKILL.md",
+            "schemaVersion": 1, "id": "demo", "version": "1.0.0", "entry": entry,
             "provenance": {}, "licenseState": "public-domain",
-            "profiles": profiles, "files": files,
+            "rightsReceipt": { "kind": "public-domain" },
+            "rootUri": "legion-skill://demo/",
+            "profiles": {
+                "audit": audit,
+                "authoring": {"mutation": true, "publish": true},
+            },
+            "files": all_files,
         })
     }
 
@@ -130,8 +157,9 @@ mod tests {
         fs::write(dir.path().join("skills/demo/SKILL.md"), "hello\n").unwrap();
         let (_, digest) = verify_skill_bytes(b"hello\n", "");
         let m = manifest(
-            json!({"audit": {}}),
-            json!([{"path": "SKILL.md", "digest": digest}]),
+            "SKILL.md",
+            json!({}),
+            json!([{"path": "SKILL.md", "uri": "legion-skill://demo/SKILL.md", "digest": digest}]),
         );
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);
@@ -151,7 +179,7 @@ mod tests {
     fn forbidden_profile_when_missing_or_external_only() {
         let dir = TempDir::new();
         fs::create_dir_all(dir.path().join("skills/demo")).unwrap();
-        let m = manifest(json!({"audit": {"externalOnly": true}}), json!([]));
+        let m = manifest("ENTRY.md", json!({"externalOnly": true}), json!([]));
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);
 
@@ -171,7 +199,7 @@ mod tests {
     #[test]
     fn missing_when_record_not_declared() {
         let dir = TempDir::new();
-        let m = manifest(json!({"audit": {}}), json!([]));
+        let m = manifest("ENTRY.md", json!({}), json!([]));
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);
 
@@ -186,8 +214,9 @@ mod tests {
     fn missing_on_read_when_file_absent_from_disk() {
         let dir = TempDir::new();
         let m = manifest(
-            json!({"audit": {}}),
-            json!([{"path": "SKILL.md", "digest": "sha256:deadbeef"}]),
+            "SKILL.md",
+            json!({}),
+            json!([{"path": "SKILL.md", "uri": "legion-skill://demo/SKILL.md", "digest": format!("sha256:{}", "b".repeat(64))}]),
         );
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);
@@ -205,8 +234,9 @@ mod tests {
         fs::create_dir_all(dir.path().join("skills/demo")).unwrap();
         fs::write(dir.path().join("skills/demo/SKILL.md"), "hello\n").unwrap();
         let m = manifest(
-            json!({"audit": {}}),
-            json!([{"path": "SKILL.md", "digest": "sha256:deadbeef"}]),
+            "SKILL.md",
+            json!({}),
+            json!([{"path": "SKILL.md", "uri": "legion-skill://demo/SKILL.md", "digest": format!("sha256:{}", "b".repeat(64))}]),
         );
         let mut manifests = BTreeMap::new();
         manifests.insert("demo".to_string(), m);

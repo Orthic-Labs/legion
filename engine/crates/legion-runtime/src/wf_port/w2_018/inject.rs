@@ -366,8 +366,12 @@ struct CspTag {
 
 fn find_csp_meta_tags(content: &str) -> Vec<CspTag> {
     let tag_re = Regex::new(r"(?is)<meta\s+([^>]*?)/?>").unwrap();
+    // JS uses a backreference (`(['"])Content-Security-Policy\2`) to require
+    // the same quote character on both sides; the `regex` crate has no
+    // backreference support, so this expands into an explicit alternation
+    // over the two quote characters, which is equivalent.
     let http_equiv_re = Regex::new(
-        r#"(?i)(http-equiv|httpEquiv)\s*=\s*(['"])Content-Security-Policy\2"#,
+        r#"(?i)(http-equiv|httpEquiv)\s*=\s*('Content-Security-Policy'|"Content-Security-Policy")"#,
     )
     .unwrap();
     let mut out = Vec::new();
@@ -758,19 +762,31 @@ mod tests {
 
     #[test]
     fn insert_then_remove_round_trips() {
+        // Spec: `removeTag`'s leading-indent capture is `[ \t]*` only, so it
+        // does not reabsorb the `\n` that `insertTag` inserts before the
+        // opener when the anchor had no existing newline
+        // (skills/designer/engine/scripts/live-inject.mjs:406-414,428-430).
+        // Confirmed against the JS source directly: `removeTag(insertTag(...))`
+        // for this input returns the content with that leading `\n` retained,
+        // not the original string.
         let content = "<html><head></head><body>content</body></html>";
         let c = cfg(None, Some("<body>"));
         let inserted = insert_tag(content, &c, 4321, "index.html");
         assert_ne!(inserted, content);
         let removed = remove_tag(&inserted);
-        assert_eq!(removed, content);
+        assert_eq!(removed, "<html><head></head><body>\ncontent</body></html>");
     }
 
     #[test]
     fn remove_tag_jsx_syntax() {
+        // Spec: the trailing capture `([ \t]*(?:\r\n|\n|\r|$)?)` consumes the
+        // `\n` right after `{/* impeccable-live-end */}`, so the `\n` before
+        // the closing `</div>` is removed along with the block
+        // (skills/designer/engine/scripts/live-inject.mjs:429-430). Confirmed
+        // by running `removeTag` on this input directly in node.
         let content = "<div>{/* impeccable-live-start */}\n<script src=\"x\"></script>\n{/* impeccable-live-end */}\n</div>";
         let removed = remove_tag(content);
-        assert_eq!(removed, "<div>\n</div>");
+        assert_eq!(removed, "<div></div>");
     }
 
     #[test]

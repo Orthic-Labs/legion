@@ -346,13 +346,26 @@ fn find_attr<'a>(segs: &'a [AttrSegment], name: &str) -> Option<&'a AttrSegment>
 
 /// Port of `mergeStaticClassAttr`.
 pub fn merge_static_class_attr(original_class: &AttrSegment, variant_class: &AttrSegment) -> Option<String> {
-    let class_value_re = regex::Regex::new(r#"class\s*=\s*(["'])(.*?)\1"#).unwrap();
+    // JS uses a backreference (`(["'])(.*?)\1`) to require the same quote
+    // character on both sides; the `regex` crate has no backreference
+    // support, so this expands into an explicit alternation over the two
+    // quote characters, which is equivalent.
+    let class_value_re =
+        regex::Regex::new(r#"class\s*=\s*(?:"([^"]*)"|'([^']*)')"#).unwrap();
     let original_value = class_value_re.captures(&original_class.raw)?;
     let variant_value = class_value_re.captures(&variant_class.raw)?;
-    let quote = variant_value.get(1)?.as_str();
+    let (quote, variant_text) = match (variant_value.get(1), variant_value.get(2)) {
+        (Some(m), _) => ("\"", m.as_str()),
+        (_, Some(m)) => ("'", m.as_str()),
+        _ => return None,
+    };
+    let original_text = original_value
+        .get(1)
+        .or_else(|| original_value.get(2))?
+        .as_str();
     let mut seen = HashSet::new();
     let mut classes = Vec::new();
-    for cls in variant_value.get(2)?.as_str().split_whitespace().chain(original_value.get(2)?.as_str().split_whitespace()) {
+    for cls in variant_text.split_whitespace().chain(original_text.split_whitespace()) {
         if !cls.is_empty() && seen.insert(cls) {
             classes.push(cls);
         }
@@ -541,10 +554,12 @@ fn escape_regexp(value: &str) -> String {
 }
 
 fn variant_selector_regex(variant_num: i64) -> regex::Regex {
-    let pat = format!(
-        r#"\[data-impeccable-variant=(["']){}\1\]"#,
-        escape_regexp(&variant_num.to_string())
-    );
+    // JS uses a backreference (`(["'])N\1`) to require the same quote
+    // character on both sides; the `regex` crate has no backreference
+    // support, so this expands into an explicit alternation over the two
+    // quote characters, which is equivalent.
+    let n = escape_regexp(&variant_num.to_string());
+    let pat = format!(r#"\[data-impeccable-variant=(?:"{n}"|'{n}')\]"#);
     regex::Regex::new(&pat).unwrap()
 }
 

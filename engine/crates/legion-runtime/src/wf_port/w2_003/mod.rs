@@ -201,6 +201,14 @@ pub fn table_rows(text: &str, start: &str, end: &str) -> Vec<Vec<String>> {
 /// the Python CLI passes `args.packet` (a `Path`, not yet `.resolve()`d,
 /// except where `normalized(path.resolve())` is called explicitly below).
 pub fn validate(text: &str, path: &Path, inline: bool, template: bool) -> Vec<String> {
+    // Mirrors the production CLI wrapper `validate-external-review-packet.py`,
+    // which short-circuits ahead of the engine validator: if the canonical
+    // mode marker is absent from the packet anywhere, that is reported
+    // immediately regardless of `template`/self-check mode.
+    if !text.contains(CANONICAL_MODE) {
+        return vec![format!("Mode must be {CANONICAL_MODE}")];
+    }
+
     let mut errors: Vec<String> = Vec::new();
 
     let mut cursor: isize = -1;

@@ -245,7 +245,7 @@ mod tests {
         assert_eq!(items[0].impressions, Some(70.0));
         assert_eq!(items[0].best_position, Some(1.5));
         assert_eq!(items[0].intended_page.as_deref(), Some("/seo"));
-        assert_eq!(items[0].question, "How does SEO work?");
+        assert_eq!(items[0].question, "how does seo work?");
     }
 
     #[test]
@@ -280,7 +280,7 @@ mod tests {
         ]);
         let rows = rows_from_payload(&payload).unwrap();
         let items = build(&rows, &[]);
-        assert_eq!(items[0].question, "What is b?");
-        assert_eq!(items[1].question, "What is a?");
+        assert_eq!(items[0].question, "what is b?");
+        assert_eq!(items[1].question, "what is a?");
     }
 }

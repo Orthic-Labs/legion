@@ -464,9 +464,19 @@ pub fn op_has_locator(op: &Op) -> bool {
 /// Port of `lineMatchesManualEditLocator(line, op)`.
 pub fn line_matches_manual_edit_locator(line: &str, op: &Op) -> bool {
     if let Some(tag) = op.tag.as_deref().filter(|t| !t.is_empty()) {
-        let pattern = format!(r"(?i)<\s*{}(?=[\s>/]|$)", regex_escape(tag));
+        // JS uses a lookahead `(?=[\s>/]|$)` after the tag name; the `regex`
+        // crate has no lookaround support, so match `<\s*tag` and then check
+        // the boundary condition on the following character manually.
+        let pattern = format!(r"(?i)<\s*{}", regex_escape(tag));
         let re = Regex::new(&pattern).expect("built from escaped input");
-        if !re.is_match(line) {
+        let matched = re.find_iter(line).any(|m| {
+            let rest = &line[m.end()..];
+            match rest.chars().next() {
+                None => true,
+                Some(c) => c.is_whitespace() || c == '>' || c == '/',
+            }
+        });
+        if !matched {
             return false;
         }
     }
