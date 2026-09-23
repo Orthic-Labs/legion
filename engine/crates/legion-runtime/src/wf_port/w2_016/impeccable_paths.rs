@@ -137,16 +137,19 @@ pub fn read_live_server_info(root: &Path) -> Option<LiveServerInfo> {
 /// exists but not signalable by this user) is treated as reachable.
 #[cfg(unix)]
 pub fn is_live_server_pid_reachable(pid: i64) -> bool {
-    use std::os::raw::c_int;
-    extern "C" {
-        fn kill(pid: c_int, sig: c_int) -> c_int;
+    // Shell out to `kill -0` rather than calling libc's kill() directly:
+    // this crate forbids unsafe code, and `kill -0` gives the same
+    // ESRCH-vs-everything-else semantics without an FFI declaration.
+    match std::process::Command::new("kill")
+        .arg("-0")
+        .arg(pid.to_string())
+        .output()
+    {
+        Ok(output) => output.status.success() || output.status.code() != Some(1),
+        // If we can't even spawn `kill`, conservatively assume reachable
+        // rather than deleting live server info we can't verify.
+        Err(_) => true,
     }
-    let rc = unsafe { kill(pid as c_int, 0) };
-    if rc == 0 {
-        return true;
-    }
-    // errno ESRCH == 3 on Linux/macOS.
-    std::io::Error::last_os_error().raw_os_error() != Some(3)
 }
 
 #[cfg(not(unix))]

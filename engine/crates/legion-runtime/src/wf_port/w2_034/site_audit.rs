@@ -296,9 +296,9 @@ pub fn build_report(
     inlinks: &HashMap<String, usize>,
     broken: &HashMap<String, BrokenLink>,
     redirects: &HashMap<String, RedirectLink>,
-    /// Host part of each broken/redirect target URL, matching
-    /// `urllib.parse.urlsplit(u).netloc`; the caller supplies this since URL parsing to
-    /// this depth is otherwise duplicated wholesale.
+    // Host part of each broken/redirect target URL, matching
+    // `urllib.parse.urlsplit(u).netloc`; the caller supplies this since URL parsing to
+    // this depth is otherwise duplicated wholesale.
     target_host: impl Fn(&str) -> String,
 ) -> IssuesReport {
     let mut issues: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();

@@ -20,7 +20,7 @@ fn sha256_hex(bytes: &[u8]) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    format!("{:x}", hasher.finalize())
+    format!("{}", hex::encode(hasher.finalize()))
 }
 
 /// Builds the same fixture packet as both Python smoke tests'

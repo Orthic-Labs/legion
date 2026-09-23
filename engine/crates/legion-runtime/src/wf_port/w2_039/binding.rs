@@ -139,6 +139,7 @@ mod tests {
         assert!(same_binding(Some(&left), Some(&right)));
     }
 
+    #[derive(Debug)]
     struct Artifact {
         binding: Option<Value>,
     }

@@ -417,7 +417,7 @@ pub fn parse_crux_response(record: &Value, target: &str, form_factor: Option<&st
         }
     }
 
-    if let Some(metrics) = record.get("metrics").and_then(|m| m.as_object()) {
+    if let Some(metrics) = record.get("metrics").and_then(Value::as_object) {
         for (metric_name, metric_data) in metrics {
             let p75_raw = metric_data.get("percentiles").and_then(|p| p.get("p75"));
             let p75_raw = match p75_raw {

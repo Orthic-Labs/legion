@@ -19,7 +19,7 @@ pub struct Reference {
 pub fn sha256_digest(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    format!("sha256:{:x}", hasher.finalize())
+    format!("sha256:{}", hex::encode(hasher.finalize()))
 }
 
 fn is_sha256_digest(value: &str) -> bool {

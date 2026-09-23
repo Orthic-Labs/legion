@@ -167,7 +167,7 @@ fn parse_yaml_subset(yaml: &str) -> HashMap<String, FrontmatterValue> {
                 path: child_path,
             });
         } else {
-            set_nested(&mut root, &parent_path, key, parse_scalar(rest));
+            set_nested(&mut root, &parent_path, key, parse_scalar(&rest));
         }
     }
 

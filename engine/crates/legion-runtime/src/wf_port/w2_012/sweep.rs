@@ -245,14 +245,14 @@ mod tests {
 
     #[test]
     fn extract_links_skips_hash_mailto_tel_js_and_cdn_cgi() {
-        let html = r#"
+        let html = r##"
             <a href="#top">Top</a>
             <a href="mailto:a@b.com">Mail</a>
             <a href="tel:+1234">Call</a>
             <a href="javascript:void(0)">JS</a>
             <a href="/cdn-cgi/l/email-protection">Protected</a>
             <a href="/pricing">Pricing</a>
-        "#;
+        "##;
         let links = extract_links(html, "https://example.com/");
         assert_eq!(links.len(), 1);
         assert_eq!(links[0].href, "/pricing");

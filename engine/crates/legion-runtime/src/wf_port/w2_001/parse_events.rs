@@ -164,11 +164,11 @@ pub fn iter_events(text: &str) -> Vec<ParsedLine> {
         if line.is_empty() {
             continue;
         }
-        match serde_json::from_str::<Value>(line) {
+        match serde_json::from_str::<Value>(&line) {
             Ok(v) => out.push(ParsedLine::Event(v)),
             Err(_) => out.push(ParsedLine::NonJson(format!(
                 "[non-json] {}",
-                truncate_chars(line, 160)
+                truncate_chars(&line, 160)
             ))),
         }
     }

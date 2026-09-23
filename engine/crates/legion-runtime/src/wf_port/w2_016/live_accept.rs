@@ -568,6 +568,7 @@ pub fn handle_accept(
 
     AcceptResult {
         handled: true,
+        error: None,
         new_lines,
         carbonize: needs_carbonize,
         accepted_original_text: original_content.join("\n"),
