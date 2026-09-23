@@ -298,7 +298,7 @@ pub struct ClaimContext<'a> {
 
 impl Default for ClaimContext<'_> {
     fn default() -> Self {
-        Self { evidence_classes: &[], stale_evidence_count: 0, enforcement_health: "unsupported", fields: &[], waived_by: None, stale_evidence_count: 0 }
+        Self { evidence_classes: &[], stale_evidence_count: 0, enforcement_health: "unsupported", fields: &[], waived_by: None }
     }
 }
 
