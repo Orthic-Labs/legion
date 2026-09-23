@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+serde_yaml.workspace = true
 icu_normalizer = { version = "2.3.0", default-features = false, features = ["compiled_data"] }
 hex.workspace = true
 regex.workspace = true

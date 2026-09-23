@@ -1379,8 +1379,8 @@ pub fn evaluate_frozen_value_gate(run_dirs: &[PathBuf], runs_root: &Path) -> Res
         "denominator": rows.len(),
         "material_change_count": material_count,
         "samples": rows,
-        "failures": failures.into_iter().collect::<Vec<_>>(),
         "passed": failures.is_empty(),
+        "failures": failures.into_iter().collect::<Vec<_>>(),
         "evaluated_at": now_iso(),
     }))
 }

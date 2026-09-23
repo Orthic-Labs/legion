@@ -109,7 +109,7 @@ pub struct BranchOutcome {
 
 /// Port of `_peer_round_accounting`'s `escalation_rate` field, the only one
 /// the report reads.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RoomAccounting {
     pub escalation_rate: f64,
 }
@@ -117,7 +117,7 @@ pub struct RoomAccounting {
 /// Port of the `_sample` return dict, minus the fields sourced from unported
 /// helpers (`blind_dir`/`peer_dir` are omitted; they are never read by
 /// `render`).
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Sample {
     pub label: String,
     pub blind: BranchOutcome,
