@@ -520,7 +520,7 @@ pub fn repair_client_projection(
                     .map(|metadata| metadata.file_type().is_symlink())
                     .unwrap_or(false);
                 if link {
-                    fs::remove_dir(&target).map_err(io)?;
+                    fs::remove_file(&target).map_err(io)?;
                 } else {
                     fs::remove_dir_all(&target).map_err(io)?;
                 }
@@ -748,7 +748,7 @@ pub fn remove_client_projection(
     // link would delete the installed product itself, so remove the link and
     // stop.
     if projection_root_links_to(&input.target_root, &input.source_root)? {
-        fs::remove_dir(&input.target_root).map_err(io)?;
+        fs::remove_file(&input.target_root).map_err(io)?;
         return Ok(ClientProjectionRepair {
             inspection: inspect_client_projection(input)?,
             repaired: Vec::new(),
@@ -782,7 +782,7 @@ pub fn remove_client_projection(
     let linked_targets = projection_link_targets(input)?;
     for (target, source) in &linked_targets {
         if projection_root_links_to(target, source)? {
-            fs::remove_dir(target).map_err(io)?;
+            fs::remove_file(target).map_err(io)?;
             removed.push(target.clone());
         }
     }
@@ -4045,6 +4045,20 @@ fn err(code: SetupErrorCode, remediation: impl Into<String>) -> SetupError {
 }
 fn io(error: std::io::Error) -> SetupError {
     err(SetupErrorCode::StateSerializationFailed, error.to_string())
+}
+/// Remove a symlink entry itself (never its target). `rmdir` refuses a
+/// symlink outright on Unix (ENOTDIR) even when it points at a directory, so
+/// unlink is the correct call there; Windows draws the opposite distinction
+/// and requires `RemoveDirectory` for a directory-type reparse point.
+fn remove_symlink(path: &Path) -> Result<(), SetupError> {
+    #[cfg(windows)]
+    {
+        fs::remove_dir(path).or_else(|_| fs::remove_file(path)).map_err(io)
+    }
+    #[cfg(not(windows))]
+    {
+        fs::remove_file(path).map_err(io)
+    }
 }
 fn read(path: &Path) -> Result<Vec<u8>, SetupError> {
     fs::read(path).map_err(io)

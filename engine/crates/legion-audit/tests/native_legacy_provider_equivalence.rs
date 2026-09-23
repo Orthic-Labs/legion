@@ -439,6 +439,23 @@ impl ExternalProjectTool for FakeTool {
                     bytes: body.len(),
                     immutable: true,
                 });
+                // `duplication` (jscpd) reads its report from a file under
+                // the `--output` dir the real executor passes it
+                // (`report_source_for("duplication")` in legacy_checks/mod.rs
+                // is `ReportSource::File("_jscpd/jscpd-report.json")`), not
+                // from stdout. A generic fixture body only on stdout leaves
+                // that file absent, so the production code reports
+                // `report-artifact-unreadable`/`artifact-bytes-unreadable`
+                // and never completes — reproduce the real tool's on-disk
+                // report so this all-providers loop covers file-sourced
+                // checks too.
+                if let Some(pos) = request.args.iter().position(|a| a == "--output") {
+                    if let Some(out_dir) = request.args.get(pos + 1) {
+                        let report_dir = PathBuf::from(out_dir).join("_jscpd");
+                        fs::create_dir_all(&report_dir).unwrap();
+                        fs::write(report_dir.join("jscpd-report.json"), body).unwrap();
+                    }
+                }
             }
         }
         if cancellation.is_cancelled() {

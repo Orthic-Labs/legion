@@ -182,6 +182,17 @@ fn subject_str<'a>(subject: &'a Value, key: &str) -> Option<&'a str> {
     subject.get(key).and_then(Value::as_str).filter(|s| !s.is_empty())
 }
 
+/// Mirrors Python's `subject.get(key) in (None, '')`: any present,
+/// non-null, non-empty-string value counts (numbers, bools, etc. included),
+/// unlike `subject_str` which is specifically for string-typed fields.
+fn subject_missing(subject: &Value, key: &str) -> bool {
+    match subject.get(key) {
+        None | Some(Value::Null) => true,
+        Some(Value::String(s)) => s.is_empty(),
+        Some(_) => false,
+    }
+}
+
 /// `route_resolve.pending_gates`.
 pub fn pending_gates(route: &Value) -> (Vec<String>, Vec<String>) {
     let mut gates: Vec<String> = Vec::new();
@@ -213,7 +224,7 @@ pub fn pending_gates(route: &Value) -> (Vec<String>, Vec<String>) {
         let operation = field_str(route, "operation");
         if country == Some("IN") && area == Some("consumer") && matches!(operation, "draft" | "procedure") {
             let required = ["pecuniary_value", "cause_of_action_date", "notice_status"];
-            if required.iter().any(|key| subject_str(&subject, key).is_none()) {
+            if required.iter().any(|key| subject_missing(&subject, key)) {
                 gates.push("confirm-consumer-filing-facts".to_string());
             }
         }

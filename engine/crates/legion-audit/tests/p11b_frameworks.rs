@@ -70,8 +70,15 @@ fn fastapi_flags_cors_all_and_missing_response_model() {
     let f = files(&[
         ("a.py", "allow_origins=[\"*\"]"),
         (
+            // The route-missing-response-model check (both this Rust port and
+            // its JS source, index.mjs's `(?![\s\S]{0,300}response_model)`
+            // lookahead) is a plain substring scan with no word boundaries;
+            // the previous fixture text ("...without_response_model_marker")
+            // itself contained the literal substring "response_model" and so
+            // was always treated as present, suppressing the finding under
+            // test in both implementations.
             "b.py",
-            "@app.get(\"/x\")\nasync def handler():\n    return do_other_stuff_for_a_while_without_response_model_marker()\n",
+            "@app.get(\"/x\")\nasync def handler():\n    return do_other_stuff_for_a_while()\n",
         ),
     ]);
     let out = fastapi::analyze(&f);
@@ -288,8 +295,14 @@ fn symfony_flags_untrusted_bind_and_sensitive_route_without_role() {
     let f = files(&[
         ("A.php", "$form->bind($request);"),
         (
+            // The `sensitive_route` regex (both this port and its JS source
+            // at src/providers/frameworks/symfony/index.mjs:16) requires a
+            // literal `[` right after `access_control:` — flow-style YAML —
+            // and never matches YAML's block-list `-` syntax. The previous
+            // fixture used block-list syntax, so neither implementation
+            // would ever flag it.
             "security.yaml",
-            "access_control:\n  - { path: ^/admin, roles: PUBLIC_ACCESS }",
+            "access_control: [{ path: ^/admin, roles: PUBLIC_ACCESS }]",
         ),
     ]);
     let out = symfony::analyze(&f);

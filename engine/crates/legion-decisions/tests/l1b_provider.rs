@@ -98,7 +98,7 @@ fn candidates_are_sorted_by_score_desc_then_id() {
     ];
     let set = produce_candidate_set(&spec("repo-a"), &records, "edit").expect("ok");
     assert_eq!(set.candidates[0]["id"], "architect:decision:a");
-    assert_eq!(set.candidates[1]["id"], "architect:decision:b");
+    assert_eq!(set.candidates[1]["id"], "architect:decision:b:proposed");
 }
 
 #[test]

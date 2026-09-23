@@ -59,7 +59,19 @@ fn validate_external_evidence_never_passes_without_real_signature_verification()
 
 #[test]
 fn verify_third_party_evidence_sets_provider_and_family_on_empty_input() {
-    let out = external::verify_third_party_evidence(&json!({}));
+    // `finalize`'s `exactBinding` (web/shared.mjs:31) flags every one of the
+    // 10 BINDING_KEYS as invalid when `binding` is absent/empty, which
+    // unconditionally forces `status: 'error'` (web/shared.mjs:83) — this is
+    // JS behavior, not a Rust-port bug. Supply a fully valid binding so the
+    // binding-gap override doesn't mask the actual fallback status under
+    // test.
+    let out = external::verify_third_party_evidence(&json!({
+        "binding": {
+            "targetId": "t1", "environment": "sandbox", "actorId": "a1", "tenantId": "tenant1",
+            "browser": "chrome", "browserVersion": "120", "viewport": "1920x1080",
+            "locale": "en-US", "sourceRevision": "abc123", "artifactDigest": "sha256:aa",
+        },
+    }));
     assert_eq!(out["provider"], "runtime.external.third-party");
     assert_eq!(out["family"], "third-party");
     assert_eq!(out["networkAttempted"], false);
@@ -113,7 +125,17 @@ fn verify_incident_evidence_family_and_claim_level() {
 fn verify_cloud_evidence_missing_trusted_producers_key_defaults_to_empty_not_invalid() {
     // Omitting `trustedProducers` defaults to an empty (valid) list, matching the JS default
     // parameter `trustedProducers = []`; it must not itself be flagged as a malformed collection.
-    let out = external::verify_cloud_evidence(&json!({"binding": {}}));
+    // An empty `binding: {}` independently forces `status: 'error'` through
+    // `finalize`'s `exactBinding` gap override (web/shared.mjs:31,83), which
+    // is unrelated to trustedProducers and would mask the assertion below;
+    // supply a fully valid binding instead.
+    let out = external::verify_cloud_evidence(&json!({
+        "binding": {
+            "targetId": "t1", "environment": "sandbox", "actorId": "a1", "tenantId": "tenant1",
+            "browser": "chrome", "browserVersion": "120", "viewport": "1920x1080",
+            "locale": "en-US", "sourceRevision": "abc123", "artifactDigest": "sha256:aa",
+        },
+    }));
     assert_eq!(out["provider"], "runtime.external.cloud");
     assert_eq!(out["family"], "cloud");
     let gaps = out["coverageGaps"].as_array().unwrap();
@@ -130,8 +152,17 @@ fn verify_dns_evidence_family_and_provider_set() {
 
 #[test]
 fn digest_is_present_and_stable_for_identical_input() {
-    let a = external::import_external_evidence(&json!({}));
-    let b = external::import_external_evidence(&json!({}));
-    assert_eq!(a["digest"], b["digest"]);
-    assert!(a["digest"].as_str().unwrap().starts_with("sha256:"));
+    // `importExternalEvidence` in
+    // src/providers/runtime/external-evidence/index.mjs never emits a
+    // `digest` key on its own result (no field named `digest` in that
+    // function's return object), so an empty-input call has none to compare.
+    // `validateExternalEvidence` (validate.mjs) is the JS function that does
+    // emit a stable digest, as `evidenceDigest`; exercise that one instead,
+    // with a non-null evidence item so the digest is actually computed.
+    let evidence = json!({"producer": "acme"});
+    let expected = json!({});
+    let a = external::validate_external_evidence(&evidence, &expected);
+    let b = external::validate_external_evidence(&evidence, &expected);
+    assert_eq!(a["evidenceDigest"], b["evidenceDigest"]);
+    assert!(a["evidenceDigest"].as_str().unwrap().starts_with("sha256:"));
 }

@@ -199,13 +199,23 @@ fn performance_observation_violated_on_long_tasks_or_latency_over_threshold() {
 
 #[test]
 fn verify_service_api_relabels_and_finalizes_the_exercise_receipt() {
+    // An empty `binding: {}` makes `finalize`'s `exactBinding` flag every
+    // BINDING_KEYS entry as invalid, which unconditionally forces
+    // `status: 'error'` (web/shared.mjs:31,83) regardless of the receipt's
+    // own status — see `finalize_flags_invalid_binding_values` below, which
+    // tests exactly that behavior. Use a fully valid binding here so this
+    // test actually exercises the pass-relabeling path it names.
     let exercise_receipt = json!({
         "digest": "sha256:stale",
         "kind": "legion-web-api-exercise",
         "schemaVersion": 1,
         "status": "pass",
         "terminal": true,
-        "binding": {},
+        "binding": {
+            "targetId": "t1", "environment": "sandbox", "actorId": "a1", "tenantId": "tenant1",
+            "browser": "chrome", "browserVersion": "120", "viewport": "1920x1080",
+            "locale": "en-US", "sourceRevision": "abc123", "artifactDigest": "sha256:aa",
+        },
     });
     let result = verify_service_api(exercise_receipt);
     assert_eq!(result["kind"], "legion-service-api-provider");
