@@ -1086,6 +1086,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tempfile",
  "thiserror 2.0.20",
  "tiktoken-rs",
 ]
@@ -1206,12 +1207,14 @@ name = "legion-research"
 version = "0.3.15"
 dependencies = [
  "hex",
+ "hmac",
  "legion-contracts",
  "legion-provider-sdk",
  "legion-runtime",
  "regex",
  "serde",
  "serde_json",
+ "serde_yaml",
  "sha2",
 ]
 

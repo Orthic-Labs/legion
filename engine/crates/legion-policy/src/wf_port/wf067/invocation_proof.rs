@@ -139,6 +139,7 @@ pub struct AuthorityInvocationProofIssuer<'a, K: KeyRing, L: LedgerStore> {
     clock: Box<dyn Fn() -> String + Send + Sync>,
 }
 
+#[derive(Debug)]
 pub enum IssueOutcome {
     Issued(Json),
 }
