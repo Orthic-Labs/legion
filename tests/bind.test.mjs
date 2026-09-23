@@ -217,7 +217,7 @@ test('codex bind migrates owned legacy assurance MCP & rejects unowned or confli
     assert.equal(ownedResult.status, 0, ownedResult.stderr);
     const migrated = readFileSync(join(ownedDir, '.codex', 'config.toml'), 'utf8');
     assert.doesNotMatch(migrated, /mcp_servers\.seer/);
-    assert.match(migrated, /mcp_servers\.legion/);
+    assert.match(migrated, /legion:managed-block v1/);
 
     writeFileSync(join(unownedDir, '.codex', 'config.toml'), '[mcp_servers.seer]\ncommand = "private-server"\nargs = []\n');
     const unownedBefore = readFileSync(join(unownedDir, '.codex', 'config.toml'), 'utf8');
