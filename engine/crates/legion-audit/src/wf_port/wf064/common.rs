@@ -3,7 +3,7 @@
 //! `sha256`). Every `tools/audit/audit-*.mjs` module ported under `wf064`
 //! depends on these exact semantics for plan sealing and stable ids.
 
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, Mac, digest::KeyInit};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 

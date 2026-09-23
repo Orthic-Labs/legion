@@ -594,7 +594,7 @@ fn match_objectives(facts: &[Value], model: &Value, objectives: &[Value]) -> Vec
             .filter(|id| entity_by_id.contains_key(*id))
             .map(str::to_string)
             .collect();
-        let matched_asset_ids: Vec<String> = matched_asset_ids.drain(..).collect();
+        let matched_asset_ids: Vec<String> = matched_asset_ids.into_iter().collect();
 
         matches.push(json!({
             "id": objective.get("id").cloned().unwrap_or(Value::Null),
@@ -627,7 +627,7 @@ fn derive_start(state: &State) -> Value {
         .filter_map(|j| j.get("fromFactId").and_then(Value::as_str))
         .map(str::to_string)
         .collect();
-    let fact_ids: Vec<String> = fact_ids.drain(..).collect();
+    let fact_ids: Vec<String> = fact_ids.into_iter().collect();
     let first_candidate_id = state
         .steps
         .first()

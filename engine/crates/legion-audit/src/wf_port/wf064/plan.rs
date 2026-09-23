@@ -274,7 +274,8 @@ pub fn reconcile_plan_with_facts(plan: &Map<String, Value>, facts: &Value) -> Va
     use std::collections::BTreeSet;
 
     let expected: BTreeSet<String> = plan
-        .pointer("/denominator/expectedChecks")
+        .get("denominator")
+        .and_then(|v| v.get("expectedChecks"))
         .and_then(|v| v.as_array())
         .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
         .unwrap_or_default();

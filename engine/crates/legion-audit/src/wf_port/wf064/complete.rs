@@ -113,7 +113,7 @@ fn family_coverage(plan: &Value, results: &[Value]) -> (Vec<Value>, Vec<Value>) 
         .iter()
         .filter(|family| {
             let executions = family.get("executions").and_then(|v| v.as_array());
-            match executions {
+            match executions.map(|v| v.as_slice()) {
                 None | Some([]) => {
                     let qualification = family.get("qualification").and_then(|v| v.as_str());
                     let missing_providers = family
