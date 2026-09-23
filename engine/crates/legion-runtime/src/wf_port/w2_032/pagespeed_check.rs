@@ -381,7 +381,7 @@ pub struct CruxDistribution {
 pub struct CruxMetric {
     pub p75: f64,
     pub rating: &'static str,
-    pub label: &'static str,
+    pub label: String,
     pub unit: &'static str,
     pub good_threshold: Option<f64>,
     pub poor_threshold: Option<f64>,
@@ -450,7 +450,7 @@ pub fn parse_crux_response(record: &Value, target: &str, form_factor: Option<&st
             let mut m = CruxMetric {
                 p75: p75_val,
                 rating,
-                label: t.map(|t| t.label).unwrap_or(metric_name),
+                label: t.map(|t| t.label.to_string()).unwrap_or_else(|| metric_name.to_string()),
                 unit: t.map(|t| t.unit).unwrap_or(""),
                 good_threshold: t.map(|t| t.good),
                 poor_threshold: t.map(|t| t.poor),

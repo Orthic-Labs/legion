@@ -197,7 +197,7 @@ mod tests {
         assert!(!glob_to_regex("file?.html").is_match("file12.html"));
     }
 
-    fn fake_fs(files: &[(&str, &[&str])]) -> impl for<'a> FnMut(&'a str) -> Vec<DirEntry> + '_ {
+    fn fake_fs<'f>(files: &'f [(&'f str, &'f [&'f str])]) -> impl for<'a> FnMut(&'a str) -> Vec<DirEntry> + 'f {
         move |dir: &str| {
             let mut entries = Vec::new();
             let mut seen_dirs = HashSet::new();
