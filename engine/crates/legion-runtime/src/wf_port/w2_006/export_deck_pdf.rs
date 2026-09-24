@@ -288,16 +288,12 @@ pub fn merge_page_pdfs(pages: &[Vec<u8>]) -> Result<Vec<u8>, String> {
     // into a disjoint range, then splice their objects and page trees
     // together into one accumulator document.
     let mut max_id: u32 = 1;
-    let mut documents_pages = lopdf::Dictionary::new();
+    let mut documents_pages: Vec<lopdf::ObjectId> = Vec::new();
     let mut documents_objects = std::collections::BTreeMap::new();
     for mut doc in documents {
         doc.renumber_objects_with(max_id);
         max_id = doc.max_id + 1;
-        documents_pages.extend(
-            doc.get_pages()
-                .into_iter()
-                .map(|(_, object_id)| (object_id.0.to_string().into_bytes(), lopdf::Object::Reference(object_id))),
-        );
+        documents_pages.extend(doc.get_pages().into_values());
         documents_objects.extend(doc.objects.clone());
     }
 
@@ -305,20 +301,15 @@ pub fn merge_page_pdfs(pages: &[Vec<u8>]) -> Result<Vec<u8>, String> {
     merged.objects = documents_objects.into_iter().collect();
 
     let pages_id = merged.new_object_id();
-    let mut kids = Vec::new();
-    for (_, object) in documents_pages.iter() {
-        if let lopdf::Object::Reference(id) = object {
-            kids.push(lopdf::Object::Reference(*id));
-        } else if let Ok(id) = merged.add_object(object.clone()) {
-            kids.push(lopdf::Object::Reference(id));
-        }
-    }
+    let kids: Vec<lopdf::Object> = documents_pages
+        .iter()
+        .map(|id| lopdf::Object::Reference(*id))
+        .collect();
     let page_count = kids.len() as i64;
-    let pages_dict = lopdf::dictionary! {
-        "Type" => "Pages",
-        "Kids" => kids.clone(),
-        "Count" => page_count,
-    };
+    let mut pages_dict = lopdf::Dictionary::new();
+    pages_dict.set("Type", lopdf::Object::Name(b"Pages".to_vec()));
+    pages_dict.set("Kids", lopdf::Object::Array(kids.clone()));
+    pages_dict.set("Count", lopdf::Object::Integer(page_count));
     merged.objects.insert(pages_id, lopdf::Object::Dictionary(pages_dict));
 
     for kid in &kids {
@@ -329,10 +320,10 @@ pub fn merge_page_pdfs(pages: &[Vec<u8>]) -> Result<Vec<u8>, String> {
         }
     }
 
-    let catalog_id = merged.add_object(lopdf::dictionary! {
-        "Type" => "Catalog",
-        "Pages" => pages_id,
-    });
+    let mut catalog = lopdf::Dictionary::new();
+    catalog.set("Type", lopdf::Object::Name(b"Catalog".to_vec()));
+    catalog.set("Pages", lopdf::Object::Reference(pages_id));
+    let catalog_id = merged.add_object(lopdf::Object::Dictionary(catalog));
     merged.trailer.set("Root", catalog_id);
     merged.max_id = merged.objects.keys().map(|id| id.0).max().unwrap_or(1);
     merged.renumber_objects();
