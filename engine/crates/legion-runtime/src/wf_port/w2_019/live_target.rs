@@ -3,17 +3,68 @@
 //!
 //! `resolveLiveTarget` in JS also performs the argv parse
 //! (`parseTargetPath`, from `lib/target-args.mjs`) and project-root
-//! discovery (`resolveProjectRoot`, from `context.mjs`) — both owned by
-//! other, unported chunks. This ports the remaining pure computation:
-//! given an already-parsed target path (or none) and an already-resolved
-//! project root, derive the absolute target path and the `targetOptions`
-//! object passed on to the rest of the pipeline.
+//! discovery (`resolveProjectRoot`, from `context.mjs`). Both of those
+//! are already ported elsewhere in this crate —
+//! [`crate::p8_designer::target_args::parse_target_path`] and
+//! [`crate::wf_port::w2_010::context::resolve_project_root`] — and
+//! [`run`] below wires them together with [`resolve_live_target`] into
+//! the full `resolveLiveTarget(cwd, args)` entrypoint (mirroring the same
+//! wiring `crate::wf_port::w2_020::live_cli::run` already does inline for
+//! `live.mjs`'s own call site), closing the gap this module's docs
+//! previously called out as unported.
 //!
 //! See [`crate::wf_port::w2_019`] for what is and isn't ported from this
 //! file.
 
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
+
+use crate::p8_designer::target_args::parse_target_path;
+use crate::wf_port::w2_010::context::{resolve_project_root, TargetOptions};
+
+/// Outcome of the full [`run`] entrypoint: either the resolved target, or
+/// the process-exit shape `resolveLiveTarget` takes when `parseTargetPath`
+/// throws a strict `TargetArgError` (JS writes the message to stderr and
+/// calls `process.exit(1)`).
+#[derive(Debug, Clone, PartialEq)]
+pub enum RunOutcome {
+    Resolved(LiveTargetResolution),
+    /// Mirrors the argv-error exit path: `(stderr message, exit code 1)`.
+    ArgError(String),
+}
+
+/// Port of `resolveLiveTarget(cwd, args)`'s full body: strict
+/// `parseTargetPath`, then (only when a target path was given)
+/// `resolveProjectRoot(originalCwd, { targetPath: absoluteTargetPath })`,
+/// then this module's own tail computation.
+pub fn run(cwd: &Path, args: &[String]) -> RunOutcome {
+    let original_cwd = cwd.to_path_buf();
+    let target_path = match parse_target_path(args, true) {
+        Ok(t) => t,
+        Err(e) => return RunOutcome::ArgError(e.message),
+    };
+
+    let absolute_target_path = target_path.as_deref().map(|t| {
+        let p = Path::new(t);
+        if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            original_cwd.join(p)
+        }
+    });
+
+    let project_root = if target_path.is_some() {
+        let opts = match &absolute_target_path {
+            Some(p) => TargetOptions::with(p.to_string_lossy().replace('\\', "/")),
+            None => TargetOptions::none(),
+        };
+        resolve_project_root(&original_cwd, &opts)
+    } else {
+        original_cwd.clone()
+    };
+
+    RunOutcome::Resolved(resolve_live_target(&original_cwd, target_path.as_deref(), &project_root))
+}
 
 /// Port of `resolveLiveTarget`'s return shape (the parts this module
 /// computes; `originalCwd`/`projectRoot` are inputs here, not outputs,
@@ -106,5 +157,39 @@ mod tests {
         let root = Path::new("/proj");
         let res = resolve_live_target(cwd, Some("/other/app"), root);
         assert_eq!(res.absolute_target_path, Some(PathBuf::from("/other/app")));
+    }
+
+    // -- run ----------------------------------------------------------------
+    //
+    // `resolve_project_root` walks the real filesystem (monorepo-marker
+    // discovery via `context.mjs`'s port), so without a target path it
+    // never runs and `run` is deterministic on a `TempDir`; with one, it
+    // resolves against whatever directories actually exist on disk, so
+    // these cases stick to the argv-parsing / no-target-path paths that
+    // don't depend on real project layout.
+
+    #[test]
+    fn run_uses_original_cwd_as_root_without_a_target_path() {
+        let cwd = std::env::temp_dir();
+        let outcome = run(&cwd, &[]);
+        match outcome {
+            RunOutcome::Resolved(res) => {
+                assert_eq!(res.project_root, cwd);
+                assert_eq!(res.absolute_target_path, None);
+                assert_eq!(res.target_options, json!({}));
+            }
+            RunOutcome::ArgError(_) => panic!("expected Resolved"),
+        }
+    }
+
+    #[test]
+    fn run_reports_strict_argv_error_before_touching_project_root_resolution() {
+        let cwd = std::env::temp_dir();
+        let args = vec!["--target".to_string()];
+        let outcome = run(&cwd, &args);
+        assert_eq!(
+            outcome,
+            RunOutcome::ArgError("--target requires a path value.".to_string())
+        );
     }
 }

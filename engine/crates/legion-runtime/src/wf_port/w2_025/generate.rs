@@ -1,20 +1,22 @@
-//! Port of `skills/seo/extensions/banana/scripts/generate.py`.
+//! Port of `skills/seo/extensions/banana/scripts/generate.py` (packet r33
+//! closes the previously-open HTTP/filesystem gap).
 //!
 //! The Python script is a stdlib-only Gemini REST fallback: it validates
 //! CLI input, builds a `generateContent` request body, performs the HTTP
 //! call with `urllib.request`, and extracts/saves the returned image.
-//! This port covers every deterministic, side-effect-free piece — input
-//! validation, request-body construction, response-part extraction, output
-//! filename/path construction, and result shaping — as pure functions.
-//!
-//! The actual HTTP call is intentionally NOT implemented here: this crate's
-//! `Cargo.toml` carries no HTTP client dependency, and this module is not
-//! permitted to edit it. Wiring `network::generate_request` (or similar)
-//! against `legion-runtime`'s eventual HTTP transport is left for whoever
-//! adds that dependency; see the integrator report for the exact patch
-//! needed (`reqwest`, matching the version already in `Cargo.lock`).
+//! Every deterministic piece — input validation, request-body
+//! construction, response-part extraction, output filename/path
+//! construction, and result shaping — is ported as pure functions. The
+//! HTTP call and the image write are now wired too, behind
+//! [`ImageTransport`] and [`OutputFs`] so tests never touch the network or
+//! disk: [`run`] reproduces `main()`'s full flow (validate, resolve key,
+//! POST, extract, save, build the printed JSON result), and
+//! [`ReqwestImageTransport`] / [`StdFs`] are the production
+//! implementations ([`reqwest::blocking`] is already a workspace
+//! dependency of this crate).
 
 use serde::Serialize;
+use serde_json::Value;
 use std::collections::BTreeSet;
 
 pub const DEFAULT_MODEL: &str = "gemini-3.1-flash-image-preview";
@@ -284,9 +286,482 @@ pub struct GenerateResult {
     pub text: String,
 }
 
+/// Parses the raw Gemini `generateContent` JSON response into the shape
+/// [`extract_image`] consumes, matching `result.get("candidates", [])`,
+/// each candidate's `content.parts` and `finishReason`, and
+/// `promptFeedback.blockReason`.
+pub fn parse_candidates(body: &Value) -> (Vec<(Option<String>, Vec<ResponsePart>)>, Option<String>) {
+    let block_reason = body
+        .get("promptFeedback")
+        .and_then(|f| f.get("blockReason"))
+        .and_then(Value::as_str)
+        .map(str::to_string);
+
+    let candidates = body
+        .get("candidates")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+
+    let parsed = candidates
+        .into_iter()
+        .map(|c| {
+            let finish_reason = c
+                .get("finishReason")
+                .and_then(Value::as_str)
+                .map(str::to_string);
+            let parts = c
+                .get("content")
+                .and_then(|content| content.get("parts"))
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|p| ResponsePart {
+                    inline_data_b64: p
+                        .get("inlineData")
+                        .and_then(|d| d.get("data"))
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
+                    text: p.get("text").and_then(Value::as_str).map(str::to_string),
+                })
+                .collect();
+            (finish_reason, parts)
+        })
+        .collect();
+
+    (parsed, block_reason)
+}
+
+/// HTTP boundary for the Gemini `generateContent` POST. Mirrors
+/// `urllib.request.urlopen`/`HTTPError`: any response that reached the
+/// server (2xx or an error status) is `Ok((status, body))`; a transport
+/// failure (DNS, connect, timeout — Python's `URLError`) is `Err`.
+pub trait ImageTransport {
+    fn post_json(&self, url: &str, body: &Value) -> Result<(u16, String), String>;
+}
+
+/// Filesystem boundary for saving the decoded image, mirroring
+/// `OUTPUT_DIR.mkdir(parents=True, exist_ok=True)` +
+/// `open(output_path, "wb").write(...)`.
+pub trait OutputFs {
+    fn create_dir_all(&self, path: &std::path::Path) -> std::io::Result<()>;
+    fn write(&self, path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()>;
+}
+
+/// CLI-shaped arguments, matching `argparse`'s flags.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GenerateArgs {
+    pub prompt: String,
+    pub aspect_ratio: String,
+    pub resolution: String,
+    pub model: String,
+    pub api_key: Option<String>,
+    pub thinking: Option<String>,
+    pub image_only: bool,
+}
+
+impl Default for GenerateArgs {
+    fn default() -> Self {
+        Self {
+            prompt: String::new(),
+            aspect_ratio: DEFAULT_RATIO.to_string(),
+            resolution: DEFAULT_RESOLUTION.to_string(),
+            model: DEFAULT_MODEL.to_string(),
+            api_key: None,
+            thinking: None,
+            image_only: false,
+        }
+    }
+}
+
+/// Outcome of [`run`]: either the printed JSON result (matching Python's
+/// `print(json.dumps(result, indent=2))` on success, or `print(json.dumps({...}))`
+/// plus `sys.exit(1)` on any error path) and the process exit code.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RunOutcome {
+    pub printed: String,
+    pub exit_code: i32,
+}
+
+fn error_outcome(message: String) -> RunOutcome {
+    RunOutcome {
+        printed: serde_json::json!({ "error": true, "message": message }).to_string(),
+        exit_code: 1,
+    }
+}
+
+/// `main()` + `generate_image()`: validate, resolve the API key, POST to
+/// Gemini, extract the image, save it via `fs`, and build the printed
+/// result. `timestamp` and `output_dir` are injected (Python derives the
+/// former from `datetime.now()` and the latter is the fixed
+/// `~/Documents/nanobanana_generated`) so this stays deterministic under
+/// test.
+pub fn run(
+    args: &GenerateArgs,
+    google_ai_api_key_env: Option<&str>,
+    google_api_key_env: Option<&str>,
+    transport: &dyn ImageTransport,
+    fs: &dyn OutputFs,
+    output_dir: &std::path::Path,
+    timestamp: &str,
+) -> RunOutcome {
+    if let Err(e) = validate_inputs(&args.aspect_ratio, &args.resolution, Some("placeholder")) {
+        // Aspect-ratio/resolution checks run before key resolution in
+        // Python's `main()`; re-run just those two (key is checked next,
+        // separately, since its message differs from `validate_inputs`'s).
+        if matches!(e, GenerateError::InvalidAspectRatio(_) | GenerateError::InvalidResolution(_)) {
+            return error_outcome(e.to_string());
+        }
+    }
+
+    let api_key = resolve_api_key(
+        args.api_key.as_deref(),
+        google_ai_api_key_env,
+        google_api_key_env,
+    );
+    let Some(api_key) = api_key else {
+        return error_outcome(GenerateError::MissingApiKey.to_string());
+    };
+
+    let url = request_url(&args.model, &api_key);
+    let body = build_request_body(
+        &args.prompt,
+        &args.aspect_ratio,
+        &args.resolution,
+        args.thinking.as_deref(),
+        args.image_only,
+    );
+    let body_value = serde_json::to_value(&body).unwrap_or(Value::Null);
+
+    let (status, resp_body) = match transport.post_json(&url, &body_value) {
+        Ok(pair) => pair,
+        Err(reason) => {
+            return error_outcome(reason);
+        }
+    };
+
+    if status >= 400 {
+        return RunOutcome {
+            printed: serde_json::json!({ "error": true, "status": status, "message": resp_body })
+                .to_string(),
+            exit_code: 1,
+        };
+    }
+
+    let parsed: Value = match serde_json::from_str(&resp_body) {
+        Ok(v) => v,
+        Err(e) => return error_outcome(e.to_string()),
+    };
+    let (candidates, block_reason) = parse_candidates(&parsed);
+
+    let extracted = match extract_image(&candidates, block_reason.as_deref()) {
+        Ok(e) => e,
+        Err(e) => return error_outcome(e.to_string()),
+    };
+
+    if fs.create_dir_all(output_dir).is_err() {
+        return error_outcome("failed to create output directory".to_string());
+    }
+
+    let filename = output_filename(timestamp);
+    let output_path = output_dir.join(&filename);
+
+    let decoded = match base64_decode(&extracted.image_data_b64) {
+        Ok(bytes) => bytes,
+        Err(e) => return error_outcome(e),
+    };
+
+    if let Err(e) = fs.write(&output_path, &decoded) {
+        return error_outcome(e.to_string());
+    }
+
+    let result = serde_json::json!({
+        "path": output_path.to_string_lossy(),
+        "model": args.model,
+        "aspect_ratio": args.aspect_ratio,
+        "resolution": args.resolution,
+        "text": extracted.text,
+    });
+
+    RunOutcome {
+        printed: serde_json::to_string_pretty(&result).unwrap_or_default(),
+        exit_code: 0,
+    }
+}
+
+/// Minimal standard-alphabet base64 decoder (matches Python's
+/// `base64.b64decode`, no external base64 crate dependency needed for this
+/// one call site).
+fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut table = [255u8; 256];
+    for (i, &b) in ALPHABET.iter().enumerate() {
+        table[b as usize] = i as u8;
+    }
+    let clean: Vec<u8> = input
+        .bytes()
+        .filter(|b| !b.is_ascii_whitespace() && *b != b'=')
+        .collect();
+    let mut out = Vec::with_capacity(clean.len() * 3 / 4 + 3);
+    for chunk in clean.chunks(4) {
+        let mut buf = [0u8; 4];
+        let mut n = 0;
+        for &c in chunk {
+            let v = table[c as usize];
+            if v == 255 {
+                return Err("invalid base64 input".to_string());
+            }
+            buf[n] = v;
+            n += 1;
+        }
+        let b0 = (buf[0] << 2) | (buf[1] >> 4);
+        out.push(b0);
+        if n > 2 {
+            let b1 = (buf[1] << 4) | (buf[2] >> 2);
+            out.push(b1);
+        }
+        if n > 3 {
+            let b2 = (buf[2] << 6) | buf[3];
+            out.push(b2);
+        }
+    }
+    Ok(out)
+}
+
+/// Production [`ImageTransport`]: a blocking `reqwest::blocking::Client`
+/// POST, matching `urllib.request.urlopen(req, timeout=120)`.
+pub struct ReqwestImageTransport {
+    client: reqwest::blocking::Client,
+}
+
+impl ReqwestImageTransport {
+    pub fn new() -> Self {
+        Self {
+            client: reqwest::blocking::Client::builder()
+                .timeout(std::time::Duration::from_secs(120))
+                .build()
+                .expect("reqwest client"),
+        }
+    }
+}
+
+impl Default for ReqwestImageTransport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ImageTransport for ReqwestImageTransport {
+    fn post_json(&self, url: &str, body: &Value) -> Result<(u16, String), String> {
+        let resp = self
+            .client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()
+            .map_err(|e| e.to_string())?;
+        let status = resp.status().as_u16();
+        let text = resp.text().map_err(|e| e.to_string())?;
+        Ok((status, text))
+    }
+}
+
+/// Production [`OutputFs`]: plain `std::fs`.
+pub struct StdFs;
+
+impl OutputFs for StdFs {
+    fn create_dir_all(&self, path: &std::path::Path) -> std::io::Result<()> {
+        std::fs::create_dir_all(path)
+    }
+
+    fn write(&self, path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+        std::fs::write(path, bytes)
+    }
+}
+
+/// Default output directory, matching
+/// `Path.home() / "Documents" / "nanobanana_generated"`.
+pub fn default_output_dir(home: &std::path::Path) -> std::path::PathBuf {
+    home.join("Documents").join("nanobanana_generated")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
+    use std::path::PathBuf;
+
+    struct FakeTransport {
+        response: Result<(u16, String), String>,
+    }
+
+    impl ImageTransport for FakeTransport {
+        fn post_json(&self, _url: &str, _body: &Value) -> Result<(u16, String), String> {
+            self.response.clone()
+        }
+    }
+
+    #[derive(Default)]
+    struct FakeFs {
+        written: RefCell<Vec<(PathBuf, Vec<u8>)>>,
+    }
+
+    impl OutputFs for FakeFs {
+        fn create_dir_all(&self, _path: &std::path::Path) -> std::io::Result<()> {
+            Ok(())
+        }
+        fn write(&self, path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+            self.written.borrow_mut().push((path.to_path_buf(), bytes.to_vec()));
+            Ok(())
+        }
+    }
+
+    fn gemini_success_body() -> String {
+        serde_json::json!({
+            "candidates": [{
+                "finishReason": "STOP",
+                "content": {
+                    "parts": [
+                        {"text": "here"},
+                        {"inlineData": {"data": "QUJD"}}
+                    ]
+                }
+            }]
+        })
+        .to_string()
+    }
+
+    #[test]
+    fn parse_candidates_extracts_parts_and_block_reason() {
+        let body = serde_json::json!({
+            "promptFeedback": {"blockReason": "SAFETY"},
+            "candidates": []
+        });
+        let (candidates, block_reason) = parse_candidates(&body);
+        assert!(candidates.is_empty());
+        assert_eq!(block_reason, Some("SAFETY".to_string()));
+    }
+
+    #[test]
+    fn run_end_to_end_success_writes_image_and_prints_result() {
+        let transport = FakeTransport {
+            response: Ok((200, gemini_success_body())),
+        };
+        let fs = FakeFs::default();
+        let args = GenerateArgs {
+            prompt: "a cat".to_string(),
+            ..GenerateArgs::default()
+        };
+        let outcome = run(
+            &args,
+            Some("env-key"),
+            None,
+            &transport,
+            &fs,
+            std::path::Path::new("/home/user/Documents/nanobanana_generated"),
+            "20260924_000000_000000",
+        );
+        assert_eq!(outcome.exit_code, 0);
+        assert!(outcome.printed.contains("\"text\": \"here\""));
+        let written = fs.written.borrow();
+        assert_eq!(written.len(), 1);
+        assert_eq!(written[0].1, base64_decode("QUJD").unwrap());
+        assert!(written[0]
+            .0
+            .to_string_lossy()
+            .ends_with("banana_20260924_000000_000000.png"));
+    }
+
+    #[test]
+    fn run_rejects_bad_aspect_ratio_before_calling_transport() {
+        struct PanicTransport;
+        impl ImageTransport for PanicTransport {
+            fn post_json(&self, _url: &str, _body: &Value) -> Result<(u16, String), String> {
+                panic!("must not be called");
+            }
+        }
+        let fs = FakeFs::default();
+        let args = GenerateArgs {
+            prompt: "x".to_string(),
+            aspect_ratio: "bogus".to_string(),
+            ..GenerateArgs::default()
+        };
+        let outcome = run(
+            &args,
+            Some("k"),
+            None,
+            &PanicTransport,
+            &fs,
+            std::path::Path::new("/tmp/out"),
+            "ts",
+        );
+        assert_eq!(outcome.exit_code, 1);
+        assert!(outcome.printed.contains("Invalid aspect ratio"));
+    }
+
+    #[test]
+    fn run_missing_api_key_short_circuits() {
+        struct PanicTransport;
+        impl ImageTransport for PanicTransport {
+            fn post_json(&self, _url: &str, _body: &Value) -> Result<(u16, String), String> {
+                panic!("must not be called");
+            }
+        }
+        let fs = FakeFs::default();
+        let args = GenerateArgs {
+            prompt: "x".to_string(),
+            ..GenerateArgs::default()
+        };
+        let outcome = run(
+            &args,
+            None,
+            None,
+            &PanicTransport,
+            &fs,
+            std::path::Path::new("/tmp/out"),
+            "ts",
+        );
+        assert_eq!(outcome.exit_code, 1);
+        assert!(outcome.printed.contains("No API key"));
+    }
+
+    #[test]
+    fn run_http_error_status_reports_message() {
+        let transport = FakeTransport {
+            response: Ok((429, "rate limited".to_string())),
+        };
+        let fs = FakeFs::default();
+        let args = GenerateArgs {
+            prompt: "x".to_string(),
+            ..GenerateArgs::default()
+        };
+        let outcome = run(
+            &args,
+            Some("k"),
+            None,
+            &transport,
+            &fs,
+            std::path::Path::new("/tmp/out"),
+            "ts",
+        );
+        assert_eq!(outcome.exit_code, 1);
+        assert!(outcome.printed.contains("rate limited"));
+    }
+
+    #[test]
+    fn base64_decode_roundtrip() {
+        assert_eq!(base64_decode("QUJD").unwrap(), b"ABC");
+        assert_eq!(base64_decode("").unwrap(), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn default_output_dir_matches_python_layout() {
+        assert_eq!(
+            default_output_dir(std::path::Path::new("/home/user")),
+            std::path::PathBuf::from("/home/user/Documents/nanobanana_generated")
+        );
+    }
 
     #[test]
     fn validate_inputs_rejects_bad_ratio_first() {

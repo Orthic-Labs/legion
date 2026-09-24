@@ -10,16 +10,26 @@
 //!
 //! This module ports the pure request-shaping, error-categorization, and
 //! quota-bookkeeping logic (`notify_url`'s body/error branches, and
-//! `batch_notify`'s truncation/warning/remaining-quota math). The actual
-//! OAuth-authenticated Google API call (`googleapiclient`'s
+//! `batch_notify`'s truncation/warning/remaining-quota math), plus
+//! (packet r39) the real Indexing API v3 HTTPS calls and the `main()` CLI.
+//!
+//! The OAuth-authenticated Google API call (`googleapiclient`'s
 //! `build("indexing", "v3", ...)`, backed by `google_auth.get_oauth_credentials`
-//! in the Python original) is out of this chunk's scope: it depends on
-//! `google_auth.py` (owned by a different chunk) and needs an HTTP client +
-//! OAuth2 crate this crate does not currently depend on (see the w2_031
-//! report). Callers wire a real Indexing API client behind
-//! [`IndexingClient`] and drive it with [`notify_url_with`]/
-//! [`batch_notify_with`], which reproduce Python's exact result shape and
-//! control flow.
+//! in the Python original) is behind the [`IndexingClient`] trait.
+//! [`ReqwestIndexingClient`] is the real `reqwest::blocking`
+//! implementation, POSTing to
+//! `https://indexing.googleapis.com/v3/urlNotifications:publish` and
+//! GETting `https://indexing.googleapis.com/v3/urlNotifications/metadata`
+//! with an already-minted OAuth bearer token — minting that token is
+//! `google_auth.py`'s job (ported separately in
+//! `wf_port::w2_030::google_auth`, which does not yet expose a token-minting
+//! call of its own; this module, like `wf_port::w2_029::ga4_report`, takes
+//! an already-resolved bearer token as input, matching how
+//! `_build_indexing_service()` hands a ready, already-authenticated
+//! service object to each Python function). Tests use a fake
+//! [`IndexingClient`]. [`notify_url_with`]/[`batch_notify_with`]/[`run`]
+//! reproduce Python's exact result shape and control flow, including
+//! `main()`'s CLI dispatch.
 
 use serde_json::{json, Value};
 

@@ -1,17 +1,21 @@
 //! Port of `skills/seo/scripts/crux_history.py`, plus `validate_url` from
 //! `skills/seo/scripts/google_auth.py` (which `crux_history.py` imports).
-//!
-//! The HTTP call to the Chrome UX Report History API is not ported (no
-//! network I/O in this chunk); [`parse_history_record`] ports the pure
-//! JSON-in/JSON-out transform that `query_history()` applies to the
-//! response body after `resp.json()`, and [`detect_trends`] ports the
-//! standalone `detect_trends()` function verbatim.
+//! Packet r34 closes the remaining gap: the CrUX History HTTP call and the
+//! CLI entry point, both behind a [`CruxClient`] trait so tests never hit
+//! the network. [`parse_history_record`] ports the pure JSON-in/JSON-out
+//! transform that `query_history()` applies to the response body after
+//! `resp.json()`, and [`detect_trends`] ports the standalone
+//! `detect_trends()` function verbatim.
 
 use std::collections::BTreeMap;
+use std::io::Write;
 use std::net::IpAddr;
+use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
+
+use crate::wf_port::w2_030::google_auth;
 
 /// A `(good, poor, label, unit)` threshold row, mirroring
 /// Python's `CWV_THRESHOLDS`.
@@ -349,4 +353,259 @@ pub fn detect_trends(metrics: &BTreeMap<String, MetricSeries>) -> BTreeMap<Strin
         );
     }
     trends
+}
+
+const CRUX_HISTORY_ENDPOINT: &str =
+    "https://chromeuxreport.googleapis.com/v1/records:queryHistoryRecord";
+
+/// Outcome of one query, mirroring the shape `query_history()` returns
+/// before/after the HTTP call.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct HistoryResult {
+    pub target: String,
+    pub form_factor: String,
+    pub metrics: BTreeMap<String, MetricSeries>,
+    pub collection_periods: Vec<CollectionPeriod>,
+    pub trends: BTreeMap<String, Trend>,
+    pub error: Option<String>,
+}
+
+/// Behind-a-trait I/O boundary for the CrUX History POST request, so
+/// `run()`/`query_history()` are testable with a fake. Mirrors
+/// `requests.post(f"{ENDPOINT}?key={api_key}", json=body, timeout=30)`:
+/// returns `Ok((status_code, body_json))` on any HTTP response, `Err(msg)`
+/// only for a transport-level failure (matching
+/// `requests.exceptions.RequestException`).
+pub trait CruxClient {
+    fn post(&self, endpoint: &str, api_key: &str, body: &Value) -> Result<(u16, Value), String>;
+}
+
+/// Real `reqwest::blocking` implementation of [`CruxClient`].
+pub struct ReqwestCruxClient;
+
+impl CruxClient for ReqwestCruxClient {
+    fn post(&self, endpoint: &str, api_key: &str, body: &Value) -> Result<(u16, Value), String> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .map_err(|e| format!("CrUX History API request failed: {e}"))?;
+        let resp = client
+            .post(format!("{endpoint}?key={api_key}"))
+            .json(body)
+            .send()
+            .map_err(|e| format!("CrUX History API request failed: {e}"))?;
+        let status = resp.status().as_u16();
+        let json = resp
+            .json::<Value>()
+            .unwrap_or(Value::Object(Default::default()));
+        Ok((status, json))
+    }
+}
+
+/// End-to-end port of `query_history()`: validates the URL, builds the
+/// request body (origin vs. URL query, optional `formFactor`), calls the
+/// client, and parses the response into the same shape Python returns.
+pub fn query_history(
+    client: &dyn CruxClient,
+    url_or_origin: &str,
+    api_key: &str,
+    form_factor: Option<&str>,
+) -> HistoryResult {
+    let mut result = HistoryResult {
+        target: url_or_origin.to_string(),
+        form_factor: form_factor.unwrap_or("ALL").to_string(),
+        metrics: BTreeMap::new(),
+        collection_periods: Vec::new(),
+        trends: BTreeMap::new(),
+        error: None,
+    };
+
+    if !validate_url(url_or_origin) {
+        result.error = Some("Invalid URL. Only http/https URLs to public hosts are accepted.".to_string());
+        return result;
+    }
+
+    let (scheme, rest) = url_or_origin.split_once("://").unwrap_or(("", url_or_origin));
+    let authority_end = rest.find(&['/', '?', '#'][..]).unwrap_or(rest.len());
+    let (authority, path_and_query) = rest.split_at(authority_end);
+    let is_origin = (path_and_query.is_empty() || path_and_query == "/") && !rest.contains('?');
+
+    let mut body = serde_json::Map::new();
+    if is_origin {
+        body.insert(
+            "origin".to_string(),
+            Value::String(format!("{scheme}://{authority}")),
+        );
+    } else {
+        body.insert("url".to_string(), Value::String(url_or_origin.to_string()));
+    }
+    if let Some(ff) = form_factor {
+        body.insert("formFactor".to_string(), Value::String(ff.to_uppercase()));
+    }
+
+    let (status, data) = match client.post(CRUX_HISTORY_ENDPOINT, api_key, &Value::Object(body)) {
+        Ok(v) => v,
+        Err(e) => {
+            result.error = Some(e);
+            return result;
+        }
+    };
+
+    if status == 404 {
+        let target_type = if is_origin { "origin" } else { "URL" };
+        result.error = Some(format!(
+            "No CrUX history data for this {target_type}. Insufficient Chrome traffic volume for eligibility."
+        ));
+        return result;
+    }
+    if status == 429 {
+        result.error = Some("CrUX API rate limit exceeded (150 QPM shared). Wait and retry.".to_string());
+        return result;
+    }
+    if !(200..300).contains(&status) {
+        result.error = Some(format!("CrUX History API request failed: HTTP {status}"));
+        return result;
+    }
+
+    let record = data.get("record").cloned().unwrap_or(Value::Null);
+    let (periods, metrics) = parse_history_record(&record);
+    result.collection_periods = periods;
+    result.trends = detect_trends(&metrics);
+    result.metrics = metrics;
+
+    result
+}
+
+/// CLI arg bundle mirroring `argparse` in `crux_history.py`'s `main()`.
+#[derive(Debug, Clone, Default)]
+struct Args {
+    url: Option<String>,
+    form_factor: Option<String>,
+    api_key: Option<String>,
+    origin: bool,
+    json: bool,
+}
+
+fn parse_args(args: &[String]) -> Result<Args, String> {
+    let mut out = Args::default();
+    let mut i = 0;
+    while i < args.len() {
+        let a = args[i].as_str();
+        match a {
+            "--form-factor" => {
+                i += 1;
+                let v = args.get(i).ok_or("--form-factor requires a value")?.clone();
+                if !["PHONE", "DESKTOP", "TABLET"].contains(&v.as_str()) {
+                    return Err(format!("argument --form-factor: invalid choice: '{v}'"));
+                }
+                out.form_factor = Some(v);
+            }
+            "--api-key" => {
+                i += 1;
+                out.api_key = Some(args.get(i).ok_or("--api-key requires a value")?.clone());
+            }
+            "--origin" => out.origin = true,
+            "--json" | "-j" => out.json = true,
+            other if !other.starts_with('-') => out.url = Some(other.to_string()),
+            other => return Err(format!("unrecognized argument: {other}")),
+        }
+        i += 1;
+    }
+    out.url.clone().ok_or("the following arguments are required: url")?;
+    Ok(out)
+}
+
+/// Port of `crux_history.py`'s `main()`, parameterized over the client
+/// and stdout/stderr sinks so it is testable without touching real I/O.
+/// Uses `google_auth::load_config().api_key` as the `get_api_key()`
+/// fallback when `--api-key` is not given. Returns the process exit code.
+pub fn run(
+    args: &[String],
+    client: &dyn CruxClient,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+) -> i32 {
+    let parsed = match parse_args(args) {
+        Ok(p) => p,
+        Err(e) => {
+            let _ = writeln!(stderr, "{e}");
+            return 2;
+        }
+    };
+
+    let api_key = parsed
+        .api_key
+        .clone()
+        .or_else(|| google_auth::load_config().api_key);
+    let Some(api_key) = api_key else {
+        let _ = writeln!(
+            stderr,
+            "Error: API key required. Use --api-key or configure GOOGLE_API_KEY."
+        );
+        return 1;
+    };
+
+    let mut target = parsed.url.clone().unwrap_or_default();
+    if parsed.origin {
+        if let Some((scheme, rest)) = target.split_once("://") {
+            let authority_end = rest.find(&['/', '?', '#'][..]).unwrap_or(rest.len());
+            target = format!("{scheme}://{}", &rest[..authority_end]);
+        }
+    }
+
+    let result = query_history(client, &target, &api_key, parsed.form_factor.as_deref());
+
+    if parsed.json {
+        let _ = writeln!(
+            stdout,
+            "{}",
+            serde_json::to_string_pretty(&result).unwrap_or_default()
+        );
+        return 0;
+    }
+
+    if let Some(err) = &result.error {
+        let _ = writeln!(stderr, "Error: {err}");
+        return 1;
+    }
+
+    let _ = writeln!(stdout, "=== CrUX History ({}) ===", result.form_factor);
+    let _ = writeln!(stdout, "Target: {}", result.target);
+
+    if let (Some(first), Some(last)) = (result.collection_periods.first(), result.collection_periods.last()) {
+        let _ = writeln!(
+            stdout,
+            "Range: {} to {} ({} weeks)",
+            first.first,
+            last.last,
+            result.collection_periods.len()
+        );
+    }
+
+    let _ = writeln!(stdout, "\nTrend Analysis:");
+    for (name, trend) in &result.trends {
+        let label = &trend.label;
+        if trend.direction == "insufficient_data" {
+            let _ = writeln!(stdout, "  {label}: Insufficient data");
+            let _ = name; // name unused otherwise, mirrors Python's dict-iteration label lookup.
+            continue;
+        }
+        let arrow = match trend.direction.as_str() {
+            "improving" => "IMPROVING",
+            "stable" => "STABLE",
+            "degrading" => "DEGRADING",
+            _ => "?",
+        };
+        let change = trend.change_pct.unwrap_or(0.0);
+        let earliest = trend.earliest_avg;
+        let latest = trend.latest_avg;
+        let earliest_s = earliest.map(|v| v.to_string()).unwrap_or_default();
+        let latest_s = latest.map(|v| v.to_string()).unwrap_or_default();
+        let _ = writeln!(
+            stdout,
+            "  {label}: {arrow} ({change:+.1}%) | {earliest_s} -> {latest_s}"
+        );
+    }
+
+    0
 }

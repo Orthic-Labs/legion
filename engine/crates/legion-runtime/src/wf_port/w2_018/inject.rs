@@ -1,22 +1,25 @@
-//! Port of `skills/designer/engine/scripts/live-inject.mjs` (chunk w2_018).
+//! Port of `skills/designer/engine/scripts/live-inject.mjs` (chunk w2_018 /
+//! packet r21).
 //!
 //! Inserts/removes the live variant mode `<script>` tag in a project's HTML
 //! entry point, and patches/reverts a Content-Security-Policy `<meta>` tag
 //! to allow the injected script's origin.
 //!
 //! Ported in full: glob-to-regex file resolution (`resolveFiles`),
-//! config validation, tag build/insert/remove, and CSP meta patch/revert —
-//! all self-contained pure logic operating on strings.
-//!
-//! NOT ported: the `injectCli` driver's SvelteKit branch
-//! (`detectSvelteKitProject`/`applySvelteKitLiveAdapter`/
-//! `removeSvelteKitLiveAdapter` from `live/sveltekit-adapter.mjs`) and its
-//! config-path resolution (`resolveLiveConfigPath` from
-//! `lib/impeccable-paths.mjs`) — neither has an existing Rust port and
-//! neither is in this chunk's owned scope. `ensureLiveGitIgnores` is ported
-//! (self-contained: reads `.git`/`.gitignore` directly).
+//! config validation, tag build/insert/remove, CSP meta patch/revert, the
+//! `.gitignore`/`git/info/exclude` writer (`ensureLiveGitIgnores`), AND the
+//! `injectCli()` driver itself as [`run`] — including its `--help`/`--check`/
+//! `--remove`/`--port` argv handling, its SvelteKit branch (now wired to
+//! `w2_022::sveltekit_adapter::{detect_sveltekit_project,
+//! apply_sveltekit_live_adapter, remove_sveltekit_live_adapter}`), and its
+//! config-path resolution (now wired to
+//! `w2_016::impeccable_paths::resolve_live_config_path`). Every function in
+//! the JS source is ported; nothing is PORTED-PARTIAL.
 
+use crate::wf_port::w2_016::impeccable_paths;
+use crate::wf_port::w2_022::sveltekit_adapter;
 use regex::Regex;
+use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -694,6 +697,292 @@ pub fn ensure_live_gitignores(cwd: &Path) -> std::io::Result<GitIgnoreResult> {
     })
 }
 
+// --- CLI driver ------------------------------------------------------------
+
+/// Parses an [`InjectConfig`] out of the raw `config.json` `serde_json::Value`,
+/// mirroring the JS's untyped `JSON.parse(...)` (missing/wrong-typed fields
+/// fall back to JS-`undefined`-equivalent defaults, exactly as
+/// `validateConfig` would then reject them).
+fn parse_inject_config(v: &serde_json::Value) -> InjectConfig {
+    let files = v
+        .get("files")
+        .and_then(|f| f.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    let exclude = v
+        .get("exclude")
+        .and_then(|f| f.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    let insert_before = v.get("insertBefore").and_then(|f| f.as_str()).map(String::from);
+    let insert_after = v.get("insertAfter").and_then(|f| f.as_str()).map(String::from);
+    let comment_syntax = v
+        .get("commentSyntax")
+        .and_then(|f| f.as_str())
+        .unwrap_or_default()
+        .to_string();
+    InjectConfig {
+        files,
+        exclude,
+        insert_before,
+        insert_after,
+        comment_syntax,
+    }
+}
+
+fn gitignore_result_json(r: &GitIgnoreResult) -> serde_json::Value {
+    json!({
+        "file": r.file,
+        "mode": r.mode,
+        "changed": r.changed,
+        "patterns": LIVE_IGNORE_PATTERNS,
+    })
+}
+
+const USAGE: &str = "Usage: node live-inject.mjs [options]\n\nInsert or remove the live mode script tag in the project's HTML entry point.\nReads configuration from .impeccable/live/config.json.\n\nModes:\n  --port PORT   Insert script tag pointing at http://localhost:PORT/live.js\n  --remove      Remove the script tag (if present)\n  --check       Print whether .impeccable/live/config.json exists and its content\n\nOutput (JSON):\n  { ok, file, inserted|removed, config? }";
+
+/// Mirrors `injectCli()`: the full CLI entrypoint, argv handling, and
+/// process orchestration of `live-inject.mjs`. `cwd` mirrors
+/// `process.cwd()`; `scripts_dir` mirrors the caller's `__dirname` (used
+/// only for the legacy config-path fallback); `env_live_config` mirrors
+/// `process.env.IMPECCABLE_LIVE_CONFIG`. Prints the same JSON payloads the
+/// JS prints to stdout/stderr via `println!`/`eprintln!`, and returns the
+/// process exit code in place of the JS's `process.exit(code)`.
+pub fn run(
+    args: &[String],
+    cwd: &Path,
+    scripts_dir: Option<&Path>,
+    env_live_config: Option<&str>,
+) -> i32 {
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        println!("{USAGE}");
+        return 0;
+    }
+
+    let config_path = impeccable_paths::resolve_live_config_path(cwd, cwd, scripts_dir, env_live_config);
+
+    if args.iter().any(|a| a == "--check") {
+        if !config_path.exists() {
+            println!(
+                "{}",
+                json!({ "ok": false, "error": "config_missing", "path": config_path.to_string_lossy() })
+            );
+            return 0;
+        }
+        let raw = match fs::read_to_string(&config_path) {
+            Ok(s) => s,
+            Err(err) => {
+                println!(
+                    "{}",
+                    json!({ "ok": false, "error": "config_invalid", "message": err.to_string(), "path": config_path.to_string_lossy() })
+                );
+                return 0;
+            }
+        };
+        let parsed: serde_json::Value = match serde_json::from_str(&raw) {
+            Ok(v) => v,
+            Err(err) => {
+                println!(
+                    "{}",
+                    json!({ "ok": false, "error": "config_invalid", "message": err.to_string(), "path": config_path.to_string_lossy() })
+                );
+                return 0;
+            }
+        };
+        let cfg = parse_inject_config(&parsed);
+        if let Err(e) = validate_config(&cfg) {
+            println!(
+                "{}",
+                json!({ "ok": false, "error": "config_invalid", "message": format!("{e:?}"), "path": config_path.to_string_lossy() })
+            );
+            return 0;
+        }
+        println!("{}", json!({ "ok": true, "config": parsed, "path": config_path.to_string_lossy() }));
+        return 0;
+    }
+
+    if !config_path.exists() {
+        eprintln!(
+            "{}",
+            json!({ "ok": false, "error": "config_missing", "path": config_path.to_string_lossy() })
+        );
+        return 1;
+    }
+    let raw = match fs::read_to_string(&config_path) {
+        Ok(s) => s,
+        Err(err) => {
+            eprintln!("{}", json!({ "ok": false, "error": "config_invalid", "message": err.to_string() }));
+            return 1;
+        }
+    };
+    let parsed: serde_json::Value = match serde_json::from_str(&raw) {
+        Ok(v) => v,
+        Err(err) => {
+            eprintln!("{}", json!({ "ok": false, "error": "config_invalid", "message": err.to_string() }));
+            return 1;
+        }
+    };
+    let config = parse_inject_config(&parsed);
+    if let Err(e) = validate_config(&config) {
+        eprintln!("{}", json!({ "ok": false, "error": "config_invalid", "message": format!("{e:?}") }));
+        return 1;
+    }
+
+    let resolved_files = resolve_files(cwd, &config);
+    let svelte_kit = sveltekit_adapter::detect_sveltekit_project(cwd, Some(&config.files));
+
+    if args.iter().any(|a| a == "--remove") {
+        if svelte_kit.is_some() {
+            let adapter_result = match sveltekit_adapter::remove_sveltekit_live_adapter(cwd, Some(&config.files)) {
+                Ok(r) => r,
+                Err(err) => {
+                    eprintln!("{}", json!({ "ok": false, "error": "io_error", "message": err.to_string() }));
+                    return 1;
+                }
+            };
+            let result_json = adapter_result.map(|r| {
+                json!({
+                    "file": r.file,
+                    "adapter": "sveltekit",
+                    "removed": r.removed,
+                    "appHtmlUntouched": r.app_html_untouched,
+                    "rootComponent": r.root_component,
+                })
+            });
+            println!("{}", json!({ "ok": true, "adapter": "sveltekit", "results": [result_json] }));
+            return 0;
+        }
+        let mut results = Vec::new();
+        for rel_file in &resolved_files {
+            let abs_file = cwd.join(rel_file);
+            if !abs_file.exists() {
+                results.push(json!({ "file": rel_file, "error": "file_not_found" }));
+                continue;
+            }
+            let content = match fs::read_to_string(&abs_file) {
+                Ok(c) => c,
+                Err(err) => {
+                    results.push(json!({ "file": rel_file, "error": err.to_string() }));
+                    continue;
+                }
+            };
+            let detagged = remove_tag(&content);
+            let updated = revert_csp_meta(&detagged);
+            if updated == content {
+                results.push(json!({ "file": rel_file, "removed": false, "note": "no tag present" }));
+                continue;
+            }
+            if let Err(err) = fs::write(&abs_file, &updated) {
+                results.push(json!({ "file": rel_file, "error": err.to_string() }));
+                continue;
+            }
+            results.push(json!({
+                "file": rel_file,
+                "removed": detagged != content,
+                "cspReverted": updated != detagged,
+            }));
+        }
+        println!("{}", json!({ "ok": true, "results": results }));
+        return 0;
+    }
+
+    // Insert mode — need --port.
+    let port: Option<u32> = args
+        .iter()
+        .position(|a| a == "--port")
+        .and_then(|i| args.get(i + 1))
+        .and_then(|s| s.parse::<u32>().ok());
+    let Some(port) = port else {
+        eprintln!("{}", json!({ "ok": false, "error": "missing_port" }));
+        return 1;
+    };
+
+    let git_ignore = match ensure_live_gitignores(cwd) {
+        Ok(r) => r,
+        Err(err) => {
+            eprintln!("{}", json!({ "ok": false, "error": "io_error", "message": err.to_string() }));
+            return 1;
+        }
+    };
+    let git_ignore_json = gitignore_result_json(&git_ignore);
+
+    if svelte_kit.is_some() {
+        let adapter_result = match sveltekit_adapter::apply_sveltekit_live_adapter(cwd, port as i64, Some(&config.files)) {
+            Ok(r) => r,
+            Err(err) => {
+                eprintln!("{}", json!({ "ok": false, "error": "io_error", "message": err.to_string() }));
+                return 1;
+            }
+        };
+        let result_json = adapter_result.map(|r| {
+            json!({
+                "file": r.file,
+                "adapter": "sveltekit",
+                "inserted": r.inserted,
+                "appHtmlUntouched": r.app_html_untouched,
+                "rootComponent": r.root_component,
+            })
+        });
+        println!(
+            "{}",
+            json!({ "ok": true, "port": port, "adapter": "sveltekit", "gitIgnore": git_ignore_json, "results": [result_json] })
+        );
+        return 0;
+    }
+
+    let mut results = Vec::new();
+    let mut any_inserted = false;
+    for rel_file in &resolved_files {
+        let abs_file = cwd.join(rel_file);
+        if !abs_file.exists() {
+            results.push(json!({ "file": rel_file, "error": "file_not_found" }));
+            continue;
+        }
+        let content = match fs::read_to_string(&abs_file) {
+            Ok(c) => c,
+            Err(err) => {
+                results.push(json!({ "file": rel_file, "error": err.to_string() }));
+                continue;
+            }
+        };
+        let without_old = revert_csp_meta(&remove_tag(&content));
+        let with_tag = insert_tag(&without_old, &config, port, rel_file);
+        if with_tag == without_old {
+            let anchor = config.insert_before.as_deref().or(config.insert_after.as_deref());
+            results.push(json!({ "file": rel_file, "error": "insertion_point_not_found", "anchor": anchor }));
+            continue;
+        }
+        let updated = patch_csp_meta(&with_tag, port);
+        if let Err(err) = fs::write(&abs_file, &updated) {
+            results.push(json!({ "file": rel_file, "error": err.to_string() }));
+            continue;
+        }
+        any_inserted = true;
+        results.push(json!({
+            "file": rel_file,
+            "inserted": true,
+            "cspPatched": updated != with_tag,
+        }));
+    }
+    println!(
+        "{}",
+        json!({ "ok": any_inserted, "port": port, "gitIgnore": git_ignore_json, "results": results })
+    );
+    if any_inserted {
+        0
+    } else {
+        1
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -844,5 +1133,149 @@ mod tests {
             let dec = base64_decode(&enc).unwrap();
             assert_eq!(dec, s);
         }
+    }
+
+    // --- CLI driver (`run`) tests -------------------------------------
+
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static CLI_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    struct TmpDir(PathBuf);
+    impl TmpDir {
+        fn new() -> Self {
+            let n = CLI_COUNTER.fetch_add(1, Ordering::SeqCst);
+            let path = std::env::temp_dir().join(format!(
+                "w2-018-r21-inject-cli-{}-{}",
+                std::process::id(),
+                n
+            ));
+            fs::create_dir_all(&path).unwrap();
+            TmpDir(path)
+        }
+    }
+    impl Drop for TmpDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn write_config(dir: &Path, json_str: &str) {
+        let live_dir = dir.join(".impeccable").join("live");
+        fs::create_dir_all(&live_dir).unwrap();
+        fs::write(live_dir.join("config.json"), json_str).unwrap();
+    }
+
+    #[test]
+    fn run_check_reports_config_missing() {
+        let dir = TmpDir::new();
+        let code = run(&["--check".to_string()], &dir.0, None, None);
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn run_check_reports_valid_config() {
+        let dir = TmpDir::new();
+        write_config(
+            &dir.0,
+            r#"{"files":["index.html"],"insertAfter":"<body>","commentSyntax":"html"}"#,
+        );
+        let code = run(&["--check".to_string()], &dir.0, None, None);
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn run_insert_missing_port_fails() {
+        let dir = TmpDir::new();
+        write_config(
+            &dir.0,
+            r#"{"files":["index.html"],"insertAfter":"<body>","commentSyntax":"html"}"#,
+        );
+        let code = run(&[], &dir.0, None, None);
+        assert_eq!(code, 1);
+    }
+
+    #[test]
+    fn run_insert_then_remove_round_trips_on_disk() {
+        let dir = TmpDir::new();
+        write_config(
+            &dir.0,
+            r#"{"files":["index.html"],"insertAfter":"<body>","commentSyntax":"html"}"#,
+        );
+        fs::write(
+            dir.0.join("index.html"),
+            "<html><head></head><body>content</body></html>",
+        )
+        .unwrap();
+
+        let code = run(
+            &["--port".to_string(), "4321".to_string()],
+            &dir.0,
+            None,
+            None,
+        );
+        assert_eq!(code, 0);
+        let after_insert = fs::read_to_string(dir.0.join("index.html")).unwrap();
+        assert!(after_insert.contains("http://localhost:4321/live.js"));
+
+        let code = run(&["--remove".to_string()], &dir.0, None, None);
+        assert_eq!(code, 0);
+        let after_remove = fs::read_to_string(dir.0.join("index.html")).unwrap();
+        assert!(!after_remove.contains("live.js"));
+    }
+
+    #[test]
+    fn run_insert_writes_gitignore_patterns() {
+        let dir = TmpDir::new();
+        fs::create_dir_all(dir.0.join(".git")).unwrap();
+        write_config(
+            &dir.0,
+            r#"{"files":["index.html"],"insertAfter":"<body>","commentSyntax":"html"}"#,
+        );
+        fs::write(
+            dir.0.join("index.html"),
+            "<html><head></head><body>content</body></html>",
+        )
+        .unwrap();
+
+        let code = run(
+            &["--port".to_string(), "5000".to_string()],
+            &dir.0,
+            None,
+            None,
+        );
+        assert_eq!(code, 0);
+        let exclude = fs::read_to_string(dir.0.join(".git").join("info").join("exclude")).unwrap();
+        assert!(exclude.contains(".impeccable/live/sessions/"));
+    }
+
+    #[test]
+    fn run_sveltekit_project_routes_through_the_adapter_not_app_html() {
+        let dir = TmpDir::new();
+        write_config(
+            &dir.0,
+            r#"{"files":["src/app.html"],"insertAfter":"<body>","commentSyntax":"html"}"#,
+        );
+        fs::create_dir_all(dir.0.join("src")).unwrap();
+        fs::write(
+            dir.0.join("src").join("app.html"),
+            "<!doctype html>\n<html>%sveltekit.head%<body>%sveltekit.body%</body></html>\n",
+        )
+        .unwrap();
+        fs::write(dir.0.join("svelte.config.js"), "export default {};\n").unwrap();
+
+        let code = run(
+            &["--port".to_string(), "4173".to_string()],
+            &dir.0,
+            None,
+            None,
+        );
+        assert_eq!(code, 0);
+        // app.html must stay untouched; the layout gets patched instead.
+        let app_html = fs::read_to_string(dir.0.join("src").join("app.html")).unwrap();
+        assert!(!app_html.contains("live.js"));
+        let layout =
+            fs::read_to_string(dir.0.join("src/routes/+layout.svelte")).unwrap();
+        assert!(layout.contains("ImpeccableLiveRoot"));
     }
 }

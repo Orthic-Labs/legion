@@ -1,15 +1,17 @@
-//! Port of `skills/seo/scripts/fetch_page.py`.
+//! Port of `skills/seo/scripts/fetch_page.py`, packet r34.
 //!
-//! The actual HTTP fetch (`requests.Session().get(...)`) and DNS
-//! resolution (`socket.gethostbyname`) are not ported — this crate has no
-//! HTTP client dependency and stays at the JSON-value-in/value-out edge.
-//! What *is* ported, faithfully: URL scheme validation, the default and
-//! Googlebot headers, and the private/loopback/reserved-IP SSRF check
-//! (taking the already-resolved IP as input, since DNS resolution is a
-//! host-side effect).
+//! URL scheme validation, the default and Googlebot headers, the
+//! private/loopback/reserved-IP SSRF check, and the metadata formatting
+//! were ported first (pure, no I/O). This packet closes the remaining
+//! gap: the actual HTTP fetch and the CLI entry point, both behind a
+//! [`PageFetcher`] trait so tests never touch the network. DNS resolution
+//! for the SSRF check is done via `std::net::ToSocketAddrs`, mirroring
+//! Python's `socket.gethostbyname` (first resolved address).
 
 use std::collections::BTreeMap;
-use std::net::IpAddr;
+use std::io::Write;
+use std::net::{IpAddr, ToSocketAddrs};
+use std::time::Duration;
 
 pub const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 \
 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 ClaudeSEO/1.2";
@@ -124,4 +126,265 @@ pub fn format_metadata(
         out.push_str(&format!("\nRedirects: {}", redirect_chain.join(" -> ")));
     }
     out
+}
+
+/// Result of one fetch, mirroring the Python `result` dict shape used by
+/// `fetch_page()` / `main()`.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct FetchOutcome {
+    pub url: String,
+    pub status_code: Option<u16>,
+    pub content: Option<String>,
+    pub redirect_chain: Vec<String>,
+    pub redirect_details: Vec<RedirectDetail>,
+    pub error: Option<String>,
+}
+
+/// Behind-a-trait I/O boundary for the real GET request, so `run()` is
+/// testable with a fake. Mirrors `session.get(url, headers=..., timeout=...,
+/// allow_redirects=...)`.
+pub trait PageFetcher {
+    fn get(
+        &self,
+        url: &str,
+        headers: &BTreeMap<&'static str, String>,
+        timeout: Duration,
+        follow_redirects: bool,
+    ) -> FetchOutcome;
+}
+
+/// Real `reqwest::blocking` implementation of [`PageFetcher`].
+pub struct ReqwestFetcher;
+
+impl PageFetcher for ReqwestFetcher {
+    fn get(
+        &self,
+        url: &str,
+        headers: &BTreeMap<&'static str, String>,
+        timeout: Duration,
+        follow_redirects: bool,
+    ) -> FetchOutcome {
+        let policy = if follow_redirects {
+            reqwest::redirect::Policy::limited(5)
+        } else {
+            reqwest::redirect::Policy::none()
+        };
+        let client = match reqwest::blocking::Client::builder()
+            .timeout(timeout)
+            .redirect(policy)
+            .build()
+        {
+            Ok(c) => c,
+            Err(e) => {
+                return FetchOutcome {
+                    url: url.to_string(),
+                    error: Some(format!("Request failed: {e}")),
+                    ..Default::default()
+                }
+            }
+        };
+        let mut req = client.get(url);
+        for (k, v) in headers {
+            req = req.header(*k, v.as_str());
+        }
+        match req.send() {
+            Ok(resp) => {
+                let final_url = resp.url().to_string();
+                let status = resp.status().as_u16();
+                let content = resp.text().unwrap_or_default();
+                FetchOutcome {
+                    url: final_url,
+                    status_code: Some(status),
+                    content: Some(content),
+                    redirect_chain: Vec::new(),
+                    redirect_details: Vec::new(),
+                    error: None,
+                }
+            }
+            Err(e) => {
+                let msg = if e.is_timeout() {
+                    format!("Request timed out after {} seconds", timeout.as_secs())
+                } else if e.is_redirect() {
+                    "Too many redirects (max 5)".to_string()
+                } else if e.is_connect() {
+                    format!("Connection error: {e}")
+                } else {
+                    format!("Request failed: {e}")
+                };
+                FetchOutcome {
+                    url: url.to_string(),
+                    error: Some(msg),
+                    ..Default::default()
+                }
+            }
+        }
+    }
+}
+
+/// Mirrors `socket.gethostbyname(hostname)`: resolves `hostname` and
+/// returns the first address, or `None` on failure (matching Python's
+/// `except (socket.gaierror, ValueError): pass`, which lets the request
+/// proceed).
+pub fn resolve_hostname(hostname: &str) -> Option<IpAddr> {
+    (hostname, 0)
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut it| it.next())
+        .map(|addr| addr.ip())
+}
+
+/// End-to-end port of `fetch_page()`: validates the URL, runs the SSRF
+/// check, builds headers, and calls the fetcher. `output` is written when
+/// `Some`, mirroring `--output`; both cases return the process exit code.
+#[allow(clippy::too_many_arguments)]
+pub fn fetch_page(
+    fetcher: &dyn PageFetcher,
+    url: &str,
+    timeout: Duration,
+    follow_redirects: bool,
+    user_agent: Option<&str>,
+) -> FetchOutcome {
+    let normalized = match normalize_and_validate_scheme(url) {
+        Ok(u) => u,
+        Err(e) => {
+            return FetchOutcome {
+                url: url.to_string(),
+                error: Some(e),
+                ..Default::default()
+            }
+        }
+    };
+
+    let hostname = normalized
+        .split("://")
+        .nth(1)
+        .and_then(|rest| rest.split(['/', '?', '#']).next())
+        .and_then(|authority| authority.rsplit_once('@').map_or(Some(authority), |(_, h)| Some(h)))
+        .and_then(|host_port| {
+            if let Some(stripped) = host_port.strip_prefix('[') {
+                stripped.split(']').next()
+            } else {
+                host_port.split(':').next()
+            }
+        })
+        .unwrap_or("");
+
+    if let Some(ip) = resolve_hostname(hostname) {
+        if let Err(e) = check_ssrf(Some(ip)) {
+            return FetchOutcome {
+                url: normalized,
+                error: Some(e),
+                ..Default::default()
+            };
+        }
+    }
+
+    let headers = default_headers(user_agent);
+    fetcher.get(&normalized, &headers, timeout, follow_redirects)
+}
+
+/// CLI arg bundle mirroring `argparse` in `fetch_page.py`'s `main()`.
+#[derive(Debug, Clone, Default)]
+struct Args {
+    url: Option<String>,
+    output: Option<String>,
+    timeout: u64,
+    no_redirects: bool,
+    user_agent: Option<String>,
+    googlebot: bool,
+}
+
+fn parse_args(args: &[String]) -> Result<Args, String> {
+    let mut out = Args {
+        timeout: 30,
+        ..Default::default()
+    };
+    let mut i = 0;
+    while i < args.len() {
+        let a = args[i].as_str();
+        match a {
+            "--output" | "-o" => {
+                i += 1;
+                out.output = Some(args.get(i).ok_or("--output requires a value")?.clone());
+            }
+            "--timeout" | "-t" => {
+                i += 1;
+                out.timeout = args
+                    .get(i)
+                    .ok_or("--timeout requires a value")?
+                    .parse()
+                    .map_err(|_| "--timeout must be an integer".to_string())?;
+            }
+            "--no-redirects" => out.no_redirects = true,
+            "--user-agent" => {
+                i += 1;
+                out.user_agent = Some(args.get(i).ok_or("--user-agent requires a value")?.clone());
+            }
+            "--googlebot" => out.googlebot = true,
+            other if !other.starts_with('-') => out.url = Some(other.to_string()),
+            other => return Err(format!("unrecognized argument: {other}")),
+        }
+        i += 1;
+    }
+    out.url.clone().ok_or("the following arguments are required: url")?;
+    Ok(out)
+}
+
+/// Port of `fetch_page.py`'s `main()`, parameterized over the fetcher and
+/// stdout/stderr sinks so it is testable without touching real I/O.
+/// Returns the process exit code, matching `sys.exit(1)` on error and the
+/// implicit `0` otherwise.
+pub fn run(
+    args: &[String],
+    fetcher: &dyn PageFetcher,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+) -> i32 {
+    let parsed = match parse_args(args) {
+        Ok(p) => p,
+        Err(e) => {
+            let _ = writeln!(stderr, "{e}");
+            return 2;
+        }
+    };
+
+    let ua = if parsed.googlebot {
+        Some(GOOGLEBOT_USER_AGENT.to_string())
+    } else {
+        parsed.user_agent.clone()
+    };
+
+    let result = fetch_page(
+        fetcher,
+        parsed.url.as_deref().unwrap_or(""),
+        Duration::from_secs(parsed.timeout),
+        !parsed.no_redirects,
+        ua.as_deref(),
+    );
+
+    if let Some(err) = &result.error {
+        let _ = writeln!(stderr, "Error: {err}");
+        return 1;
+    }
+
+    let content = result.content.clone().unwrap_or_default();
+    if let Some(path) = &parsed.output {
+        if let Err(e) = std::fs::write(path, &content) {
+            let _ = writeln!(stderr, "Error: {e}");
+            return 1;
+        }
+        let _ = writeln!(stdout, "Saved to {path}");
+    } else {
+        let _ = writeln!(stdout, "{content}");
+    }
+
+    let meta = format_metadata(
+        &result.url,
+        result.status_code.unwrap_or(0),
+        &result.redirect_details,
+        &result.redirect_chain,
+    );
+    let _ = writeln!(stderr, "{meta}");
+
+    0
 }

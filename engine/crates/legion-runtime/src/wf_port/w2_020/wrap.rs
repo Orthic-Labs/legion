@@ -1,28 +1,37 @@
-//! Port of the pure (non-CLI, non-filesystem-walking) logic in
-//! `skills/designer/engine/scripts/live-wrap.mjs`.
+//! Port of `skills/designer/engine/scripts/live-wrap.mjs` (packet r26).
 //!
-//! `live-wrap.mjs` is a 900-line CLI: `wrapCli()` parses `process.argv`,
+//! `live-wrap.mjs` is a ~900-line CLI: `wrapCli()` parses `process.argv`,
 //! walks the project filesystem (`findFileWithQuery`/`searchDir`, using
 //! `./lib/is-generated.mjs`'s `isGeneratedFile`), reads/writes source files,
-//! and depends on `./live/manual-edits-buffer.mjs`'s `readBuffer` and
-//! `./live/svelte-component.mjs`'s scaffolding helpers — none of which are
-//! owned files in this chunk (w2_020 owns only
-//! `live-wrap.mjs`/`live.mjs`/`live/browser-script-parts.mjs`/
-//! `live/completion.mjs`/`live/event-validation.mjs`). That CLI shell,
-//! `findFileWithQuery`/`searchDir` (recursive directory walk), and
-//! `pendingEntriesThatMayAffectWrap`/`manualEditMayAffectWrap`/
-//! `applyBufferedManualEditToLines` (which consume the buffer reader from
-//! the sibling module) are NOT ported here — they need those out-of-chunk
-//! modules to behave faithfully rather than being guessed at.
+//! and consumes `./live/manual-edits-buffer.mjs`'s buffered entries and
+//! `./live/svelte-component.mjs`'s scaffolding helpers.
 //!
-//! What IS ported, faithfully and with the JS's own exported test surface
+//! As of packet r26, `crate::p8_designer::is_generated` (port of
+//! `lib/is-generated.mjs`) and `wf_port::w2_021::manual_edits_buffer` (port
+//! of `live/manual-edits-buffer.mjs`) both exist in this crate, so the
+//! filesystem walk (`find_file_with_query`/`search_dir`) and the
+//! buffer-consuming functions (`pending_entries_that_may_affect_wrap`,
+//! `manual_edit_may_affect_wrap`, `manual_edit_hint_falls_inside_selection`,
+//! `manual_edit_locator_matches_selection`, `apply_buffered_manual_edit_to_lines`)
+//! are now ported here too, faithfully against the JS.
+//!
+//! Still NOT ported: `wrapCli()`'s own argv-driven orchestration
+//! (`console.log`/`console.error`/`process.exit` output shape, reading and
+//! writing the target source file in place, and wiring the above functions
+//! together end to end) and the `./live/svelte-component.mjs`-dependent
+//! Svelte-component injection branch — both are CLI/process-boundary
+//! concerns outside a unit-testable pure-function port, and the Svelte
+//! scaffolding lives in a separate module (`wf_port::w2_022::svelte_component`)
+//! not wired to a Rust CLI entry point anywhere in this crate.
+//!
+//! Ported, faithfully and with the JS's own exported test surface
 //! (`buildSearchQueries`, `findElement`, `findClosingLine`,
-//! `detectCommentSyntax`, plus the sibling pure helpers), is every
-//! self-contained string/line-array function: query building, comment/style
-//! detection, CSS authoring templates, element/close-tag line-range search,
-//! and the manual-edit locator matcher (`lineMatchesManualEditLocator`,
-//! `replaceOnce`, `countOccurrences`, `escapeRegExp`) minus the buffer I/O
-//! around it.
+//! `detectCommentSyntax`, plus the sibling pure helpers): every
+//! self-contained string/line-array function (query building, comment/style
+//! detection, CSS authoring templates, element/close-tag line-range search),
+//! the manual-edit locator matcher (`lineMatchesManualEditLocator`,
+//! `replaceOnce`, `countOccurrences`, `escapeRegExp`), the filesystem walk,
+//! and the buffer-consuming selection-impact functions.
 
 use std::path::Path;
 
@@ -384,6 +393,368 @@ pub fn filter_by_text(candidates: &[LineRange], lines: &[String], text: &str) ->
             source_spaced.contains(&target_spaced) || source_compact.contains(&target_compact)
         })
         .collect()
+}
+
+/// Mirrors `buildCssAuthoring(styleMode, count)`.
+pub struct CssAuthoring {
+    pub mode: &'static str,
+    pub style_tag: String,
+    pub strategy: &'static str,
+    pub rule_pattern: &'static str,
+    pub selector_examples: Vec<String>,
+    pub requirements: Vec<&'static str>,
+    pub forbidden: Vec<&'static str>,
+}
+
+pub fn build_css_authoring(style_mode: &StyleMode, count: u32) -> CssAuthoring {
+    let variant_numbers: Vec<u32> = (1..=count).collect();
+    if style_mode.mode == "astro-global-prefixed" {
+        CssAuthoring {
+            mode: style_mode.mode,
+            style_tag: style_mode.style_tag.clone(),
+            strategy: "global-prefixed",
+            rule_pattern: "[data-impeccable-variant=\"N\"] > .variant-class { ... }",
+            selector_examples: variant_numbers
+                .iter()
+                .map(|n| format!("[data-impeccable-variant=\"{n}\"] > .variant-class"))
+                .collect(),
+            requirements: vec![
+                "Use the styleTag exactly; the is:inline attribute is required for this file.",
+                "Put raw CSS directly between the styleTag opening and a plain </style> close.",
+                "Prefix every preview selector with the matching [data-impeccable-variant=\"N\"] selector.",
+                "Keep selectors anchored to the generated variant wrapper; do not rely on component CSS scoping for preview rules.",
+            ],
+            forbidden: vec![
+                "Do not use @scope for this styleMode.",
+                "Do not wrap style content in a JSX/TSX template literal ({` ... `}); that syntax is for .tsx/.jsx only.",
+                "Do not put { immediately after the style opening tag; Astro parses { as expression syntax.",
+            ],
+        }
+    } else {
+        CssAuthoring {
+            mode: style_mode.mode,
+            style_tag: style_mode.style_tag.clone(),
+            strategy: "scope-rule",
+            rule_pattern: "@scope ([data-impeccable-variant=\"N\"]) { :scope > .variant-class { ... } }",
+            selector_examples: variant_numbers
+                .iter()
+                .map(|n| format!("@scope ([data-impeccable-variant=\"{n}\"]) {{ :scope > .variant-class {{ ... }} }}"))
+                .collect(),
+            requirements: vec![
+                "Use @scope blocks keyed to each [data-impeccable-variant=\"N\"] wrapper.",
+                "Inside each @scope block, make :scope rules step into the replacement element with a descendant combinator.",
+                "Use the styleTag exactly; do not add framework-specific style attributes unless this object says to.",
+            ],
+            forbidden: vec![
+                "Do not use global [data-impeccable-variant=\"N\"] selector prefixes for this styleMode.",
+                "Do not add is:inline to the style tag for this styleMode.",
+            ],
+        }
+    }
+}
+
+/// Strips the Windows `\\?\` verbatim-path prefix that
+/// `std::fs::canonicalize` adds, so canonicalized paths compare equal to
+/// ordinary (non-verbatim) paths built with `Path::join`.
+fn strip_verbatim_prefix(path: std::path::PathBuf) -> std::path::PathBuf {
+    match path.to_str() {
+        Some(s) if s.starts_with(r"\\?\") => std::path::PathBuf::from(&s[4..]),
+        _ => path,
+    }
+}
+
+/// File extensions `findFileWithQuery`/`searchDir` will look inside.
+pub const SEARCH_EXTENSIONS: &[&str] = &[".html", ".jsx", ".tsx", ".vue", ".svelte", ".astro"];
+
+/// Mirrors `findFileWithQuery(query, cwd, genOpts)`. Walks a fixed set of
+/// project subdirectories (falls back to `cwd` itself) looking for a file
+/// whose content contains `query`, skipping generated files unless
+/// `include_generated` is set (mirrors `genOpts.includeGenerated`).
+pub fn find_file_with_query(
+    query: &str,
+    cwd: &Path,
+    include_generated: bool,
+) -> Option<std::path::PathBuf> {
+    const SEARCH_DIRS: &[&str] = &["src", "app", "pages", "components", "public", "views", "templates", "."];
+    let mut seen = std::collections::HashSet::new();
+    for dir in SEARCH_DIRS {
+        let abs_dir = cwd.join(dir);
+        if !abs_dir.exists() {
+            continue;
+        }
+        if let Some(found) = search_dir(&abs_dir, query, &mut seen, 0, include_generated) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+/// Mirrors `searchDir(dir, query, seen, depth, genOpts)`.
+fn search_dir(
+    dir: &Path,
+    query: &str,
+    seen: &mut std::collections::HashSet<std::path::PathBuf>,
+    depth: u32,
+    include_generated: bool,
+) -> Option<std::path::PathBuf> {
+    if depth > 5 {
+        return None;
+    }
+    let real_dir = strip_verbatim_prefix(std::fs::canonicalize(dir).ok()?);
+    if !seen.insert(real_dir) {
+        return None;
+    }
+
+    let entries: Vec<_> = std::fs::read_dir(dir).ok()?.filter_map(|e| e.ok()).collect();
+
+    // Check files first.
+    for entry in &entries {
+        let path = entry.path();
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+        if !file_type.is_file() {
+            continue;
+        }
+        let ext = path
+            .extension()
+            .map(|e| format!(".{}", e.to_string_lossy().to_lowercase()))
+            .unwrap_or_default();
+        if !SEARCH_EXTENSIONS.contains(&ext.as_str()) {
+            continue;
+        }
+        if !include_generated {
+            let opts = crate::p8_designer::is_generated::IsGeneratedOptions { cwd: None };
+            if crate::p8_designer::is_generated::is_generated_file(&path.to_string_lossy(), &opts) {
+                continue;
+            }
+        }
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if content.contains(query) {
+                return Some(path);
+            }
+        }
+    }
+
+    // Then recurse into directories, always skipping node_modules/.git.
+    for entry in &entries {
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+        if !file_type.is_dir() {
+            continue;
+        }
+        let name = entry.file_name();
+        if name == "node_modules" || name == ".git" {
+            continue;
+        }
+        if let Some(found) = search_dir(&entry.path(), query, seen, depth + 1, include_generated) {
+            return Some(found);
+        }
+    }
+
+    None
+}
+
+/// Reads `sourceHint.file`/`sourceHint.line`, `tag`, and `classes` out of a
+/// `ManualEditOp`'s opaque `extra` map (these fields aren't named on the
+/// struct because `manual-edits-buffer.mjs` treats ops as pass-through
+/// blobs). Mirrors the ad-hoc property access the JS does on `op`.
+fn op_source_hint(op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp) -> Option<(String, f64)> {
+    let hint = op.extra.get("sourceHint")?;
+    let file = hint.get("file")?.as_str()?.to_string();
+    let line_value = hint.get("line")?;
+    let line = line_value
+        .as_f64()
+        .or_else(|| line_value.as_str().and_then(|s| s.parse().ok()))?;
+    Some((file, line))
+}
+
+fn op_tag(op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp) -> Option<String> {
+    op.extra.get("tag")?.as_str().map(|s| s.to_string())
+}
+
+fn op_classes(op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp) -> Vec<String> {
+    op.extra
+        .get("classes")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|c| c.as_str().map(|s| s.to_string())).collect())
+        .unwrap_or_default()
+}
+
+/// Mirrors `lineMatchesManualEditLocator(line, op)`, reading `tag`/`elementId`
+/// (via `op_tag`) and `classes` (via `op_classes`) off the opaque op blob.
+pub fn line_matches_manual_edit_locator_op(
+    line: &str,
+    op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp,
+) -> bool {
+    let element_id = op.extra.get("elementId").and_then(|v| v.as_str());
+    let locator = ManualEditLocator {
+        tag: op_tag(op).as_deref(),
+        element_id,
+        classes: &op_classes(op),
+    };
+    line_matches_manual_edit_locator(line, &locator)
+}
+
+/// Mirrors `manualEditHintFallsInsideSelection(op, targetAbs, originalLines, selectionStartLine, cwd)`.
+pub fn manual_edit_hint_falls_inside_selection(
+    op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp,
+    target_abs: &Path,
+    original_lines: &[String],
+    selection_start_line: i64,
+    cwd: &Path,
+) -> bool {
+    let Some((hint_file, hinted_line)) = op_source_hint(op) else {
+        return false;
+    };
+    if hint_file.is_empty() || !hinted_line.is_finite() {
+        return false;
+    }
+    let hint_path = Path::new(&hint_file);
+    let hint_abs = if hint_path.is_absolute() {
+        hint_path.to_path_buf()
+    } else {
+        cwd.join(hint_path)
+    };
+    let hint_abs = strip_verbatim_prefix(std::fs::canonicalize(&hint_abs).unwrap_or(hint_abs));
+    let target_abs_resolved =
+        strip_verbatim_prefix(std::fs::canonicalize(target_abs).unwrap_or_else(|_| target_abs.to_path_buf()));
+    if hint_abs != target_abs_resolved {
+        return false;
+    }
+    let hinted_index = hinted_line as i64 - 1 - selection_start_line;
+    if hinted_index < 0 || hinted_index as usize >= original_lines.len() {
+        return false;
+    }
+    match &op.original_text {
+        Some(original_text) if !original_text.is_empty() => {
+            original_lines[hinted_index as usize].contains(original_text.as_str())
+        }
+        _ => false,
+    }
+}
+
+/// Mirrors `manualEditLocatorMatchesSelection(op, originalLines)`.
+pub fn manual_edit_locator_matches_selection(
+    op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp,
+    original_lines: &[String],
+) -> bool {
+    let Some(original_text) = op.original_text.as_deref() else {
+        return false;
+    };
+    if original_text.is_empty() {
+        return false;
+    }
+    original_lines
+        .iter()
+        .any(|line| line.contains(original_text) && line_matches_manual_edit_locator_op(line, op))
+}
+
+/// Mirrors `manualEditMayAffectWrap(op, targetFile, originalLines, selectionStartLine, cwd)`.
+pub fn manual_edit_may_affect_wrap(
+    op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp,
+    target_file: &Path,
+    original_lines: &[String],
+    selection_start_line: i64,
+    cwd: &Path,
+) -> bool {
+    let target_abs = if target_file.is_absolute() {
+        target_file.to_path_buf()
+    } else {
+        cwd.join(target_file)
+    };
+    if manual_edit_hint_falls_inside_selection(op, &target_abs, original_lines, selection_start_line, cwd) {
+        return true;
+    }
+    if manual_edit_locator_matches_selection(op, original_lines) {
+        return true;
+    }
+    match &op.original_text {
+        Some(original_text) if !original_text.is_empty() => original_lines.join("\n").contains(original_text.as_str()),
+        _ => false,
+    }
+}
+
+/// Mirrors `pendingEntriesThatMayAffectWrap(entries, targetFile, originalLines, selectionStartLine, cwd)`.
+pub fn pending_entries_that_may_affect_wrap<'a>(
+    entries: &'a [crate::wf_port::w2_021::manual_edits_buffer::ManualEditEntry],
+    target_file: &Path,
+    original_lines: &[String],
+    selection_start_line: i64,
+    cwd: &Path,
+) -> Vec<&'a crate::wf_port::w2_021::manual_edits_buffer::ManualEditEntry> {
+    let target_abs = if target_file.is_absolute() {
+        target_file.to_path_buf()
+    } else {
+        cwd.join(target_file)
+    };
+    entries
+        .iter()
+        .filter(|entry| {
+            entry
+                .ops
+                .iter()
+                .any(|op| manual_edit_may_affect_wrap(op, &target_abs, original_lines, selection_start_line, cwd))
+        })
+        .collect()
+}
+
+/// Mirrors `applyBufferedManualEditToLines(originalLines, selectionStartLine, op)`.
+pub fn apply_buffered_manual_edit_to_lines(
+    original_lines: &[String],
+    selection_start_line: i64,
+    op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp,
+) -> (Vec<String>, bool) {
+    let (original_text, new_text) = match (&op.original_text, &op.new_text) {
+        (Some(ot), Some(nt)) if !ot.is_empty() => (ot.clone(), nt.clone()),
+        _ => return (original_lines.to_vec(), false),
+    };
+
+    let replace_line = |line_index: usize| -> (Vec<String>, bool) {
+        let lines = original_lines
+            .iter()
+            .enumerate()
+            .map(|(i, l)| if i == line_index { replace_once(l, &original_text, &new_text) } else { l.clone() })
+            .collect();
+        (lines, true)
+    };
+
+    if let Some((_, hinted_line)) = op_source_hint(op) {
+        if hinted_line.is_finite() {
+            let hinted_index = hinted_line as i64 - 1 - selection_start_line;
+            if hinted_index >= 0
+                && (hinted_index as usize) < original_lines.len()
+                && original_lines[hinted_index as usize].contains(&original_text)
+            {
+                return replace_line(hinted_index as usize);
+            }
+        }
+    }
+
+    let mut locator_matches = Vec::new();
+    for (index, line) in original_lines.iter().enumerate() {
+        if !line.contains(&original_text) {
+            continue;
+        }
+        if !line_matches_manual_edit_locator_op(line, op) {
+            continue;
+        }
+        locator_matches.push(index);
+    }
+    if locator_matches.len() == 1 {
+        return replace_line(locator_matches[0]);
+    }
+
+    let original_block = original_lines.join("\n");
+    if count_occurrences(&original_block, &original_text) == 1 {
+        let replaced = replace_once(&original_block, &original_text, &new_text);
+        return (replaced.split('\n').map(str::to_string).collect(), true);
+    }
+
+    (original_lines.to_vec(), false)
 }
 
 #[cfg(test)]

@@ -1,13 +1,15 @@
 //! Port of `live-complete.mjs`'s pure logic: CLI argument parsing and the
 //! durable completion event it appends.
 //!
-//! The two effectful branches — posting to the local live server
-//! (`fetch(http://localhost:${port}/poll, ...)`) and falling back to
-//! `createLiveSessionStore(...).appendEvent(...)` — depend on
-//! `live/session-store.mjs` and `lib/impeccable-paths.mjs`, neither of which
-//! is in this chunk's owned files. [`CompletionEvent`] models exactly the
-//! event payload those calls would build, so a caller that does own a
-//! session-store port can drive it from here.
+//! [`completion_cli`] (packet r19) is the full `completeCli()` orchestration:
+//! it reads the live server's connection info
+//! (`crate::wf_port::w2_016::impeccable_paths::read_live_server_info`), POSTs
+//! the completion payload to `http://localhost:{port}/poll` through the
+//! injectable [`HttpPoster`] trait (a [`ReqwestPoster`] backs it for real
+//! use), and on any miss falls back to
+//! `crate::wf_port::w2_021::session_store::LiveSessionStore` — the same
+//! `live/session-store.mjs` port `live-complete.mjs` calls — exactly as the
+//! JS does.
 
 /// Port of the CLI status `parseArgs` derives from `--discarded`/`--discard`,
 /// `--error[=MESSAGE]`, or the default.
@@ -143,6 +145,168 @@ pub fn server_poll_type(status: &Status) -> &'static str {
         Status::AgentError { .. } => "error",
         Status::Complete => "complete",
     }
+}
+
+// ─── r19: completeCli() orchestration ───────────────────────────────────
+
+use crate::wf_port::w2_016::impeccable_paths::read_live_server_info;
+use crate::wf_port::w2_021::session_store::LiveSessionStore;
+use serde_json::{json, Value};
+use std::path::Path;
+
+/// Port of the `fetch(http://localhost:${port}/poll, ...)` call in
+/// `completeThroughServer`. Implementations return `None` on any network
+/// failure or non-OK response, mirroring the JS `try { ... } catch { return
+/// null; }` and `if (!res.ok) return null;` branches; `Some(body)` mirrors
+/// `await res.json()`.
+pub trait HttpPoster {
+    fn post_poll(&self, port: u64, body: &Value) -> Option<Value>;
+}
+
+/// Real [`HttpPoster`] backed by a blocking `reqwest::blocking::Client`.
+pub struct ReqwestPoster {
+    client: reqwest::blocking::Client,
+}
+
+impl ReqwestPoster {
+    pub fn new() -> Self {
+        Self { client: reqwest::blocking::Client::new() }
+    }
+}
+
+impl Default for ReqwestPoster {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl HttpPoster for ReqwestPoster {
+    fn post_poll(&self, port: u64, body: &Value) -> Option<Value> {
+        let res = self
+            .client
+            .post(format!("http://localhost:{port}/poll"))
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()
+            .ok()?;
+        if !res.status().is_success() {
+            return None;
+        }
+        res.json::<Value>().ok()
+    }
+}
+
+/// Port of `completeThroughServer(info, args)`'s request body plus the
+/// `/poll` POST, using an injected [`HttpPoster`] in place of `fetch`.
+/// `server_info` mirrors `info` (the parsed contents of
+/// `.impeccable/live/server.json`, expected to carry `port` and `token`).
+fn complete_through_server(
+    poster: &dyn HttpPoster,
+    server_info: &Value,
+    args: &ParsedArgs,
+) -> Option<Value> {
+    let port = server_info.get("port")?.as_u64()?;
+    let token = server_info.get("token").cloned().unwrap_or(Value::Null);
+    let message = match &args.status {
+        Status::AgentError { message } => Some(message.clone()),
+        _ => None,
+    };
+    let body = json!({
+        "token": token,
+        "id": args.id,
+        "type": server_poll_type(&args.status),
+        "message": message,
+    });
+    poster.post_poll(port, &body)
+}
+
+/// Port of `completeCli()`'s post-usage-gate body: the server round trip
+/// then the durable session-store fallback. Returns the exact JSON value
+/// the JS `console.log(JSON.stringify(...))` would print; the caller decides
+/// how to emit it (stdout, etc.) and always exits 0 on this path, matching
+/// the JS (no `process.exit` after either branch).
+///
+/// `cwd` mirrors `process.cwd()`. `id` mirrors `args.id` (already known
+/// `Some` — callers must have handled [`usage_exit_code`] first).
+pub fn complete_through_server_or_store(
+    poster: &dyn HttpPoster,
+    cwd: &Path,
+    id: &str,
+    args: &ParsedArgs,
+) -> Value {
+    let server_info = read_live_server_info(cwd).map(|i| i.raw);
+    if let Some(info) = &server_info {
+        if let Some(server_result) = complete_through_server(poster, info, args) {
+            let ok = server_result.get("ok").and_then(Value::as_bool).unwrap_or(false);
+            if ok {
+                if let Ok(mut store) = LiveSessionStore::new(cwd, Some(id.to_string())) {
+                    let snapshot = store.get_snapshot(Some(id), true).ok().flatten();
+                    let phase = snapshot
+                        .as_ref()
+                        .and_then(|s| s.get("phase"))
+                        .cloned()
+                        .unwrap_or_else(|| json!(status_label(&args.status)));
+                    return json!({
+                        "ok": true,
+                        "id": id,
+                        "phase": phase,
+                        "snapshot": snapshot,
+                    });
+                }
+            }
+        }
+    }
+
+    // Fallback: append the durable event via the local session store,
+    // mirroring the `event` ternary and `store.appendEvent(event)` call.
+    let event = build_event(id, &args.status);
+    let event_value = match &event {
+        CompletionEvent::Complete { id } => json!({ "type": "complete", "id": id }),
+        CompletionEvent::Discarded { id } => json!({ "type": "discarded", "id": id }),
+        CompletionEvent::AgentError { id, message } => {
+            json!({ "type": "agent_error", "id": id, "message": message })
+        }
+    };
+    match LiveSessionStore::new(cwd, Some(id.to_string())) {
+        Ok(mut store) => match store.append_event(event_value, Some(id)) {
+            Ok(snapshot) => {
+                let phase = snapshot.get("phase").cloned().unwrap_or(Value::Null);
+                json!({ "ok": true, "id": id, "phase": phase, "snapshot": snapshot })
+            }
+            Err(message) => json!({ "ok": false, "id": id, "error": message }),
+        },
+        Err(err) => json!({ "ok": false, "id": id, "error": err.to_string() }),
+    }
+}
+
+/// Port of `args.status` stringified back to the local-store `'complete'` /
+/// `'discarded'` / `'agent_error'` label the JS uses as `snapshot?.phase ||
+/// args.status` fallback when the server path succeeds but returns no
+/// snapshot.
+fn status_label(status: &Status) -> &'static str {
+    match status {
+        Status::Complete => "complete",
+        Status::Discarded => "discarded",
+        Status::AgentError { .. } => "agent_error",
+    }
+}
+
+/// Faithful port of `completeCli()`: parses `argv` (already
+/// `process.argv.slice(2)`), applies the usage gate, and either returns the
+/// usage text (for the `--help`/missing-`--id` exit) or the JSON value to
+/// print. Mirrors the JS's `console.log` + `process.exit(code)` pair as
+/// `(exit_code, output)`; `output` is `None` only when nothing should be
+/// printed (never happens here — every branch prints something, matching
+/// the JS).
+pub fn completion_cli(poster: &dyn HttpPoster, cwd: &Path, argv: &[String]) -> (i32, String) {
+    let args = parse_args(argv);
+    if let Some(code) = usage_exit_code(&args) {
+        let usage = "Usage: node live-complete.mjs --id SESSION_ID [--discarded|--error MESSAGE]\n\nAppend the final durable session acknowledgement. Use after accept/discard cleanup is verified.";
+        return (code, usage.to_string());
+    }
+    let id = args.id.clone().expect("usage_exit_code guarantees id is present");
+    let result = complete_through_server_or_store(poster, cwd, &id, &args);
+    (0, serde_json::to_string_pretty(&result).unwrap())
 }
 
 #[cfg(test)]

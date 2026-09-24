@@ -1,30 +1,33 @@
-//! Port of `skills/designer/engine/scripts/live-accept.mjs` (chunk w2_016).
+//! Port of `skills/designer/engine/scripts/live-accept.mjs` (chunk w2_016,
+//! packet r17).
 //!
 //! Deterministic accept/discard of "live variant" wrapper markers written
-//! into a source file by `live-wrap` (not in this chunk). This port covers
-//! the pure marker/HTML-parsing core: finding a session's marker block,
-//! extracting the original/variant/CSS content, deindenting, building the
-//! "carbonize" replacement, and applying discard/accept to a file's lines.
+//! into a source file by `live-wrap` (not in this chunk). This port covers:
+//! - the pure marker/HTML-parsing core: finding a session's marker block,
+//!   extracting the original/variant/CSS content, deindenting, building the
+//!   "carbonize" replacement, and applying discard/accept to a file's lines
+//!   (HTML/JSX/Vue/Astro path);
+//! - dispatch into [`crate::wf_port::w2_016::svelte_component`] for the
+//!   Svelte-component accept path;
+//! - the on-disk pending-manual-edits buffer read/write used by
+//!   `scrub_manual_edits_against_original_block_on_disk`, mirroring just
+//!   enough of `./live/manual-edits-buffer.mjs` (`readBuffer`/`writeBuffer`)
+//!   for this file's own call site — the rest of that sibling module
+//!   (`stageEntry`, `removeEntries`, `countByPage`, `truncateBuffer`) is a
+//!   separate legacy file, out of this packet's scope;
+//! - the `acceptCli()` CLI argv entrypoint, ported as [`run`] (parses
+//!   `process.argv`-equivalent `&[String]`, returns `(exit_code, stdout)`
+//!   instead of calling `process.exit`/`console.log` directly so callers can
+//!   choose how to surface it).
 //!
-//! GAP vs. the JS source (explicitly out of this chunk's owned paths, so not
-//! ported here — call sites need this wired back in by whoever owns those
-//! files):
-//! - `./live/svelte-component.mjs` (`findSvelteComponentManifest`,
-//!   `inlineSvelteComponentAccept`, `removeSvelteComponentSession`,
-//!   `applyDeferredSvelteComponentAccepts`) — the Svelte-component accept
-//!   path in `acceptCli` is not ported; only the HTML/JSX/Vue/Astro
-//!   marker-wrapper path (`findMarkerBlock`/`handleAccept`/`handleDiscard`)
-//!   is.
-//! - `./live/manual-edits-buffer.mjs` (`readBuffer`/`writeBuffer`) —
-//!   `scrubManualEditsAgainstOriginalBlock` (renamed here
-//!   `scrub_manual_edits_against_original_block`) takes the buffer's
-//!   entries as a plain parameter instead of reading/writing the on-disk
-//!   buffer itself, so callers own that I/O.
-//! - The `acceptCli()` CLI entry point (`process.argv` parsing, `--help`,
-//!   `process.exit`) is not ported; this module exposes the underlying pure
-//!   functions (`accept`, `discard`, `find_session_file`, ...) for a caller
-//!   to wire into whatever CLI/host surface replaces it.
+//! GAP: none remaining against the JS source for this file's owned scope.
 
+use crate::p8_designer::{is_generated_file, IsGeneratedOptions};
+use crate::wf_port::w2_016::impeccable_paths::get_live_dir;
+use crate::wf_port::w2_016::svelte_component;
+// Re-exported for parity with the JS module's own bottom-of-file export
+// list (`export { ..., applyDeferredSvelteComponentAccepts }`).
+pub use crate::wf_port::w2_016::svelte_component::apply_deferred_svelte_component_accepts;
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
@@ -746,6 +749,329 @@ pub fn scrub_manual_edits_against_original_block(
     ops.len() != before
 }
 
+// ---------------------------------------------------------------------------
+// Manual-edits buffer I/O (mirrors just the `readBuffer`/`writeBuffer` slice
+// of `./live/manual-edits-buffer.mjs` that this file's own scrub call needs)
+// ---------------------------------------------------------------------------
+
+fn manual_edits_buffer_path(root: &Path) -> PathBuf {
+    get_live_dir(root).join("pending-manual-edits.json")
+}
+
+/// Mirrors `readBuffer(cwd)`: malformed/missing files fall back to an empty
+/// `{ version: 1, entries: [] }`, matching the JS's non-strict reader.
+fn read_manual_edits_buffer(root: &Path) -> serde_json::Value {
+    if let Ok(raw) = fs::read_to_string(manual_edits_buffer_path(root)) {
+        if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&raw) {
+            if parsed.get("entries").and_then(|e| e.as_array()).is_some() {
+                return parsed;
+            }
+        }
+    }
+    serde_json::json!({ "version": 1, "entries": [] })
+}
+
+/// Mirrors `writeBuffer(cwd, buffer)`.
+fn write_manual_edits_buffer(root: &Path, buffer: &serde_json::Value) -> std::io::Result<()> {
+    let path = manual_edits_buffer_path(root);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let entries = buffer.get("entries").cloned().unwrap_or_else(|| serde_json::json!([]));
+    let out = serde_json::json!({ "version": 1, "entries": entries });
+    fs::write(path, serde_json::to_string_pretty(&out).unwrap())
+}
+
+/// Mirrors `scrubManualEditsAgainstOriginalBlock`, with the on-disk buffer
+/// I/O this file's `acceptCli` call site needs (the pure filtering logic
+/// lives in [`scrub_manual_edits_against_original_block`] above; this wraps
+/// it with `readBuffer`/`writeBuffer`).
+pub fn scrub_manual_edits_against_original_block_on_disk(
+    root: &Path,
+    original_block_text: &str,
+    page_url: Option<&str>,
+) {
+    if original_block_text.is_empty() {
+        return;
+    }
+    let Some(page_url) = page_url else {
+        return;
+    };
+    let mut buffer = read_manual_edits_buffer(root);
+    let Some(entries) = buffer.get_mut("entries").and_then(|e| e.as_array_mut()) else {
+        return;
+    };
+    if entries.is_empty() {
+        return;
+    }
+
+    let mut mutated = false;
+    for entry in entries.iter_mut() {
+        if entry.get("pageUrl").and_then(|v| v.as_str()) != Some(page_url) {
+            continue;
+        }
+        let Some(ops) = entry.get_mut("ops").and_then(|o| o.as_array_mut()) else {
+            continue;
+        };
+        let before = ops.len();
+        ops.retain(|op| {
+            let original_text = op.get("originalText").and_then(|v| v.as_str()).map(str::to_string);
+            let new_text = op.get("newText").and_then(|v| v.as_str()).map(str::to_string);
+            let mirrored = ManualEditOp { original_text, new_text };
+            !manual_edit_op_appears_in_block(&mirrored, original_block_text)
+        });
+        if ops.len() != before {
+            mutated = true;
+        }
+    }
+    entries.retain(|entry| {
+        entry
+            .get("ops")
+            .and_then(|o| o.as_array())
+            .map(|ops| !ops.is_empty())
+            .unwrap_or(false)
+    });
+
+    if mutated {
+        let _ = write_manual_edits_buffer(root, &buffer);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Deprecated source-shadow-preview detection (`readSourceShadowPreviewMeta`)
+// ---------------------------------------------------------------------------
+
+/// Mirrors `readHtmlAttr(tag, name)`. The JS regex captures the opening
+/// quote and backreferences it (`(["'])...\1`); `regex` has no
+/// backreference support, so this matches double- and single-quoted forms
+/// as separate alternatives instead (equivalent, since only the resulting
+/// value is read, not which quote character was used).
+fn read_html_attr(tag: &str, name: &str) -> Option<String> {
+    let escaped = escape_regex(name);
+    let re = Regex::new(&format!(
+        r#"\s{escaped}\s*=\s*(?:"([^"]*)"|'([^']*)')"#
+    ))
+    .ok()?;
+    let caps = re.captures(tag)?;
+    let value = caps.get(1).or_else(|| caps.get(2))?.as_str();
+    Some(decode_html_attr(value))
+}
+
+fn decode_html_attr(value: &str) -> String {
+    value
+        .replace("&quot;", "\"")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
+}
+
+/// Mirrors `readSourceShadowPreviewMeta(content, id)`. The JS regex uses a
+/// `(["'])...\1` backreference to match either quote style around `id`; the
+/// `regex` crate has no backreference support, so this builds two literal
+/// (double-quote / single-quote) alternatives instead — equivalent because
+/// `id` is a known, already-escaped literal, not a runtime capture.
+fn read_source_shadow_preview_meta(content: &str, id: &str) -> Option<(String, i64, i64)> {
+    let escaped = escape_regex(id);
+    let dq = format!(r#"<[^>]+data-impeccable-variants="{escaped}"[^>]*>"#);
+    let sq = format!(r"<[^>]+data-impeccable-variants='{escaped}'[^>]*>");
+    let re = Regex::new(&format!("(?:{dq})|(?:{sq})")).ok()?;
+    let tag = re.find(content)?.as_str();
+    if read_html_attr(tag, "data-impeccable-preview").as_deref() != Some("source-shadow") {
+        return None;
+    }
+    let source_file = read_html_attr(tag, "data-impeccable-source-file")?;
+    let source_start_line: i64 = read_html_attr(tag, "data-impeccable-source-start")?.parse().ok()?;
+    let source_end_line: i64 = read_html_attr(tag, "data-impeccable-source-end")?.parse().ok()?;
+    Some((source_file, source_start_line, source_end_line))
+}
+
+// ---------------------------------------------------------------------------
+// CLI entrypoint (`acceptCli`)
+// ---------------------------------------------------------------------------
+
+const HELP_TEXT: &str = "Usage: node live-accept.mjs [options]\n\n\
+Deterministic accept/discard for live variant sessions.\n\n\
+Modes:\n  \
+--discard          Remove variants, restore original\n  \
+--variant N        Accept variant N, discard the rest\n\n\
+Required:\n  \
+--id SESSION_ID    Session ID of the variant wrapper\n\n\
+Options:\n  \
+--page-url URL     Current browser page URL; scopes staged copy-edit cleanup\n  \
+--defer-source-write\n                     \
+Deprecated compatibility flag. Svelte component accepts\n                     \
+now write the real source immediately.\n\n\
+Output (JSON):\n  \
+{ handled, file, carbonize }";
+
+fn arg_val<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
+    args.iter()
+        .position(|a| a == flag)
+        .and_then(|i| args.get(i + 1))
+        .map(|s| s.as_str())
+}
+
+fn rel_to_cwd(path: &Path, cwd: &Path) -> String {
+    path.strip_prefix(cwd)
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_else(|_| path.to_string_lossy().to_string())
+}
+
+fn carbonize_todo(file: &str) -> String {
+    format!(
+        "REQUIRED before next poll: carbonize cleanup in {file}. See reference/live.md \"Required after accept\"."
+    )
+}
+
+/// Mirrors `acceptCli()`'s argv parsing and dispatch, minus the `process.*`
+/// side effects: instead of `console.log` + `process.exit`, returns
+/// `(exit_code, stdout_json_text)` for the caller to print/exit with.
+/// `--defer-source-write` is accepted (and ignored) for CLI compatibility,
+/// exactly as the JS help text documents it ("now write the real source
+/// immediately").
+pub fn run(args: &[String], cwd: &Path) -> (i32, String) {
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        return (0, HELP_TEXT.to_string());
+    }
+
+    let id = arg_val(args, "--id");
+    let variant_num = arg_val(args, "--variant");
+    let param_values_raw = arg_val(args, "--param-values");
+    let page_url = arg_val(args, "--page-url");
+    let is_discard = args.iter().any(|a| a == "--discard");
+
+    let Some(id) = id else {
+        return (1, "Missing --id".to_string());
+    };
+    if !is_discard && variant_num.is_none() {
+        return (1, "Need --discard or --variant N".to_string());
+    }
+
+    // Malformed `--param-values` is skipped rather than failing the accept,
+    // mirroring the JS `try { JSON.parse(...) } catch { paramValues = null; }`.
+    let param_values: Option<serde_json::Map<String, serde_json::Value>> = param_values_raw
+        .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .and_then(|v| v.as_object().cloned());
+
+    let found = find_session_file(id, cwd);
+    let svelte_manifest = if found.is_none() {
+        svelte_component::find_svelte_component_manifest(id, cwd)
+    } else {
+        None
+    };
+
+    if found.is_none() && svelte_manifest.is_none() {
+        let out = serde_json::json!({
+            "handled": false,
+            "error": format!("Session markers not found for id: {id}"),
+        });
+        return (0, out.to_string());
+    }
+
+    if let Some(manifest) = svelte_manifest {
+        if is_discard {
+            svelte_component::remove_svelte_component_session(id, cwd);
+            let out = serde_json::json!({
+                "handled": true,
+                "file": manifest.source_file,
+                "carbonize": false,
+                "previewMode": "svelte-component",
+                "componentDir": manifest.component_dir,
+            });
+            return (0, out.to_string());
+        }
+
+        // `variant_num` is required here: the earlier `!is_discard &&
+        // variant_num.is_none()` guard already returned when absent.
+        let variant_num = variant_num.unwrap();
+        let result = svelte_component::inline_svelte_component_accept(
+            &manifest,
+            variant_num,
+            param_values.as_ref(),
+            cwd,
+        );
+        let mut value = serde_json::to_value(&result).unwrap_or_default();
+        if result.carbonize {
+            if let Some(obj) = value.as_object_mut() {
+                obj.insert("todo".to_string(), serde_json::json!(carbonize_todo(&result.file)));
+            }
+        }
+        return (0, value.to_string());
+    }
+
+    let found = found.unwrap();
+    let rel_file = rel_to_cwd(&found, cwd);
+    let content = match fs::read_to_string(&found) {
+        Ok(c) => c,
+        Err(e) => return (1, format!("io error reading {}: {e}", found.display())),
+    };
+    let lines: Vec<String> = content.split('\n').map(|s| s.to_string()).collect();
+    let has_block = find_marker_block(id, &lines).is_some();
+    let source_shadow_preview = if has_block {
+        read_source_shadow_preview_meta(&content, id)
+    } else {
+        None
+    };
+
+    if source_shadow_preview.is_some() {
+        let out = serde_json::json!({
+            "handled": false,
+            "error": "source_shadow_preview_deprecated",
+            "hint": "Svelte live mode now uses svelte-component injection. Re-wrap the element and regenerate variants.",
+        });
+        return (0, out.to_string());
+    }
+
+    let is_generated_options = IsGeneratedOptions { cwd: Some(cwd.to_path_buf()) };
+    if is_generated_file(&found.to_string_lossy(), &is_generated_options) {
+        let out = serde_json::json!({
+            "handled": false,
+            "mode": "fallback",
+            "file": rel_file,
+            "hint": "Session is in a generated file. Persist the accepted variant in source; do not rely on this script.",
+        });
+        return (0, out.to_string());
+    }
+
+    if is_discard {
+        match discard_file(id, &found) {
+            Ok(result) if result.handled => {
+                let out = serde_json::json!({ "handled": true, "file": rel_file, "carbonize": false });
+                (0, out.to_string())
+            }
+            Ok(result) => {
+                let out = serde_json::json!({ "handled": false, "file": rel_file, "error": result.error });
+                (0, out.to_string())
+            }
+            Err(e) => (1, format!("io error: {e}")),
+        }
+    } else {
+        let variant_num = variant_num.unwrap();
+        match accept_file(id, variant_num, &found, param_values.as_ref()) {
+            Ok(result) if result.handled => {
+                let mut out = serde_json::json!({ "handled": true, "file": rel_file });
+                if result.carbonize {
+                    if let Some(obj) = out.as_object_mut() {
+                        obj.insert("carbonize".to_string(), serde_json::json!(true));
+                        obj.insert("todo".to_string(), serde_json::json!(carbonize_todo(&rel_file)));
+                    }
+                }
+                scrub_manual_edits_against_original_block_on_disk(
+                    cwd,
+                    &result.accepted_original_text,
+                    page_url,
+                );
+                (0, out.to_string())
+            }
+            Ok(result) => {
+                let out = serde_json::json!({ "handled": false, "file": rel_file, "error": result.error });
+                (0, out.to_string())
+            }
+            Err(e) => (1, format!("io error: {e}")),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -979,5 +1305,196 @@ mod tests {
         assert!(mutated);
         assert_eq!(ops.len(), 1);
         assert_eq!(ops[0].original_text.as_deref(), Some("Unrelated text"));
+    }
+
+    fn r17_tmp_dir(tag: &str) -> PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!("r17-live-accept-{tag}-{}-{}", std::process::id(), n));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn manual_edits_buffer_round_trip_on_disk() {
+        let root = r17_tmp_dir("buffer");
+        let buffer = serde_json::json!({
+            "version": 1,
+            "entries": [{
+                "id": "sess",
+                "pageUrl": "/home",
+                "element": {},
+                "ops": [
+                    { "ref": "r1", "originalText": "Hello world", "newText": "Hi" },
+                    { "ref": "r2", "originalText": "Unrelated", "newText": "x" },
+                ],
+                "stagedAt": "2026-01-01T00:00:00.000Z",
+            }],
+        });
+        write_manual_edits_buffer(&root, &buffer).unwrap();
+
+        scrub_manual_edits_against_original_block_on_disk(&root, "<p>Hello world</p>", Some("/home"));
+
+        let reread = read_manual_edits_buffer(&root);
+        let entries = reread["entries"].as_array().unwrap();
+        assert_eq!(entries.len(), 1);
+        let ops = entries[0]["ops"].as_array().unwrap();
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0]["ref"], "r2");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn scrub_on_disk_noop_without_page_url_or_buffer() {
+        let root = r17_tmp_dir("buffer-noop");
+        // No buffer file at all: must not panic or create one.
+        scrub_manual_edits_against_original_block_on_disk(&root, "<p>x</p>", Some("/home"));
+        assert!(!manual_edits_buffer_path(&root).exists());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn read_source_shadow_preview_meta_detects_deprecated_wrapper() {
+        let id = "abc123";
+        let content = format!(
+            r#"<div data-impeccable-variants="{id}" data-impeccable-preview="source-shadow" data-impeccable-source-file="src/App.tsx" data-impeccable-source-start="4" data-impeccable-source-end="9"></div>"#
+        );
+        let meta = read_source_shadow_preview_meta(&content, id).expect("meta found");
+        assert_eq!(meta.0, "src/App.tsx");
+        assert_eq!(meta.1, 4);
+        assert_eq!(meta.2, 9);
+    }
+
+    #[test]
+    fn read_source_shadow_preview_meta_none_for_non_shadow_wrapper() {
+        let id = "abc123";
+        let content = format!(r#"<div data-impeccable-variants="{id}"></div>"#);
+        assert!(read_source_shadow_preview_meta(&content, id).is_none());
+    }
+
+    #[test]
+    fn run_help_returns_zero_and_usage() {
+        let (code, out) = run(&["--help".to_string()], Path::new("."));
+        assert_eq!(code, 0);
+        assert!(out.contains("Usage: node live-accept.mjs"));
+    }
+
+    #[test]
+    fn run_missing_id_errors() {
+        let (code, out) = run(&["--discard".to_string()], Path::new("."));
+        assert_eq!(code, 1);
+        assert_eq!(out, "Missing --id");
+    }
+
+    #[test]
+    fn run_missing_mode_errors() {
+        let (code, out) = run(&["--id".to_string(), "x".to_string()], Path::new("."));
+        assert_eq!(code, 1);
+        assert_eq!(out, "Need --discard or --variant N");
+    }
+
+    #[test]
+    fn run_session_not_found_reports_unhandled_with_zero_exit() {
+        let dir = r17_tmp_dir("run-not-found");
+        let (code, out) = run(
+            &["--id".to_string(), "missing-id".to_string(), "--discard".to_string()],
+            &dir,
+        );
+        assert_eq!(code, 0);
+        assert!(out.contains("\"handled\":false"));
+        assert!(out.contains("Session markers not found"));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn run_accept_marker_wrapper_end_to_end() {
+        let dir = r17_tmp_dir("run-accept");
+        let src_dir = dir.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+        let id = "abc123";
+        fs::write(src_dir.join("page.html"), html_fixture(id)).unwrap();
+
+        let (code, out) = run(
+            &["--id".to_string(), id.to_string(), "--variant".to_string(), "1".to_string()],
+            &dir,
+        );
+        assert_eq!(code, 0);
+        assert!(out.contains("\"handled\":true"));
+        let written = fs::read_to_string(src_dir.join("page.html")).unwrap();
+        assert!(written.contains("Variant One"));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn run_discard_marker_wrapper_end_to_end() {
+        let dir = r17_tmp_dir("run-discard");
+        let src_dir = dir.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+        let id = "abc123";
+        fs::write(src_dir.join("page.html"), html_fixture(id)).unwrap();
+
+        let (code, out) = run(&["--id".to_string(), id.to_string(), "--discard".to_string()], &dir);
+        assert_eq!(code, 0);
+        assert!(out.contains("\"handled\":true"));
+        let written = fs::read_to_string(src_dir.join("page.html")).unwrap();
+        assert!(written.contains("<h1>Original</h1>"));
+        assert!(!written.contains("Variant One"));
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn run_dispatches_to_svelte_component_accept() {
+        let dir = r17_tmp_dir("run-svelte");
+        let comp_dir = dir
+            .join("node_modules")
+            .join(".impeccable-live")
+            .join("sess-svelte");
+        fs::create_dir_all(&comp_dir).unwrap();
+        fs::write(
+            comp_dir.join("manifest.json"),
+            serde_json::json!({
+                "id": "sess-svelte",
+                "previewMode": "svelte-component",
+                "sourceFile": "src/App.svelte",
+                "sourceStartLine": 1,
+                "sourceEndLine": 1,
+                "count": 1,
+                "propContract": [],
+                "originalMarkup": "<div>orig</div>",
+                "componentDir": "node_modules/.impeccable-live/sess-svelte",
+                "runtimeModule": "/node_modules/.impeccable-live/__runtime.js",
+            })
+            .to_string(),
+        )
+        .unwrap();
+        fs::write(
+            comp_dir.join("v1.svelte"),
+            "<script>\n  let {} = $props();\n</script>\n<div>svelte variant</div>\n",
+        )
+        .unwrap();
+        let src_dir = dir.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+        fs::write(src_dir.join("App.svelte"), "<div>orig</div>\n").unwrap();
+
+        let (code, out) = run(
+            &[
+                "--id".to_string(),
+                "sess-svelte".to_string(),
+                "--variant".to_string(),
+                "1".to_string(),
+            ],
+            &dir,
+        );
+        assert_eq!(code, 0);
+        assert!(out.contains("\"handled\":true"), "{out}");
+        assert!(out.contains("svelte-component"));
+        let written = fs::read_to_string(src_dir.join("App.svelte")).unwrap();
+        assert!(written.contains("svelte variant"));
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

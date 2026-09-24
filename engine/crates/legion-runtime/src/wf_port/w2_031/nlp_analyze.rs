@@ -9,14 +9,19 @@
 //! moderation filtering, and HTTP-status error categorization. The actual
 //! network call (`requests.post` to
 //! `https://language.googleapis.com/v2/documents:annotateText`, and the
-//! URL-fetch + HTML-text-extraction in `analyze_url`) needs an HTTP client
-//! this crate does not currently depend on (see the w2_031 report for the
-//! `reqwest` `Cargo.toml` addition). Callers supply the API response via
-//! [`build_result_from_response`] after making the call themselves (or
-//! behind a small transport of their own), and get back the exact same
-//! result shape Python's `analyze_text` builds.
+//! URL-fetch + HTML-text-extraction in `analyze_url`) is now closed by
+//! [`ReqwestNlpTransport`], a real `reqwest::blocking` + `scraper`
+//! implementation (packet r40), and [`run`] ports `main()`'s argv
+//! handling end to end. Callers that want a fake transport for tests can
+//! still implement [`NlpTransport`] directly and drive
+//! [`analyze_text_with`]/[`analyze_url_with`].
+
+use std::io::Write;
+use std::time::Duration;
 
 use serde_json::{json, Value};
+
+use crate::wf_port::w2_030::google_auth;
 
 pub const NLP_ENDPOINT: &str = "https://language.googleapis.com/v2/documents:annotateText";
 
@@ -297,4 +302,374 @@ pub fn extract_text_fallback(html: &str) -> String {
 /// `if not text or len(text) < 50: return {"error": "..."}`.
 pub fn text_too_short(text: &str) -> bool {
     text.is_empty() || text.chars().count() < 50
+}
+
+/// `analyze_text`'s full result dict, including the `error` slot
+/// [`build_result_from_response`] leaves out (it only builds the
+/// success shape).
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnalyzeResult {
+    pub text_length: usize,
+    pub language: String,
+    pub entities: Vec<Entity>,
+    pub sentiment: Option<SentimentResult>,
+    pub categories: Vec<Category>,
+    pub moderation: Vec<Category>,
+    pub error: Option<String>,
+    pub source_url: Option<String>,
+    pub extracted_text_length: Option<usize>,
+}
+
+impl From<NlpResult> for AnalyzeResult {
+    fn from(r: NlpResult) -> Self {
+        AnalyzeResult {
+            text_length: r.text_length,
+            language: r.language,
+            entities: r.entities,
+            sentiment: r.sentiment,
+            categories: r.categories,
+            moderation: r.moderation,
+            error: r.error,
+            source_url: None,
+            extracted_text_length: None,
+        }
+    }
+}
+
+fn error_result(text_length: usize, language: &str, error: String) -> AnalyzeResult {
+    AnalyzeResult {
+        text_length,
+        language: language.to_string(),
+        entities: Vec::new(),
+        sentiment: None,
+        categories: Vec::new(),
+        moderation: Vec::new(),
+        error: Some(error),
+        source_url: None,
+        extracted_text_length: None,
+    }
+}
+
+/// I/O boundary a caller plugs a real transport behind: the NLP API POST
+/// and the raw-HTML GET used by `analyze_url`. Mirrors
+/// `requests.post(...)`/`requests.get(...)`: any HTTP response (including
+/// 4xx/5xx) is `Ok`, only a transport-level failure is `Err` — matching
+/// Python's `requests.exceptions.RequestException` branch.
+pub trait NlpTransport {
+    /// `requests.post(f"{NLP_ENDPOINT}?key={key}", json=body, timeout=30)`.
+    fn post_annotate(&self, key: &str, body: &Value) -> Result<(u16, Value), String>;
+    /// `requests.get(url, timeout=30, headers={"User-Agent": ...})`.
+    fn get_html(&self, url: &str) -> Result<String, String>;
+}
+
+/// Real `reqwest::blocking` + `scraper` implementation of [`NlpTransport`].
+pub struct ReqwestNlpTransport;
+
+impl NlpTransport for ReqwestNlpTransport {
+    fn post_annotate(&self, key: &str, body: &Value) -> Result<(u16, Value), String> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .map_err(|e| format!("NLP API request failed: {e}"))?;
+        let resp = client
+            .post(format!("{NLP_ENDPOINT}?key={key}"))
+            .json(body)
+            .send()
+            .map_err(|e| request_failed_message(&e.to_string()))?;
+        let status = resp.status().as_u16();
+        let json = resp.json::<Value>().unwrap_or(json!({}));
+        Ok((status, json))
+    }
+
+    fn get_html(&self, url: &str) -> Result<String, String> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .map_err(|e| format!("Could not fetch URL: {e}"))?;
+        let resp = client
+            .get(url)
+            .header("User-Agent", "Mozilla/5.0 (compatible; ClaudeSEO/1.7 NLP Analyzer)")
+            .send()
+            .map_err(|e| format!("Could not fetch URL: {e}"))?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            return Err(format!("Could not fetch URL: HTTP {status}"));
+        }
+        resp.text().map_err(|e| format!("Could not fetch URL: {e}"))
+    }
+}
+
+/// `soup.get_text(separator=" ", strip=True)` after dropping
+/// `script`/`style`/`nav`/`footer`/`header` tags — the `bs4` branch of
+/// `analyze_url`'s text extraction, using the `scraper` crate (this
+/// crate's HTML parser, already a dependency) in place of BeautifulSoup.
+/// [`extract_text_fallback`] remains the regex fallback Python uses when
+/// `bs4` is not installed; this is the primary path, matching what a
+/// normal install (with `beautifulsoup4` present) actually runs.
+pub fn extract_text_scraper(html: &str) -> String {
+    use scraper::{Html, Selector};
+
+    let document = Html::parse_document(html);
+    let drop = Selector::parse("script, style, nav, footer, header").unwrap();
+    let drop_ids: std::collections::HashSet<_> =
+        document.select(&drop).map(|el| el.id()).collect();
+
+    let body_sel = Selector::parse("body").unwrap_or_else(|_| Selector::parse("*").unwrap());
+    let root = document
+        .select(&body_sel)
+        .next()
+        .unwrap_or_else(|| document.root_element());
+
+    let mut words: Vec<String> = Vec::new();
+    collect_text(root, &drop_ids, &mut words);
+    let joined = words.join(" ");
+    let ws_re = regex::Regex::new(r"\s+").unwrap();
+    ws_re.replace_all(&joined, " ").trim().to_string()
+}
+
+fn collect_text(
+    node: scraper::ElementRef<'_>,
+    drop_ids: &std::collections::HashSet<ego_tree::NodeId>,
+    out: &mut Vec<String>,
+) {
+    if drop_ids.contains(&node.id()) {
+        return;
+    }
+    for child in node.children() {
+        if let Some(text) = child.value().as_text() {
+            let t = text.trim();
+            if !t.is_empty() {
+                out.push(t.to_string());
+            }
+        } else if let Some(el) = scraper::ElementRef::wrap(child) {
+            collect_text(el, drop_ids, out);
+        }
+    }
+}
+
+/// `analyze_text(text, features, api_key, language)`, generalized over a
+/// [`NlpTransport`]. Ports the HTTP-status short-circuits, the
+/// `RequestException` branch, and (on success) delegates to
+/// [`build_result_from_response`].
+pub fn analyze_text_with(
+    transport: &dyn NlpTransport,
+    text: &str,
+    features: &[String],
+    api_key: Option<&str>,
+    language: &str,
+) -> AnalyzeResult {
+    let text_length = text.chars().count();
+    let Some(key) = api_key else {
+        return error_result(
+            text_length,
+            language,
+            "No API key. Set GOOGLE_API_KEY or add 'api_key' to config.".to_string(),
+        );
+    };
+
+    let feats: Vec<String> = if features.is_empty() {
+        vec!["entities".to_string(), "sentiment".to_string(), "classify".to_string()]
+    } else {
+        features.to_vec()
+    };
+    let body = build_request_body(text, &feats, language);
+
+    match transport.post_annotate(key, &body) {
+        Ok((status, _)) if status == 403 => {
+            error_result(text_length, language, categorize_http_status(403).unwrap())
+        }
+        Ok((status, _)) if status == 429 => {
+            error_result(text_length, language, categorize_http_status(429).unwrap())
+        }
+        Ok((status, data)) if (200..300).contains(&status) => {
+            let mut result: AnalyzeResult = build_result_from_response(text_length, language, &data).into();
+            result.language = language.to_string();
+            result
+        }
+        Ok((status, _)) => error_result(text_length, language, format!("NLP API request failed: HTTP {status}")),
+        Err(e) => error_result(text_length, language, e),
+    }
+}
+
+/// `analyze_url(url, features, api_key)`, generalized over a
+/// [`NlpTransport`]. Validates the URL, fetches it, extracts text (via
+/// [`extract_text_scraper`], falling back to [`extract_text_fallback`] on
+/// a parse that yields nothing), checks the 50-char floor, then delegates
+/// to [`analyze_text_with`].
+pub fn analyze_url_with(
+    transport: &dyn NlpTransport,
+    url: &str,
+    features: &[String],
+    api_key: Option<&str>,
+) -> AnalyzeResult {
+    if !google_auth::validate_url(url) {
+        return error_result(
+            0,
+            "en",
+            "Invalid URL. Only http/https URLs to public hosts are accepted.".to_string(),
+        );
+    }
+
+    let html = match transport.get_html(url) {
+        Ok(h) => h,
+        Err(e) => return error_result(0, "en", e),
+    };
+
+    let mut text = extract_text_scraper(&html);
+    if text.is_empty() {
+        text = extract_text_fallback(&html);
+    }
+
+    if text_too_short(&text) {
+        return error_result(0, "en", "Extracted text too short for meaningful NLP analysis.".to_string());
+    }
+
+    let mut result = analyze_text_with(transport, &text, features, api_key, "en");
+    result.source_url = Some(url.to_string());
+    result.extracted_text_length = Some(text.chars().count());
+    result
+}
+
+/// CLI arg bundle mirroring `argparse` in `nlp_analyze.py`'s `main()`.
+#[derive(Debug, Clone, Default)]
+struct Args {
+    text: Option<String>,
+    url: Option<String>,
+    features: String,
+    api_key: Option<String>,
+    json: bool,
+}
+
+fn parse_args(args: &[String]) -> Result<Args, String> {
+    let mut out = Args { features: "entities,sentiment,classify".to_string(), ..Default::default() };
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--text" | "-t" => {
+                i += 1;
+                out.text = Some(args.get(i).ok_or("--text requires a value")?.clone());
+            }
+            "--url" | "-u" => {
+                i += 1;
+                out.url = Some(args.get(i).ok_or("--url requires a value")?.clone());
+            }
+            "--features" | "-f" => {
+                i += 1;
+                out.features = args.get(i).ok_or("--features requires a value")?.clone();
+            }
+            "--api-key" => {
+                i += 1;
+                out.api_key = Some(args.get(i).ok_or("--api-key requires a value")?.clone());
+            }
+            "--json" | "-j" => out.json = true,
+            other => return Err(format!("unrecognized argument: {other}")),
+        }
+        i += 1;
+    }
+    Ok(out)
+}
+
+/// Port of `nlp_analyze.py`'s `main()`, parameterized over the transport
+/// and stdout/stderr sinks. Returns the process exit code.
+pub fn run(
+    args: &[String],
+    transport: &dyn NlpTransport,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+) -> i32 {
+    let parsed = match parse_args(args) {
+        Ok(p) => p,
+        Err(e) => {
+            let _ = writeln!(stderr, "{e}");
+            return 2;
+        }
+    };
+
+    if parsed.text.is_none() && parsed.url.is_none() {
+        let _ = writeln!(stderr, "Error: Provide --text or --url to analyze.");
+        return 1;
+    }
+
+    let features: Vec<String> = parsed.features.split(',').map(|f| f.trim().to_string()).collect();
+    let api_key = parsed.api_key.clone().or_else(|| google_auth::load_config().api_key);
+
+    let result = if let Some(url) = &parsed.url {
+        analyze_url_with(transport, url, &features, api_key.as_deref())
+    } else {
+        analyze_text_with(transport, parsed.text.as_deref().unwrap_or(""), &features, api_key.as_deref(), "en")
+    };
+
+    if let Some(err) = &result.error {
+        let _ = writeln!(stderr, "Error: {err}");
+        if !parsed.json {
+            return 1;
+        }
+    }
+
+    if parsed.json {
+        let value = json!({
+            "text_length": result.text_length,
+            "language": result.language,
+            "entities": result.entities.iter().map(|e| json!({
+                "name": e.name,
+                "type": e.r#type,
+                "salience": e.salience,
+                "sentiment_score": e.sentiment_score,
+                "sentiment_magnitude": e.sentiment_magnitude,
+                "mention_count": e.mention_count,
+                "metadata": e.metadata,
+            })).collect::<Vec<_>>(),
+            "sentiment": result.sentiment.as_ref().map(|s| json!({
+                "score": s.score,
+                "magnitude": s.magnitude,
+                "tone": s.tone,
+                "interpretation": s.interpretation,
+                "sentence_count": s.sentence_count,
+                "most_positive": s.most_positive,
+                "most_negative": s.most_negative,
+            })),
+            "categories": result.categories.iter().map(|c| json!({"name": c.name, "confidence": c.confidence})).collect::<Vec<_>>(),
+            "moderation": result.moderation.iter().map(|c| json!({"name": c.name, "confidence": c.confidence})).collect::<Vec<_>>(),
+            "error": result.error,
+            "source_url": result.source_url,
+            "extracted_text_length": result.extracted_text_length,
+        });
+        let _ = writeln!(stdout, "{}", serde_json::to_string_pretty(&value).unwrap_or_default());
+        return 0;
+    }
+
+    if let Some(url) = &result.source_url {
+        let _ = writeln!(stdout, "=== NLP Analysis: {url} ===");
+        let _ = writeln!(stdout, "Text extracted: {} chars", result.extracted_text_length.unwrap_or(0));
+    } else {
+        let _ = writeln!(stdout, "=== NLP Analysis ({} chars) ===", result.text_length);
+    }
+
+    if let Some(sent) = &result.sentiment {
+        let _ = writeln!(stdout, "\nSentiment: {} (score: {}, magnitude: {})", sent.tone.to_uppercase(), sent.score, sent.magnitude);
+        let _ = writeln!(stdout, "  {}", sent.interpretation);
+    }
+
+    if !result.entities.is_empty() {
+        let _ = writeln!(stdout, "\nTop Entities ({} total):", result.entities.len());
+        for e in result.entities.iter().take(15) {
+            let _ = writeln!(stdout, "  [{:12}] {} (salience: {:.3})", e.r#type, e.name, e.salience);
+        }
+    }
+
+    if !result.categories.is_empty() {
+        let _ = writeln!(stdout, "\nContent Categories:");
+        for c in &result.categories {
+            let _ = writeln!(stdout, "  {} ({:.1}%)", c.name, c.confidence * 100.0);
+        }
+    }
+
+    if !result.moderation.is_empty() {
+        let _ = writeln!(stdout, "\nModeration Flags:");
+        for m in &result.moderation {
+            let _ = writeln!(stdout, "  {} ({:.1}%)", m.name, m.confidence * 100.0);
+        }
+    }
+
+    0
 }

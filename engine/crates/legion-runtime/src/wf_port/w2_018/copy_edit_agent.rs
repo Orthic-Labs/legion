@@ -1,27 +1,33 @@
 //! Port of `skills/designer/engine/scripts/live-copy-edit-agent.mjs`
-//! (chunk w2_018) — self-contained pure logic and the diagnostic helpers.
+//! (chunk w2_018 / packet r20).
 //!
-//! `live-copy-edit-agent.mjs` mostly orchestrates spawning an external AI
-//! coding agent (`codex`/`claude` CLIs) as a child process and streaming its
-//! output. That process-orchestration path (`runCopyEditBatchAgent`,
-//! `runCodex`/`runClaude`/`runAgentProcess`) and the JS/TS syntax check via
-//! `@babel/parser` (`checkFrameworkSourceSyntax`) are NOT ported here: they
-//! are not unit-testable pure logic, and porting the Babel-based parse check
-//! would require a JS/TS parser crate this chunk is not scoped to add. What
-//! IS ported: the prompt/result JSON marshaling (`buildCopyEditBatchPrompt`,
+//! Covers the prompt/result JSON marshaling (`buildCopyEditBatchPrompt`,
 //! `parseCopyEditBatchResult`/`parseCopyEditAgentResult`,
 //! `normalizeBatchResult`, `compactBatchForPrompt` family), the provider
 //! selection logic (`chooseCopyEditAgent`, injectable like the JS), the
 //! diagnostic message builders (`describeNoProviderError`,
-//! `extractRunnerErrorMessage`), and the leftover-marker / JSON / node
-//! `--check` parts of `runCopyEditPostApplyChecks` (skipping the Babel
-//! syntax check and the `impeccable:manual-edit-validate` package.json
-//! script runner, both of which shell out to tools not proven present in
-//! this Rust runtime's test environment).
+//! `extractRunnerErrorMessage`), the full `runCopyEditPostApplyChecks`
+//! (leftover-marker / JSON / node `--check` / Babel-parser JS-TS syntax
+//! check / `impeccable:manual-edit-validate` package.json script runner),
+//! and the CLI subprocess orchestration that spawns the `codex`/`claude`
+//! coding agents (`runCopyEditBatchAgent`, `runCodex`/`runClaude`/
+//! `runAgentProcess`, the `mock` provider's `applyMockWrites`/
+//! `mockBatchResult`).
+//!
+//! All process/filesystem I/O in the orchestration and post-apply-check
+//! paths is behind the [`ProcessRunner`] trait (mirroring `child_process`)
+//! so unit tests exercise the logic with a fake runner instead of spawning
+//! `node`/`codex`/`claude`/a shell for real.
 
 use serde_json::{json, Value};
-use std::path::Path;
-use std::process::Command;
+use std::collections::HashMap;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::mpsc;
+use std::time::Duration;
+
+const DEFAULT_TIMEOUT_MS: u64 = 60_000;
 
 // --- Prompt building -------------------------------------------------------
 
@@ -491,6 +497,349 @@ pub fn extract_runner_error_message(output: &str, command: &str) -> Option<Strin
     None
 }
 
+// --- Subprocess orchestration ------------------------------------------------
+//
+// Mirrors `child_process.spawn`/`spawnSync` usage: `runCodex`, `runClaude`,
+// `runAgentProcess`, and `runManualEditValidationScript`'s `spawnSync(...,
+// { shell: true })`. Real process/timeout handling lives in
+// [`SystemProcessRunner`]; tests use a fake implementing [`ProcessRunner`].
+
+/// One subprocess invocation, mirroring the arguments `spawn`/`spawnSync`
+/// take in the JS.
+#[derive(Debug, Clone)]
+pub struct ProcessSpec {
+    /// Program to run, or (when `use_shell` is true) the full shell command
+    /// line — mirrors `spawnSync(script, { shell: true })`.
+    pub program: String,
+    pub args: Vec<String>,
+    pub stdin: Option<String>,
+    pub cwd: PathBuf,
+    /// `None` inherits the parent environment (mirrors passing
+    /// `process.env`/`env` through unchanged, as `runClaude` does).
+    pub env: Option<HashMap<String, String>>,
+    pub timeout_ms: Option<u64>,
+    pub use_shell: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ProcessRunResult {
+    pub success: bool,
+    pub stdout: String,
+    pub stderr: String,
+    pub timed_out: bool,
+    pub spawn_failed: bool,
+}
+
+/// Injectable process-spawning seam. Mirrors how the JS takes `spawn`/
+/// `spawnSync` as an implicit dependency: tests supply a fake, production
+/// code uses [`SystemProcessRunner`].
+pub trait ProcessRunner {
+    fn run(&self, spec: &ProcessSpec) -> ProcessRunResult;
+}
+
+/// Real subprocess runner used in production, mirroring `runAgentProcess`'s
+/// spawn + timeout-kill behaviour and `spawnSync`'s synchronous wait.
+pub struct SystemProcessRunner;
+
+impl ProcessRunner for SystemProcessRunner {
+    fn run(&self, spec: &ProcessSpec) -> ProcessRunResult {
+        let mut cmd = if spec.use_shell {
+            let mut c = if cfg!(windows) {
+                Command::new("cmd")
+            } else {
+                Command::new("sh")
+            };
+            if cfg!(windows) {
+                c.arg("/C").arg(&spec.program);
+            } else {
+                c.arg("-c").arg(&spec.program);
+            }
+            c
+        } else {
+            let mut c = Command::new(&spec.program);
+            c.args(&spec.args);
+            c
+        };
+        cmd.current_dir(&spec.cwd);
+        if let Some(env) = &spec.env {
+            cmd.env_clear();
+            cmd.envs(env);
+        }
+        cmd.stdin(if spec.stdin.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        });
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(_) => {
+                return ProcessRunResult {
+                    spawn_failed: true,
+                    ..Default::default()
+                }
+            }
+        };
+        if let Some(input) = &spec.stdin {
+            if let Some(mut si) = child.stdin.take() {
+                let _ = si.write_all(input.as_bytes());
+            }
+        }
+        let pid = child.id();
+
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let out = child.wait_with_output();
+            let _ = tx.send(out);
+        });
+
+        let recv = match spec.timeout_ms {
+            Some(ms) => rx.recv_timeout(Duration::from_millis(ms)).ok(),
+            None => rx.recv().ok(),
+        };
+
+        match recv {
+            Some(Ok(output)) => ProcessRunResult {
+                success: output.status.success(),
+                stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                timed_out: false,
+                spawn_failed: false,
+            },
+            Some(Err(_)) => ProcessRunResult {
+                spawn_failed: true,
+                ..Default::default()
+            },
+            None => {
+                kill_pid(pid);
+                ProcessRunResult {
+                    timed_out: true,
+                    ..Default::default()
+                }
+            }
+        }
+    }
+}
+
+fn kill_pid(pid: u32) {
+    #[cfg(unix)]
+    {
+        let _ = Command::new("kill")
+            .arg("-TERM")
+            .arg(pid.to_string())
+            .status();
+    }
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/F", "/PID", &pid.to_string()])
+            .status();
+    }
+}
+
+/// Mirrors `runCodex(prompt, { cwd, env, resultPath, logPath, timeoutMs })`'s
+/// argv construction (the `result_path` write and log streaming are the
+/// caller's concern in [`run_copy_edit_batch_agent`]).
+pub fn build_codex_args(env: &HashMap<String, String>, result_path: &Path, cwd: &Path) -> Vec<String> {
+    let effort = env
+        .get("IMPECCABLE_LIVE_COPY_AGENT_EFFORT")
+        .cloned()
+        .unwrap_or_else(|| "low".to_string());
+    let mut args = vec![
+        "exec".to_string(),
+        "--cd".to_string(),
+        cwd.to_string_lossy().to_string(),
+        "--dangerously-bypass-approvals-and-sandbox".to_string(),
+        "--ephemeral".to_string(),
+        "--output-last-message".to_string(),
+        result_path.to_string_lossy().to_string(),
+        "-c".to_string(),
+        format!("model_reasoning_effort=\"{effort}\""),
+    ];
+    if let Some(model) = env.get("IMPECCABLE_LIVE_COPY_AGENT_MODEL") {
+        args.push("--model".to_string());
+        args.push(model.clone());
+    }
+    args.push("-".to_string());
+    args
+}
+
+/// Mirrors `runClaude(prompt, { cwd, env, resultPath, logPath, timeoutMs })`'s
+/// argv construction. `prompt` is pushed as the final positional arg by the
+/// caller (mirroring `args.push(prompt)` in the JS).
+pub fn build_claude_args(env: &HashMap<String, String>) -> Vec<String> {
+    let mut args = vec![
+        "--print".to_string(),
+        "--permission-mode".to_string(),
+        "bypassPermissions".to_string(),
+        "--output-format".to_string(),
+        "json".to_string(),
+    ];
+    if let Some(model) = env.get("IMPECCABLE_LIVE_COPY_AGENT_MODEL") {
+        args.push("--model".to_string());
+        args.push(model.clone());
+    }
+    args
+}
+
+/// Mirrors `runAgentProcess(command, args, stdin, { cwd, env, timeoutMs })`:
+/// spawns, feeds `stdin`, and on non-zero exit builds an error message via
+/// [`extract_runner_error_message`] (falling back to the generic "exited
+/// with N" message), on timeout raises the same timeout message shape.
+fn run_agent_process(
+    runner: &dyn ProcessRunner,
+    command: &str,
+    args: &[String],
+    stdin: Option<String>,
+    cwd: &Path,
+    env: &HashMap<String, String>,
+    timeout_ms: u64,
+) -> Result<String, String> {
+    let spec = ProcessSpec {
+        program: command.to_string(),
+        args: args.to_vec(),
+        stdin,
+        cwd: cwd.to_path_buf(),
+        env: Some(env.clone()),
+        timeout_ms: Some(timeout_ms),
+        use_shell: false,
+    };
+    let result = runner.run(&spec);
+    if result.timed_out {
+        return Err(format!(
+            "AI copy-edit worker timed out after {timeout_ms}ms"
+        ));
+    }
+    if result.spawn_failed {
+        return Err(format!("failed to spawn {command}"));
+    }
+    let output = format!("{}{}", result.stdout, result.stderr);
+    if result.success {
+        Ok(result.stdout)
+    } else {
+        let hint = extract_runner_error_message(&output, command);
+        Err(hint.unwrap_or_else(|| format!("{command} exited with non-zero status")))
+    }
+}
+
+/// Mirrors `applyMockWrites(env, cwd)`: parses
+/// `IMPECCABLE_LIVE_COPY_AGENT_MOCK_WRITES` as a flat `{relativeFile:
+/// content}` JSON object and writes each file under `cwd`, refusing paths
+/// that escape it.
+pub fn apply_mock_writes(env: &HashMap<String, String>, cwd: &Path) -> Result<(), String> {
+    let Some(raw) = env.get("IMPECCABLE_LIVE_COPY_AGENT_MOCK_WRITES") else {
+        return Ok(());
+    };
+    let writes: Value = serde_json::from_str(raw)
+        .map_err(|_| "Invalid IMPECCABLE_LIVE_COPY_AGENT_MOCK_WRITES JSON".to_string())?;
+    let Some(obj) = writes.as_object() else {
+        return Err("Invalid IMPECCABLE_LIVE_COPY_AGENT_MOCK_WRITES JSON".to_string());
+    };
+    for (relative_file, content) in obj {
+        let Some(content) = content.as_str() else {
+            continue;
+        };
+        let absolute = cwd.join(relative_file);
+        if !is_path_inside_or_equal(cwd, &absolute) {
+            continue;
+        }
+        if let Some(parent) = absolute.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        std::fs::write(&absolute, content)
+            .map_err(|e| format!("failed to write {relative_file}: {e}"))?;
+    }
+    Ok(())
+}
+
+/// Mirrors `mockBatchResult(batch, env, cwd)`.
+pub fn mock_batch_result(batch: &Value, env: &HashMap<String, String>, cwd: &Path) -> Result<Value, String> {
+    apply_mock_writes(env, cwd)?;
+    if let Some(raw) = env.get("IMPECCABLE_LIVE_COPY_AGENT_MOCK_RESULT") {
+        return parse_copy_edit_batch_result(raw)
+            .ok_or_else(|| "Invalid IMPECCABLE_LIVE_COPY_AGENT_MOCK_RESULT JSON".to_string());
+    }
+    let applied_entry_ids: Vec<Value> = batch
+        .get("entries")
+        .and_then(Value::as_array)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|e| e.get("id").cloned())
+                .filter(|v| v.is_string())
+                .collect()
+        })
+        .unwrap_or_default();
+    Ok(json!({
+        "status": "done",
+        "appliedEntryIds": applied_entry_ids,
+        "failed": [],
+        "files": [],
+        "notes": ["mock copy-edit batch result"],
+    }))
+}
+
+/// Mirrors `runCopyEditBatchAgent(batch, opts)` for the `mock`, `codex`, and
+/// `claude` providers. The `chat` provider is the caller's concern (it takes
+/// an `applyBatchToSource` callback in the JS, which has no subprocess
+/// shape); pass [`Provider::Chat`] results in through your own callback and
+/// [`normalize_batch_result`] instead of calling this function.
+pub fn run_copy_edit_batch_agent(
+    batch: &Value,
+    cwd: &Path,
+    env: &HashMap<String, String>,
+    provider: Provider,
+    runner: &dyn ProcessRunner,
+    result_path: &Path,
+    timeout_ms: Option<u64>,
+) -> Result<Value, String> {
+    if provider == Provider::Mock {
+        return mock_batch_result(batch, env, cwd);
+    }
+    if provider == Provider::Chat {
+        return Err("chat provider requires applyBatchToSource callback".to_string());
+    }
+
+    let timeout_ms = timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS);
+    let prompt = build_copy_edit_batch_prompt(batch, cwd);
+
+    let output = match provider {
+        Provider::Codex => {
+            let args = build_codex_args(env, result_path, cwd);
+            run_agent_process(
+                runner,
+                "codex",
+                &args,
+                Some(prompt),
+                cwd,
+                env,
+                timeout_ms,
+            )?;
+            std::fs::read_to_string(result_path).unwrap_or_default()
+        }
+        Provider::Claude => {
+            let mut args = build_claude_args(env);
+            args.push(prompt);
+            // Forward env as-is so CLAUDE_CODE_OAUTH_TOKEN/ANTHROPIC_API_KEY
+            // flow through, mirroring `runClaude`'s comment on why env is
+            // passed unmodified rather than via stdin.
+            run_agent_process(runner, "claude", &args, None, cwd, env, timeout_ms)?
+        }
+        Provider::Mock | Provider::Chat => unreachable!(),
+    };
+
+    parse_copy_edit_batch_result(&output).ok_or_else(|| {
+        let tail: String = output.chars().rev().take(1200).collect::<String>();
+        let tail: String = tail.chars().rev().collect();
+        format!(
+            "AI copy-edit batch did not return a valid completion payload. {}",
+            tail.trim()
+        )
+    })
+}
+
 // --- Post-apply checks -------------------------------------------------------
 
 #[derive(Debug, Clone, Default)]
@@ -500,14 +849,166 @@ pub struct PostApplyChecks {
     pub warnings: Vec<Value>,
 }
 
-/// Partial port of `runCopyEditPostApplyChecks({ cwd, files })`: leftover
-/// impeccable-marker detection, JSON parse validation, and `node --check`
-/// for `.js`/`.mjs`/`.cjs` files. Does NOT run the Babel-based
-/// `checkFrameworkSourceSyntax` for `.jsx`/`.tsx`/`.ts` (no JS/TS parser
-/// crate in scope) or `runManualEditValidationScript` (the
-/// `package.json#scripts.impeccable:manual-edit-validate` runner) — both
-/// left NOT-STARTED; see module docs.
-pub fn run_copy_edit_post_apply_checks(cwd: &Path, files: &[String]) -> PostApplyChecks {
+/// Mirrors `checkFrameworkSourceSyntax(relativeFile, content)`: for
+/// `.jsx`/`.tsx`/`.ts` files, shells out to Node + `@babel/parser` — the
+/// same checker the JS used (`require('@babel/parser')` in-process; here
+/// it's the identical package invoked from a short Node driver script so the
+/// parse behaviour is byte-for-byte the same as the legacy tool). Returns
+/// `(failure, warning)` matching the JS's two possible outcomes: a
+/// `syntax_parser_unavailable` warning when `@babel/parser` cannot be
+/// resolved from `cwd`, or an `invalid_source_syntax` failure when the
+/// parse throws.
+fn check_framework_source_syntax(
+    runner: &dyn ProcessRunner,
+    cwd: &Path,
+    relative_file: &str,
+    content: &str,
+) -> (Option<Value>, Option<Value>) {
+    let is_ts_tsx = relative_file.ends_with(".ts") || relative_file.ends_with(".tsx");
+    let is_jsx_tsx_ts = relative_file.ends_with(".jsx") || is_ts_tsx;
+    if !is_jsx_tsx_ts {
+        return (None, None);
+    }
+    let plugins = if is_ts_tsx {
+        r#"["jsx","typescript"]"#
+    } else {
+        r#"["jsx"]"#
+    };
+    // Mirrors: try { parser = require('@babel/parser') } catch { warn }
+    //          then parser.parse(content, { sourceType: 'module', plugins, errorRecovery: false })
+    let script = format!(
+        r#"
+let parser;
+try {{ parser = require('@babel/parser'); }} catch (e) {{
+  process.stdout.write(JSON.stringify({{ unavailable: true }}));
+  process.exit(0);
+}}
+let content = '';
+try {{
+  content = require('fs').readFileSync(0, 'utf-8');
+  parser.parse(content, {{ sourceType: 'module', plugins: {plugins}, errorRecovery: false }});
+  process.stdout.write(JSON.stringify({{ ok: true }}));
+}} catch (err) {{
+  process.stdout.write(JSON.stringify({{ ok: false, message: String(err && err.message || err) }}));
+}}
+"#
+    );
+    let spec = ProcessSpec {
+        program: "node".to_string(),
+        args: vec!["-e".to_string(), script],
+        stdin: Some(content.to_string()),
+        cwd: cwd.to_path_buf(),
+        env: None,
+        timeout_ms: Some(15_000),
+        use_shell: false,
+    };
+    let result = runner.run(&spec);
+    if result.spawn_failed || result.timed_out || !result.success {
+        // node itself missing/erroring is treated the same as the parser
+        // being unavailable — there is no meaningful syntax verdict.
+        return (
+            None,
+            Some(json!({ "file": relative_file, "reason": "syntax_parser_unavailable" })),
+        );
+    }
+    let parsed: Option<Value> = serde_json::from_str(result.stdout.trim()).ok();
+    match parsed {
+        Some(v) if v.get("unavailable").and_then(Value::as_bool) == Some(true) => (
+            None,
+            Some(json!({ "file": relative_file, "reason": "syntax_parser_unavailable" })),
+        ),
+        Some(v) if v.get("ok").and_then(Value::as_bool) == Some(false) => (
+            Some(json!({
+                "file": relative_file,
+                "reason": "invalid_source_syntax",
+                "message": v.get("message").cloned().unwrap_or(Value::Null),
+            })),
+            None,
+        ),
+        Some(v) if v.get("ok").and_then(Value::as_bool) == Some(true) => (None, None),
+        _ => (
+            None,
+            Some(json!({ "file": relative_file, "reason": "syntax_parser_unavailable" })),
+        ),
+    }
+}
+
+/// Mirrors `readManualEditValidationScript(cwd)` + the calling half of
+/// `runManualEditValidationScript(cwd)`: reads `package.json`, and if
+/// `scripts["impeccable:manual-edit-validate"]` is a non-empty string,
+/// returns it; the caller runs it as a shell command.
+fn read_manual_edit_validation_script(cwd: &Path) -> Option<String> {
+    let pkg_path = cwd.join("package.json");
+    let content = std::fs::read_to_string(pkg_path).ok()?;
+    let pkg: Value = serde_json::from_str(&content).ok()?;
+    let script = pkg
+        .get("scripts")
+        .and_then(|s| s.get("impeccable:manual-edit-validate"))
+        .and_then(Value::as_str)?;
+    if script.trim().is_empty() {
+        None
+    } else {
+        Some(script.to_string())
+    }
+}
+
+/// Mirrors `runManualEditValidationScript(cwd)`: runs
+/// `package.json#scripts["impeccable:manual-edit-validate"]` (if present)
+/// via a shell, mirroring `spawnSync(script, { cwd, shell: true, timeout:
+/// 30_000 })`.
+fn run_manual_edit_validation_script(runner: &dyn ProcessRunner, cwd: &Path) -> Option<Value> {
+    let script = read_manual_edit_validation_script(cwd)?;
+    let spec = ProcessSpec {
+        program: script,
+        args: vec![],
+        stdin: None,
+        cwd: cwd.to_path_buf(),
+        env: None,
+        timeout_ms: Some(30_000),
+        use_shell: true,
+    };
+    let result = runner.run(&spec);
+    if result.spawn_failed {
+        return Some(json!({
+            "file": "package.json",
+            "reason": "manual_edit_validation_failed",
+            "message": "failed to spawn validation script",
+        }));
+    }
+    if result.timed_out {
+        return Some(json!({
+            "file": "package.json",
+            "reason": "manual_edit_validation_failed",
+            "message": "validation script timed out",
+        }));
+    }
+    if !result.success {
+        let message = [result.stderr.trim(), result.stdout.trim()]
+            .into_iter()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
+        return Some(json!({
+            "file": "package.json",
+            "reason": "manual_edit_validation_failed",
+            "message": message,
+        }));
+    }
+    None
+}
+
+/// Full port of `runCopyEditPostApplyChecks({ cwd, files })`: leftover
+/// impeccable-marker detection, JSON parse validation, `node --check` for
+/// `.js`/`.mjs`/`.cjs` files, the Babel-based `checkFrameworkSourceSyntax`
+/// for `.jsx`/`.tsx`/`.ts`, and the
+/// `package.json#scripts.impeccable:manual-edit-validate` runner. Process
+/// spawning goes through `runner` (see [`ProcessRunner`]); pass
+/// [`SystemProcessRunner`] in production.
+pub fn run_copy_edit_post_apply_checks(
+    cwd: &Path,
+    files: &[String],
+    runner: &dyn ProcessRunner,
+) -> PostApplyChecks {
     let mut failures = Vec::new();
     let mut warnings = Vec::new();
     let mut unique_files: Vec<&String> = Vec::new();
@@ -540,20 +1041,38 @@ pub fn run_copy_edit_post_apply_checks(cwd: &Path, files: &[String]) -> PostAppl
                 failures.push(json!({ "file": relative_file, "reason": "invalid_json", "message": e.to_string() }));
             }
         }
+        let (syntax_failure, syntax_warning) =
+            check_framework_source_syntax(runner, cwd, relative_file, &content);
+        if let Some(f) = syntax_failure {
+            failures.push(f);
+        }
+        if let Some(w) = syntax_warning {
+            warnings.push(w);
+        }
         if relative_file.ends_with(".mjs") || relative_file.ends_with(".cjs") || relative_file.ends_with(".js") {
-            let check = Command::new("node").arg("--check").arg(&file).current_dir(cwd).output();
-            if let Ok(output) = check {
-                if !output.status.success() {
-                    let message = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                    let message = if message.is_empty() {
-                        String::from_utf8_lossy(&output.stdout).trim().to_string()
-                    } else {
-                        message
-                    };
-                    failures.push(json!({ "file": relative_file, "reason": "invalid_js", "message": message }));
-                }
+            let spec = ProcessSpec {
+                program: "node".to_string(),
+                args: vec!["--check".to_string(), file.to_string_lossy().to_string()],
+                stdin: None,
+                cwd: cwd.to_path_buf(),
+                env: None,
+                timeout_ms: Some(15_000),
+                use_shell: false,
+            };
+            let result = runner.run(&spec);
+            if !result.spawn_failed && !result.timed_out && !result.success {
+                let message = if !result.stderr.trim().is_empty() {
+                    result.stderr.trim().to_string()
+                } else {
+                    result.stdout.trim().to_string()
+                };
+                failures.push(json!({ "file": relative_file, "reason": "invalid_js", "message": message }));
             }
         }
+    }
+
+    if let Some(f) = run_manual_edit_validation_script(runner, cwd) {
+        failures.push(f);
     }
 
     PostApplyChecks {
@@ -819,9 +1338,11 @@ mod tests {
         std::fs::create_dir_all(&tmp).unwrap();
         std::fs::write(tmp.join("bad.json"), "{not json}").unwrap();
 
+        let runner = FakeProcessRunner::default();
         let result = run_copy_edit_post_apply_checks(
             &tmp,
             &["bad.json".to_string(), "missing.json".to_string()],
+            &runner,
         );
         assert!(!result.ok);
         assert_eq!(result.failures.len(), 1);
@@ -829,6 +1350,365 @@ mod tests {
         assert_eq!(result.warnings.len(), 1);
         assert_eq!(result.warnings[0]["reason"], json!("file_missing_or_outside_cwd"));
 
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // --- fakes for ProcessRunner-backed tests -------------------------------
+
+    /// Records every spec it was asked to run and returns a scripted result,
+    /// keyed by a substring match on the command line. Never spawns a real
+    /// process.
+    #[derive(Default)]
+    struct FakeProcessRunner {
+        calls: std::sync::Mutex<Vec<ProcessSpec>>,
+        /// (substring to match against program+args joined, result to return)
+        scripted: Vec<(String, ProcessRunResult)>,
+    }
+
+    impl ProcessRunner for FakeProcessRunner {
+        fn run(&self, spec: &ProcessSpec) -> ProcessRunResult {
+            self.calls.lock().unwrap().push(spec.clone());
+            let haystack = format!("{} {}", spec.program, spec.args.join(" "));
+            for (needle, result) in &self.scripted {
+                if haystack.contains(needle.as_str()) {
+                    return result.clone();
+                }
+            }
+            ProcessRunResult {
+                spawn_failed: true,
+                ..Default::default()
+            }
+        }
+    }
+
+    fn temp_dir(label: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "legion-w2_018-r20-{label}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn build_codex_args_includes_effort_and_model() {
+        let mut env = HashMap::new();
+        env.insert("IMPECCABLE_LIVE_COPY_AGENT_MODEL".to_string(), "gpt-x".to_string());
+        let args = build_codex_args(&env, Path::new("/tmp/out/result.json"), Path::new("/repo"));
+        assert!(args.contains(&"exec".to_string()));
+        assert!(args.contains(&"--model".to_string()));
+        assert!(args.contains(&"gpt-x".to_string()));
+        assert!(args.iter().any(|a| a.contains("model_reasoning_effort=\"low\"")));
+    }
+
+    #[test]
+    fn build_claude_args_includes_model_when_set() {
+        let mut env = HashMap::new();
+        env.insert("IMPECCABLE_LIVE_COPY_AGENT_MODEL".to_string(), "opus".to_string());
+        let args = build_claude_args(&env);
+        assert!(args.contains(&"--print".to_string()));
+        assert!(args.contains(&"opus".to_string()));
+    }
+
+    #[test]
+    fn run_copy_edit_batch_agent_mock_applies_writes_and_returns_default_result() {
+        let tmp = temp_dir("mock");
+        let mut env = HashMap::new();
+        env.insert(
+            "IMPECCABLE_LIVE_COPY_AGENT_MOCK_WRITES".to_string(),
+            r#"{"out.txt":"hello"}"#.to_string(),
+        );
+        let batch = json!({ "entries": [{"id": "e1"}, {"id": "e2"}] });
+        let runner = FakeProcessRunner::default();
+        let result = run_copy_edit_batch_agent(
+            &batch,
+            &tmp,
+            &env,
+            Provider::Mock,
+            &runner,
+            &tmp.join("result.json"),
+            None,
+        )
+        .unwrap();
+        assert_eq!(result["status"], json!("done"));
+        assert_eq!(result["appliedEntryIds"], json!(["e1", "e2"]));
+        assert_eq!(std::fs::read_to_string(tmp.join("out.txt")).unwrap(), "hello");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn run_copy_edit_batch_agent_mock_honours_scripted_result_env_var() {
+        let tmp = temp_dir("mock-scripted");
+        let mut env = HashMap::new();
+        env.insert(
+            "IMPECCABLE_LIVE_COPY_AGENT_MOCK_RESULT".to_string(),
+            r#"{"status":"error","message":"boom"}"#.to_string(),
+        );
+        let runner = FakeProcessRunner::default();
+        let result = run_copy_edit_batch_agent(
+            &json!({}),
+            &tmp,
+            &env,
+            Provider::Mock,
+            &runner,
+            &tmp.join("result.json"),
+            None,
+        )
+        .unwrap();
+        assert_eq!(result["status"], json!("error"));
+        assert_eq!(result["message"], json!("boom"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn run_copy_edit_batch_agent_chat_requires_caller_callback() {
+        let tmp = temp_dir("chat");
+        let runner = FakeProcessRunner::default();
+        let err = run_copy_edit_batch_agent(
+            &json!({}),
+            &tmp,
+            &HashMap::new(),
+            Provider::Chat,
+            &runner,
+            &tmp.join("result.json"),
+            None,
+        )
+        .unwrap_err();
+        assert!(err.contains("applyBatchToSource"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn run_copy_edit_batch_agent_claude_parses_process_stdout() {
+        let tmp = temp_dir("claude");
+        let runner = FakeProcessRunner {
+            scripted: vec![(
+                "claude".to_string(),
+                ProcessRunResult {
+                    success: true,
+                    stdout: r#"{"status":"done","appliedEntryIds":["e1"],"files":["a.js"]}"#.to_string(),
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let result = run_copy_edit_batch_agent(
+            &json!({"entries": []}),
+            &tmp,
+            &HashMap::new(),
+            Provider::Claude,
+            &runner,
+            &tmp.join("result.json"),
+            Some(5_000),
+        )
+        .unwrap();
+        assert_eq!(result["status"], json!("done"));
+        assert_eq!(result["files"], json!(["a.js"]));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn run_copy_edit_batch_agent_codex_reads_result_path_file() {
+        let tmp = temp_dir("codex");
+        let result_path = tmp.join("result.json");
+        std::fs::write(&result_path, r#"{"status":"partial","failed":[{"entryId":"e1","reason":"nope"}]}"#).unwrap();
+        let runner = FakeProcessRunner {
+            scripted: vec![(
+                "codex".to_string(),
+                ProcessRunResult {
+                    success: true,
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let result = run_copy_edit_batch_agent(
+            &json!({"entries": []}),
+            &tmp,
+            &HashMap::new(),
+            Provider::Codex,
+            &runner,
+            &result_path,
+            Some(5_000),
+        )
+        .unwrap();
+        assert_eq!(result["status"], json!("partial"));
+        assert_eq!(result["failed"][0]["entryId"], json!("e1"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn run_copy_edit_batch_agent_surfaces_timeout_error() {
+        let tmp = temp_dir("timeout");
+        let runner = FakeProcessRunner {
+            scripted: vec![(
+                "claude".to_string(),
+                ProcessRunResult {
+                    timed_out: true,
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let err = run_copy_edit_batch_agent(
+            &json!({}),
+            &tmp,
+            &HashMap::new(),
+            Provider::Claude,
+            &runner,
+            &tmp.join("result.json"),
+            Some(1),
+        )
+        .unwrap_err();
+        assert!(err.contains("timed out"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn run_copy_edit_batch_agent_propagates_non_zero_exit_reason() {
+        let tmp = temp_dir("nonzero");
+        let runner = FakeProcessRunner {
+            scripted: vec![(
+                "claude".to_string(),
+                ProcessRunResult {
+                    success: false,
+                    stdout: r#"{"is_error":true,"result":"Not logged in"}"#.to_string(),
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let err = run_copy_edit_batch_agent(
+            &json!({}),
+            &tmp,
+            &HashMap::new(),
+            Provider::Claude,
+            &runner,
+            &tmp.join("result.json"),
+            Some(5_000),
+        )
+        .unwrap_err();
+        assert_eq!(err, "claude CLI: Not logged in");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn check_framework_source_syntax_reports_parser_unavailable_when_node_missing() {
+        let tmp = temp_dir("syntax-unavail");
+        let runner = FakeProcessRunner::default(); // no scripted match -> spawn_failed
+        let (failure, warning) =
+            check_framework_source_syntax(&runner, &tmp, "src/App.tsx", "const x = 1;");
+        assert!(failure.is_none());
+        assert_eq!(warning.unwrap()["reason"], json!("syntax_parser_unavailable"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn check_framework_source_syntax_reports_invalid_syntax() {
+        let tmp = temp_dir("syntax-invalid");
+        let runner = FakeProcessRunner {
+            scripted: vec![(
+                "node -e".to_string(),
+                ProcessRunResult {
+                    success: true,
+                    stdout: r#"{"ok":false,"message":"Unexpected token"}"#.to_string(),
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let (failure, warning) =
+            check_framework_source_syntax(&runner, &tmp, "src/App.tsx", "const x = ;");
+        assert!(warning.is_none());
+        let failure = failure.unwrap();
+        assert_eq!(failure["reason"], json!("invalid_source_syntax"));
+        assert_eq!(failure["message"], json!("Unexpected token"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn check_framework_source_syntax_skips_non_ts_jsx_files() {
+        let tmp = temp_dir("syntax-skip");
+        let runner = FakeProcessRunner::default();
+        let (failure, warning) =
+            check_framework_source_syntax(&runner, &tmp, "src/app.js", "const x = 1;");
+        assert!(failure.is_none());
+        assert!(warning.is_none());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn run_manual_edit_validation_script_runs_configured_script_and_reports_failure() {
+        let tmp = temp_dir("validate");
+        std::fs::write(
+            tmp.join("package.json"),
+            r#"{"scripts":{"impeccable:manual-edit-validate":"true"}}"#,
+        )
+        .unwrap();
+        let runner = FakeProcessRunner {
+            scripted: vec![(
+                "true".to_string(),
+                ProcessRunResult {
+                    success: false,
+                    stderr: "validation broke".to_string(),
+                    ..Default::default()
+                },
+            )],
+            ..Default::default()
+        };
+        let failure = run_manual_edit_validation_script(&runner, &tmp).unwrap();
+        assert_eq!(failure["reason"], json!("manual_edit_validation_failed"));
+        assert_eq!(failure["message"], json!("validation broke"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn run_manual_edit_validation_script_absent_script_is_none() {
+        let tmp = temp_dir("validate-absent");
+        std::fs::write(tmp.join("package.json"), r#"{"scripts":{}}"#).unwrap();
+        let runner = FakeProcessRunner::default();
+        assert!(run_manual_edit_validation_script(&runner, &tmp).is_none());
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn post_apply_checks_run_manual_validation_and_syntax_check_together() {
+        let tmp = temp_dir("post-apply-full");
+        std::fs::write(tmp.join("App.tsx"), "const x: number = 1;").unwrap();
+        std::fs::write(
+            tmp.join("package.json"),
+            r#"{"scripts":{"impeccable:manual-edit-validate":"true"}}"#,
+        )
+        .unwrap();
+        let runner = FakeProcessRunner {
+            scripted: vec![
+                (
+                    "node -e".to_string(),
+                    ProcessRunResult {
+                        success: true,
+                        stdout: r#"{"ok":true}"#.to_string(),
+                        ..Default::default()
+                    },
+                ),
+                (
+                    "true".to_string(),
+                    ProcessRunResult {
+                        success: true,
+                        ..Default::default()
+                    },
+                ),
+            ],
+        };
+        let result = run_copy_edit_post_apply_checks(
+            &tmp,
+            &["App.tsx".to_string(), "package.json".to_string()],
+            &runner,
+        );
+        assert!(result.ok, "expected ok, got {:?}", result.failures);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

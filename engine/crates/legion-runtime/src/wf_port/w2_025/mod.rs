@@ -11,13 +11,14 @@
 //! `~/.banana/...` are left to the caller; each module documents the exact
 //! on-disk shape/filename Python used so a caller's I/O layer matches it).
 //!
-//! `generate.py` and `edit.py` are stdlib-only Gemini REST API clients:
-//! every deterministic piece (input validation, request-body construction,
-//! response-shape extraction, output filename construction) is ported in
-//! [`generate`] and [`edit`]. The actual `urllib.request` HTTP call is not
-//! reproduced — this crate's `Cargo.toml` has no HTTP client dependency and
-//! this module may not add one; see each module's doc comment and the
-//! chunk's integration report for the exact dependency patch needed.
+//! `generate.py` and `edit.py` are stdlib-only Gemini REST API clients.
+//! `generate.py` (packet r33) is now fully ported end-to-end in
+//! [`generate`], including the live HTTP round trip
+//! ([`generate::ReqwestImageTransport`], behind the [`generate::ImageTransport`]
+//! trait) and the image write ([`generate::StdFs`]); `edit.py` is
+//! unchanged from the prior chunk — every deterministic piece is ported in
+//! [`edit`], with its HTTP call left as a documented gap for whichever
+//! packet closes it next.
 
 pub mod batch;
 pub mod cost_tracker;

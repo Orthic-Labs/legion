@@ -5,16 +5,17 @@
 //! - `ai_visibility_import`: fully ported (pure row normalization; see the
 //!   module doc for the CLI/file-I/O boundary that stays unported).
 //! - `checklist_compiler`: fully ported (pure text/JSON transformation).
-//! - `bing_webmaster`: the live HTTPS round trip to the Bing Webmaster
-//!   Tools API is not ported (no HTTP client dependency in this crate);
-//!   every pure piece around it — key validation, method/subcommand
-//!   mapping, request URL construction, response-envelope unwrap, dispatch
-//!   resolution — is ported in full.
-//! - `web_page_probe` (`capture_screenshot.py` + `analyze_visual.py`): the
-//!   actual Playwright-driven page capture/analysis is not ported (no
-//!   browser-automation dependency in this crate); the pure URL
-//!   normalization, viewport table, SSRF guard, and output-path traversal
-//!   guard both scripts share are ported in full.
+//! - `bing_webmaster`: fully ported as of packet r33, including the live
+//!   HTTPS round trip to the Bing Webmaster Tools API behind
+//!   [`bing_webmaster::Transport`] ([`bing_webmaster::ReqwestTransport`] is
+//!   the production impl) and the `main()` CLI dispatch
+//!   ([`bing_webmaster::run`]).
+//! - `web_page_probe` (`capture_screenshot.py` + `analyze_visual.py`):
+//!   fully ported as of packet r33, including the live
+//!   Chromium-driven page capture/analysis behind
+//!   [`web_page_probe::PageBrowser`] ([`web_page_probe::ChromePageBrowser`]
+//!   is the production impl) via [`web_page_probe::run_capture_screenshot`]
+//!   and [`web_page_probe::run_analyze_visual`].
 
 pub mod ai_visibility_import;
 pub mod bing_webmaster;

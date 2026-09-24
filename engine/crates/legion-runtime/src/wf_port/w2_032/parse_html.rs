@@ -1,28 +1,29 @@
-//! Port of `skills/seo/scripts/parse_html.py`.
+//! Port of `skills/seo/scripts/parse_html.py` (packet `r42` closes the DOM-parsing
+//! gap this module used to defer, using `scraper` — already a `legion-runtime`
+//! dependency, see `w2_013::detect_html`).
 //!
-//! The Python script uses BeautifulSoup for full DOM parsing (finding
-//! `<title>`, `<meta>`, `<link>`, `<h1-3>`, `<img>`, `<a>`, and
-//! `<script type="application/ld+json">` tags anywhere in a document,
-//! including malformed HTML). This crate has no HTML/DOM parsing
-//! dependency (no `scraper`/`html5ever`/`tl` in `legion-runtime`'s
-//! `Cargo.toml`), so the actual tag-finding is not ported — see the
-//! `sharedPatches` note in the chunk report for the dependency this would
-//! need.
+//! Everything in `parse_html.py`'s `parse_html()` is now ported: title, meta
+//! description/robots, canonical, hreflang, h1-h3, images (with `src` resolved
+//! against `base_url` when given), internal/external links, JSON-LD schema blocks,
+//! Open Graph / Twitter Card meta, and the visible-text word count (script/style/
+//! nav/footer/header stripped first, matching the Python's `element.decompose()`
+//! loop). [`parse_html`] is the full port of the Python function of the same name;
+//! [`run`] ports the CLI (`main()`): file/`--url`/stdin input, `--json` vs. the
+//! human-readable summary, and the `os.path.realpath` + `os.path.isfile` file-not-found
+//! check.
 //!
-//! What is pure and *is* ported in full is everything downstream of
-//! "the tags have already been found": visible-text word counting
-//! (`word_count`), internal/external link classification once a link has
-//! been resolved to an absolute URL (`classify_link`), JSON-LD parsing
-//! from raw `<script>` bodies (`parse_json_ld`), and Open Graph / Twitter
-//! Card key filtering from an already-extracted list of meta
-//! name/property/content triples (`extract_open_graph`,
-//! `extract_twitter_card`). Callers that supply their own HTML tag
-//! extraction (via a future DOM dependency) can feed the results straight
-//! into these functions to reproduce the Python's `result` dict.
+//! The lower-level pure helpers below ([`word_count`], [`resolve_href`],
+//! [`classify_link`], [`parse_json_ld`], [`extract_open_graph`],
+//! [`extract_twitter_card`]) remain as the building blocks [`parse_html`] is built
+//! from.
 
 use std::collections::BTreeMap;
+use std::io::Read as _;
+use std::path::Path;
 
 use regex::Regex;
+use scraper::{Html, Selector};
+use serde::Serialize;
 use serde_json::Value;
 
 /// Mirrors the word-count tail of `parse_html`: `re.findall(r"\b\w+\b", text)` over

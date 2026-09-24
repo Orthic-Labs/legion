@@ -1,8 +1,8 @@
 //! Port of `skills/designer/engine/scripts/live/insert-ui.mjs`.
 //!
 //! Pure geometry/state helpers for live-mode insert UI. `findInsertAnchorInDom`
-//! needs a live `Document`/`querySelectorAll` and is not ported here
-//! (frontier, browser-only — see the chunk's `mod.rs` header).
+//! is ported behind a `DomQuery` trait (see below) so it stays testable
+//! without a live `Document`.
 
 pub const PLACEHOLDER_DEFAULT_HEIGHT: f64 = 80.0;
 pub const PLACEHOLDER_MIN_HEIGHT: f64 = 48.0;
@@ -520,4 +520,239 @@ pub fn apply_insert_toggle(pick_active: bool, insert_active: bool) -> (bool, boo
 /// `display: none`).
 pub fn is_variant_shown(hidden: bool, display_none: bool) -> bool {
     !hidden && !display_none
+}
+
+/// Element-mutation surface for [`set_variant_shown`], mirroring the DOM
+/// calls the JS made directly (`hidden` attr, `removeAttribute`,
+/// `style.display`).
+pub trait VariantElement {
+    fn remove_hidden_attr(&mut self);
+    fn set_hidden_attr(&mut self);
+    fn set_style_display(&mut self, value: &str);
+}
+
+/// Show or hide a variant wrapper for cycling.
+pub fn set_variant_shown<T: VariantElement>(el: Option<&mut T>, shown: bool) {
+    let Some(el) = el else { return };
+    if shown {
+        el.remove_hidden_attr();
+        el.set_style_display("");
+    } else {
+        el.set_hidden_attr();
+        el.set_style_display("none");
+    }
+}
+
+/// Build the browser generate payload for insert mode.
+pub struct InsertGeneratePayloadInput<'a> {
+    pub id: &'a str,
+    pub count: i64,
+    pub page_url: &'a str,
+    pub anchor_context: serde_json::Value,
+    pub position: InsertPosition,
+    pub placeholder: serde_json::Value,
+    pub freeform_prompt: Option<&'a str>,
+    pub comments: &'a [serde_json::Value],
+    pub strokes: &'a [serde_json::Value],
+    pub screenshot_path: Option<&'a str>,
+}
+
+pub fn build_insert_generate_payload(input: &InsertGeneratePayloadInput) -> serde_json::Value {
+    let position = match input.position {
+        InsertPosition::Before => "before",
+        InsertPosition::After => "after",
+    };
+    let mut payload = serde_json::json!({
+        "type": "generate",
+        "mode": "insert",
+        "id": input.id,
+        "count": input.count,
+        "pageUrl": input.page_url,
+        "insert": {
+            "position": position,
+            "anchor": input.anchor_context,
+        },
+        "placeholder": input.placeholder,
+    });
+
+    let trimmed = input
+        .freeform_prompt
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+    if let Some(fp) = trimmed {
+        payload["freeformPrompt"] = serde_json::Value::String(fp.to_string());
+    }
+    if !input.comments.is_empty() {
+        payload["comments"] = serde_json::Value::Array(input.comments.to_vec());
+    }
+    if !input.strokes.is_empty() {
+        payload["strokes"] = serde_json::Value::Array(input.strokes.to_vec());
+    }
+    if let Some(sp) = input.screenshot_path {
+        payload["screenshotPath"] = serde_json::Value::String(sp.to_string());
+    }
+    payload
+}
+
+/// Pick the best live anchor during an insert session (placeholder until
+/// variants land).
+pub fn resolve_insert_session_anchor<T: Clone>(
+    wrapper: Option<&T>,
+    variant_count: i64,
+    visible_variant: i64,
+    placeholder: Option<T>,
+    insert_anchor: Option<T>,
+    pick_variant_content: Option<&dyn Fn(&T, i64) -> Option<T>>,
+) -> Option<T> {
+    if let (Some(wrapper), Some(pick)) = (wrapper, pick_variant_content) {
+        if variant_count > 0 && visible_variant > 0 {
+            if let Some(vis) = pick(wrapper, visible_variant) {
+                return Some(vis);
+            }
+        }
+    }
+    placeholder.or(insert_anchor)
+}
+
+/// Parse a leading numeric prefix the way JS `parseFloat` does (e.g. `"12px"`
+/// -> `12.0`), returning `None` (JS `NaN` -> `0` by the caller) when there is
+/// no leading number.
+fn parse_leading_float(s: &str) -> Option<f64> {
+    let s = s.trim();
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    if i < bytes.len() && (bytes[i] == b'+' || bytes[i] == b'-') {
+        i += 1;
+    }
+    let mut seen_digit = false;
+    let mut seen_dot = false;
+    while i < bytes.len() {
+        let c = bytes[i];
+        if c.is_ascii_digit() {
+            seen_digit = true;
+            i += 1;
+        } else if c == b'.' && !seen_dot {
+            seen_dot = true;
+            i += 1;
+        } else {
+            break;
+        }
+    }
+    if !seen_digit {
+        return None;
+    }
+    s[..i].parse::<f64>().ok()
+}
+
+/// Snapshot placeholder geometry + anchor fingerprint so HMR can recreate
+/// the box.
+#[derive(Debug, Clone)]
+pub struct InsertPlaceholderSnapshot {
+    pub width: i64,
+    pub height: i64,
+    pub margin_left: f64,
+    pub margin_top: f64,
+    pub position: InsertPosition,
+    pub layout_axis: InsertAxis,
+    pub anchor_tag: String,
+    pub anchor_classes: String,
+    pub anchor_text: String,
+}
+
+pub struct AnchorInfo<'a> {
+    pub tag_name: Option<&'a str>,
+    pub class_name: Option<&'a str>,
+    pub text_content: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PlaceholderGeometry<'a> {
+    pub offset_width: Option<f64>,
+    pub offset_height: Option<f64>,
+    pub margin_left: Option<&'a str>,
+    pub margin_top: Option<&'a str>,
+}
+
+pub fn build_insert_placeholder_snapshot(
+    anchor: &AnchorInfo,
+    placeholder: &PlaceholderGeometry,
+    position: InsertPosition,
+    layout_axis: Option<InsertAxis>,
+) -> InsertPlaceholderSnapshot {
+    InsertPlaceholderSnapshot {
+        width: placeholder.offset_width.unwrap_or(0.0).round() as i64,
+        height: placeholder
+            .offset_height
+            .unwrap_or(PLACEHOLDER_DEFAULT_HEIGHT)
+            .round() as i64,
+        margin_left: placeholder
+            .margin_left
+            .and_then(parse_leading_float)
+            .unwrap_or(0.0),
+        margin_top: placeholder
+            .margin_top
+            .and_then(parse_leading_float)
+            .unwrap_or(0.0),
+        position,
+        layout_axis: layout_axis.unwrap_or(InsertAxis::Column),
+        anchor_tag: {
+            let tag = anchor.tag_name.unwrap_or("");
+            if tag.is_empty() { "DIV" } else { tag }.to_string()
+        },
+        anchor_classes: anchor.class_name.unwrap_or("").to_string(),
+        anchor_text: anchor
+            .text_content
+            .unwrap_or("")
+            .trim()
+            .chars()
+            .take(120)
+            .collect(),
+    }
+}
+
+/// Minimal `Document`-shaped surface [`find_insert_anchor_in_dom`] needs:
+/// `body.contains(el)` and `querySelectorAll(sel)`, plus a `textContent`
+/// reader. Real callers implement this against a live DOM (e.g. via
+/// `headless_chrome`); tests use a fake.
+pub trait DomQuery<E> {
+    fn body_contains(&self, el: &E) -> bool;
+    fn query_selector_all(&self, selector: &str) -> Vec<E>;
+    fn text_content(&self, el: &E) -> String;
+}
+
+/// Re-find an insert anchor after framework HMR replaced the live DOM node.
+pub fn find_insert_anchor_in_dom<E: Clone, D: DomQuery<E>>(
+    doc: &D,
+    snapshot: Option<&InsertPlaceholderSnapshot>,
+    live_anchor: Option<&E>,
+) -> Option<E> {
+    if let Some(anchor) = live_anchor {
+        if doc.body_contains(anchor) {
+            return Some(anchor.clone());
+        }
+    }
+    let snapshot = snapshot?;
+    let tag = if snapshot.anchor_tag.is_empty() {
+        "div".to_string()
+    } else {
+        snapshot.anchor_tag.to_lowercase()
+    };
+    let cls = snapshot.anchor_classes.split_whitespace().next();
+    let needle = snapshot.anchor_text.as_str();
+    let sel = match cls {
+        Some(c) => format!("{tag}.{c}"),
+        None => tag,
+    };
+    let candidates = doc.query_selector_all(&sel);
+    for candidate in candidates {
+        if !needle.is_empty() {
+            let prefix: String = needle.chars().take(40).collect();
+            let text = doc.text_content(&candidate);
+            if !text.contains(&prefix) {
+                continue;
+            }
+        }
+        return Some(candidate);
+    }
+    None
 }

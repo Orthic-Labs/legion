@@ -117,6 +117,79 @@ pub fn summarize_manual_log_file(file: Option<&str>, cwd: &Path) -> Option<Strin
     }
 }
 
+/// Port of `summarizeManualApplyFailures(failed, cwd)`. Non-array input
+/// returns an empty vec (matching JS `return []`), not `None`.
+pub fn summarize_manual_apply_failures(failed: &Value, cwd: &Path) -> Vec<Value> {
+    let Some(items) = failed.as_array() else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .take(20)
+        .map(|item| {
+            let files = item.get("files").and_then(Value::as_array).map(|arr| {
+                arr.iter()
+                    .take(12)
+                    .filter_map(|f| {
+                        summarize_manual_log_file(f.as_str(), cwd).map(Value::from)
+                    })
+                    .collect::<Vec<_>>()
+            });
+            serde_json::json!({
+                "id": item.get("id").or_else(|| item.get("entryId")).cloned().unwrap_or(Value::Null),
+                "reason": item.get("reason").and_then(Value::as_str)
+                    .or_else(|| item.get("message").and_then(Value::as_str))
+                    .unwrap_or("failed"),
+                "message": compact_manual_log_text(item.get("message").and_then(Value::as_str), 300),
+                "files": files,
+                "checks": summarize_manual_diagnostics(item.get("checks").unwrap_or(&Value::Null), cwd),
+                "failures": summarize_manual_diagnostics(item.get("failures").unwrap_or(&Value::Null), cwd),
+                "candidates": summarize_manual_diagnostics(item.get("candidates").unwrap_or(&Value::Null), cwd),
+            })
+        })
+        .collect()
+}
+
+/// Port of `summarizeManualDiagnostics(items, cwd)`. Returns `Value::Null`
+/// (mapped from JS `undefined`, which `JSON.stringify` drops from objects)
+/// for non-array or empty input.
+pub fn summarize_manual_diagnostics(items: &Value, cwd: &Path) -> Value {
+    let Some(arr) = items.as_array() else {
+        return Value::Null;
+    };
+    if arr.is_empty() {
+        return Value::Null;
+    }
+    let out: Vec<Value> = arr
+        .iter()
+        .take(12)
+        .map(|item| {
+            let files = item.get("files").and_then(Value::as_array).map(|files| {
+                files
+                    .iter()
+                    .take(8)
+                    .filter_map(|f| summarize_manual_log_file(f.as_str(), cwd).map(Value::from))
+                    .collect::<Vec<_>>()
+            });
+            let file = item
+                .get("file")
+                .and_then(Value::as_str)
+                .or_else(|| item.get("relativeFile").and_then(Value::as_str));
+            serde_json::json!({
+                "reason": item.get("reason").or_else(|| item.get("kind")).cloned().unwrap_or(Value::Null),
+                "detail": compact_manual_log_text(item.get("detail").and_then(Value::as_str), 220),
+                "message": compact_manual_log_text(item.get("message").and_then(Value::as_str), 300),
+                "file": summarize_manual_log_file(file, cwd),
+                "line": item.get("line").cloned().unwrap_or(Value::Null),
+                "ref": compact_manual_log_text(item.get("ref").and_then(Value::as_str), 180),
+                "marker": compact_manual_log_text(item.get("marker").and_then(Value::as_str), 120),
+                "files": files,
+            })
+        })
+        .collect();
+    Value::Array(out)
+}
+
 /// Port of `compactManualLogText(value, max = 200)`. Collapses runs of
 /// whitespace to single spaces and trims, then truncates with the same
 /// `"... [truncated N chars]"` suffix.

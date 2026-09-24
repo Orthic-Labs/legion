@@ -39,23 +39,42 @@
 //!   finding merge/dedupe helpers ([`merge_design_system_findings`],
 //!   [`dedupe_design_findings`]).
 //!
-//! Not ported (DOM-dependent, same reasoning as above):
-//! `collectStaticDesignSystemFindings` — it walks a live `document` via
-//! `document.querySelectorAll('*')` and reads computed styles via
-//! `window.getComputedStyle(el)`; there is no parsed-HTML-plus-computed-style
-//! engine owned by this chunk to drive it against. `loadDesignSystemForCwd`'s
-//! *filesystem-independent* piece ([`normalize_design_system`]) is ported;
-//! its `fs`/`path` wrapper (`resolveDesignMdPath` / `resolveDesignSidecarPath`
-//! / `safeReadJson`) is trivial glue left for the integrator to wire against
-//! whatever file-reading primitives `legion-runtime` uses elsewhere — read
-//! `DESIGN.md`, call [`parse_frontmatter`], then [`normalize_design_system`].
+//! (packet r06 closed the remaining two gaps in `design-system.mjs`:)
+//!
+//! - `resolveDesignMdPath` / `resolveDesignSidecarPath` / `safeReadJson` /
+//!   `loadDesignSystemForCwd` — the `fs`/`path` wrapper around
+//!   [`normalize_design_system`] — ported in [`design_system_fs`], with
+//!   filesystem access behind [`design_system_fs::DesignFs`] so it is
+//!   unit-tested with a fake in-memory filesystem.
+//! - `collectStaticDesignSystemFindings` (plus `shouldSkipStaticDesignElement`
+//!   / `hasDirectText` / `sampleText`) — ported in [`design_system_dom`].
+//!   The DOM walk + `getComputedStyle` read (real CSS-cascade work no
+//!   engine in this crate reproduces) runs behind
+//!   [`design_system_dom::DesignDomEvaluator`], with a real Chromium
+//!   backend ([`design_system_dom::ChromeDesignDomEvaluator`], via
+//!   `headless_chrome`, same pattern as this crate's other browser-backed
+//!   ports) and unit tests driven by a fake evaluator (no real browser
+//!   launched in tests). The allow-list decisions and finding
+//!   construction/dedup on top of the observed styles are plain Rust,
+//!   reusing [`is_allowed_font`] / [`is_allowed_color_raw`] /
+//!   [`is_allowed_radius_raw`] from [`design_system`].
 
 pub mod cli_output;
 pub mod design_system;
+pub mod design_system_dom;
+pub mod design_system_fs;
 
 pub use cli_output::{format_finding_summary, format_findings, usage_text, Finding};
 pub use design_system::{
     check_source_design_system, dedupe_design_findings, is_allowed_color_raw, is_allowed_font,
     is_allowed_radius_raw, merge_design_system_findings, normalize_design_system,
     parse_frontmatter, DesignFinding, DesignSystem, FrontmatterValue,
+};
+pub use design_system_dom::{
+    collect_static_design_system_findings, ChromeDesignDomEvaluator, DesignDomEvaluator,
+    ElementStyleObservation,
+};
+pub use design_system_fs::{
+    load_design_system_for_cwd, resolve_design_md_path, resolve_design_sidecar_path, DesignFs,
+    RealDesignFs, ResolvedDesignMd,
 };

@@ -20,20 +20,25 @@
 //! Node HTTP server / event-loop / real DOM, is documented as frontier and
 //! NOT reimplemented here:
 //!
-//!   - `insert_ui`: `findInsertAnchorInDom` needs a live `Document` /
-//!     `querySelectorAll`; not ported (frontier, browser-only).
+//!   - `insert_ui`: fully ported, including `findInsertAnchorInDom` (behind
+//!     a `DomQuery` trait so it stays testable without a live `Document`;
+//!     see packet r28).
 //!   - `manual_apply`: the module's `createManualApplyController` is a
 //!     stateful controller wired to the live server's pending-event queue,
 //!     deferred-promise map, and `recordManualEditActivity`/`enqueueEvent`
 //!     callbacks supplied by `live.mjs` (outside this chunk). Only its pure
 //!     helper functions (chunk splitting/merging, compaction, summarizing)
 //!     are ported; the queue-driving orchestration is frontier.
-//!   - `manual_edit_routes`: `createManualEditRoutes` wires Node's raw HTTP
-//!     `req`/`res`, and calls into `manual-apply.mjs`'s controller plus
-//!     `../live-manual-edit-evidence.mjs` and `../live-commit-manual-edits.mjs`
-//!     (both outside this chunk). Only the pure
-//!     `summarizePendingManualEditBatch` helper is ported; the route
-//!     dispatch/HTTP plumbing is frontier.
+//!   - `manual_edit_routes`: fully ported (packet r30), including
+//!     `createManualEditRoutes`'s full route dispatch for all five routes
+//!     (`handle_manual_edit_route`). Its own injected dependencies
+//!     (`getToken`, `manualApply`, `recordManualEditActivity`,
+//!     `getManualEditStatus`, `chatAgentLikelyActive`) and its two
+//!     out-of-chunk direct imports (`buildManualEditEvidence` from
+//!     `../live-manual-edit-evidence.mjs`, `commitManualEdits` from
+//!     `../live-commit-manual-edits.mjs`) are all `ManualEditRoutesDeps`
+//!     trait methods, so the dispatch is tested with fakes and never opens a
+//!     real HTTP socket, subprocess, or browser.
 //!   - `session_store`/`manual_edits_buffer`: `resolveProjectRoot`'s
 //!     project-root-walk (in `../context.mjs`, outside this chunk) is not
 //!     reimplemented; callers pass the resolved project root directly as

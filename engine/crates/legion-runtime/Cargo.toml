@@ -15,6 +15,12 @@ serde_json.workspace = true
 sha2.workspace = true
 hex.workspace = true
 regex.workspace = true
+reqwest = { workspace = true, features = ["blocking"] }
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
+zip.workspace = true
+headless_chrome.workspace = true
+image.workspace = true
+scraper.workspace = true
+libc.workspace = true

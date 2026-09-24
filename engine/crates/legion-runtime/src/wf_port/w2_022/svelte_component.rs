@@ -6,19 +6,30 @@
 //! sanitizer (a hand-rolled CSS rule parser + selector rewriter), and the
 //! static authoring-guidance payload.
 //!
-//! NOT ported in this chunk (filesystem/session orchestration tied to the
-//! Node CLI's on-disk session store under `node_modules/.impeccable-live/`
-//! and the OS temp dir; no Rust caller exists for this workflow yet):
-//! `ensureRuntimeHelper`, `scaffoldSvelteComponentSession`,
-//! `scaffoldSvelteComponentInsertSession`, `findSvelteComponentManifest`,
-//! `readManifest`, `resolveSourceFile`, `inlineSvelteComponentAccept`,
-//! `inlineSvelteComponentInsertAccept`, `removeSvelteComponentSession`,
-//! `removeAllSvelteComponentSessions`, `deferredAcceptsPath`,
-//! `readDeferredAccepts`, `writeDeferredAccept`,
-//! `applyDeferredSvelteComponentAccepts`. These call the pure functions
-//! ported here for their actual logic; only the fs glue is left.
+//! Packet r31 additionally ports the filesystem/session orchestration layer
+//! that sits on top of that pure core: `ensureRuntimeHelper`,
+//! `scaffoldSvelteComponentSession`, `scaffoldSvelteComponentInsertSession`,
+//! `findSvelteComponentManifest`, `readManifest`, `resolveSourceFile`,
+//! `inlineSvelteComponentAccept`, `inlineSvelteComponentInsertAccept`,
+//! `removeSvelteComponentSession`, `removeAllSvelteComponentSessions`,
+//! `deferredAcceptsPath`, `readDeferredAccepts`, `writeDeferredAccept`, and
+//! `applyDeferredSvelteComponentAccepts`. One faithful-but-documented
+//! deviation: `deferredAcceptsPath` hashes the resolved cwd with SHA-1
+//! (Node `crypto.createHash('sha1')`) to build a per-project temp-dir key;
+//! this workspace has no `sha1` crate (only `sha2`, already a dependency
+//! here), and the hash is a private cache key never compared against the
+//! Node output on disk, so it is computed with SHA-256 truncated to the
+//! same 16 hex chars instead. Every other function is a line-for-line
+//! behavioural port (same on-disk layout, same JSON shapes, same error
+//! strings).
 
 use std::collections::HashSet;
+use std::io;
+use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
 
 pub const SVELTE_COMPONENT_ROOT: &str = "node_modules/.impeccable-live";
 pub const DEFERRED_ACCEPTS_FILE: &str = ".impeccable/live/deferred-svelte-component-accepts.json";
@@ -918,6 +929,702 @@ pub fn build_svelte_component_css_authoring(count: usize) -> SvelteComponentCssA
         ],
         params_file: "params.json",
     }
+}
+
+// ---------------------------------------------------------------------
+// Filesystem / session orchestration
+// ---------------------------------------------------------------------
+
+pub const SVELTE_RUNTIME_FILE: &str = "node_modules/.impeccable-live/__runtime.js";
+
+/// Port of `componentSessionDir`.
+pub fn component_session_dir(id: &str, cwd: &Path) -> PathBuf {
+    cwd.join(SVELTE_COMPONENT_ROOT).join(id)
+}
+
+/// Port of `manifestPathForSession`.
+pub fn manifest_path_for_session(id: &str, cwd: &Path) -> PathBuf {
+    component_session_dir(id, cwd).join("manifest.json")
+}
+
+/// Port of `ensureRuntimeHelper`.
+pub fn ensure_runtime_helper(cwd: &Path) -> io::Result<PathBuf> {
+    let file = cwd.join(SVELTE_RUNTIME_FILE);
+    if file.exists() {
+        return Ok(file);
+    }
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&file, "export { mount, unmount } from 'svelte';\n")?;
+    Ok(file)
+}
+
+fn to_forward_slashes(p: &Path) -> String {
+    p.components()
+        .map(|c| c.as_os_str().to_string_lossy().into_owned())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+/// Input for `scaffoldSvelteComponentSession`.
+pub struct ScaffoldSessionInput<'a> {
+    pub id: &'a str,
+    pub count: i64,
+    pub source_file: &'a str,
+    pub source_start_line: i64,
+    pub source_end_line: i64,
+    pub original_lines: &'a [String],
+}
+
+/// Result of `scaffoldSvelteComponentSession` / `...InsertSession`.
+pub struct ScaffoldSessionResult {
+    pub manifest: Value,
+    pub manifest_file: String,
+    pub component_dir: String,
+    pub prop_contract: Vec<PropContractEntry>,
+}
+
+/// Port of `scaffoldSvelteComponentSession`.
+pub fn scaffold_svelte_component_session(
+    input: ScaffoldSessionInput,
+    cwd: &Path,
+) -> io::Result<ScaffoldSessionResult> {
+    ensure_runtime_helper(cwd)?;
+    let dir = component_session_dir(input.id, cwd);
+    std::fs::create_dir_all(&dir)?;
+
+    let original_markup = input.original_lines.join("\n");
+    let contract = build_prop_contract(&extract_mustache_expressions(&original_markup));
+    let original_with_props = substitute_exprs_with_props(&original_markup, &contract);
+
+    let contract_json: Vec<Value> = contract
+        .iter()
+        .map(|c| {
+            let mut m = Map::new();
+            m.insert("prop".into(), Value::String(c.prop.clone()));
+            m.insert("expr".into(), Value::String(c.expr.clone()));
+            m.insert("placeholder".into(), Value::String(c.placeholder.clone()));
+            Value::Object(m)
+        })
+        .collect();
+
+    let component_dir_rel = to_forward_slashes(
+        dir.strip_prefix(cwd).unwrap_or(&dir),
+    );
+
+    let mut manifest = Map::new();
+    manifest.insert("id".into(), Value::String(input.id.to_string()));
+    manifest.insert("previewMode".into(), Value::String("svelte-component".into()));
+    manifest.insert(
+        "sourceFile".into(),
+        Value::String(input.source_file.replace('\\', "/")),
+    );
+    manifest.insert("sourceStartLine".into(), Value::from(input.source_start_line));
+    manifest.insert("sourceEndLine".into(), Value::from(input.source_end_line));
+    manifest.insert("count".into(), Value::from(input.count));
+    manifest.insert("propContract".into(), Value::Array(contract_json));
+    manifest.insert("originalMarkup".into(), Value::String(original_markup));
+    manifest.insert("componentDir".into(), Value::String(component_dir_rel.clone()));
+    manifest.insert(
+        "runtimeModule".into(),
+        Value::String(format!("/{}", SVELTE_RUNTIME_FILE)),
+    );
+    let manifest = Value::Object(manifest);
+
+    let manifest_path = dir.join("manifest.json");
+    std::fs::write(
+        &manifest_path,
+        format!("{}\n", serde_json::to_string_pretty(&manifest).unwrap()),
+    )?;
+
+    for n in 1..=input.count {
+        let variant_file = dir.join(format!("v{n}.svelte"));
+        if !variant_file.exists() {
+            std::fs::write(
+                &variant_file,
+                build_variant_stub(n, &original_with_props, &contract),
+            )?;
+        }
+    }
+
+    Ok(ScaffoldSessionResult {
+        manifest,
+        manifest_file: to_forward_slashes(manifest_path.strip_prefix(cwd).unwrap_or(&manifest_path)),
+        component_dir: component_dir_rel,
+        prop_contract: contract,
+    })
+}
+
+/// Input for `scaffoldSvelteComponentInsertSession`.
+pub struct ScaffoldInsertSessionInput<'a> {
+    pub id: &'a str,
+    pub count: i64,
+    pub source_file: &'a str,
+    pub insert_line: i64,
+    pub position: &'a str,
+    pub anchor_start_line: Option<i64>,
+    pub anchor_end_line: Option<i64>,
+    pub anchor_lines: &'a [String],
+}
+
+/// Port of `scaffoldSvelteComponentInsertSession`.
+pub fn scaffold_svelte_component_insert_session(
+    input: ScaffoldInsertSessionInput,
+    cwd: &Path,
+) -> io::Result<ScaffoldSessionResult> {
+    ensure_runtime_helper(cwd)?;
+    let dir = component_session_dir(input.id, cwd);
+    std::fs::create_dir_all(&dir)?;
+
+    let anchor_markup = input.anchor_lines.join("\n");
+    let component_dir_rel = to_forward_slashes(dir.strip_prefix(cwd).unwrap_or(&dir));
+
+    let mut manifest = Map::new();
+    manifest.insert("id".into(), Value::String(input.id.to_string()));
+    manifest.insert("mode".into(), Value::String("insert".into()));
+    manifest.insert("previewMode".into(), Value::String("svelte-component".into()));
+    manifest.insert(
+        "sourceFile".into(),
+        Value::String(input.source_file.replace('\\', "/")),
+    );
+    manifest.insert("insertLine".into(), Value::from(input.insert_line));
+    manifest.insert("position".into(), Value::String(input.position.to_string()));
+    manifest.insert(
+        "anchorStartLine".into(),
+        input.anchor_start_line.map(Value::from).unwrap_or(Value::Null),
+    );
+    manifest.insert(
+        "anchorEndLine".into(),
+        input.anchor_end_line.map(Value::from).unwrap_or(Value::Null),
+    );
+    manifest.insert("originalMarkup".into(), Value::String(anchor_markup.clone()));
+    manifest.insert("anchorMarkup".into(), Value::String(anchor_markup));
+    manifest.insert("count".into(), Value::from(input.count));
+    manifest.insert("propContract".into(), Value::Array(Vec::new()));
+    manifest.insert("componentDir".into(), Value::String(component_dir_rel.clone()));
+    manifest.insert(
+        "runtimeModule".into(),
+        Value::String(format!("/{}", SVELTE_RUNTIME_FILE)),
+    );
+    let manifest = Value::Object(manifest);
+
+    let manifest_path = dir.join("manifest.json");
+    std::fs::write(
+        &manifest_path,
+        format!("{}\n", serde_json::to_string_pretty(&manifest).unwrap()),
+    )?;
+
+    for n in 1..=input.count {
+        let variant_file = dir.join(format!("v{n}.svelte"));
+        if !variant_file.exists() {
+            std::fs::write(&variant_file, build_insert_variant_stub(n))?;
+        }
+    }
+
+    Ok(ScaffoldSessionResult {
+        manifest,
+        manifest_file: to_forward_slashes(manifest_path.strip_prefix(cwd).unwrap_or(&manifest_path)),
+        component_dir: component_dir_rel,
+        prop_contract: Vec::new(),
+    })
+}
+
+/// Port of `readManifest`: parses the manifest JSON and stamps in
+/// `manifestPath` (mirrors the JS spread `{ ...data, manifestPath }`).
+pub fn read_manifest(manifest_path: &Path) -> io::Result<Value> {
+    let data = std::fs::read_to_string(manifest_path)?;
+    let mut value: Value = serde_json::from_str(&data)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    if let Value::Object(map) = &mut value {
+        map.insert(
+            "manifestPath".into(),
+            Value::String(manifest_path.to_string_lossy().into_owned()),
+        );
+    }
+    Ok(value)
+}
+
+/// Port of `findSvelteComponentManifest`.
+pub fn find_svelte_component_manifest(id: &str, cwd: &Path) -> Option<Value> {
+    let direct = manifest_path_for_session(id, cwd);
+    if direct.exists() {
+        return read_manifest(&direct).ok();
+    }
+    let root = cwd.join(SVELTE_COMPONENT_ROOT);
+    if !root.exists() {
+        return None;
+    }
+    let entries = std::fs::read_dir(&root).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let candidate = path.join("manifest.json");
+        if !candidate.exists() {
+            continue;
+        }
+        if let Ok(manifest) = read_manifest(&candidate) {
+            if manifest.get("id").and_then(Value::as_str) == Some(id) {
+                return Some(manifest);
+            }
+        }
+    }
+    None
+}
+
+/// Port of `resolveSourceFile`.
+pub fn resolve_source_file(source_file: &str, cwd: &Path) -> Result<PathBuf, String> {
+    if source_file.is_empty() || Path::new(source_file).is_absolute() {
+        return Err("Invalid svelte-component source file".to_string());
+    }
+    let full = cwd.join(source_file);
+    let full = std::path::absolute(&full).unwrap_or(full);
+    let cwd_abs = std::path::absolute(cwd).unwrap_or_else(|_| cwd.to_path_buf());
+    let rel = full.strip_prefix(&cwd_abs);
+    match rel {
+        Ok(rel) if !rel.as_os_str().is_empty() => {}
+        _ => return Err("Svelte-component source file escapes project root".to_string()),
+    }
+    if !full.exists() {
+        return Err(format!("Svelte-component source file not found: {source_file}"));
+    }
+    Ok(full)
+}
+
+/// Result of `inlineSvelteComponentAccept` / `inlineSvelteComponentInsertAccept`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InlineAcceptResult {
+    pub handled: bool,
+    pub error: Option<String>,
+    pub file: String,
+    pub source_file: String,
+    pub preview_mode: &'static str,
+    pub component_dir: String,
+    pub carbonize: bool,
+}
+
+fn inline_result_base(manifest: &Value) -> InlineAcceptResult {
+    let source_file = manifest.get("sourceFile").and_then(Value::as_str).unwrap_or_default().to_string();
+    let component_dir = manifest.get("componentDir").and_then(Value::as_str).unwrap_or_default().to_string();
+    InlineAcceptResult {
+        handled: true,
+        error: None,
+        file: source_file.clone(),
+        source_file,
+        preview_mode: "svelte-component",
+        component_dir,
+        carbonize: false,
+    }
+}
+
+fn manifest_prop_contract(manifest: &Value) -> Vec<PropContractEntry> {
+    manifest
+        .get("propContract")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| {
+                    Some(PropContractEntry {
+                        prop: v.get("prop")?.as_str()?.to_string(),
+                        expr: v.get("expr")?.as_str()?.to_string(),
+                        placeholder: v.get("placeholder")?.as_str()?.to_string(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Port of `inlineSvelteComponentAccept` (dispatches to the insert-mode
+/// variant when `manifest.mode === 'insert'`).
+pub fn inline_svelte_component_accept(
+    manifest: &Value,
+    variant_num: i64,
+    param_values: Option<&std::collections::HashMap<String, ParamValue>>,
+    cwd: &Path,
+) -> InlineAcceptResult {
+    let source_file_str = manifest.get("sourceFile").and_then(Value::as_str).unwrap_or_default();
+    let mut base = inline_result_base(manifest);
+
+    let source_file = match resolve_source_file(source_file_str, cwd) {
+        Ok(p) => p,
+        Err(e) => {
+            base.handled = false;
+            base.error = Some(e);
+            return base;
+        }
+    };
+
+    let component_dir = manifest.get("componentDir").and_then(Value::as_str).unwrap_or_default();
+    let variant_path = cwd.join(component_dir).join(format!("v{variant_num}.svelte"));
+    if !variant_path.exists() {
+        base.handled = false;
+        base.error = Some(format!("Variant {variant_num} not found"));
+        return base;
+    }
+
+    let content = match std::fs::read_to_string(&variant_path) {
+        Ok(c) => c,
+        Err(e) => {
+            base.handled = false;
+            base.error = Some(format!("Failed to read variant: {e}"));
+            return base;
+        }
+    };
+    let parsed = parse_svelte_component_file(&content);
+
+    if manifest.get("mode").and_then(Value::as_str) == Some("insert") {
+        return inline_svelte_component_insert_accept(
+            manifest,
+            &parsed.markup,
+            &parsed.css_lines,
+            variant_num,
+            param_values,
+            &source_file,
+            cwd,
+            base,
+        );
+    }
+
+    let root_tag = match_opening_tag(&parsed.markup).map(|t| t.tag).unwrap_or_else(|| "div".to_string());
+    let contract = manifest_prop_contract(manifest);
+    let original_markup = manifest.get("originalMarkup").and_then(Value::as_str).unwrap_or_default();
+    let merged_markup = merge_original_top_level_attrs(&parsed.markup, original_markup);
+    let restored_markup: Vec<String> = substitute_props_with_exprs(&merged_markup, &contract)
+        .split('\n')
+        .map(|l| l.trim_end().to_string())
+        .collect();
+
+    let source_content = match std::fs::read_to_string(&source_file) {
+        Ok(c) => c,
+        Err(e) => {
+            base.handled = false;
+            base.error = Some(format!("Failed to read Svelte source: {e}"));
+            return base;
+        }
+    };
+    let source_lines: Vec<String> = source_content.split('\n').map(String::from).collect();
+    let start = manifest.get("sourceStartLine").and_then(Value::as_i64).unwrap_or(0) - 1;
+    let end = manifest.get("sourceEndLine").and_then(Value::as_i64).unwrap_or(0) - 1;
+    if start < 0 || end < start || end as usize >= source_lines.len() {
+        base.handled = false;
+        base.error = Some(format!(
+            "Invalid source line range for {}",
+            manifest.get("sourceFile").and_then(Value::as_str).unwrap_or_default()
+        ));
+        return base;
+    }
+    let (start, end) = (start as usize, end as usize);
+
+    let indent_re = regex::Regex::new(r"^(\s*)").unwrap();
+    let indent = indent_re
+        .captures(&source_lines[start])
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_string())
+        .unwrap_or_default();
+    let indented_markup: Vec<String> = restored_markup
+        .iter()
+        .map(|line| {
+            if line.trim().is_empty() {
+                String::new()
+            } else {
+                format!("{indent}{}", line.trim_start())
+            }
+        })
+        .collect();
+
+    let mut new_lines: Vec<String> = source_lines[..start]
+        .iter()
+        .cloned()
+        .chain(indented_markup)
+        .chain(source_lines[end + 1..].iter().cloned())
+        .collect();
+
+    let sanitized_css = sanitize_accepted_svelte_css(&parsed.css_lines, variant_num, param_values, &root_tag);
+    let baked_css = bake_param_values_in_css(&sanitized_css, param_values);
+    if !baked_css.is_empty() {
+        new_lines = append_css_to_svelte_style(&new_lines, &baked_css);
+    }
+
+    if let Err(e) = std::fs::write(&source_file, new_lines.join("\n")) {
+        base.handled = false;
+        base.error = Some(format!("Failed to write Svelte source: {e}"));
+        return base;
+    }
+
+    let id = manifest.get("id").and_then(Value::as_str).unwrap_or_default();
+    remove_svelte_component_session(id, cwd);
+
+    base
+}
+
+/// Port of `inlineSvelteComponentInsertAccept`.
+fn inline_svelte_component_insert_accept(
+    manifest: &Value,
+    markup: &str,
+    css_lines: &[String],
+    variant_num: i64,
+    param_values: Option<&std::collections::HashMap<String, ParamValue>>,
+    source_file: &Path,
+    cwd: &Path,
+    mut base: InlineAcceptResult,
+) -> InlineAcceptResult {
+    if !svelte_markup_has_visible_content(markup) {
+        base.handled = false;
+        base.error = Some("Accepted Svelte insert variant is empty".to_string());
+        return base;
+    }
+    let data_impeccable_re = regex::Regex::new(r"\bdata-impeccable-[\w-]*\s*=").unwrap();
+    if data_impeccable_re.is_match(markup) {
+        base.handled = false;
+        base.error = Some(
+            "Accepted Svelte insert variant contains preview-only data-impeccable attributes".to_string(),
+        );
+        return base;
+    }
+
+    let root_tag = match_opening_tag(markup).map(|t| t.tag).unwrap_or_else(|| "div".to_string());
+    let restored_markup: Vec<String> = markup.split('\n').map(|l| l.trim_end().to_string()).collect();
+
+    let source_content = match std::fs::read_to_string(source_file) {
+        Ok(c) => c,
+        Err(e) => {
+            base.handled = false;
+            base.error = Some(format!("Failed to read Svelte source: {e}"));
+            return base;
+        }
+    };
+    let source_lines: Vec<String> = source_content.split('\n').map(String::from).collect();
+    let insert_index = manifest.get("insertLine").and_then(Value::as_i64).unwrap_or(0) - 1;
+    if insert_index < 0 || insert_index as usize > source_lines.len() {
+        base.handled = false;
+        base.error = Some(format!(
+            "Invalid insert line for {}",
+            manifest.get("sourceFile").and_then(Value::as_str).unwrap_or_default()
+        ));
+        return base;
+    }
+    let insert_index = insert_index as usize;
+
+    let nearby_line = source_lines
+        .get(insert_index)
+        .or_else(|| insert_index.checked_sub(1).and_then(|i| source_lines.get(i)))
+        .cloned()
+        .unwrap_or_default();
+    let indent_re = regex::Regex::new(r"^(\s*)").unwrap();
+    let indent = indent_re
+        .captures(&nearby_line)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_string())
+        .unwrap_or_default();
+    let indented_markup: Vec<String> = restored_markup
+        .iter()
+        .map(|line| {
+            if line.trim().is_empty() {
+                String::new()
+            } else {
+                format!("{indent}{}", line.trim_start())
+            }
+        })
+        .collect();
+
+    let mut new_lines: Vec<String> = source_lines[..insert_index]
+        .iter()
+        .cloned()
+        .chain(indented_markup)
+        .chain(source_lines[insert_index..].iter().cloned())
+        .collect();
+
+    let sanitized_css = sanitize_accepted_svelte_css(css_lines, variant_num, param_values, &root_tag);
+    let baked_css = bake_param_values_in_css(&sanitized_css, param_values);
+    if !baked_css.is_empty() {
+        new_lines = append_css_to_svelte_style(&new_lines, &baked_css);
+    }
+
+    if let Err(e) = std::fs::write(source_file, new_lines.join("\n")) {
+        base.handled = false;
+        base.error = Some(format!("Failed to write Svelte source: {e}"));
+        return base;
+    }
+
+    let id = manifest.get("id").and_then(Value::as_str).unwrap_or_default();
+    remove_svelte_component_session(id, cwd);
+
+    base
+}
+
+/// Port of `removeSvelteComponentSession`.
+pub fn remove_svelte_component_session(id: &str, cwd: &Path) {
+    let dir = component_session_dir(id, cwd);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// Port of `removeAllSvelteComponentSessions`.
+pub fn remove_all_svelte_component_sessions(cwd: &Path) {
+    let root = cwd.join(SVELTE_COMPONENT_ROOT);
+    let Ok(entries) = std::fs::read_dir(&root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with("__") {
+            continue;
+        }
+        let _ = std::fs::remove_dir_all(&path);
+    }
+}
+
+/// Port of `deferredAcceptsPath`. See module docs for the SHA-1 -> SHA-256
+/// deviation (this is a private cache key, not a cross-process contract).
+pub fn deferred_accepts_path(cwd: &Path) -> PathBuf {
+    let resolved = std::path::absolute(cwd).unwrap_or_else(|_| cwd.to_path_buf());
+    let mut hasher = Sha256::new();
+    hasher.update(resolved.to_string_lossy().as_bytes());
+    let digest = hasher.finalize();
+    let key: String = digest.iter().map(|b| format!("{b:02x}")).collect::<String>()[..16].to_string();
+    std::env::temp_dir()
+        .join("impeccable-live")
+        .join(key)
+        .join("deferred-svelte-component-accepts.json")
+}
+
+/// Port of the `{ accepts: [...] }` deferred-accepts document.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct DeferredAccepts {
+    #[serde(default)]
+    pub accepts: Vec<Value>,
+}
+
+/// Port of `readDeferredAccepts`.
+pub fn read_deferred_accepts(cwd: &Path) -> DeferredAccepts {
+    let file = deferred_accepts_path(cwd);
+    std::fs::read_to_string(&file)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+/// Port of `writeDeferredAccept`.
+pub fn write_deferred_accept(entry: Value, cwd: &Path) -> io::Result<()> {
+    let file = deferred_accepts_path(cwd);
+    if let Some(parent) = file.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut data = read_deferred_accepts(cwd);
+    let entry_id = entry.get("id").and_then(Value::as_str).map(|s| s.to_string());
+    data.accepts.retain(|item| item.get("id").and_then(Value::as_str).map(|s| s.to_string()) != entry_id);
+    let mut entry = entry;
+    if let Value::Object(map) = &mut entry {
+        map.insert(
+            "createdAt".into(),
+            Value::String(chrono_like_now_iso8601()),
+        );
+    }
+    data.accepts.push(entry);
+    std::fs::write(&file, format!("{}\n", serde_json::to_string_pretty(&data).unwrap()))
+}
+
+/// Minimal RFC3339 "now" stamp (`YYYY-MM-DDTHH:MM:SS.sssZ`) without pulling
+/// in a datetime crate, matching JS `new Date().toISOString()` shape.
+fn chrono_like_now_iso8601() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = now.as_secs();
+    let millis = now.subsec_millis();
+    let days = secs / 86_400;
+    let rem = secs % 86_400;
+    let (h, m, s) = (rem / 3600, (rem % 3600) / 60, rem % 60);
+    let (y, mo, d) = civil_from_days(days as i64);
+    format!("{y:04}-{mo:02}-{d:02}T{h:02}:{m:02}:{s:02}.{millis:03}Z")
+}
+
+/// Howard Hinnant's `civil_from_days` algorithm (days since epoch -> y/m/d).
+fn civil_from_days(z: i64) -> (i64, u32, u32) {
+    let z = z + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
+/// Result of `applyDeferredSvelteComponentAccepts`.
+pub struct ApplyDeferredResult {
+    pub applied: usize,
+    pub failed: usize,
+}
+
+/// Port of `applyDeferredSvelteComponentAccepts`.
+pub fn apply_deferred_svelte_component_accepts(cwd: &Path) -> io::Result<ApplyDeferredResult> {
+    let file = deferred_accepts_path(cwd);
+    let data = read_deferred_accepts(cwd);
+    let mut applied = 0usize;
+    let mut failed = 0usize;
+    let mut remaining = Vec::new();
+
+    for entry in data.accepts {
+        let Some(id) = entry.get("id").and_then(Value::as_str).map(|s| s.to_string()) else {
+            failed += 1;
+            remaining.push(entry);
+            continue;
+        };
+        let Some(manifest) = find_svelte_component_manifest(&id, cwd) else {
+            failed += 1;
+            remaining.push(entry);
+            continue;
+        };
+        let variant_num = entry.get("variantNum").and_then(Value::as_i64).unwrap_or(0);
+        let param_values = entry.get("paramValues").and_then(parse_param_values_json);
+        let result = inline_svelte_component_accept(&manifest, variant_num, param_values.as_ref(), cwd);
+        if result.handled {
+            applied += 1;
+        } else {
+            failed += 1;
+            remaining.push(entry);
+        }
+    }
+
+    if !remaining.is_empty() {
+        let doc = DeferredAccepts { accepts: remaining };
+        if let Some(parent) = file.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&file, format!("{}\n", serde_json::to_string_pretty(&doc).unwrap()))?;
+    } else {
+        let _ = std::fs::remove_file(&file);
+    }
+
+    Ok(ApplyDeferredResult { applied, failed })
+}
+
+fn parse_param_values_json(v: &Value) -> Option<std::collections::HashMap<String, ParamValue>> {
+    let obj = v.as_object()?;
+    Some(
+        obj.iter()
+            .map(|(k, val)| {
+                let pv = match val {
+                    Value::Bool(b) => ParamValue::Bool(*b),
+                    Value::Null => ParamValue::Null,
+                    Value::Number(n) => ParamValue::Num(n.as_f64().unwrap_or_default()),
+                    Value::String(s) => ParamValue::Str(s.clone()),
+                    other => ParamValue::Str(other.to_string()),
+                };
+                (k.clone(), pv)
+            })
+            .collect(),
+    )
 }
 
 #[cfg(test)]

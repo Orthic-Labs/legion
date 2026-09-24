@@ -462,7 +462,7 @@ fn hsl_to_rgb(h: f64, s: f64, l: f64, alpha: f64) -> Rgba {
 }
 
 /// Port of `parseDesignColor(value)`.
-fn parse_design_color(value: &str) -> Option<Rgba> {
+pub(crate) fn parse_design_color(value: &str) -> Option<Rgba> {
     let text = value.trim();
     if let Some(c) = parse_any_color(text) {
         return Some(c);
@@ -479,7 +479,7 @@ fn parse_design_color(value: &str) -> Option<Rgba> {
 }
 
 /// Port of `resolveLengthPx(value, fontSizePx)`.
-fn resolve_length_px(value: &str, font_size_px: f64) -> Option<f64> {
+pub(crate) fn resolve_length_px(value: &str, font_size_px: f64) -> Option<f64> {
     if value.is_empty() || value == "normal" || value == "auto" || value == "inherit" {
         return None;
     }
@@ -573,7 +573,7 @@ pub struct DesignSystem {
     pub has_radii: bool,
 }
 
-fn color_key(c: &Rgba) -> String {
+pub(crate) fn color_key(c: &Rgba) -> String {
     format!("{},{},{}", c.r, c.g, c.b)
 }
 
@@ -581,7 +581,7 @@ fn colors_close(a: &Rgba, b: &Rgba) -> bool {
     (a.r - b.r).abs().max((a.g - b.g).abs()).max((a.b - b.b).abs()) <= COLOR_CHANNEL_TOLERANCE
 }
 
-fn css_color_label(raw: &str) -> String {
+pub(crate) fn css_color_label(raw: &str) -> String {
     let mut out = String::new();
     let mut last_was_space = false;
     for ch in raw.trim().chars() {
@@ -633,7 +633,7 @@ fn literal_font_stack_bad_re() -> &'static Regex {
     RE.get_or_init(|| Regex::new(r"[$`{}]|\s\+\s|\|\|").unwrap())
 }
 
-fn primary_font(stack: &str) -> String {
+pub(crate) fn primary_font(stack: &str) -> String {
     if stack.is_empty() || stack.to_lowercase().contains("var(") || !is_literal_font_stack(stack) {
         return String::new();
     }
@@ -989,7 +989,7 @@ fn is_probably_color_literal(line: &str, raw: &str, index: usize) -> bool {
         || js_color_key_context_re().is_match(before)
 }
 
-fn extract_radius_tokens(value: &str) -> Vec<String> {
+pub(crate) fn extract_radius_tokens(value: &str) -> Vec<String> {
     value
         .replace(" / ", " ")
         .replace('/', " ")

@@ -21,17 +21,26 @@
 //!   streaming are not ported.
 //! - [`live_resume`]: `live-resume.mjs`'s manual-apply resume-hint text
 //!   builder, its event-summarization helper, and its `--id` argv parser.
-//!   Reading the durable session-store journal is not ported (owned by
-//!   `live/session-store.mjs`, outside this chunk).
-//! - [`live_status`]: `live-status.mjs`'s "find the pending
-//!   `manual_edit_apply` event, preferring the live server's view over the
-//!   durable session store's" selection logic. The `fetch`/session-store
-//!   reads that produce its inputs are not ported.
-//! - [`live_target`]: `live-target.mjs`'s `resolveLiveTarget` absolute-path
-//!   and `targetOptions` derivation, taking an already-resolved target path
-//!   and project root as input (argv parsing via `parseTargetPath` and
-//!   project-root discovery via `resolveProjectRoot` are owned by other,
-//!   unported chunks' files: `lib/target-args.mjs` and `context.mjs`).
+//! - [`resume`] (packet r23): the rest of `live-resume.mjs`'s `resumeCli()`
+//!   — loading the durable session-store journal via
+//!   `crate::wf_port::w2_021::session_store::LiveSessionStore` (now ported
+//!   in chunk w2_021), deriving `nextAction` from the resulting snapshot's
+//!   phase/pending event, and the `run`/`--help` CLI entry point. Closes
+//!   the gap [`live_resume`] left open.
+//! - [`live_status`]: `live-status.mjs` in full — the "find the pending
+//!   `manual_edit_apply` event" selection logic, the `statusCli` payload
+//!   assembly (`liveServer` field subset, `activeSessions` fallback, the
+//!   three-way `recoveryHint` branch reusing `live_resume`'s hint text),
+//!   and the CLI entrypoint itself via `live_status::run`, which takes a
+//!   `StatusEnv` trait object so the `fetch`/server-info-file/session-store
+//!   reads stay behind a fake-able seam instead of live I/O.
+//! - [`live_target`]: `live-target.mjs` in full — `resolveLiveTarget`'s
+//!   absolute-path/`targetOptions` derivation, plus the CLI entrypoint via
+//!   `live_target::run`, which wires in the argv parse
+//!   (`crate::p8_designer::target_args::parse_target_path`) and
+//!   project-root discovery (`crate::wf_port::w2_010::context::resolve_project_root`)
+//!   already ported elsewhere in this crate, closing the gap this file
+//!   previously left open.
 //! - [`live_server`]: `live-server.mjs`'s in-memory pending-event queue —
 //!   enqueue/lease/acknowledge/cancel-anonymous-exit, the lease-expiry
 //!   "next wakeup" computation, and the "is an agent poll currently
@@ -44,3 +53,4 @@ pub mod live_resume;
 pub mod live_server;
 pub mod live_status;
 pub mod live_target;
+pub mod resume;

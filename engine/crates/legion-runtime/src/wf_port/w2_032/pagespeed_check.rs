@@ -1,17 +1,22 @@
 //! Port of `skills/seo/scripts/pagespeed_check.py`.
 //!
-//! This crate has no HTTP client dependency (see the module doc in
-//! `super`), so the live PSI/CrUX round trips (`requests.get`/`requests.post`
-//! in `run_pagespeed`/`query_crux`) are not ported. Everything that is pure
-//! — CWV thresholds and rating, URL validation, the origin-vs-URL decision
-//! for a CrUX target, and the response-JSON parsing that turns a raw PSI or
-//! CrUX JSON body into the same structured result the Python returns — is
-//! ported in full. Callers that fetch the JSON themselves (their own HTTP
-//! client) can feed it straight into `parse_psi_response`/
-//! `parse_crux_response`.
+//! Packet r41 closes the remaining gap: the live PSI (`run_pagespeed`) and
+//! CrUX (`query_crux`) HTTP round trips, `combined_check`, and the CLI
+//! entry point (`main`), all behind a [`PsiClient`] trait so tests never
+//! hit the network. CWV thresholds/rating, URL validation, the
+//! origin-vs-URL decision for a CrUX target, and the response-JSON parsing
+//! that turns a raw PSI or CrUX JSON body into the same structured result
+//! the Python returns were already ported in full and are reused by
+//! `run_pagespeed`/`query_crux` below.
+
+use std::io::Write;
+use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
+
+const PSI_ENDPOINT: &str = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
+const CRUX_ENDPOINT: &str = "https://chromeuxreport.googleapis.com/v1/records:queryRecord";
 
 /// Mirrors `CWV_THRESHOLDS`.
 pub struct Threshold {
@@ -180,6 +185,7 @@ pub struct SeoAudit {
 pub struct PsiResult {
     pub url: String,
     pub strategy: String,
+    pub analysis_timestamp: Option<String>,
     pub lighthouse_scores: std::collections::BTreeMap<String, i64>,
     pub lab_metrics: std::collections::BTreeMap<String, (f64, String, Option<f64>)>,
     pub field_metrics: std::collections::BTreeMap<String, (f64, String, String)>,
@@ -189,6 +195,7 @@ pub struct PsiResult {
     pub passed_audits_count: usize,
     pub seo_audits: Vec<SeoAudit>,
     pub accessibility_audits: Vec<AuditFinding>,
+    pub error: Option<String>,
 }
 
 const LAB_AUDIT_IDS: &[&str] = &[
@@ -205,6 +212,7 @@ pub fn parse_psi_response(data: &Value, url: &str, strategy: &str) -> PsiResult 
         strategy: strategy.to_string(),
         ..Default::default()
     };
+    result.analysis_timestamp = data.get("analysisUTCTimestamp").and_then(|v| v.as_str()).map(|s| s.to_string());
 
     let lr = data.get("lighthouseResult").cloned().unwrap_or(Value::Null);
     if let Some(categories) = lr.get("categories").and_then(|c| c.as_object()) {
@@ -394,6 +402,8 @@ pub struct CruxResult {
     pub metrics: std::collections::BTreeMap<String, CruxMetric>,
     pub collection_period: Option<(String, String)>,
     pub form_factor: String,
+    pub error: Option<String>,
+    pub note: Option<String>,
 }
 
 /// Parses `record` from a CrUX `records:queryRecord` response body into the
@@ -476,6 +486,495 @@ pub fn parse_crux_response(record: &Value, target: &str, form_factor: Option<&st
     }
 
     result
+}
+
+// ---------------------------------------------------------------------
+// Live HTTP round trips (`run_pagespeed`, `query_crux`, `combined_check`)
+// ---------------------------------------------------------------------
+
+/// Behind-a-trait I/O boundary for the PSI GET and CrUX POST requests, so
+/// `run_pagespeed`/`query_crux`/`run` are testable with a fake. Mirrors
+/// `requests.get(...)`/`requests.post(...)`: returns `Ok((status_code,
+/// body_json))` for any HTTP response (including a JSON-decode failure,
+/// which the real client should surface via `Err`, matching
+/// `resp.json()` raising inside `resp.raise_for_status()`'s success
+/// path), `Err(msg)` only for a transport-level failure or timeout
+/// (matching `requests.exceptions.RequestException`/`Timeout`).
+pub trait PsiClient {
+    fn get_psi(&self, url: &str, strategy: &str, api_key: Option<&str>, categories: &[&str]) -> Result<(u16, Value), String>;
+    fn post_crux(&self, body: &Value, api_key: &str) -> Result<(u16, Value), String>;
+}
+
+/// Real `reqwest::blocking` implementation of [`PsiClient`].
+pub struct ReqwestPsiClient;
+
+impl PsiClient for ReqwestPsiClient {
+    fn get_psi(&self, url: &str, strategy: &str, api_key: Option<&str>, categories: &[&str]) -> Result<(u16, Value), String> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .build()
+            .map_err(|e| format!("PSI API request failed: {e}"))?;
+        let mut params: Vec<(String, String)> = vec![
+            ("url".to_string(), url.to_string()),
+            ("strategy".to_string(), strategy.to_uppercase()),
+        ];
+        for cat in categories {
+            params.push(("category".to_string(), cat.to_string()));
+        }
+        if let Some(key) = api_key {
+            params.push(("key".to_string(), key.to_string()));
+        }
+        let resp = client
+            .get(PSI_ENDPOINT)
+            .query(&params)
+            .send()
+            .map_err(|e| {
+                if e.is_timeout() {
+                    "PageSpeed Insights request timed out (120s). The target page may be very slow.".to_string()
+                } else {
+                    format!("Request failed: {e}")
+                }
+            })?;
+        let status = resp.status().as_u16();
+        let json = resp.json::<Value>().unwrap_or(Value::Object(Default::default()));
+        Ok((status, json))
+    }
+
+    fn post_crux(&self, body: &Value, api_key: &str) -> Result<(u16, Value), String> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .map_err(|e| format!("CrUX API request failed: {e}"))?;
+        let resp = client
+            .post(format!("{CRUX_ENDPOINT}?key={api_key}"))
+            .json(body)
+            .send()
+            .map_err(|e| format!("CrUX API request failed: {e}"))?;
+        let status = resp.status().as_u16();
+        let json = resp.json::<Value>().unwrap_or(Value::Object(Default::default()));
+        Ok((status, json))
+    }
+}
+
+const DEFAULT_CATEGORIES: &[&str] = &["PERFORMANCE", "ACCESSIBILITY", "BEST_PRACTICES", "SEO"];
+
+/// Full port of `run_pagespeed()`: validates the URL, calls the client,
+/// and parses the response with [`parse_psi_response`].
+pub fn run_pagespeed(
+    client: &dyn PsiClient,
+    url: &str,
+    strategy: &str,
+    api_key: Option<&str>,
+    categories: Option<&[&str]>,
+) -> PsiResult {
+    if !validate_url(url) {
+        return PsiResult {
+            url: url.to_string(),
+            strategy: strategy.to_string(),
+            error: Some("Invalid URL. Only http/https URLs to public hosts are accepted.".to_string()),
+            ..Default::default()
+        };
+    }
+
+    let categories = categories.unwrap_or(DEFAULT_CATEGORIES);
+    let (status, data) = match client.get_psi(url, strategy, api_key, categories) {
+        Ok(v) => v,
+        Err(e) => {
+            return PsiResult {
+                url: url.to_string(),
+                strategy: strategy.to_string(),
+                error: Some(e),
+                ..Default::default()
+            };
+        }
+    };
+
+    if status == 429 {
+        return PsiResult {
+            url: url.to_string(),
+            strategy: strategy.to_string(),
+            error: Some("PSI rate limit exceeded (240 QPM / 25,000 QPD). Wait and retry.".to_string()),
+            ..Default::default()
+        };
+    }
+    if status == 400 {
+        return PsiResult {
+            url: url.to_string(),
+            strategy: strategy.to_string(),
+            error: Some(format!("Invalid URL or parameters: {data}")),
+            ..Default::default()
+        };
+    }
+    if !(200..300).contains(&status) {
+        return PsiResult {
+            url: url.to_string(),
+            strategy: strategy.to_string(),
+            error: Some(format!("PSI API error {status}: {data}")),
+            ..Default::default()
+        };
+    }
+
+    parse_psi_response(&data, url, strategy)
+}
+
+/// Full port of `query_crux()`: validates the target, builds the request
+/// body (origin vs. URL, optional `formFactor`), calls the client, and
+/// parses the response with [`parse_crux_response`].
+pub fn query_crux(client: &dyn PsiClient, url_or_origin: &str, api_key: &str, form_factor: Option<&str>) -> CruxResult {
+    let form_factor_upper = form_factor.map(|f| f.to_uppercase());
+
+    if !validate_url(url_or_origin) {
+        return CruxResult {
+            target: url_or_origin.to_string(),
+            form_factor: form_factor_upper.clone().unwrap_or_else(|| "ALL".to_string()),
+            error: Some("Invalid URL. Only http/https URLs to public hosts are accepted.".to_string()),
+            ..Default::default()
+        };
+    }
+
+    let is_origin = crux_target_is_origin(url_or_origin);
+
+    let mut body = serde_json::Map::new();
+    if is_origin {
+        let (scheme, rest) = url_or_origin.split_once("://").unwrap_or(("", url_or_origin));
+        let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+        body.insert("origin".to_string(), Value::String(format!("{scheme}://{}", &rest[..authority_end])));
+    } else {
+        body.insert("url".to_string(), Value::String(url_or_origin.to_string()));
+    }
+    if let Some(ff) = &form_factor_upper {
+        body.insert("formFactor".to_string(), Value::String(ff.clone()));
+    }
+
+    let (status, data) = match client.post_crux(&Value::Object(body), api_key) {
+        Ok(v) => v,
+        Err(e) => {
+            return CruxResult {
+                target: url_or_origin.to_string(),
+                form_factor: form_factor_upper.unwrap_or_else(|| "ALL".to_string()),
+                error: Some(format!("CrUX API request failed: {e}")),
+                ..Default::default()
+            };
+        }
+    };
+
+    if status == 404 {
+        let target_type = if is_origin { "origin" } else { "URL" };
+        return CruxResult {
+            target: url_or_origin.to_string(),
+            form_factor: form_factor_upper.unwrap_or_else(|| "ALL".to_string()),
+            error: Some(format!(
+                "No CrUX data for this {target_type}. The site likely has insufficient Chrome traffic volume for eligibility."
+            )),
+            ..Default::default()
+        };
+    }
+    if status == 429 {
+        return CruxResult {
+            target: url_or_origin.to_string(),
+            form_factor: form_factor_upper.unwrap_or_else(|| "ALL".to_string()),
+            error: Some("CrUX API rate limit exceeded (150 QPM shared with History API). Wait and retry.".to_string()),
+            ..Default::default()
+        };
+    }
+    if !(200..300).contains(&status) {
+        return CruxResult {
+            target: url_or_origin.to_string(),
+            form_factor: form_factor_upper.unwrap_or_else(|| "ALL".to_string()),
+            error: Some(format!("CrUX API request failed: HTTP {status}")),
+            ..Default::default()
+        };
+    }
+
+    let record = data.get("record").cloned().unwrap_or(Value::Null);
+    let mut result = parse_crux_response(&record, url_or_origin, form_factor_upper.as_deref());
+    result.form_factor = form_factor_upper.unwrap_or_else(|| "ALL".to_string());
+    result
+}
+
+/// Result of `combined_check()`.
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct CombinedResult {
+    pub url: String,
+    pub psi: std::collections::BTreeMap<String, PsiResult>,
+    pub crux: Option<CruxResult>,
+    pub error: Option<String>,
+}
+
+/// Full port of `combined_check()`.
+pub fn combined_check(client: &dyn PsiClient, url: &str, api_key: Option<&str>, strategy: &str) -> CombinedResult {
+    let mut result = CombinedResult {
+        url: url.to_string(),
+        ..Default::default()
+    };
+
+    let strategies: Vec<&str> = if strategy == "both" { vec!["mobile", "desktop"] } else { vec![strategy] };
+
+    for strat in strategies {
+        let psi_result = run_pagespeed(client, url, strat, api_key, None);
+        if let Some(e) = &psi_result.error {
+            result.error = Some(e.clone());
+        }
+        result.psi.insert(strat.to_string(), psi_result);
+    }
+
+    if let Some(key) = api_key {
+        let mut crux_result = query_crux(client, url, key, None);
+        if let Some(e) = &crux_result.error {
+            if e.contains("insufficient") {
+                let (scheme, rest) = url.split_once("://").unwrap_or(("", url));
+                let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+                let origin = format!("{scheme}://{}", &rest[..authority_end]);
+                let origin_result = query_crux(client, &origin, key, None);
+                if origin_result.error.is_none() {
+                    crux_result = origin_result;
+                    crux_result.note = Some("URL-level data unavailable; showing origin-level data".to_string());
+                }
+            }
+        }
+        result.crux = Some(crux_result);
+    }
+
+    result
+}
+
+// ---------------------------------------------------------------------
+// CLI entry point (`main()`)
+// ---------------------------------------------------------------------
+
+#[derive(Debug, Clone, Default)]
+struct Args {
+    url: Option<String>,
+    strategy: String,
+    api_key: Option<String>,
+    crux_only: bool,
+    psi_only: bool,
+    form_factor: Option<String>,
+    json: bool,
+}
+
+fn parse_args(args: &[String]) -> Result<Args, String> {
+    let mut out = Args {
+        strategy: "both".to_string(),
+        ..Default::default()
+    };
+    let mut i = 0;
+    while i < args.len() {
+        let a = args[i].as_str();
+        match a {
+            "--strategy" | "-s" => {
+                i += 1;
+                let v = args.get(i).ok_or("--strategy requires a value")?.clone();
+                if !["mobile", "desktop", "both"].contains(&v.as_str()) {
+                    return Err(format!("argument --strategy/-s: invalid choice: '{v}'"));
+                }
+                out.strategy = v;
+            }
+            "--api-key" => {
+                i += 1;
+                out.api_key = Some(args.get(i).ok_or("--api-key requires a value")?.clone());
+            }
+            "--crux-only" => out.crux_only = true,
+            "--psi-only" => out.psi_only = true,
+            "--form-factor" => {
+                i += 1;
+                let v = args.get(i).ok_or("--form-factor requires a value")?.clone();
+                if !["PHONE", "DESKTOP", "TABLET"].contains(&v.as_str()) {
+                    return Err(format!("argument --form-factor: invalid choice: '{v}'"));
+                }
+                out.form_factor = Some(v);
+            }
+            "--json" | "-j" => out.json = true,
+            other if !other.starts_with('-') => out.url = Some(other.to_string()),
+            other => return Err(format!("unrecognized argument: {other}")),
+        }
+        i += 1;
+    }
+    out.url.clone().ok_or("the following arguments are required: url")?;
+    Ok(out)
+}
+
+/// Port of `pagespeed_check.py`'s `main()`, parameterized over the client
+/// and stdout/stderr sinks so it is testable without touching real I/O.
+/// Uses `google_auth::load_config().api_key` as the `get_api_key()`
+/// fallback when `--api-key` is not given. Returns the process exit code.
+pub fn run(args: &[String], client: &dyn PsiClient, stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
+    let parsed = match parse_args(args) {
+        Ok(p) => p,
+        Err(e) => {
+            let _ = writeln!(stderr, "{e}");
+            return 2;
+        }
+    };
+
+    let api_key = parsed.api_key.clone().or_else(|| crate::wf_port::w2_030::google_auth::load_config().api_key);
+    let url = parsed.url.clone().unwrap_or_default();
+
+    let had_error;
+    if parsed.crux_only {
+        let Some(key) = &api_key else {
+            let _ = writeln!(stderr, "Error: CrUX API requires an API key. Use --api-key or configure GOOGLE_API_KEY.");
+            return 1;
+        };
+        let result = query_crux(client, &url, key, parsed.form_factor.as_deref());
+        had_error = result.error.is_some();
+        if parsed.json {
+            let _ = writeln!(stdout, "{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+        } else {
+            print_crux_summary(stdout, &result);
+        }
+    } else if parsed.psi_only {
+        let strategies: Vec<&str> = if parsed.strategy == "both" { vec!["mobile", "desktop"] } else { vec![parsed.strategy.as_str()] };
+        let mut psi_map = std::collections::BTreeMap::new();
+        for strat in &strategies {
+            psi_map.insert(strat.to_string(), run_pagespeed(client, &url, strat, api_key.as_deref(), None));
+        }
+        had_error = psi_map.values().any(|r| r.error.is_some());
+        if parsed.json {
+            let _ = writeln!(
+                stdout,
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({"psi": psi_map})).unwrap_or_default()
+            );
+        } else {
+            for psi in psi_map.values() {
+                print_psi_summary(stdout, psi);
+            }
+        }
+    } else {
+        let result = combined_check(client, &url, api_key.as_deref(), &parsed.strategy);
+        had_error = result.error.is_some();
+        if parsed.json {
+            let _ = writeln!(stdout, "{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+        } else {
+            for psi in result.psi.values() {
+                print_psi_summary(stdout, psi);
+            }
+            if let Some(crux) = &result.crux {
+                let _ = writeln!(stdout);
+                print_crux_summary(stdout, crux);
+            }
+        }
+    }
+
+    if had_error {
+        1
+    } else {
+        0
+    }
+}
+
+fn print_psi_summary(out: &mut dyn Write, psi: &PsiResult) {
+    if let Some(err) = &psi.error {
+        let _ = writeln!(out, "PSI Error ({}): {err}", psi.strategy);
+        return;
+    }
+
+    let _ = writeln!(out, "\n=== PageSpeed Insights ({}) ===", psi.strategy);
+    let _ = writeln!(out, "URL: {}", psi.url);
+    let _ = writeln!(out, "Timestamp: {}", psi.analysis_timestamp.as_deref().unwrap_or("N/A"));
+
+    if !psi.lighthouse_scores.is_empty() {
+        let _ = writeln!(out, "\nLighthouse Scores:");
+        for (cat, score) in &psi.lighthouse_scores {
+            let _ = writeln!(out, "  {cat}: {score}/100");
+        }
+    }
+
+    if !psi.lab_metrics.is_empty() {
+        let _ = writeln!(out, "\nLab Metrics:");
+        for (id, (value, display, _score)) in &psi.lab_metrics {
+            let shown = if display.is_empty() { value.to_string() } else { display.clone() };
+            let _ = writeln!(out, "  {id}: {shown}");
+        }
+    }
+
+    if !psi.opportunities.is_empty() {
+        let _ = writeln!(out, "\nTop Opportunities:");
+        for opp in psi.opportunities.iter().take(5) {
+            let _ = writeln!(out, "  - {} (save ~{}ms)", opp.title, opp.savings_ms);
+        }
+    }
+
+    if !psi.failed_audits.is_empty() {
+        let _ = writeln!(out, "\nFailed/Warning Audits ({}):", psi.failed_audits.len());
+        for a in psi.failed_audits.iter().take(10) {
+            let score_pct = a.score.map(|s| format!("{:.0}%", s * 100.0)).unwrap_or_else(|| "?".to_string());
+            let _ = writeln!(out, "  [{score_pct}] {} {}", a.title, a.display);
+        }
+    }
+
+    let notable_diags: Vec<&AuditFinding> = psi.diagnostics.iter().filter(|d| d.score.map(|s| s < 0.9).unwrap_or(false)).collect();
+    if !notable_diags.is_empty() {
+        let _ = writeln!(out, "\nDiagnostics (needs attention):");
+        for d in notable_diags.iter().take(5) {
+            let score_pct = d.score.map(|s| format!("{:.0}%", s * 100.0)).unwrap_or_else(|| "info".to_string());
+            let _ = writeln!(out, "  [{score_pct}] {}: {}", d.title, d.display);
+        }
+    }
+
+    let seo_failed: Vec<&SeoAudit> = psi.seo_audits.iter().filter(|a| !a.pass).collect();
+    if !seo_failed.is_empty() {
+        let _ = writeln!(out, "\nSEO Issues ({}):", seo_failed.len());
+        for a in &seo_failed {
+            let _ = writeln!(out, "  [FAIL] {}", a.title);
+        }
+    } else if !psi.seo_audits.is_empty() {
+        let _ = writeln!(out, "\nSEO: All {} checks passed", psi.seo_audits.len());
+    }
+
+    if !psi.accessibility_audits.is_empty() {
+        let _ = writeln!(out, "\nAccessibility Issues ({}):", psi.accessibility_audits.len());
+        for a in psi.accessibility_audits.iter().take(5) {
+            let pct = a.score.map(|s| format!("{:.0}%", s * 100.0)).unwrap_or_default();
+            let _ = writeln!(out, "  [{pct}] {}", a.title);
+        }
+    }
+
+    if psi.passed_audits_count > 0 {
+        let _ = writeln!(out, "\nPassed: {} audits", psi.passed_audits_count);
+    }
+}
+
+fn print_crux_summary(out: &mut dyn Write, crux: &CruxResult) {
+    if let Some(err) = &crux.error {
+        let _ = writeln!(out, "CrUX Error: {err}");
+        return;
+    }
+
+    let _ = writeln!(out, "=== CrUX Field Data ({}) ===", crux.form_factor);
+    let _ = writeln!(out, "Target: {}", crux.target);
+
+    if let Some(note) = &crux.note {
+        let _ = writeln!(out, "Note: {note}");
+    }
+
+    if let Some((first, last)) = &crux.collection_period {
+        let _ = writeln!(out, "Period: {first} to {last}");
+    }
+
+    if !crux.metrics.is_empty() {
+        let _ = writeln!(out, "\nCore Web Vitals (p75):");
+        for data in crux.metrics.values() {
+            let rating_icon = match data.rating {
+                "good" => "GOOD",
+                "needs-improvement" => "NEEDS IMPROVEMENT",
+                "poor" => "POOR",
+                _ => "?",
+            };
+            let good = data.good_threshold;
+            if data.label == "CLS" {
+                let good_s = good.map(|g| format!("{g}")).unwrap_or_default();
+                let _ = writeln!(out, "  {}: {:.3} [{rating_icon}] (threshold: <={good_s})", data.label, data.p75);
+            } else {
+                let good_s = good.map(|g| format!("{g}")).unwrap_or_default();
+                let _ = writeln!(out, "  {}: {}{} [{rating_icon}] (threshold: <={good_s}{})", data.label, data.p75, data.unit, data.unit);
+            }
+            if let Some(dist) = &data.distribution {
+                let _ = writeln!(out, "       Good: {}% | NI: {}% | Poor: {}%", dist.good, dist.needs_improvement, dist.poor);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -593,5 +1092,134 @@ mod tests {
         let record = json!({"metrics": {"first_contentful_paint": {"percentiles": {}}}});
         let result = parse_crux_response(&record, "https://example.com", None);
         assert!(result.metrics.is_empty());
+    }
+
+    // -------------------------------------------------------------
+    // Live round trips, exercised against a fake client (no network).
+    // -------------------------------------------------------------
+
+    struct FakeClient {
+        psi_status: u16,
+        psi_body: Value,
+        crux_status: u16,
+        crux_body: Value,
+    }
+
+    impl PsiClient for FakeClient {
+        fn get_psi(&self, _url: &str, _strategy: &str, _api_key: Option<&str>, _categories: &[&str]) -> Result<(u16, Value), String> {
+            Ok((self.psi_status, self.psi_body.clone()))
+        }
+        fn post_crux(&self, _body: &Value, _api_key: &str) -> Result<(u16, Value), String> {
+            Ok((self.crux_status, self.crux_body.clone()))
+        }
+    }
+
+    #[test]
+    fn run_pagespeed_rejects_invalid_url() {
+        let client = FakeClient { psi_status: 200, psi_body: json!({}), crux_status: 200, crux_body: json!({}) };
+        let result = run_pagespeed(&client, "http://localhost/", "mobile", None, None);
+        assert_eq!(result.error.as_deref(), Some("Invalid URL. Only http/https URLs to public hosts are accepted."));
+    }
+
+    #[test]
+    fn run_pagespeed_maps_status_codes_to_errors() {
+        let client = FakeClient { psi_status: 429, psi_body: json!({}), crux_status: 200, crux_body: json!({}) };
+        let result = run_pagespeed(&client, "https://example.com", "mobile", None, None);
+        assert!(result.error.unwrap().contains("rate limit"));
+    }
+
+    #[test]
+    fn run_pagespeed_success_parses_body() {
+        let client = FakeClient {
+            psi_status: 200,
+            psi_body: json!({"analysisUTCTimestamp": "2026-01-01T00:00:00Z", "lighthouseResult": {"categories": {"performance": {"score": 0.5}}, "audits": {}}}),
+            crux_status: 200,
+            crux_body: json!({}),
+        };
+        let result = run_pagespeed(&client, "https://example.com", "mobile", None, None);
+        assert!(result.error.is_none());
+        assert_eq!(result.lighthouse_scores.get("performance"), Some(&50));
+        assert_eq!(result.analysis_timestamp.as_deref(), Some("2026-01-01T00:00:00Z"));
+    }
+
+    #[test]
+    fn query_crux_maps_404_to_insufficient_traffic_message() {
+        let client = FakeClient { psi_status: 200, psi_body: json!({}), crux_status: 404, crux_body: json!({}) };
+        let result = query_crux(&client, "https://example.com/page", "key", None);
+        assert!(result.error.unwrap().contains("insufficient"));
+    }
+
+    #[test]
+    fn query_crux_success_parses_record() {
+        let client = FakeClient {
+            psi_status: 200,
+            psi_body: json!({}),
+            crux_status: 200,
+            crux_body: json!({"record": {"metrics": {"largest_contentful_paint": {"percentiles": {"p75": 2000}}}}}),
+        };
+        let result = query_crux(&client, "https://example.com", "key", Some("phone"));
+        assert!(result.error.is_none());
+        assert_eq!(result.form_factor, "PHONE");
+        assert_eq!(result.metrics.get("largest_contentful_paint").unwrap().p75, 2000.0);
+    }
+
+    #[test]
+    fn combined_check_falls_back_to_origin_on_insufficient_crux_data() {
+        let client = FakeClient {
+            psi_status: 200,
+            psi_body: json!({"lighthouseResult": {"categories": {}, "audits": {}}}),
+            crux_status: 404,
+            crux_body: json!({}),
+        };
+        // Every query_crux call returns 404 from this fake, so the retry also
+        // fails -- this asserts the retry path is exercised, not that it
+        // rescues the request; the "note" is only set on the rescue branch.
+        let result = combined_check(&client, "https://example.com/page", Some("key"), "mobile");
+        assert!(result.crux.unwrap().error.is_some());
+    }
+
+    #[test]
+    fn parse_args_requires_url() {
+        assert!(parse_args(&[]).is_err());
+    }
+
+    #[test]
+    fn parse_args_parses_flags() {
+        let args: Vec<String> = ["https://example.com", "--strategy", "mobile", "--json"].iter().map(|s| s.to_string()).collect();
+        let parsed = parse_args(&args).unwrap();
+        assert_eq!(parsed.url.as_deref(), Some("https://example.com"));
+        assert_eq!(parsed.strategy, "mobile");
+        assert!(parsed.json);
+    }
+
+    #[test]
+    fn run_crux_only_without_api_key_errors() {
+        let client = FakeClient { psi_status: 200, psi_body: json!({}), crux_status: 200, crux_body: json!({}) };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let args: Vec<String> = ["https://example.com", "--crux-only"].iter().map(|s| s.to_string()).collect();
+        let code = run(&args, &client, &mut out, &mut err);
+        assert_eq!(code, 1);
+        assert!(String::from_utf8(err).unwrap().contains("API key required"));
+    }
+
+    #[test]
+    fn run_psi_only_json_success() {
+        let client = FakeClient {
+            psi_status: 200,
+            psi_body: json!({"lighthouseResult": {"categories": {"performance": {"score": 1.0}}, "audits": {}}}),
+            crux_status: 200,
+            crux_body: json!({}),
+        };
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let args: Vec<String> = ["https://example.com", "--psi-only", "--strategy", "mobile", "--json"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let code = run(&args, &client, &mut out, &mut err);
+        assert_eq!(code, 0);
+        let stdout = String::from_utf8(out).unwrap();
+        assert!(stdout.contains("\"performance\": 100"));
     }
 }

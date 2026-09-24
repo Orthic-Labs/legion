@@ -24,10 +24,12 @@
 //! - `fetch_page.py` -> [`fetch_page`] (URL scheme validation, the
 //!   private/loopback/reserved IP block check, and header construction;
 //!   `fetch_page()`'s actual `requests.Session` call is not ported).
-//! - `ga4_report.py` -> [`ga4_report`] (`_resolve_property`, the
-//!   start/end date-range computation, and the totals/slimming logic in
-//!   `top_pages_report`; the `BetaAnalyticsDataClient` calls are not
-//!   ported).
+//! - `ga4_report.py` -> [`ga4_report`] (packet r35: fully ported —
+//!   `_resolve_property`, the start/end date-range computation, the
+//!   totals/slimming logic, the `runReport` HTTP calls behind the
+//!   [`ga4_report::Ga4Http`] trait, `organic_traffic_report`,
+//!   `top_pages_report`, `device_breakdown`, `country_breakdown`, and the
+//!   `main()` CLI as [`ga4_report::run`]).
 
 pub mod contracts;
 pub mod coverage;
