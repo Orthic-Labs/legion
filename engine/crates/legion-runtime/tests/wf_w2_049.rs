@@ -28,10 +28,7 @@ const FIXTURE_FILES: &[&str] = &[
     ".codex-plugin/plugin.json",
     "src/lib/roster/index.mjs",
     "engine/bins/legion/src/commands/doctor.rs",
-    "src/packages/context/lib/context.mjs",
-    "src/lib/verification/arcane/architecture-event-store.mjs",
     "src/lib/contracts/arcane/authority-binding-store.mjs",
-    "src/providers/security/packs/output-handling.mjs",
 ];
 
 /// Port of `namingFixture()`: builds a temp copy of the fixed set of real
@@ -136,12 +133,38 @@ fn naming_checker_rejects_unclassified_active_filenames_nul_and_legacy_manifest(
 fn naming_checker_rejects_security_pack_prefix_and_occurrence_bypasses() {
     let fixture = naming_fixture();
 
-    let allowed_path = fixture.join("src/providers/security/packs/output-handling.mjs");
+    // The real security-pack sources were deleted when Legion's legacy JS
+    // was retired; synthesize an equivalent pair of fixture files (and a
+    // matching exact-path allowlist rule) so this test still exercises the
+    // same behaviour: an exact-path allowlist entry does not extend to
+    // sibling files under the same directory prefix.
+    let allowed_path = fixture.join("src/security/packs/output-handling.mjs");
+    fs::create_dir_all(allowed_path.parent().unwrap()).unwrap();
+    fs::write(&allowed_path, "export const currentAuthority = 'forge';\n").unwrap();
+
+    let allowlist_path = fixture.join("src/config/naming-legacy-allowlist.json");
+    let mut allowlist: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&allowlist_path).unwrap()).unwrap();
+    allowlist["rules"].as_array_mut().unwrap().push(serde_json::json!({
+        "path": "src/security/packs/output-handling.mjs",
+        "tokens": ["forge"],
+        "occurrences": {"forge": 1},
+        "class": "R0",
+        "reason": "fixture: ordinary security verb",
+    }));
+    fs::write(
+        &allowlist_path,
+        format!("{}\n", serde_json::to_string_pretty(&allowlist).unwrap()),
+    )
+    .unwrap();
+
+    // Push the allowed file's occurrence count past what the allowlist rule
+    // declares.
     let mut allowed_src = fs::read_to_string(&allowed_path).unwrap();
     allowed_src.push_str("\nexport const currentAuthority = 'forge';\n");
     fs::write(&allowed_path, allowed_src).unwrap();
 
-    let injected_path = fixture.join("src/providers/security/packs/injected.mjs");
+    let injected_path = fixture.join("src/security/packs/injected.mjs");
     fs::write(&injected_path, "export const currentAuthority = 'forge';\n").unwrap();
 
     let report = check_canonical_names(&fixture).expect("check succeeds");
@@ -154,11 +177,11 @@ fn naming_checker_rejects_security_pack_prefix_and_occurrence_bypasses() {
             .any(|i| i.path == path && i.reason.contains(reason_contains))
     };
     assert!(has(
-        "src/providers/security/packs/output-handling.mjs",
+        "src/security/packs/output-handling.mjs",
         "occurrence count differs"
     ));
     assert!(has(
-        "src/providers/security/packs/injected.mjs",
+        "src/security/packs/injected.mjs",
         "unclassified legacy token"
     ));
 

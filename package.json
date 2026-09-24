@@ -54,7 +54,6 @@
     "doctrine/",
     "src/evals/architecture/",
     "src/roster/",
-    "src/packages/context/",
     "src/packages/contracts/",
     "src/lib/",
     "src/providers/",

@@ -5,7 +5,9 @@
 //! threshold the JS bench enforced (`process.exitCode = 1` on any
 //! falsePositive or falseNegative).
 
-use legion_audit::wf_port::wf010::provider_registry::{select_providers, SelectOptions};
+use legion_audit::wf_port::wf010::provider_registry::{
+    load_provider_registry_v2, select_providers, SelectOptions,
+};
 use serde_json::Value;
 use std::fs;
 
@@ -17,7 +19,12 @@ fn registry() -> Value {
         "/../../../src/registry/providers.json"
     ))
     .expect("packaged provider registry");
-    serde_json::from_str(&raw).expect("registry JSON")
+    let raw: Value = serde_json::from_str(&raw).expect("registry JSON");
+    // `providers.json` is schemaVersion=2 (`legion-provider-registry`);
+    // `select_providers` expects the adapted/validated schemaVersion=1
+    // (`audit-provider-registry`) shape, the same normalization
+    // `loadProviderRegistry` performed in the deleted JS bench.
+    load_provider_registry_v2(&raw).expect("adapt+validate provider registry")
 }
 
 #[test]

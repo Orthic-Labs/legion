@@ -184,23 +184,44 @@ fn case_9_qualification_receipts_generated_status() {
 }
 
 // --- Case 10: Supplemental tier — missing scanners don't block ---
+//
+// Port of `run-audit-conformance-tests.mjs`'s `test_supplemental_tier`, which
+// checked the deleted `tools/audit/collect-facts.mjs` and
+// `tools/audit/audit-plan.mjs` for `tool_absent`, `flag_if_absent`, and
+// `tier: 'supplemental'` source strings. Those tools are now
+// `legion-audit`'s native wf065 (fact collection) and wf064 (plan
+// reconciliation) ports; assert the same declaration exists there.
 #[test]
 fn case_10_supplemental_tier_flags_absent_scanners() {
-    let raw = std::fs::read_to_string(concat!(
+    let collect_facts = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../../src/registry/providers-runtime.json"
+        "/src/wf_port/wf065/collect_facts_exec.rs"
     ))
-    .expect("packaged runtime registry");
-    let registry: Value = serde_json::from_str(&raw).expect("runtime registry JSON");
-    let has_supplemental = registry["providers"]
-        .as_array()
-        .expect("providers array")
-        .iter()
-        .any(|p| p["tier"] == "supplemental" || p["benchmark"]["tier"] == "supplemental");
-    // Supplemental tiering is a registry-level declaration; its absence from
-    // the runtime registry is itself the coverage gap this case guards.
+    .expect("wf065 collect_facts_exec source");
+    // tool_absent must be recorded, not treated as a clean pass.
     assert!(
-        has_supplemental || registry["providers"].as_array().unwrap().iter().any(|p| p.get("tier").is_some()),
+        collect_facts.contains("tool_absent"),
+        "tool_absent flag must exist for missing scanners"
+    );
+    // flag_if_absent must be present in check definitions.
+    assert!(
+        collect_facts.contains("flag_if_absent"),
+        "flag_if_absent must mark supplemental scanners"
+    );
+    // tier: "supplemental" must be present in check definitions.
+    assert!(
+        collect_facts.contains("tier: \"supplemental\""),
+        "supplemental tier must be declared on check definitions"
+    );
+
+    let plan = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/wf_port/wf064/plan.rs"
+    ))
+    .expect("wf064 plan source");
+    // The reconciliation must ignore supplemental checks when absent.
+    assert!(
+        plan.contains("supplemental"),
         "runtime registry must be able to declare a supplemental tier so missing scanners are flagged, not silently clean"
     );
 }
