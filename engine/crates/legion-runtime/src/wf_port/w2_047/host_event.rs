@@ -1,7 +1,21 @@
-//! Faithful port of `src/lib/host/arcane/host-event.mjs` — `normalizeHostEvent`
-//! and `classifyObservation` only (see `wf_port::w2_047` module docs for the
-//! full scope note).
+//! Faithful port of `src/lib/host/arcane/host-event.mjs` — `EVENT_TYPE`,
+//! `LEGACY_HOST_EVENT_TYPE`, `LIFECYCLE_TELEMETRY_EVENT_TYPES`,
+//! `HOST_EVENT_SCHEMA`, `HOST_EVENT_BOUND_FIELDS`, `validateHostEvent`,
+//! `normalizeHostEvent`, and `classifyObservation` (see `wf_port::w2_047`
+//! module docs for the crate-level scope note).
+//!
+//! `validate_host_event` reproduces the full closed `HOST_EVENT_SCHEMA`
+//! (`additionalProperties: false` at every object level, exactly one open
+//! bag — `extensions`) using the same generic JSON-Schema-subset engine
+//! `legion-policy`'s `wf068` chunk already ports from
+//! `qualification/schema-validator.mjs`
+//! (`legion_policy::wf_port::wf068::validate_schema`), which this crate
+//! already depends on (`legion-runtime` -> `legion-policy` in Cargo.toml).
+//! `normalize_host_event` now runs the same full-schema check on its
+//! candidate (previously an ad-hoc subset of field checks), matching JS
+//! `normalizeHostEvent`'s call to `validateHostEvent` exactly.
 
+use legion_policy::wf_port::wf068::validate_schema;
 use serde_json::{json, Value as Json};
 
 /// Mirrors JS `EVENT_TYPE`.
@@ -81,62 +95,186 @@ impl std::fmt::Display for HostEventInvalid {
 }
 impl std::error::Error for HostEventInvalid {}
 
-fn is_ulid_like(s: &str, prefix: &str) -> bool {
-    // Crockford base32, 26 chars, after the given prefix — mirrors the JS
-    // regex character classes without pulling in a regex dependency for a
-    // single fixed-width check.
-    let Some(rest) = s.strip_prefix(prefix) else { return false };
-    rest.len() == 26
-        && rest.chars().all(|c| {
-            c.is_ascii_digit()
-                || matches!(
-                    c.to_ascii_uppercase(),
-                    'A'..='H' | 'J' | 'K' | 'M' | 'N' | 'P'..='T' | 'V'..='Z'
-                )
-        })
+/// Mirrors JS `DIGEST_PATTERN` (`contracts/arcane/canonical.mjs`).
+const DIGEST_RE: &str = r"^sha256:[0-9a-f]{64}$";
+/// Mirrors JS `DATE_TIME_RE` (`host-event.mjs`).
+const DATE_TIME_RE: &str = r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$";
+
+/// Mirrors JS `EFFECT_CLASS` (`packages/contracts/enums.mjs`) — the frozen
+/// 12-value enum `EFFECT_IDENTITY_SCHEMA.properties.effectClass` checks
+/// against.
+const EFFECT_CLASS: &[&str] = &[
+    "FILE_WRITE",
+    "FILE_DELETE",
+    "FILE_MOVE",
+    "COMMAND_EXEC",
+    "NETWORK_EGRESS",
+    "PROCESS_SPAWN",
+    "CREDENTIAL_ACCESS",
+    "DEPENDENCY_INSTALL",
+    "VCS_COMMIT",
+    "VCS_PUSH",
+    "PUBLISH",
+    "EXTERNAL_SIDE_EFFECT",
+];
+
+/// Mirrors JS `EFFECT_IDENTITY_SCHEMA`: the proposed effect (pre-effect
+/// events) or observed effect (post-effect events) descriptor. Reused
+/// (by structural duplication, not `$ref` — same as the JS source, which
+/// assigns the same object literal to `effect`, `priorCorrelation.requestedEffect`,
+/// and `priorCorrelation.authorizedEffect`) at every site it appears.
+fn effect_identity_schema() -> Json {
+    json!({
+        "type": ["object", "null"],
+        "additionalProperties": false,
+        "required": ["effectClass", "target", "operation"],
+        "properties": {
+            "effectClass": { "enum": EFFECT_CLASS },
+            "target": { "type": "string", "minLength": 1 },
+            "operation": { "type": "string", "minLength": 1 },
+        },
+    })
 }
 
-/// Structural validation of the fields `normalize_host_event` fills, mirroring
-/// the subset of `HOST_EVENT_SCHEMA` that a freshly-normalized candidate can
-/// actually violate (an unknown `eventType`, or a caller-supplied `eventId`/
-/// `runId`/`requestId`/`contractId` that does not match its pattern). Full
-/// `additionalProperties:false` closed-schema enforcement over arbitrary
-/// caller JSON is out of this port's budget (no schema-validator dependency);
-/// this reproduces the acceptance-relevant checks.
-fn validate_candidate(c: &Json) -> Vec<String> {
-    let mut issues = Vec::new();
-    let event_type = c.get("eventType").and_then(Json::as_str);
-    match event_type {
-        Some(t) if EVENT_TYPE.contains(&t) => {}
-        _ => issues.push("eventType".to_string()),
+/// Mirrors JS `HOST_EVENT_SCHEMA` field-for-field: the closed host-event
+/// schema, `extensions` its one open bag.
+fn host_event_schema() -> Json {
+    json!({
+        "$id": "arcane-host-event-v1",
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+            "schemaVersion", "kind", "eventId", "eventType", "time",
+            "adapter", "client", "host",
+            "runId", "taskId", "sessionId", "requestId", "contractId",
+            "workspace", "subject",
+            "actor", "operation", "sourceRevision",
+            "effect", "result",
+            "pathMeta", "processMeta", "networkMeta",
+            "priorCorrelation", "checkCorrelation", "hostEnforcement",
+            "replayNonce", "replaySequence", "idempotencyKey",
+        ],
+        "properties": {
+            "schemaVersion": { "const": 1 },
+            "kind": { "const": "arcane-host-event" },
+            "eventId": { "type": "string", "pattern": r"^hev_[0-9A-HJKMNP-TV-Z]{26}$" },
+            "eventType": { "enum": EVENT_TYPE },
+            "time": { "type": "string", "pattern": DATE_TIME_RE },
+
+            "adapter": {
+                "type": "object", "additionalProperties": false, "required": ["name", "version"],
+                "properties": { "name": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 } },
+            },
+            "client": {
+                "type": "object", "additionalProperties": false, "required": ["name", "version"],
+                "properties": { "name": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 } },
+            },
+            "host": {
+                "type": "object", "additionalProperties": false, "required": ["platform", "version"],
+                "properties": { "platform": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 } },
+            },
+
+            "runId": { "type": ["string", "null"], "pattern": r"^run_[0-9A-HJKMNP-TV-Z]{26}$" },
+            "taskId": { "type": ["string", "null"], "pattern": r"^T-\d+(\.\d+)*$" },
+            "sessionId": { "type": ["string", "null"], "minLength": 1 },
+            "requestId": { "type": ["string", "null"], "pattern": r"^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+            "contractId": { "type": ["string", "null"], "pattern": r"^EC-\d+$" },
+
+            "workspace": { "type": "string", "minLength": 1 },
+            "subject": { "type": ["string", "null"] },
+
+            "actor": {
+                "type": "object", "additionalProperties": false, "required": ["issuerId", "processIdentity"],
+                "properties": { "issuerId": { "type": "string", "minLength": 1 }, "processIdentity": { "type": ["string", "null"] } },
+            },
+
+            "operation": {
+                "type": "object", "additionalProperties": false, "required": ["toolId", "operationId", "argumentDigest"],
+                "properties": {
+                    "toolId": { "type": "string", "minLength": 1 },
+                    "operationId": { "type": "string", "minLength": 1 },
+                    "argumentDigest": { "type": ["string", "null"], "pattern": DIGEST_RE },
+                },
+            },
+
+            "sourceRevision": { "type": ["string", "null"], "minLength": 7 },
+
+            "effect": effect_identity_schema(),
+
+            "result": {
+                "type": ["object", "null"], "additionalProperties": false, "required": ["outcome", "exitCode", "terminal", "observedDigest"],
+                "properties": {
+                    "outcome": { "enum": ["success", "failure", "blocked", "no-op"] },
+                    "exitCode": { "type": ["integer", "null"] },
+                    "terminal": { "type": "boolean" },
+                    "observedDigest": { "type": ["string", "null"], "pattern": DIGEST_RE },
+                },
+            },
+
+            "pathMeta": {
+                "type": ["object", "null"], "additionalProperties": false,
+                "properties": { "path": { "type": "string" }, "exists": { "type": "boolean" } },
+            },
+            "processMeta": {
+                "type": ["object", "null"], "additionalProperties": false,
+                "properties": { "pid": { "type": "integer" }, "parentPid": { "type": ["integer", "null"] }, "executablePath": { "type": ["string", "null"] } },
+            },
+            "networkMeta": {
+                "type": ["object", "null"], "additionalProperties": false,
+                "properties": { "host": { "type": "string" }, "port": { "type": ["integer", "null"] }, "protocol": { "type": ["string", "null"] } },
+            },
+
+            "priorCorrelation": {
+                "type": ["object", "null"], "additionalProperties": false,
+                "properties": {
+                    "requestId": { "type": ["string", "null"], "pattern": r"^req_[0-9A-HJKMNP-TV-Z]{26}$" },
+                    "capabilityId": { "type": ["string", "null"] },
+                    "priorReceiptId": { "type": ["string", "null"] },
+                    "requestedEffect": effect_identity_schema(),
+                    "authorizedEffect": effect_identity_schema(),
+                },
+            },
+
+            "checkCorrelation": {
+                "type": ["object", "null"], "additionalProperties": false,
+                "properties": { "declaredCheckId": { "type": "string", "minLength": 1 }, "method": { "type": "string", "minLength": 1 } },
+            },
+
+            "hostEnforcement": {
+                "type": "object", "additionalProperties": false, "required": ["capabilities", "knownBypasses"],
+                "properties": {
+                    "capabilities": { "type": "array", "items": { "type": "string" } },
+                    "knownBypasses": { "type": "array", "items": { "type": "string" } },
+                },
+            },
+
+            "replayNonce": { "type": ["string", "null"] },
+            "replaySequence": { "type": ["integer", "null"] },
+
+            "idempotencyKey": { "type": ["string", "null"] },
+
+            "extensions": { "type": "object" },
+        },
+    })
+}
+
+/// Mirrors JS `HOST_EVENT_BOUND_FIELDS`.
+pub const HOST_EVENT_BOUND_FIELDS: &[&str] = &[
+    "schemaVersion", "kind", "eventId", "eventType", "time",
+    "runId", "taskId", "requestId", "contractId", "workspace",
+    "operation", "effect", "result", "sourceRevision", "idempotencyKey",
+];
+
+/// Structural validation only. Mirrors `validateHostEvent(e)`: rejects a
+/// non-object/`null`/array `e` with a single `$:type` issue (matching JS's
+/// own short-circuit before it ever calls `validateSchema`), otherwise runs
+/// the full `HOST_EVENT_SCHEMA` closed-schema check.
+pub fn validate_host_event(e: &Json) -> (bool, Vec<String>) {
+    if e.is_null() || !e.is_object() {
+        return (false, vec!["$:type".to_string()]);
     }
-    if let Some(id) = c.get("eventId").and_then(Json::as_str) {
-        if !is_ulid_like(id, "hev_") {
-            issues.push("eventId".to_string());
-        }
-    } else {
-        issues.push("eventId".to_string());
-    }
-    if let Some(rid) = c.get("runId").and_then(Json::as_str) {
-        if !is_ulid_like(rid, "run_") {
-            issues.push("runId".to_string());
-        }
-    }
-    if let Some(rid) = c.get("requestId").and_then(Json::as_str) {
-        if !is_ulid_like(rid, "req_") {
-            issues.push("requestId".to_string());
-        }
-    }
-    if let Some(cid) = c.get("contractId").and_then(Json::as_str) {
-        let ok = cid.strip_prefix("EC-").map(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit())).unwrap_or(false);
-        if !ok {
-            issues.push("contractId".to_string());
-        }
-    }
-    if !c.get("workspace").and_then(Json::as_str).map(|s| !s.is_empty()).unwrap_or(false) {
-        issues.push("workspace".to_string());
-    }
-    issues
+    let issues = validate_schema(&host_event_schema(), e);
+    (issues.is_empty(), issues)
 }
 
 /// Normalize a raw, adapter-native event into the canonical host-event shape.
@@ -208,8 +346,8 @@ pub fn normalize_host_event(
         candidate["extensions"] = ext.clone();
     }
 
-    let issues = validate_candidate(&candidate);
-    if !issues.is_empty() {
+    let (valid, issues) = validate_host_event(&candidate);
+    if !valid {
         return Err(HostEventInvalid { issues });
     }
     Ok(candidate)
@@ -291,33 +429,58 @@ mod tests {
     #[test]
     fn passes_through_already_canonical_event_type() {
         let raw = json!({"eventType": "pre-effect", "workspace": "/repo"});
-        let out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "x".to_string()).unwrap();
+        let out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
         assert_eq!(out["eventType"], "pre-effect");
     }
 
     #[test]
     fn rejects_unknown_event_type() {
         let raw = json!({"eventType": "NotARealEvent", "workspace": "/repo"});
-        let err = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "x".to_string()).unwrap_err();
-        assert!(err.issues.contains(&"eventType".to_string()));
+        let err = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap_err();
+        assert!(err.issues.iter().any(|s| s.contains("eventType")), "{:?}", err.issues);
     }
 
     #[test]
     fn rejects_empty_workspace() {
         let raw = json!({"eventType": "pre-effect", "workspace": ""});
-        let err = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "x".to_string()).unwrap_err();
-        assert!(err.issues.contains(&"workspace".to_string()));
+        let err = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap_err();
+        assert!(err.issues.iter().any(|s| s.contains("workspace")), "{:?}", err.issues);
     }
 
     #[test]
     fn extensions_carried_only_when_present() {
         let raw = json!({"eventType": "Stop", "workspace": "/repo"});
-        let out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "x".to_string()).unwrap();
+        let out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
         assert!(out.get("extensions").is_none());
 
         let raw2 = json!({"eventType": "Stop", "workspace": "/repo", "extensions": {"a": 1}});
-        let out2 = normalize_host_event(&raw2, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "x".to_string()).unwrap();
+        let out2 = normalize_host_event(&raw2, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
         assert_eq!(out2["extensions"], json!({"a": 1}));
+    }
+
+    #[test]
+    fn validate_host_event_rejects_non_object() {
+        let (valid, issues) = validate_host_event(&Json::Null);
+        assert!(!valid);
+        assert_eq!(issues, vec!["$:type".to_string()]);
+    }
+
+    #[test]
+    fn validate_host_event_accepts_normalized_candidate() {
+        let raw = json!({"eventType": "Stop", "workspace": "/repo"});
+        let out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+        let (valid, issues) = validate_host_event(&out);
+        assert!(valid, "{:?}", issues);
+    }
+
+    #[test]
+    fn validate_host_event_rejects_unknown_field() {
+        let raw = json!({"eventType": "Stop", "workspace": "/repo"});
+        let mut out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+        out["notAField"] = json!(true);
+        let (valid, issues) = validate_host_event(&out);
+        assert!(!valid);
+        assert!(issues.iter().any(|s| s.contains("notAField")), "{:?}", issues);
     }
 
     #[test]

@@ -1075,10 +1075,10 @@ fn parse_border_shorthand_side(text: &str) -> Option<BorderOverride> {
 /// AST rather than a live jsdom CSSOM. Returns, per matched element, the
 /// per-side `{width, color}` overrides recovered from any `border*`
 /// declaration whose value contains `var(...)`.
-pub fn build_border_override_map(
-    html: &scraper::Html,
+pub fn build_border_override_map<'a>(
+    html: &'a scraper::Html,
     css_text: &str,
-) -> Vec<(scraper::ElementRef<'_>, HashMap<String, BorderOverride>)> {
+) -> Vec<(scraper::ElementRef<'a>, HashMap<String, BorderOverride>)> {
     let rules = collect_static_css_rules(css_text);
 
     let mut root_props: HashMap<String, String> = HashMap::new();
@@ -1093,7 +1093,7 @@ pub fn build_border_override_map(
         }
     }
 
-    let mut results: Vec<(scraper::ElementRef<'_>, HashMap<String, BorderOverride>)> = Vec::new();
+    let mut results: Vec<(scraper::ElementRef<'a>, HashMap<String, BorderOverride>)> = Vec::new();
 
     for rule in &rules {
         let mut per_side: HashMap<String, BorderOverride> = HashMap::new();

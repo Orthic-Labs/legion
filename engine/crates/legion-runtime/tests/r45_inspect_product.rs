@@ -7,6 +7,7 @@
 
 use legion_runtime::wf_port::r45::inspect_product::{inspect_product_from_projection, InspectProductOptions};
 use serde_json::json;
+use std::path::Path;
 
 #[test]
 fn inspect_product_from_projection_assembles_a_full_inspection_with_zero_packs() {
@@ -27,7 +28,8 @@ fn inspect_product_from_projection_assembles_a_full_inspection_with_zero_packs()
         material_deliverables: vec![],
         binding: &binding,
         release_contract: &json!({}),
-        packs: vec![],
+        packs: Some(vec![]),
+        repo_root: Path::new("."),
         host: &host,
         now_ms: Some(1_000),
     })
@@ -62,7 +64,8 @@ fn inspect_product_from_projection_reuses_an_already_merged_release_contract() {
         material_deliverables: vec![],
         binding: &binding,
         release_contract: &release_contract,
-        packs: vec![],
+        packs: Some(vec![]),
+        repo_root: Path::new("."),
         host: &host,
         now_ms: None,
     })

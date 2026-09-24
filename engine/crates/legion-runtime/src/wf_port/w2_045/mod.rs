@@ -23,21 +23,30 @@
 //! Python functions' own edge cases (dot-segments, glob tokens, Windows
 //! drive letters, case-folding on `nt`, temp-directory detection).
 //!
-//! The remaining ~90% of `validate-dispatch.py` — the ordered-heading walk,
-//! the ~90-entry required-label table, the per-`### Step N` label/route/
-//! dependency-DAG validator, the Markdown table extractors, the five-way
-//! `authority_packet_errors` packet-type dispatcher (digest binding, git
-//! revision resolution via `git rev-parse`, dispatch-wave/worker
-//! OWN/READ/FORBIDDEN collision matrix, executor-requirement escalation
-//! policy), the `BYPASS_PATTERNS`/`SECRET_PATTERNS` regex banks, the
-//! `managed_rust_route_errors` RightKit scanner, and the receipt
-//! write/verify CLI in `validate-dispatch.py`, plus the whole of
-//! `validate-tasklist.py`'s subprocess-wrapper CLI — is **NOT-STARTED**.
-//! Those pieces are much larger than the primitives here, several depend on
-//! `git` subprocess invocation and filesystem I/O (digest binding, receipt
-//! read/write) rather than pure functions, and porting them faithfully
+//! Two pieces originally listed here as NOT-STARTED are now ported
+//! elsewhere: the five-way `authority_packet_errors` packet-type dispatcher
+//! (digest binding, git revision resolution via `git rev-parse`,
+//! dispatch-wave/worker OWN/READ/FORBIDDEN collision matrix,
+//! executor-requirement escalation policy) is ported in full in
+//! `wf_port::w2_044::authority_packet` (packet r46 closed its
+//! `direct`/`worker` gap, reusing this module's `direct_scope_path`/
+//! `direct_file_allowlist_path`/`scopes_overlap`); `managed_rust_route_errors`
+//! is ported in full in `wf_port::r46`. `validate-tasklist.py`'s
+//! subprocess-wrapper CLI is ported in full in
+//! `wf_port::w2_044::tasklist::run_cli` (packet r47).
+//!
+//! The remaining ~majority of `validate-dispatch.py` — the ordered-heading
+//! walk, the ~90-entry required-label table, the per-`### Step N`
+//! label/route/dependency-DAG validator, the Markdown table extractors, the
+//! `BYPASS_PATTERNS`/`SECRET_PATTERNS` regex banks, and the receipt
+//! write/verify CLI (`storage_errors`, `step_errors`, `table_errors`,
+//! `goal_route_errors`, `status_errors`, `execution_identity_errors`,
+//! `execution_control_errors`, `decision_scope_errors`,
+//! `authority_correction_errors`, `topology_errors`, `validate()`, `main()`
+//! — validate-dispatch.py lines ~933-3475) is **NOT-STARTED**. Those pieces
+//! are much larger than the primitives here and porting them faithfully
 //! (including the ~90-row label table and the GoalRoute DAG cross-check)
-//! did not fit this chunk's budget. See the chunk report for the exact
-//! function inventory and suggested follow-up split.
+//! did not fit packet r46's pass either. See the packet r46 report for the
+//! exact function inventory and suggested follow-up split.
 
 pub mod path_utils;

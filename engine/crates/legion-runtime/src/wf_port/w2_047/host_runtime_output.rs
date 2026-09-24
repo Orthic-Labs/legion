@@ -1,18 +1,27 @@
 //! Faithful port of `src/lib/host/arcane/host-runtime-output.mjs`.
 //!
 //! JS builds `renderHostRuntimeOutput` on `decision-envelope.mjs`'s
-//! `createDecisionEnvelope`/`publicReason`. This chunk does not own that
-//! module (see `wf_port::w2_047` module docs), so the envelope is taken as
-//! an injected closure (`envelope_of`) rather than a hard dependency on the
-//! in-flight, not-yet-wired `w2_046::decision_envelope` port. An integrator
-//! wiring both chunks should pass a closure built from
-//! `w2_046::decision_envelope::{create_decision_envelope, public_reason}`
-//! for byte-identical behavior; this port reproduces exactly the part JS's
-//! `renderHostRuntimeOutput` itself owns — which of the three output shapes
-//! (`PreToolUse`/`Stop`/other) is produced, and the `serializeHostRuntimeOutput`
-//! trailing-newline/empty-string behavior.
+//! `createDecisionEnvelope`/`publicReason`, and asserts the result against
+//! the `arcane-host-runtime-output-v1` schema via `RuntimeSchemaSet` before
+//! returning it. Both dependencies now have Rust ports this crate can
+//! reach: `w2_046::decision_envelope` (wired into `wf_port` in this same
+//! crate) and `legion_policy::wf_port::wf068::RuntimeSchemaSet` (this
+//! crate already depends on `legion-policy`). `render_host_runtime_output`
+//! below keeps the low-level, dependency-free shape logic (which of the
+//! three output shapes — `PreToolUse`/`Stop`/other — is produced) behind an
+//! injected `envelope_of` closure, since that is exactly the part JS's
+//! `renderHostRuntimeOutput` itself owns irrespective of how the envelope
+//! was built. `render_host_runtime_output_checked` / `serialize_host_runtime_output_checked`
+//! are the fully-wired entry points: they build the envelope with
+//! `create_decision_envelope`, run the real schema assertion, and are the
+//! faithful equivalent of calling the JS functions directly.
 
+use legion_policy::wf_port::wf068::{ArcaneError as SchemaError, RuntimeSchemaSet};
 use serde_json::{json, Value as Json};
+
+use crate::wf_port::w2_046::decision_envelope::{
+    create_decision_envelope, DecisionEnvelope as RealDecisionEnvelope, DecisionEnvelopeInput,
+};
 
 /// The subset of a decision envelope `renderHostRuntimeOutput` actually
 /// reads. Mirrors `createDecisionEnvelope(...)`'s returned shape as consumed
@@ -108,6 +117,99 @@ pub fn serialize_host_runtime_output(output: Option<&Json>) -> String {
     }
 }
 
+/// `$id` of the schema JS's `schema.assert('arcane-host-runtime-output-v1', output)`
+/// checks against (`schemas/arcane/host-runtime-output-v1.schema.json`).
+pub const HOST_RUNTIME_OUTPUT_SCHEMA_ID: &str = "arcane-host-runtime-output-v1";
+
+fn envelope_to_json(envelope: &RealDecisionEnvelope) -> DecisionEnvelope {
+    DecisionEnvelope {
+        code: envelope.code.clone(),
+        public_reason: envelope.public_reason.clone(),
+        enforcement_health: envelope.enforcement_health.clone(),
+        retry_signature: envelope.retry_signature.clone().map(Json::from).unwrap_or(Json::Null),
+        termination: Json::from(envelope.termination),
+        certification: Json::from(envelope.certification.clone()),
+        missing_classes: Json::from(envelope.missing_classes.clone()),
+        responsible_producer: envelope.responsible_producer.clone().map(Json::from).unwrap_or(Json::Null),
+        remediation_routes: Json::from(envelope.remediation_routes.clone()),
+        missing_evidence: Json::from(
+            envelope
+                .missing_evidence
+                .iter()
+                .map(|e| {
+                    json!({
+                        "missingClass": e.missing_class,
+                        "responsibleProducer": e.responsible_producer,
+                        "remediationRoutes": e.remediation_routes,
+                    })
+                })
+                .collect::<Vec<_>>(),
+        ),
+    }
+}
+
+/// Error surface for the fully-wired entry points: either the envelope
+/// build fails (unknown missing-evidence class — mirrors JS's thrown
+/// `ArcaneError` from `actionableMissingEvidence`), or the rendered output
+/// fails its `arcane-host-runtime-output-v1` schema assertion (mirrors JS's
+/// `schema.assert` throw).
+#[derive(Debug, Clone)]
+pub enum HostRuntimeOutputError {
+    Envelope(String),
+    Schema(SchemaError),
+}
+
+impl std::fmt::Display for HostRuntimeOutputError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Envelope(class) => write!(f, "unknown missing-evidence class: {class}"),
+            Self::Schema(e) => write!(f, "{e}"),
+        }
+    }
+}
+impl std::error::Error for HostRuntimeOutputError {}
+
+/// Fully-wired port of `renderHostRuntimeOutput`: builds the real decision
+/// envelope via `create_decision_envelope`, renders the output shape, and
+/// asserts it against `arcane-host-runtime-output-v1` — the faithful
+/// equivalent of calling the JS function directly (JS renders unconditionally
+/// then asserts before returning).
+pub fn render_host_runtime_output_checked(
+    event_type: &str,
+    envelope_input: DecisionEnvelopeInput,
+    escalate: bool,
+    schema: &RuntimeSchemaSet,
+) -> Result<Option<Json>, HostRuntimeOutputError> {
+    let allowed = envelope_input.allowed;
+    if allowed {
+        // Mirrors JS: `if (allowed) return null;` — envelope is never built,
+        // matching JS never calling createDecisionEnvelope in that branch.
+        return Ok(None);
+    }
+    let real_envelope = create_decision_envelope(envelope_input)
+        .map_err(|e| HostRuntimeOutputError::Envelope(e.0))?;
+    let output = render_host_runtime_output(event_type, false, escalate, || envelope_to_json(&real_envelope));
+    schema
+        .assert(HOST_RUNTIME_OUTPUT_SCHEMA_ID, output.as_ref().unwrap_or(&Json::Null))
+        .map_err(HostRuntimeOutputError::Schema)?;
+    Ok(output)
+}
+
+/// Fully-wired port of `serializeHostRuntimeOutput`: mirrors JS exactly,
+/// including that `null` short-circuits to `""` *before* the schema assert
+/// (`if (output === null) return ''; schema.assert(...)`) — the assert never
+/// runs for the `None` case.
+pub fn serialize_host_runtime_output_checked(
+    output: Option<&Json>,
+    schema: &RuntimeSchemaSet,
+) -> Result<String, SchemaError> {
+    let Some(v) = output else {
+        return Ok(String::new());
+    };
+    schema.assert(HOST_RUNTIME_OUTPUT_SCHEMA_ID, v)?;
+    Ok(serialize_host_runtime_output(output))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -174,5 +276,82 @@ mod tests {
         let out = serialize_host_runtime_output(Some(&v));
         assert!(out.ends_with('\n'));
         assert_eq!(out.trim_end(), r#"{"a":1}"#);
+    }
+
+    // --- fully-wired entry points (real decision envelope + real schema assertion) ---
+
+    fn denied_input(code: &str) -> DecisionEnvelopeInput {
+        DecisionEnvelopeInput { allowed: false, code: Some(code.to_string()), ..Default::default() }
+    }
+
+    #[test]
+    fn checked_allowed_returns_none_without_building_envelope() {
+        let schema = RuntimeSchemaSet::new();
+        let input = DecisionEnvelopeInput { allowed: true, ..Default::default() };
+        let out = render_host_runtime_output_checked("PreToolUse", input, false, &schema).unwrap();
+        assert_eq!(out, None);
+    }
+
+    #[test]
+    fn checked_pre_tool_use_deny_passes_schema() {
+        let schema = RuntimeSchemaSet::new();
+        let out = render_host_runtime_output_checked("PreToolUse", denied_input("ARC_APPROVAL_REQUIRED"), false, &schema)
+            .unwrap()
+            .unwrap();
+        assert_eq!(out["hookSpecificOutput"]["permissionDecision"], "deny");
+        assert_eq!(out["code"], "ARC_APPROVAL_REQUIRED");
+        assert_eq!(out["missingClasses"], json!([]));
+    }
+
+    #[test]
+    fn checked_stop_block_passes_schema() {
+        let schema = RuntimeSchemaSet::new();
+        let out = render_host_runtime_output_checked("Stop", denied_input("ARC_NO_CONTRACT"), false, &schema)
+            .unwrap()
+            .unwrap();
+        assert_eq!(out["decision"], "block");
+        assert_eq!(out["reason"], "ARC_NO_CONTRACT: No sealed execution contract is bound.");
+    }
+
+    #[test]
+    fn checked_other_event_passes_schema() {
+        let schema = RuntimeSchemaSet::new();
+        let out = render_host_runtime_output_checked("SessionStart", denied_input("ARC_HOST_EVENT_INVALID"), false, &schema)
+            .unwrap()
+            .unwrap();
+        assert_eq!(out["hookSpecificOutput"]["hookEventName"], "SessionStart");
+        assert!(out["hookSpecificOutput"]["additionalContext"].as_str().unwrap().starts_with("Arcane: "));
+    }
+
+    #[test]
+    fn checked_unknown_missing_class_is_envelope_error() {
+        let schema = RuntimeSchemaSet::new();
+        let input = DecisionEnvelopeInput {
+            allowed: false,
+            code: Some("ARC_EVIDENCE_INSUFFICIENT".to_string()),
+            detail: crate::wf_port::w2_046::decision_envelope::DecisionEnvelopeDetail {
+                missing_classes: vec!["not-a-real-class".to_string()],
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let err = render_host_runtime_output_checked("PreToolUse", input, false, &schema).unwrap_err();
+        assert!(matches!(err, HostRuntimeOutputError::Envelope(c) if c == "not-a-real-class"));
+    }
+
+    #[test]
+    fn serialize_checked_round_trips_through_schema() {
+        let schema = RuntimeSchemaSet::new();
+        let out = render_host_runtime_output_checked("Stop", denied_input("ARC_NO_CONTRACT"), false, &schema)
+            .unwrap();
+        let text = serialize_host_runtime_output_checked(out.as_ref(), &schema).unwrap();
+        assert!(text.ends_with('\n'));
+        assert_eq!(text.trim_end(), serde_json::to_string(out.as_ref().unwrap()).unwrap());
+    }
+
+    #[test]
+    fn serialize_checked_none_is_empty_and_schema_accepts_null() {
+        let schema = RuntimeSchemaSet::new();
+        assert_eq!(serialize_host_runtime_output_checked(None, &schema).unwrap(), "");
     }
 }

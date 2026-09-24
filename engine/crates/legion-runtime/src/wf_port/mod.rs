@@ -71,3 +71,6 @@ pub mod r14;
 pub mod r18;
 pub mod r37;
 pub mod r45;
+pub mod r46;
+pub mod r51;
+pub mod r53;

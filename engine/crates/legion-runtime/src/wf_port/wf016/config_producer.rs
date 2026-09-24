@@ -48,12 +48,13 @@ pub fn render_config_preview(text: &str, edits: &[Edit]) -> Result<String, serde
     }
     let mut document: Value = serde_json::from_str(text)?;
     for edit in edits {
-        let key_path: Vec<&str> = edit.key_path.iter().map(String::as_str).collect();
+        let Edit::Config { key_path, value, .. } = edit else { continue };
+        let key_path: Vec<&str> = key_path.iter().map(String::as_str).collect();
         let current = get_in(&document, &key_path);
-        if current == Some(&edit.value) {
+        if current == Some(value) {
             continue;
         }
-        document = set_in(&document, &key_path, edit.value.clone());
+        document = set_in(&document, &key_path, value.clone());
     }
     let indent_len = detect_indent(text);
     let indent = " ".repeat(indent_len);
@@ -116,7 +117,7 @@ fn key_set_preview(text: &str, key_path: &[&str], value: &Value) -> PreviewResul
     }
     let previous = get_in(&document, key_path).cloned().unwrap_or(Value::Null);
     PreviewResult {
-        edits: vec![Edit { key_path: key_path.iter().map(|s| s.to_string()).collect(), value: value.clone(), previous }],
+        edits: vec![Edit::Config { key_path: key_path.iter().map(|s| s.to_string()).collect(), value: value.clone(), previous }],
         public_surface_changes: vec![],
         unsupported: None,
     }
@@ -173,9 +174,10 @@ mod tests {
         let producer = producers.iter().find(|p| p.id == "config.cookie-samesite").unwrap();
         let preview = (producer.preview)("{\n  \"cookie\": {}\n}", &json!({}));
         assert_eq!(preview.edits.len(), 1);
-        assert_eq!(preview.edits[0].key_path, vec!["cookie", "sameSite"]);
-        assert_eq!(preview.edits[0].value, json!("lax"));
-        assert_eq!(preview.edits[0].previous, Value::Null);
+        let Edit::Config { key_path, value, previous } = &preview.edits[0] else { panic!("expected a config edit") };
+        assert_eq!(key_path, &vec!["cookie".to_string(), "sameSite".to_string()]);
+        assert_eq!(value, &json!("lax"));
+        assert_eq!(previous, &Value::Null);
     }
 
     #[test]
@@ -197,7 +199,7 @@ mod tests {
     #[test]
     fn render_config_preview_sets_key_and_preserves_others() {
         let text = "{\n  \"cookie\": {\n    \"secure\": true\n  }\n}\n";
-        let edits = vec![Edit { key_path: vec!["cookie".to_string(), "sameSite".to_string()], value: json!("lax"), previous: Value::Null }];
+        let edits = vec![Edit::Config { key_path: vec!["cookie".to_string(), "sameSite".to_string()], value: json!("lax"), previous: Value::Null }];
         let rendered = render_config_preview(text, &edits).unwrap();
         let parsed: Value = serde_json::from_str(&rendered).unwrap();
         assert_eq!(parsed["cookie"]["secure"], json!(true));
@@ -215,7 +217,7 @@ mod tests {
     #[test]
     fn render_config_preview_skips_edit_already_at_target_value() {
         let text = "{\n  \"cookie\": {\n    \"sameSite\": \"lax\"\n  }\n}";
-        let edits = vec![Edit { key_path: vec!["cookie".to_string(), "sameSite".to_string()], value: json!("lax"), previous: json!("lax") }];
+        let edits = vec![Edit::Config { key_path: vec!["cookie".to_string(), "sameSite".to_string()], value: json!("lax"), previous: json!("lax") }];
         let rendered = render_config_preview(text, &edits).unwrap();
         assert_eq!(rendered, text);
     }

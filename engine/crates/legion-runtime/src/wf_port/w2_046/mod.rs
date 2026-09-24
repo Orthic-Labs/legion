@@ -16,3 +16,4 @@ pub mod continuity;
 pub mod decision_envelope;
 pub mod denial_circuit;
 pub mod discipline_controls;
+pub mod receipt_auth;

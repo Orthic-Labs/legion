@@ -709,7 +709,7 @@ impl PreEffectGate {
                 ));
             }
             Err(err) => {
-                return RunChecks::HardFail(gd(false, Some(err.code.as_str()), err.message, serde_json::Value::Null, None));
+                return RunChecks::HardFail(gd(false, Some(&*err.code), err.message, serde_json::Value::Null, None));
             }
             Ok(_) => {}
         }

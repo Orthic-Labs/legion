@@ -1,21 +1,23 @@
 //! Port of `src/lib/dispatch-validator/{enforce_cheap_review_routing.py,
 //! validate-dispatch.py (partial),validate-tasklist.py (partial)}` (chunk
-//! w2_044).
+//! w2_044, extended by packet r46).
 //!
 //! `validate-dispatch.py` is a 3475-line fail-closed structural validator
 //! for zero-context agent dispatches. Its `authority_packet_errors` entry
-//! point (and the path/digest helpers it depends on) is ported in
-//! [`authority_packet`] and [`paths`]/[`digest`] **for every packet shape
-//! except `packetType == "direct"` and `packetType == "worker"`** — those
-//! two branches are several hundred additional lines each of dispatch-wave,
-//! lane, worker-allowlist and executor-requirement structural checks
-//! (`validate-dispatch.py` lines ~322-860) that this chunk's budget could
-//! not reach without leaving other files unported or non-compiling. They
-//! are intentionally **not ported here** (calling
-//! [`authority_packet::authority_packet_errors`] on a `direct` or `worker`
-//! packet returns only the base/routing/digest errors, not the
-//! packet-type-specific ones the Python validator also raises) and are
-//! listed as follow-up work below.
+//! point (and the path/digest helpers it depends on) is ported **in full,
+//! for every `packetType`** (`direct`, `sage`, `oracle`/`seer`,
+//! `alchemist`, `worker`) in [`authority_packet`] and [`paths`]/[`digest`].
+//! Packet r46 closed the `direct`/`worker` gap this doc previously
+//! described as unported: dispatch-wave/lane validation, worker
+//! OWN/READ/FORBIDDEN scope and collision checks,
+//! `executorRequirement`/escalation policy validation, the Oracle
+//! pre-execution audit contract, the `worker` packet capsule/projection
+//! checks, and — previously entirely un-ported and un-noted — the `sage`/
+//! `oracle`/`seer`/`alchemist` branches are now all implemented in
+//! [`authority_packet::direct_packet_errors`] and
+//! [`authority_packet::authority_packet_errors`]'s `packet_type` match.
+//! Packet r46 also separately ported `managed_rust_route_errors()` in full,
+//! under `wf_port::r46`.
 //!
 //! `enforce_cheap_review_routing.py` is ported in full in [`routing`]: the
 //! `TIERS`/`PROFILES` sets and the `routing_errors` tier/profile/
@@ -50,23 +52,24 @@
 //! exercises (pass + receipt written; missing-field failure), which land
 //! entirely inside the ported `authority_packet_errors` surface.
 //!
-//! **Not ported in this chunk** (left for follow-up chunks against the same
-//! source files):
-//!   - `validate-dispatch.py` `packetType == "direct"` structural checks
-//!     (objective/integrationOwner/authority/fileTouchPolicy/dispatches/
-//!     workers/executorRequirement/oracleAudit/recovery), lines ~322-860.
-//!   - `validate-dispatch.py` `packetType == "worker"` checks and
-//!     `managed_rust_route_errors` (line 860+).
-//!   - `validate-dispatch.py` Markdown dispatch-document validation:
-//!     `storage_errors`, `step_errors`, `table_errors`, `goal_route_errors`,
-//!     `status_errors`, `execution_identity_errors`,
-//!     `execution_control_errors`, `decision_scope_errors`,
-//!     `authority_correction_errors`, `topology_errors`, and the `validate()`
-//!     CLI entry point that dispatches between packet/Markdown modes and
-//!     writes/verifies receipts for the full contract (lines ~933-3475).
+//! **Not ported** (left for follow-up work against the same source file;
+//! see packet r46's report for the exact function inventory):
+//!   - `validate-dispatch.py`'s Markdown dispatch-document validation
+//!     surface: `storage_errors`, `ordered_heading_errors`, the
+//!     ~90-entry `REQUIRED_LABELS`/`STEP_LABELS` table walk, `step_errors`,
+//!     `table_errors`, `goal_route_errors`, `status_errors`,
+//!     `execution_identity_errors`, `execution_control_errors`,
+//!     `decision_scope_errors`, `authority_correction_errors`,
+//!     `topology_errors`, and the `validate()`/`main()` CLI entry point
+//!     that dispatches between packet/Markdown modes and writes/verifies
+//!     receipts for the full contract (lines ~933-3475). This is roughly
+//!     2,500 of the file's 3,475 lines and did not fit packet r46's pass.
 //!   - `test_validate_dispatch.py` (1883 lines) and
-//!     `test_direct_dispatch_waves.py`, which assert the above unported
-//!     surfaces.
+//!     `test_direct_dispatch_waves.py`'s assertions against the above
+//!     unported surface (the direct-dispatch-wave assertions that exercise
+//!     `authority_packet_errors` are now covered by
+//!     `authority_packet::tests::direct_packet_minimal_valid_shape_is_clean`
+//!     and `direct_packet_reports_own_collision`).
 
 pub mod authority_packet;
 pub mod digest;

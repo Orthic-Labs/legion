@@ -46,9 +46,13 @@ use crate::l3_inventory::{
     product_context::build_product_context, product_targets::{build_portfolio, discover_targets},
     release_contract::merge_release_contract, stacks::build_stack_graph,
 };
+use crate::p5_core::controls_support;
+use crate::wf_port::w2_038::registry::load_control_packs;
+use crate::wf_port::w2_038::scenarios::compile_scenarios;
 use crate::wf_port::w2_039::binding::digest;
-use crate::wf_port::w2_041::control_baseline::compile_baseline_and_impacts_json;
+use crate::wf_port::w2_041::control_baseline::{compile_baseline_and_impacts_json, cv_to_json, json_to_cv};
 use serde_json::{json, Map, Value};
+use std::path::Path;
 
 fn as_str(value: &Value) -> Option<&str> {
     value.as_str()
@@ -225,13 +229,7 @@ pub fn inspect_product(inputs: InspectProductInputs<'_>) -> Value {
 }
 
 /// Raw inputs to [`inspect_product_from_projection`], mirroring
-/// `inspectProduct(options, host)`'s `options` fields. `packs` and
-/// `scenarios` are still caller-supplied (see the module doc comment): this
-/// crate has no native port of `loadControlPacks` (reads the control-pack
-/// registry off disk) or `compileScenarios`
-/// (`controls/scenarios/compile.mjs`'s full composition function — only the
-/// narrower `pairwise` helper it uses is ported, at
-/// `p5_core::controls_scenarios`).
+/// `inspectProduct(options, host)`'s `options` fields.
 pub struct InspectProductOptions<'a> {
     pub projection: &'a Value,
     pub declarations: Vec<Value>,
@@ -244,7 +242,14 @@ pub struct InspectProductOptions<'a> {
     /// `releaseContract.kind === 'legion-release-contract'` in JS) or the
     /// raw `{observed, declared, policy, externalEvidence}` shape to merge.
     pub release_contract: &'a Value,
-    pub packs: Vec<Value>,
+    /// `options.packs`. `None` mirrors the JS default `options.packs ??
+    /// await loadControlPacks(ROOT)`: packs are loaded from `repo_root`
+    /// (the directory containing `registry/controls/packs/index.json`,
+    /// i.e. the JS `ROOT` = `fileURLToPath(new URL('../..',
+    /// import.meta.url))` two levels up from `src/lib/core`) via
+    /// `w2_038::registry::load_control_packs`.
+    pub packs: Option<Vec<Value>>,
+    pub repo_root: &'a Path,
     pub host: &'a Value,
     pub now_ms: Option<i64>,
 }
@@ -260,8 +265,8 @@ pub struct InspectProductOptions<'a> {
 /// `w2_041::control_baseline::compile_baseline_and_impacts_json` (itself
 /// `w2_038::baseline::compile_baseline` +
 /// `p5_core::controls_evidence::{evidence_capabilities,
-/// capability_impacts}`). `packs` and `scenarios` remain caller-supplied
-/// (see [`InspectProductOptions`]).
+/// capability_impacts}`), `w2_038::registry::load_control_packs`, and
+/// `w2_038::scenarios::compile_scenarios`.
 pub fn inspect_product_from_projection(options: InspectProductOptions<'_>) -> Result<Value, String> {
     let candidates = discover_targets(options.projection, options.binding);
     let portfolio_raw = build_portfolio(
@@ -297,9 +302,14 @@ pub fn inspect_product_from_projection(options: InspectProductOptions<'_>) -> Re
     let product_context = build_product_context(options.projection, &release_contract);
     let journeys = build_journeys(&portfolio, &release_contract, options.projection, options.binding);
 
+    let packs: Vec<Value> = match options.packs {
+        Some(packs) => packs,
+        None => load_control_packs(options.repo_root)?.iter().map(cv_to_json).collect(),
+    };
+
     let stacks_list: Vec<Value> = arr(&stacks, "stacks").to_vec();
     let (baseline, capabilities, claim_impact) = compile_baseline_and_impacts_json(
-        &options.packs,
+        &packs,
         &portfolio,
         &components,
         &stacks_list,
@@ -309,7 +319,52 @@ pub fn inspect_product_from_projection(options: InspectProductOptions<'_>) -> Re
         options.now_ms,
     )?;
 
-    let scenarios = json!({"scenarios": []});
+    // Port of:
+    // ```js
+    // const scenarios = compileScenarios({
+    //   baseline, journeys: journeys.journeys, capabilities, binding,
+    //   dimensions: { environment: releaseContract.environments,
+    //                 role: releaseContract.roles,
+    //                 platform: releaseContract.supportedPlatforms },
+    // });
+    // ```
+    let baseline_cv = json_to_cv(&baseline);
+    let journeys_cv: Vec<controls_support::Value> = arr(&journeys, "journeys").iter().map(json_to_cv).collect();
+    let capabilities_cv: Vec<controls_support::Value> = capabilities
+        .as_array()
+        .into_iter()
+        .flatten()
+        .map(json_to_cv)
+        .collect();
+    let binding_cv = json_to_cv(options.binding);
+    let binding_cv_opt = if matches!(binding_cv, controls_support::Value::Null) {
+        None
+    } else {
+        Some(binding_cv)
+    };
+    let mut dimensions: std::collections::BTreeMap<String, Vec<controls_support::Value>> = std::collections::BTreeMap::new();
+    dimensions.insert(
+        "environment".to_string(),
+        arr(&release_contract, "environments").iter().map(json_to_cv).collect(),
+    );
+    dimensions.insert(
+        "role".to_string(),
+        arr(&release_contract, "roles").iter().map(json_to_cv).collect(),
+    );
+    dimensions.insert(
+        "platform".to_string(),
+        arr(&release_contract, "supportedPlatforms").iter().map(json_to_cv).collect(),
+    );
+    let scenarios_cv = compile_scenarios(
+        &baseline_cv,
+        &journeys_cv,
+        &capabilities_cv,
+        binding_cv_opt.as_ref(),
+        &dimensions,
+        &[],
+        &[],
+    )?;
+    let scenarios = cv_to_json(&scenarios_cv);
 
     Ok(inspect_product(InspectProductInputs {
         portfolio: &portfolio,

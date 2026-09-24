@@ -3,11 +3,15 @@
 //!
 //! ## Scope actually ported here
 //!
-//! - `host_event`: `normalizeHostEvent` and `classifyObservation` from
-//!   `host-event.mjs` — the pure, structural pieces. Both are ported in
-//!   full: no cross-module dependency, and JS's own `HOST_EVENT_SCHEMA`
-//!   validation is reproduced as explicit field checks rather than a JSON
-//!   Schema engine (this chunk owns no schema-validator dependency budget).
+//! - `host_event`: `EVENT_TYPE`, `LEGACY_HOST_EVENT_TYPE`,
+//!   `LIFECYCLE_TELEMETRY_EVENT_TYPES`, `HOST_EVENT_SCHEMA`,
+//!   `HOST_EVENT_BOUND_FIELDS`, `validateHostEvent`, `normalizeHostEvent`,
+//!   and `classifyObservation` from `host-event.mjs` — ported in full,
+//!   including the closed `HOST_EVENT_SCHEMA` validation, which now runs
+//!   through the same generic JSON-Schema-subset engine
+//!   `legion_policy::wf_port::wf068::validate_schema` already ports from
+//!   `qualification/schema-validator.mjs` (this crate depends on
+//!   `legion-policy`), rather than an ad-hoc subset of field checks.
 //! - `hook_adapter_pure`: `isDestructiveCommand`, `classifyVcsPush`, and
 //!   `vcsRewriteApprovalKey` from `hook-adapter-core.mjs` — the three
 //!   self-contained regex/string decision functions. These are ported in
@@ -16,19 +20,19 @@
 //!   — the durable delivery queue. Fully self-contained (file-based JSON
 //!   state, no signing), ported in full.
 //! - `host_runtime_output`: `renderHostRuntimeOutput` /
-//!   `serializeHostRuntimeOutput` from `host-runtime-output.mjs`. JS builds
-//!   on `decision-envelope.mjs`'s `createDecisionEnvelope`/`publicReason`,
-//!   which another in-flight chunk (`wf_port::w2_046::decision_envelope`)
-//!   already ports but which is not yet wired into `wf_port` (no `pub mod
-//!   w2_046;` in `wf_port/mod.rs` as of this chunk). To stay compilable
-//!   regardless of that module's wiring order, this port takes the envelope
-//!   as an injected closure (`EnvelopeFn`) rather than a hard `use` of
-//!   `w2_046`. Once `w2_046` is wired, callers should pass
-//!   `w2_046::decision_envelope::create_decision_envelope` (adapted to the
-//!   `EnvelopeFn` shape) for byte-identical behavior; the unit tests here
-//!   instead use a small local stand-in envelope to exercise the shape
-//!   `render_host_runtime_output` itself is responsible for (which hook
-//!   event name maps to which JSON shape).
+//!   `serializeHostRuntimeOutput` from `host-runtime-output.mjs`, ported in
+//!   full including both JS dependencies: `decision-envelope.mjs`'s
+//!   `createDecisionEnvelope`/`publicReason` (`w2_046::decision_envelope`,
+//!   wired into `wf_port` in this crate) and the
+//!   `arcane-host-runtime-output-v1` schema assertion
+//!   (`legion_policy::wf_port::wf068::RuntimeSchemaSet`, embedding the same
+//!   schema JSON the JS `RuntimeSchemaSet` loads). `render_host_runtime_output`
+//!   / `serialize_host_runtime_output` keep the low-level, dependency-free
+//!   shape logic behind an injected envelope closure (useful for testing the
+//!   shape mapping in isolation); `render_host_runtime_output_checked` /
+//!   `serialize_host_runtime_output_checked` are the fully-wired entry
+//!   points and are the faithful equivalent of calling the JS functions
+//!   directly.
 //!
 //! ## Not ported in this chunk (documented gap, not silently dropped)
 //!

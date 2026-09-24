@@ -30,3 +30,6 @@ pub mod completion;
 pub mod event_validation;
 pub mod live_cli;
 pub mod wrap;
+pub mod wrap_cli;
+
+pub use wrap_cli::wrap_cli;

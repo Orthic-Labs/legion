@@ -38,7 +38,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use serde_json::{json, Value};
 
 use crate::p5_core::core_scheduler::{
-    schedule_providers, ScheduleMode, ScheduleOptions, SchedulerError, SchedulerProvider,
+    schedule_providers, ScheduleMode, ScheduleOptions, SchedulerProvider,
 };
 use crate::wf_port::w2_040::execution_receipt::{
     blocked as receipt_blocked, execution_receipt, BlockedSpec, ExecutionReceiptInput,
@@ -82,7 +82,9 @@ pub fn normalize_provider_result(provider_id: &str, family: &str, result: &Value
         .unwrap_or("");
     let is_sha256 = existing_digest.starts_with("sha256:")
         && existing_digest.len() == 71
-        && existing_digest[7..].bytes().all(|b| b.is_ascii_hexdigit());
+        && existing_digest[7..]
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
     let denominator_digest = if is_sha256 {
         json!(existing_digest)
     } else {
@@ -364,7 +366,7 @@ impl AdmissionSet {
 }
 
 /// Result of `executePlan`.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ExecutePlanResult {
     pub receipts: Vec<Value>,
     pub run_ledger_snapshot: super::run_ledger::Snapshot,
@@ -406,10 +408,11 @@ pub fn execute_plan(
             resources: plan.resource_ceilings.clone(),
         },
     );
-    let waves: Vec<Vec<String>> = match schedule {
-        Ok(result) => result.waves,
-        Err(SchedulerError::Cycle) | Err(SchedulerError::NoProgress) | Err(_) => Vec::new(),
-    };
+    // Mirrors JS: `scheduleProviders` throwing (unknown dependency, cycle,
+    // duplicate ID, no-progress — all hard errors in `resources == null`
+    // mode, which this port always uses) means `executePlan` never starts
+    // any wave.
+    let waves: Vec<Vec<String>> = schedule.map(|result| result.waves).unwrap_or_default();
 
     let mut receipts = Vec::new();
     let mut terminal: HashMap<String, Value> = HashMap::new();
@@ -444,29 +447,28 @@ pub fn execute_plan(
                 continue;
             }
 
-            if admission.admit(&id).is_err() {
-                let receipt = receipt_blocked(
-                    Some(&BlockedSpec {
-                        provider: Some(id.clone()),
-                        binding: plan.binding.clone(),
-                        denominator_digest,
-                        ..Default::default()
-                    }),
-                    "provider-execution-error:runtime is not accepting work",
-                );
-                receipts.push(receipt.clone());
-                terminal.insert(id.clone(), receipt);
-                continue;
-            }
-
-            let reserve_result = ledger.reserve(Reservation {
-                steps: 1.0,
-                calls: 1.0,
-                spend_micros: provider.reserved_spend_micros,
-            });
-            let outcome = reserve_result
-                .map_err(|e| e.to_string())
-                .and_then(|_| executor.execute(provider, plan).map_err(|e| e));
+            // Mirrors the JS try/catch: `admission.admit(id)`,
+            // `ledger.reserve(...)` and `executePlannedProvider(...)` are
+            // all inside the same `try`, so a failure at any of the three
+            // steps takes the same `catch` path (blocked receipt +
+            // `host.replan`) below. `admitted` tracks whether `release =
+            // admission.admit(id)` actually ran, mirroring JS's `release?.()`
+            // in `finally` being a safe no-op when `admit` itself threw.
+            let mut admitted = false;
+            let outcome: Result<ProviderOutcome, String> = admission
+                .admit(&id)
+                .map_err(|_| "runtime is not accepting work".to_string())
+                .and_then(|_| {
+                    admitted = true;
+                    ledger
+                        .reserve(Reservation {
+                            steps: 1.0,
+                            calls: 1.0,
+                            spend_micros: provider.reserved_spend_micros,
+                        })
+                        .map_err(|e| e.to_string())
+                })
+                .and_then(|_| executor.execute(provider, plan));
 
             match outcome {
                 Ok(outcome) => {
@@ -506,7 +508,9 @@ pub fn execute_plan(
                     }
                 }
             }
-            admission.release(&id);
+            if admitted {
+                admission.release(&id);
+            }
         }
     }
 

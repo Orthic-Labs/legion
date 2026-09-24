@@ -12,32 +12,24 @@
 //! - `applyDenialCircuit`'s merge/decision logic, generalized over a
 //!   `DenialRecorder` trait so it can be tested without a real store.
 //!
-//! ## What is NOT ported (left `NOT-STARTED`, out of this chunk's owned
-//! files)
+//! ## Packet r50: the `DenialCircuit` class
 //! The JS `DenialCircuit` class persists HMAC-authenticated receipts to disk
 //! (`node:fs`, `node:crypto`) using the shared `signRecord`/`verifyRecord`
-//! machinery from `src/lib/guard/compat/audit/receipt-auth.mjs`, which is
-//! not part of this chunk (`codex-escalation.mjs`, `continuity.mjs`,
-//! `decision-envelope.mjs`, `denial-circuit.mjs`,
-//! `discipline-controls.mjs`). Porting a byte-faithful equivalent needs:
-//!   - `receipt-auth.mjs`'s `signRecord`/`verifyRecord` (HMAC-SHA256 over a
-//!     bound-field projection, keyed by a `keyRing`/`keyId`) — not yet
-//!     ported to Rust anywhere reachable from `legion-runtime`.
-//!   - an `hmac` crate dependency: `legion-runtime/Cargo.toml` currently
-//!     depends on `sha2` but not `hmac`. **Cargo.toml patch needed** (see
-//!     this chunk's report) to add:
-//!     ```toml
-//!     hmac = { workspace = true }
-//!     ```
-//!     (`hmac 0.13.0` is already in `engine/Cargo.lock` as a transitive
-//!     dependency, so pinning it in the workspace `[workspace.dependencies]`
-//!     and this crate's `[dependencies]` should resolve without a version
-//!     bump elsewhere.)
-//! A `DenialRecorder` implementation backed by that machinery can then
-//! satisfy the trait below without touching `apply_denial_circuit`.
+//! machinery from `src/lib/guard/compat/audit/receipt-auth.mjs`. That
+//! machinery is now ported in `super::receipt_auth` (also added in packet
+//! r50), and [`FileDenialCircuit`] below is the byte-faithful `DenialRecorder`
+//! built on it: same `recordPath` scheme (sha256 hex of the canonical scope,
+//! no `sha256:` prefix, matching `createHash('sha256')` directly rather than
+//! `digestValue`), same `DENIAL_CIRCUIT_BOUND_FIELDS`/`DOMAIN`, same
+//! read-verify-count-sign-write(tmp+rename) sequence, same error taxonomy
+//! (`ARC_AUTH_KEY_UNAVAILABLE`, `ARC_STORE_CORRUPT`, and any
+//! `verify_record` denial code, non-fatal parse of a corrupt prior record
+//! folded into `ARC_STORE_CORRUPT` exactly as the JS `catch` block does).
 
-use super::canonical::digest_value;
+use super::canonical::{canonical_json, digest_value, sha256_hex};
+use super::receipt_auth::{sign_record, verify_record, KeyRing};
 use serde_json::{json, Value};
+use std::path::{Path, PathBuf};
 
 /// Port of `denialControlClass`.
 #[derive(Debug, Clone, Default)]

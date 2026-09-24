@@ -222,7 +222,7 @@ pub fn build_judgment_packet(
 
 /// Mirrors the object `reviewerPolicy(...)` returns from
 /// `src/lib/core/reviewer-policy.mjs`.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ReviewerPolicy {
     pub producer: Value,
     pub reviewer: Value,

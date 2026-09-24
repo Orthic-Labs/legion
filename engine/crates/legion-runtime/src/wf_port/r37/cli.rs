@@ -182,16 +182,13 @@ pub fn run(argv: &[String], timestamp: &str) -> i32 {
         }
     };
 
-    let mut chrome_renderer;
-    let renderer: Option<&mut dyn PdfRenderer> = if matches!(
+    let wants_pdf = matches!(
         args.format,
         OutputFormat::Pdf | OutputFormat::Both | OutputFormat::All
-    ) {
+    );
+    let mut chrome_renderer: Option<ChromePdfRenderer> = if wants_pdf {
         match ChromePdfRenderer::launch() {
-            Ok(r) => {
-                chrome_renderer = r;
-                Some(&mut chrome_renderer as &mut dyn PdfRenderer)
-            }
+            Ok(r) => Some(r),
             Err(e) => {
                 eprintln!("Error: PDF generation failed: {e}");
                 None
@@ -200,6 +197,9 @@ pub fn run(argv: &[String], timestamp: &str) -> i32 {
     } else {
         None
     };
+    let renderer: Option<&mut dyn PdfRenderer> = chrome_renderer
+        .as_mut()
+        .map(|r| r as &mut dyn PdfRenderer);
 
     let (result, lines) = run_with_data(&args, &data, timestamp, renderer);
     if let Some(err) = &result.error {

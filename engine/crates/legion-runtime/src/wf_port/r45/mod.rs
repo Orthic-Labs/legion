@@ -26,34 +26,36 @@
 //! `w2_039::binding::digest`), the four-source gap union, the
 //! `reportSkeleton` id-list assembly, and the final
 //! `{schemaVersion, kind: "legion-product-inspection", ...}` envelope.
+//! [`inspect_product::inspect_product_from_projection`] wires that assembly
+//! to every real dependency `inspectProduct` composes — initial `git grep`
+//! for JS-cased symbol names (`buildPortfolio`, `extractComponents`, etc.)
+//! missed that these already exist under Rust-cased names in a *different*
+//! module tree than `wf_port`:
 //!
-//! What `inspect_product` takes as **caller-supplied JSON inputs** rather
-//! than computing itself: `discoverTargets` (candidates), `buildPortfolio`,
-//! `extractComponents`, `buildStackGraph`, `discoverExternalSystems`,
-//! `mergeReleaseContract`, `buildProductContext`, `buildJourneys`,
-//! `loadControlPacks`, `compileBaseline`, `evidenceCapabilities`,
-//! `capabilityImpacts`, `compileScenarios`. None of
-//! `src/lib/inventory/{product-targets,components,stacks,external-systems,
-//! journeys,release-contract,product-context}/**` has any Rust port in this
-//! repository (confirmed by `git grep` across `engine/crates/*/src/wf_port`
-//! turning up no `buildPortfolio`/`extractComponents`/`buildStackGraph`/
-//! `discoverExternalSystems`/`buildJourneys`/`mergeReleaseContract`/
-//! `buildProductContext` symbols — only incidental substring matches in
-//! unrelated audit chunks). Those are large, independent subsystems
-//! entirely outside this packet's three-file scope (`inspect-product.mjs`,
-//! `plan-stages/control-baseline.mjs`, `plan-stages/registry.mjs`); porting
-//! them is the exact missing capability that keeps this file
-//! PORTED-PARTIAL rather than PORTED. `compileScenarios`
-//! (`controls/scenarios/compile.mjs`) is likewise not ported (only
-//! `w2_038::scenarios`'s narrower `pairwise`/registry helpers exist, not the
-//! full composition function `inspectProduct` calls). `compileBaseline` and
-//! `evidenceCapabilities`/`capabilityImpacts`, by contrast, now have real
-//! native ports (`w2_038::baseline::compile_baseline`,
-//! `p5_core::controls_evidence::{evidence_capabilities, capability_impacts}`)
-//! after this packet's `control_baseline_stage_live` work above; a future
-//! packet can wire `inspect_product`'s `baseline`/`capabilities`/
-//! `claim_impact` parameters to those directly instead of taking them as
-//! opaque JSON, the same way `control_baseline_stage_live` does.
+//! - `l3_inventory::product_targets::{discover_targets, build_portfolio}`
+//! - `l3_inventory::components::extract_components`
+//! - `l3_inventory::stacks::build_stack_graph`
+//! - `l3_inventory::external_systems::discover_external_systems`
+//! - `l3_inventory::release_contract::merge_release_contract`
+//! - `l3_inventory::product_context::build_product_context`
+//! - `l3_inventory::journeys::build_journeys`
+//! - `w2_038::registry::load_control_packs` (packs loaded from
+//!   `repo_root/registry/controls/packs/index.json` when
+//!   `InspectProductOptions.packs` is `None`, matching `options.packs ??
+//!   await loadControlPacks(ROOT)`)
+//! - `w2_038::baseline::compile_baseline` /
+//!   `p5_core::controls_evidence::{evidence_capabilities,
+//!   capability_impacts}` (via this packet's new
+//!   `w2_041::control_baseline::compile_baseline_and_impacts_json`)
+//! - `w2_038::scenarios::compile_scenarios`
+//!
+//! `inspect_product_from_projection` is therefore **PORTED**, not
+//! PORTED-PARTIAL: every dependency `inspectProduct` calls has a real,
+//! wired Rust implementation. The only behavioural difference from the JS
+//! source is unavoidable and not a gap: `loadControlPacks`'s JS `readFile`
+//! is synchronous `std::fs::read_to_string` here (this whole port is
+//! synchronous, matching how every other `wf_port`/`l3_inventory` chunk
+//! already treats `inspectProduct`'s siblings).
 //!
 //! `pub mod r45;` wiring into `legion-runtime`'s `wf_port/mod.rs` (already
 //! `pub mod wf_port;` in `lib.rs`) is applied by the integrator, per this

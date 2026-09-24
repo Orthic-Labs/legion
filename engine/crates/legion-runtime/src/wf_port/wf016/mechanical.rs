@@ -7,31 +7,37 @@
 //! rather than a guess.
 //!
 //! `STRUCTURAL_PRODUCERS` (`src/lib/remediation/producers/structural.mjs`) is
-//! **not** part of this chunk (wf016 owns only `mechanical.mjs`,
-//! `effect-graph.mjs`, `fix-contract.mjs`, `design-proposal.mjs`, and
-//! `producers/config.mjs`) and has no native coverage yet, so
-//! [`all_producers`] below currently contains only [`config_producers`]'s
-//! two producers. Wiring in a real `structural_producers()` list — and
-//! implementing `render_structural_preview` in [`render_preview`], which
-//! today returns `Err` for a `kind == "structural"` producer — is follow-up
-//! work for whoever ports `producers/structural.mjs`.
+//! ported natively at [`crate::wf_port::wf017::structural`] (packet wf017)
+//! and is wired into [`all_producers`]/[`render_preview`] below via a small
+//! per-producer adapter (`structural_adapted_producers`), closing the r55
+//! port-completeness gap this module's doc comment used to flag.
 
 use serde_json::{json, Value};
 
 use super::config_producer::{config_producers, render_config_preview};
 use super::util::digest_of;
 use super::fix_contract::{fix_proposal, FixProposalInput};
+use crate::wf_port::wf017::structural::{
+    find_producer as find_structural_producer, render_structural_preview, ProducerRisk, StructuralEdit, StructuralPreview,
+};
 
+/// The JS source is untyped: a `preview.edits` entry is `{keyPath, value,
+/// previous}` for a config producer or `{line, before, after}` for a
+/// structural one, and `createMechanicalProposal`/`renderPreview` pass the
+/// array through without caring which. This enum mirrors that duality
+/// faithfully while keeping each shape's fields typed.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Edit {
-    pub key_path: Vec<String>,
-    pub value: Value,
-    pub previous: Value,
+pub enum Edit {
+    Config { key_path: Vec<String>, value: Value, previous: Value },
+    Structural { line: usize, before: String, after: String },
 }
 
 impl Edit {
     fn to_json(&self) -> Value {
-        json!({ "keyPath": self.key_path, "value": self.value, "previous": self.previous })
+        match self {
+            Edit::Config { key_path, value, previous } => json!({ "keyPath": key_path, "value": value, "previous": previous }),
+            Edit::Structural { line, before, after } => json!({ "line": line, "before": before, "after": after }),
+        }
     }
 }
 
@@ -60,11 +66,93 @@ pub struct Producer {
     pub preview: fn(text: &str, finding: &Value) -> PreviewResult,
 }
 
+/// Extracts `finding.location.path`, i.e. what `mechanical.mjs`'s caller
+/// (`planMechanicalRemediation`) resolves before ever calling
+/// `producer.preview`. A structural producer's JS `preview({ path, text,
+/// finding })` only reads `path`/`text`, so this is the one piece of
+/// `finding` a structural producer's `fn(text, finding)` adapter needs.
+fn path_from_finding(finding: &Value) -> String {
+    finding.get("location").and_then(|l| l.get("path")).and_then(Value::as_str).unwrap_or_default().to_string()
+}
+
+fn structural_result(preview: StructuralPreview) -> PreviewResult {
+    PreviewResult {
+        edits: preview
+            .edits
+            .into_iter()
+            .map(|e| Edit::Structural { line: e.line, before: e.before, after: e.after })
+            .collect(),
+        public_surface_changes: preview.public_surface_changes,
+        unsupported: None,
+    }
+}
+
+fn preview_structural_tls_reject_unauthorized(text: &str, finding: &Value) -> PreviewResult {
+    let path = path_from_finding(finding);
+    let producer = find_structural_producer("structural.tls-reject-unauthorized").expect("registered in STRUCTURAL_PRODUCERS");
+    structural_result(producer.preview(&path, text))
+}
+
+fn preview_structural_dom_innerhtml_to_textcontent(text: &str, finding: &Value) -> PreviewResult {
+    let path = path_from_finding(finding);
+    let producer = find_structural_producer("structural.dom-innerhtml-to-textcontent").expect("registered in STRUCTURAL_PRODUCERS");
+    structural_result(producer.preview(&path, text))
+}
+
+fn structural_risk(risk: ProducerRisk) -> &'static str {
+    match risk {
+        ProducerRisk::Low => "low",
+        ProducerRisk::Medium => "medium",
+        ProducerRisk::High => "high",
+    }
+}
+
+/// Adapts `wf017::structural::STRUCTURAL_PRODUCERS` into this module's
+/// `Producer` shape (metadata copied verbatim; `preview` routed through the
+/// two per-producer function-pointer adapters above, since `Producer.preview`
+/// is a plain `fn`, not a closure — see the struct doc comment).
+fn structural_adapted_producers() -> Vec<Producer> {
+    vec![
+        {
+            let source = find_structural_producer("structural.tls-reject-unauthorized").expect("registered in STRUCTURAL_PRODUCERS");
+            Producer {
+                id: source.id,
+                version: source.version,
+                kind: source.kind,
+                risk: structural_risk(source.risk),
+                rule_ids: source.rule_ids.to_vec(),
+                description: source.description,
+                preconditions: source.preconditions.to_vec(),
+                expected_behavior: source.expected_behavior.to_vec(),
+                affected_families: source.affected_families.to_vec(),
+                validation_plan: source.validation_plan.to_vec(),
+                preview: preview_structural_tls_reject_unauthorized,
+            }
+        },
+        {
+            let source = find_structural_producer("structural.dom-innerhtml-to-textcontent").expect("registered in STRUCTURAL_PRODUCERS");
+            Producer {
+                id: source.id,
+                version: source.version,
+                kind: source.kind,
+                risk: structural_risk(source.risk),
+                rule_ids: source.rule_ids.to_vec(),
+                description: source.description,
+                preconditions: source.preconditions.to_vec(),
+                expected_behavior: source.expected_behavior.to_vec(),
+                affected_families: source.affected_families.to_vec(),
+                validation_plan: source.validation_plan.to_vec(),
+                preview: preview_structural_dom_innerhtml_to_textcontent,
+            }
+        },
+    ]
+}
+
 /// `const ALL_PRODUCERS = Object.freeze([...STRUCTURAL_PRODUCERS, ...CONFIG_PRODUCERS]);`
-/// See the module doc comment: structural producers are out of this chunk's
-/// scope, so only config producers are wired in today.
 pub fn all_producers() -> Vec<Producer> {
-    config_producers()
+    let mut producers = structural_adapted_producers();
+    producers.extend(config_producers());
+    producers
 }
 
 fn registry_qualification_digest(producer: &Producer) -> String {
@@ -297,14 +385,22 @@ pub fn plan_mechanical_remediation<F: Fn(&str) -> String>(finding: &Value, sandb
     Ok(create_mechanical_proposal(finding, &producer, &preview, target_path, binding))
 }
 
-/// Faithful port of `renderPreview`. `kind == "structural"` is not covered by
-/// this chunk (see the module doc comment) and returns `Err` rather than
-/// silently producing wrong output.
+/// Faithful port of `renderPreview`: `kind === 'config' ? renderConfigPreview
+/// (text, edits) : renderStructuralPreview(text, edits)`.
 pub fn render_preview(producer: &Producer, text: &str, edits: &[Edit]) -> Result<String, MechanicalError> {
     if producer.kind == "config" {
         render_config_preview(text, edits).map_err(|e| MechanicalError(format!("invalid config JSON: {e}")))
     } else {
-        Err(MechanicalError("render_structural_preview is not ported in this chunk (producers/structural.mjs is out of scope)".to_string()))
+        let structural_edits: Vec<StructuralEdit> = edits
+            .iter()
+            .filter_map(|edit| match edit {
+                Edit::Structural { line, before, after } => {
+                    Some(StructuralEdit { line: *line, before: before.clone(), after: after.clone() })
+                }
+                Edit::Config { .. } => None,
+            })
+            .collect();
+        Ok(render_structural_preview(text, &structural_edits))
     }
 }
 
@@ -372,7 +468,15 @@ mod tests {
     fn registry_lists_config_producers_sorted_by_id() {
         let entries = mechanical_registry();
         let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
-        assert_eq!(ids, vec!["config.content-type-nosniff", "config.cookie-samesite"]);
+        assert_eq!(
+            ids,
+            vec![
+                "config.content-type-nosniff",
+                "config.cookie-samesite",
+                "structural.dom-innerhtml-to-textcontent",
+                "structural.tls-reject-unauthorized",
+            ]
+        );
         for entry in &entries {
             assert!(entry.qualification_digest.starts_with("sha256:"));
         }
@@ -456,7 +560,7 @@ mod tests {
     }
 
     #[test]
-    fn render_preview_structural_kind_is_not_ported() {
+    fn render_preview_structural_kind_applies_line_edits() {
         let producer = Producer {
             id: "structural.stub",
             version: "1",
@@ -470,8 +574,34 @@ mod tests {
             validation_plan: vec![],
             preview: |_text, _finding| PreviewResult::default(),
         };
-        let err = render_preview(&producer, "", &[]).unwrap_err();
-        assert!(err.0.contains("not ported"));
+        let edits = vec![Edit::Structural { line: 1, before: "rejectUnauthorized: false".to_string(), after: "rejectUnauthorized: true".to_string() }];
+        let rendered = render_preview(&producer, "rejectUnauthorized: false", &edits).unwrap();
+        assert_eq!(rendered, "rejectUnauthorized: true");
+    }
+
+    #[test]
+    fn structural_producers_are_wired_into_the_registry_and_planner() {
+        let entries = mechanical_registry();
+        let ids: Vec<&str> = entries.iter().map(|e| e.id.as_str()).collect();
+        assert!(ids.contains(&"structural.tls-reject-unauthorized"));
+        assert!(ids.contains(&"structural.dom-innerhtml-to-textcontent"));
+
+        let finding = json!({
+            "id": "finding-5",
+            "ruleId": "insecure-defaults.tls-reject-unauthorized",
+            "location": { "path": "agent.js" },
+        });
+        let proposal = plan_mechanical_remediation(
+            &finding,
+            &sandbox(),
+            |_path| "const agent = new https.Agent({ rejectUnauthorized: false });".to_string(),
+            &json!({ "runId": "r1" }),
+        )
+        .unwrap();
+        assert_eq!(proposal["tier"], json!("MECHANICAL"));
+        assert_eq!(proposal["producer"]["id"], json!("structural.tls-reject-unauthorized"));
+        assert_eq!(proposal["patch"]["render"], json!("structural"));
+        assert_eq!(proposal["patch"]["edits"][0]["after"], json!("rejectUnauthorized: true"));
     }
 
     #[test]

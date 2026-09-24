@@ -144,6 +144,49 @@ pub fn current(store: &impl RunManifest) -> Option<String> {
     selection(store).run_id
 }
 
+fn selection_json(sel: &Selection) -> Value {
+    json!({
+        "run_id": sel.run_id,
+        "ambiguous": sel.ambiguous,
+        "candidates": sel.candidates,
+        "source": sel.source,
+    })
+}
+
+/// Port of `main(argv)`'s `argparse` dispatch: `activate <run_id>`,
+/// `clear <run_id>`, or `current` (no arguments). Returns the JSON value
+/// `main` would have printed with `json.dumps(..., indent=2)`, and an exit
+/// code — `0` for a normal `main` return, `1` for an uncaught Python
+/// exception (`activate` on a non-executable run), `2` for argparse itself
+/// rejecting the arguments (missing subcommand or missing positional
+/// `run_id`).
+pub fn run_cli(store: &impl RunManifest, args: &[String]) -> (i32, Value) {
+    match args.first().map(String::as_str) {
+        Some("activate") => match args.get(1) {
+            None => (2, json!({"error": "activate requires a run_id argument"})),
+            Some(run_id) => match activate(store, run_id) {
+                Ok(value) => (
+                    0,
+                    json!({
+                        "pointer_version": value.pointer_version,
+                        "run_id": value.run_id,
+                        "route_sha256": value.route_sha256,
+                        "activated_at": value.activated_at,
+                    }),
+                ),
+                Err(message) => (1, json!({"error": message})),
+            },
+        },
+        Some("clear") => match args.get(1) {
+            None => (2, json!({"error": "clear requires a run_id argument"})),
+            Some(run_id) => (0, json!({"cleared": clear(store, run_id)})),
+        },
+        Some("current") => (0, selection_json(&selection(store))),
+        Some(other) => (2, json!({"error": format!("unknown command: {other}")})),
+        None => (2, json!({"error": "command is required (activate|clear|current)"})),
+    }
+}
+
 /// `clear`. Returns `false` for "nothing to clear" the same way the Python
 /// returns `False` (no pointer file, or pointer points at a different run).
 pub fn clear(store: &impl RunManifest, run_id: &str) -> bool {
