@@ -41,8 +41,7 @@ fn required_lenses(facts: &Value) -> Vec<String> {
     let plan = get(facts, "plan").cloned().unwrap_or(Value::Null);
     let mut set: BTreeSet<String> =
         arr(&plan, "reasoningProviders").iter().filter_map(|v| s(v).map(|x| x.to_string())).collect();
-    let mut out: Vec<String> = set.drain().collect();
-    out.sort();
+    let out: Vec<String> = std::mem::take(&mut set).into_iter().collect();
     out
 }
 
@@ -50,8 +49,7 @@ fn required_lenses(facts: &Value) -> Vec<String> {
 fn ran_lenses(facts: &Value) -> Vec<String> {
     let mut set: BTreeSet<String> =
         arr(facts, "lenses_ran").iter().filter_map(|v| s(v).map(|x| x.to_string())).collect();
-    let mut out: Vec<String> = set.drain().collect();
-    out.sort();
+    let out: Vec<String> = std::mem::take(&mut set).into_iter().collect();
     out
 }
 
@@ -312,6 +310,7 @@ fn canonical_counts(facts: &Value, findings: &[Value], candidates: &Value, adjud
 /// argument (host clock) rather than reading a wall clock directly, matching
 /// how `finalize_run` below supplies `host.clock.now()`.
 pub fn finalize_audit(facts: &Value, candidates: &Value, adjudication: &Value, generated_at: &str) -> Value {
+    let plan = get(facts, "plan").cloned().unwrap_or(Value::Null);
     let mut gaps = non_security_gaps(facts);
     let adjudication_complete = get(adjudication, "complete").and_then(|v| v.as_bool()).unwrap_or(false);
     if !adjudication_complete {
@@ -487,9 +486,10 @@ pub fn finalize_run(
     let adjudication = results_adjudication.cloned().unwrap_or(json!({"complete": true, "verdicts": []}));
 
     let mut report = finalize_audit(&merged_facts, &candidates, &adjudication, now);
+    let exit_code = exit_code_for_report(&report).code();
     if let Value::Object(obj) = &mut report {
         obj.insert("generated_at".to_string(), json!(now));
-        obj.insert("exit_code".to_string(), json!(exit_code_for_report(&report).code()));
+        obj.insert("exit_code".to_string(), json!(exit_code));
     }
     report
 }

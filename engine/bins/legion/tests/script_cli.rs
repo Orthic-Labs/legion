@@ -27,6 +27,18 @@ fn native_script_list_includes_known_ports() {
         scripts.contains(&"designer/live-poll"),
         "expected designer/live-poll in {scripts:?}"
     );
+    assert!(
+        scripts.contains(&"seo/indexnow"),
+        "expected seo/indexnow in {scripts:?}"
+    );
+    assert!(
+        scripts.contains(&"seo/indexing_notify"),
+        "expected seo/indexing_notify in {scripts:?}"
+    );
+    assert!(
+        scripts.contains(&"seo/keyword_planner"),
+        "expected seo/keyword_planner in {scripts:?}"
+    );
     // Every table entry has a "<skill>/<stem>" shape.
     for name in &scripts {
         assert!(name.contains('/'), "malformed script name: {name}");

@@ -17,6 +17,23 @@ use legion_runtime::wf_port::{
     r12, r22, r24, r32, w2_016, w2_018, w2_028, w2_029, w2_030, w2_031, w2_032, w2_033, w2_034,
 };
 
+/// Reads a file from disk the way Python's `open(path).read()` would,
+/// surfacing any I/O error as a `String` for the ported CLI's own error
+/// reporting instead of panicking.
+struct RealFileReader;
+
+impl w2_031::indexnow::UrlsFileReader for RealFileReader {
+    fn read_to_string(&self, path: &str) -> Result<String, String> {
+        std::fs::read_to_string(path).map_err(|e| e.to_string())
+    }
+}
+
+impl w2_031::indexing_notify::BatchFileReader for RealFileReader {
+    fn read_to_string(&self, path: &str) -> Result<String, String> {
+        std::fs::read_to_string(path).map_err(|e| e.to_string())
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct ScriptArgs {
     /// Print the table of `<skill>/<stem>` scripts with a Rust entry point.
@@ -46,6 +63,9 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("seo/gsc_inspect", seo_gsc_inspect),
     ("seo/gsc_query", seo_gsc_query),
     ("seo/gsc_query_v2", seo_gsc_query_v2),
+    ("seo/indexing_notify", seo_indexing_notify),
+    ("seo/indexnow", seo_indexnow),
+    ("seo/keyword_planner", seo_keyword_planner),
     ("seo/nlp_analyze", seo_nlp_analyze),
     ("seo/pagespeed_check", seo_pagespeed_check),
     ("seo/parse_html", seo_parse_html),
@@ -184,6 +204,39 @@ fn seo_ga4_report(args: &[String]) -> i32 {
     let config_property = std::env::var("GA4_PROPERTY_ID").ok();
     let outcome = w2_029::ga4_report::run(args, &client, civil_today(), config_property.as_deref());
     print_cli_outcome(outcome.exit_code, &outcome.stdout, &outcome.stderr)
+}
+
+fn seo_indexnow(args: &[String]) -> i32 {
+    let transport = w2_031::indexnow::ReqwestTransport::new();
+    let files = RealFileReader;
+    let env_key = std::env::var("INDEXNOW_KEY").ok();
+    let outcome = w2_031::indexnow::run(args, &transport, &files, env_key.as_deref());
+    if let Some((path, contents)) = &outcome.write_file {
+        let _ = std::fs::write(path, contents);
+    }
+    print_cli_outcome(outcome.exit_code, &outcome.stdout, &outcome.stderr)
+}
+
+fn seo_indexing_notify(args: &[String]) -> i32 {
+    let bearer_token = std::env::var("GOOGLE_INDEXING_BEARER_TOKEN").unwrap_or_default();
+    let client = w2_031::indexing_notify::ReqwestIndexingClient::new(bearer_token);
+    let files = RealFileReader;
+    let outcome = w2_031::indexing_notify::run(args, &client, &files);
+    print_cli_outcome(outcome.exit_code, &outcome.stdout, &outcome.stderr)
+}
+
+fn seo_keyword_planner(args: &[String]) -> i32 {
+    let mut stdout = std::io::stdout();
+    let mut stderr = std::io::stderr();
+    match w2_031::keyword_planner::build_ads_client() {
+        Ok((client, customer_id)) => {
+            w2_031::keyword_planner::run(args, &client, &customer_id, &mut stdout, &mut stderr)
+        }
+        Err(message) => {
+            let _ = writeln!(stderr, "{message}");
+            1
+        }
+    }
 }
 
 fn seo_nlp_analyze(args: &[String]) -> i32 {

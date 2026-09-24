@@ -7,7 +7,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::session_client::{BrowserSession, Rect};
+use crate::wf_port::r54::session_client::{BrowserSession, Rect};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "type")]
@@ -185,8 +185,8 @@ fn js_string(value: &str) -> String {
 }
 
 /// Minimal helper mirroring `elementPoint`'s return shape for callers building fakes.
-pub fn point(x: f64, y: f64, rect: Rect) -> super::session_client::ElementPoint {
-    super::session_client::ElementPoint { x, y, rect }
+pub fn point(x: f64, y: f64, rect: Rect) -> crate::wf_port::r54::session_client::ElementPoint {
+    crate::wf_port::r54::session_client::ElementPoint { x, y, rect }
 }
 
 #[cfg(test)]
@@ -244,17 +244,17 @@ mod tests {
         fn capture(&mut self, _out: &str) -> Result<String, String> {
             Ok(self.capture_path.clone())
         }
-        fn apply_conditions(&mut self, _conditions: &super::session_client::Conditions) -> Result<(), String> {
+        fn apply_conditions(&mut self, _conditions: &crate::wf_port::r54::session_client::Conditions) -> Result<(), String> {
             Ok(())
         }
         fn navigate(&mut self, _url: &str) -> Result<(), String> {
             Ok(())
         }
-        fn load_session(&mut self, _data: &super::session_client::SessionData) -> Result<(), String> {
+        fn load_session(&mut self, _data: &crate::wf_port::r54::session_client::SessionData) -> Result<(), String> {
             Ok(())
         }
-        fn save_session(&mut self) -> Result<super::session_client::SessionData, String> {
-            Ok(super::session_client::SessionData { cookies: Value::Array(vec![]), local_storage: Value::Object(Default::default()) })
+        fn save_session(&mut self) -> Result<crate::wf_port::r54::session_client::SessionData, String> {
+            Ok(crate::wf_port::r54::session_client::SessionData { cookies: Value::Array(vec![]), local_storage: Value::Object(Default::default()) })
         }
         fn take_console_errors(&mut self) -> Vec<String> {
             Vec::new()

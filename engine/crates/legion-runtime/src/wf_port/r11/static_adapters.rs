@@ -140,7 +140,7 @@ fn read_own_background_color(el: ElementRef, style_bg: &str) -> Option<Rgba> {
     if inline_bg.to_ascii_lowercase().contains("gradient") || inline_bg.to_ascii_lowercase().contains("url(") {
         return bg;
     }
-    parse_rgb(Some(&inline_bg)).or_else(|| parse_any_color(&inline_bg))
+    parse_rgb(Some(&inline_bg)).or_else(|| parse_any_color(&inline_bg).map(|c| Rgba { r: c.r, g: c.g, b: c.b, a: c.a }))
 }
 
 fn raw_bg_declaration(raw_style: &str) -> Option<String> {
