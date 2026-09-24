@@ -166,6 +166,26 @@ export function packageMacosCandidate({
 	if (!/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(String(version ?? ""))) throw new Error("stable version is required");
 	if (!/^[a-f0-9]{40,64}$/i.test(String(sourceRevision ?? ""))) throw new Error("source revision is required");
 	executableRecords(input);
+	// codesign rewrote bin/legion after assembly, so release.json and
+	// composition.json still bind the unsigned digest and `legion setup repair`
+	// refuses the install. Rebind them to the signed runtime, as Windows does
+	// through nativeAssembly.finalizer, before anything is archived.
+	const signedRuntime = createHash("sha256").update(readFileSync(join(input, "bin", "legion"))).digest("hex");
+	const rebound = commandRunner(process.execPath, [
+		join(repositoryRoot, "scripts", "assemble-native-release.mjs"),
+		"--profile", "release",
+		"--platform", "macos",
+		"--architecture", architecture,
+		"--target", architecture === "arm64" ? "aarch64-apple-darwin" : "x86_64-apple-darwin",
+		"--out", input,
+		"--bin-dir", join(input, "bin"),
+		"--finalize-signed",
+		"--provenance", `rightkit-release://macos-${architecture}/${signedRuntime}`,
+	], { cwd: repositoryRoot, encoding: "utf8", windowsHide: true });
+	if (rebound.error) throw rebound.error;
+	if (rebound.status !== 0) throw new Error(`signed macOS rebind failed: ${(rebound.stderr || rebound.stdout || "").trim()}`);
+	const boundRuntime = JSON.parse(readFileSync(join(input, "share", "legion", "release.json"), "utf8")).runtime?.sha256;
+	if (boundRuntime !== signedRuntime) throw new Error(`signed macOS release.json binds ${boundRuntime}, runtime is ${signedRuntime}`);
 	mkdirSync(output, { recursive: true });
 	mkdirSync(dirname(notaryZip), { recursive: true });
 	const stem = `legion-${version}-macos-${architecture}`;

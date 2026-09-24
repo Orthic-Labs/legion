@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -218,6 +219,7 @@ test("macOS packaging binds signed archive to fresh SBOM, provenance, and notari
 	const input = join(repositoryRoot, "dist", "native", "macos-arm64", "legion-0.1.0");
 	const output = join(repositoryRoot, "dist", "releases", "mac", "0.1.0", "arm64");
 	const notaryZip = join(repositoryRoot, ".right-release", "notary", "legion-0.1.0-macos-arm64.zip");
+	const rebinds = [];
 	try {
 		mkdirSync(join(input, "bin"), { recursive: true });
 		for (const name of ["legion", "legion-hook", "legion-mcp"]) writeFileSync(join(input, "bin", name), `signed-${name}\n`);
@@ -236,10 +238,22 @@ test("macOS packaging binds signed archive to fresh SBOM, provenance, and notari
 				return { path: outputPath };
 			},
 			commandRunner: (_command, args) => {
+				if (args.includes("--finalize-signed")) {
+					// Stand in for assemble-native-release: bind the signed runtime.
+					const provenance = args[args.indexOf("--provenance") + 1];
+					rebinds.push({ args, provenance });
+					mkdirSync(join(input, "share", "legion"), { recursive: true });
+					writeFileSync(join(input, "share", "legion", "release.json"), JSON.stringify({ runtime: { sha256: provenance.split("/").at(-1), provenance } }));
+					return { status: 0, stdout: "", stderr: "" };
+				}
 				writeFileSync(args.at(-1), "notarization zip\n");
 				return { status: 0, stdout: "", stderr: "" };
 			},
 		});
+		const signedRuntime = createHash("sha256").update("signed-legion\n").digest("hex");
+		assert.equal(rebinds.length, 1, "signed runtime must be rebound exactly once before archiving");
+		assert.equal(rebinds[0].provenance, `rightkit-release://macos-arm64/${signedRuntime}`);
+		assert.equal(rebinds[0].args[rebinds[0].args.indexOf("--out") + 1], input);
 		assert.equal(result.notarizationArchive, notaryZip);
 		assert.equal(JSON.parse(readFileSync(result.sbom, "utf8")).components[0].name, "legion-0.1.0-macos-arm64.tar.gz");
 		assert.equal(JSON.parse(readFileSync(result.provenance, "utf8")).subject[0].digest.sha256, result.archiveSha256);
