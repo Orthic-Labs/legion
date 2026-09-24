@@ -72,6 +72,11 @@ impl FilesystemInventorySource {
 impl InventorySource for FilesystemInventorySource {
     fn inventory(&self, repository_id: &str) -> Result<InventoryEnvelope, AuditError> {
         let mut entries = Vec::new();
+        // Inside a git work tree the audit denominator is what git considers
+        // part of the project: tracked files plus untracked files that are not
+        // ignored. Build output, caches and vendored trees stay out, as they did
+        // under the JavaScript engine's git-aware inventory.
+        let git_files = git_project_files(&self.root);
         let walker = WalkDir::new(&self.root)
             .follow_links(false)
             .into_iter()
@@ -91,6 +96,9 @@ impl InventorySource for FilesystemInventorySource {
                 AuditError::Invalid(format!("inventory path escaped Audit root: {error}"))
             })?;
             let path = relative.to_string_lossy().replace('\\', "/");
+            if git_files.as_ref().is_some_and(|files| !files.contains(&path)) {
+                continue;
+            }
             let bytes = if file_type.is_symlink() {
                 std::fs::read_link(entry.path())
                     .map_err(|error| {
@@ -140,6 +148,31 @@ impl InventorySource for FilesystemInventorySource {
             entries,
         )
     }
+}
+
+/// Paths (relative to `root`, `/`-separated) git treats as part of the
+/// project, or `None` when `root` is not inside a git work tree or git is
+/// unavailable, in which case the plain walk is the inventory.
+fn git_project_files(root: &Path) -> Option<std::collections::HashSet<String>> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["ls-files", "-z", "--cached", "--others", "--exclude-standard"])
+        .stdin(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(
+        output
+            .stdout
+            .split(|byte| *byte == 0)
+            .filter(|path| !path.is_empty())
+            .map(|path| String::from_utf8_lossy(path).into_owned())
+            .collect(),
+    )
 }
 
 fn included_entry(entry: &DirEntry) -> bool {
@@ -681,6 +714,41 @@ mod tests {
         assert_ne!(first.generation, changed.generation);
         assert_ne!(first.digest, changed.digest);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn git_work_tree_inventory_excludes_ignored_build_output() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-git-inventory-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::create_dir_all(root.join("dist")).unwrap();
+        std::fs::write(root.join(".gitignore"), "dist/\n").unwrap();
+        std::fs::write(root.join("src/lib.rs"), "fn one() {}\n").unwrap();
+        std::fs::write(root.join("dist/bundle.js"), "generated\n").unwrap();
+        let init = std::process::Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(["init", "-q"])
+            .status();
+        if !init.is_ok_and(|status| status.success()) {
+            // No git on this host: the plain walk applies and is covered above.
+            let _ = std::fs::remove_dir_all(&root);
+            return;
+        }
+        let source = FilesystemInventorySource::new(&root).unwrap();
+        let inventory = source.inventory("repo").unwrap();
+        let paths: Vec<_> = inventory.paths().collect();
+        assert!(paths.contains(&"src/lib.rs"), "{paths:?}");
+        assert!(paths.contains(&".gitignore"), "{paths:?}");
+        assert!(!paths.iter().any(|path| path.starts_with("dist/")), "{paths:?}");
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

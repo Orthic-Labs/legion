@@ -5602,7 +5602,9 @@
       "id": "security.opengrep",
       "providerVersion": "1.0.0",
       "family": "security",
-      "lensIds": [],
+      "lensIds": [
+        "security"
+      ],
       "role": "candidate-generator",
       "phase": "source",
       "dependsOn": [],
