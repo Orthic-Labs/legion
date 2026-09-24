@@ -18,6 +18,7 @@
 //! (packet U01).
 
 pub mod alchemist;
+pub mod alchemist_viewer;
 pub mod brand_identity;
 pub mod coder_hooks_install;
 pub mod covenant;

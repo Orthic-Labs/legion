@@ -395,6 +395,53 @@ pub fn validate_external_review_packet(
     validate_packet(text, path, inline, template, platform_windows)
 }
 
+/// CLI entry point mirroring `validate-external-review-packet.py`'s `main()`:
+/// `<packet-path> [--inline] [--template-self-check]`. Reads the packet from disk,
+/// prints `PASS:`/`FAIL:` to stdout the same way, and returns the same exit codes
+/// (0 pass, 1 packet defects found, 2 missing/unreadable packet file).
+pub fn run(argv: &[String]) -> i32 {
+    let mut packet: Option<&str> = None;
+    let mut inline = false;
+    let mut template = false;
+    for arg in argv {
+        match arg.as_str() {
+            "--inline" => inline = true,
+            "--template-self-check" => template = true,
+            other => packet = Some(other),
+        }
+    }
+    let packet_path = match packet {
+        Some(p) => p,
+        None => {
+            eprintln!("error: packet path is required");
+            return 2;
+        }
+    };
+    let path = Path::new(packet_path);
+    if !path.is_file() {
+        eprintln!("FAIL: packet file not found: {packet_path}");
+        return 2;
+    }
+    let text = match std::fs::read_to_string(path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("FAIL: packet file not found: {packet_path} ({e})");
+            return 2;
+        }
+    };
+    let platform_windows = cfg!(windows);
+    let errors = validate_external_review_packet(&text, path, inline, template, platform_windows);
+    if !errors.is_empty() {
+        println!("FAIL: {} packet defect(s)", errors.len());
+        for error in &errors {
+            println!("- {error}");
+        }
+        return 1;
+    }
+    println!("PASS: Covenant packet is zero-context complete & packet-only");
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -409,6 +456,12 @@ mod tests {
             false,
         );
         assert_eq!(errors, vec!["Mode must be PACKET_ONLY — DO_NOT_RUN_COVENANT"]);
+    }
+
+    #[test]
+    fn run_reports_missing_packet_file() {
+        let code = run(&["/nonexistent/packet-legion-w2-005-test.md".to_string()]);
+        assert_eq!(code, 2);
     }
 
     #[test]

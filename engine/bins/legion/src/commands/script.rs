@@ -13,10 +13,13 @@ use clap::Args;
 use serde_json::json;
 use std::io::Write;
 
+use legion_handoff::{l1_port, l1b_port};
+use legion_provider_sdk::l1b_port::execution as coder_execution;
+use legion_runtime::p9_skills;
 use legion_runtime::wf_port::{
-    r00, r02, r03, r04, r05, r07, r08, r12, r18, r22, r24, r32, r37, r46, w2_010, w2_016, w2_017,
-    w2_018, w2_019, w2_020, w2_023, w2_028, w2_029, w2_030, w2_031, w2_032, w2_033, w2_034,
-    w2_044,
+    r00, r02, r03, r04, r05, r07, r08, r12, r18, r22, r24, r32, r37, r46, w2_005, w2_010, w2_016,
+    w2_017, w2_018, w2_019, w2_020, w2_023, w2_028, w2_029, w2_030, w2_031, w2_032, w2_033,
+    w2_034, w2_044,
 };
 
 /// Reads a file from disk the way Python's `open(path).read()` would,
@@ -50,6 +53,11 @@ type Entry = fn(&[String]) -> i32;
 
 /// `legion script --list` names, in this order. Keep sorted by skill then stem.
 pub const TABLE: &[(&str, Entry)] = &[
+    ("alchemist/parse_events", alchemist_parse_events),
+    ("alchemist/viewer", alchemist_viewer),
+    ("brand-identity/color-check", brand_identity_color_check),
+    ("coder/api-worker", coder_api_worker),
+    ("covenant/validate-external-review-packet", covenant_validate_external_review_packet),
     ("designer/context", designer_context),
     ("designer/context-signals", designer_context_signals),
     ("designer/critique-storage", designer_critique_storage),
@@ -79,6 +87,8 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/tts-doubao", designer_tts_doubao),
     ("designer/verify", designer_verify),
     ("dispatch/validate-dispatch", dispatch_validate_dispatch),
+    ("handoff/transcript-handoff", handoff_transcript_handoff),
+    ("handoff/validate-handoff", handoff_validate_handoff),
     ("seo/bing_webmaster", seo_bing_webmaster),
     ("seo/crux_history", seo_crux_history),
     ("seo/edit", seo_edit),
@@ -94,12 +104,17 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("seo/nlp_analyze", seo_nlp_analyze),
     ("seo/pagespeed_check", seo_pagespeed_check),
     ("seo/parse_html", seo_parse_html),
+    ("seo/provider_registry", seo_provider_registry),
+    ("seo/question_inventory", seo_question_inventory),
+    ("seo/query_ownership", seo_query_ownership),
     ("seo/rank_tracker", seo_rank_tracker),
+    ("seo/render_gap", seo_render_gap),
     ("seo/search_ops", seo_search_ops),
     ("seo/seo_closure", seo_seo_closure),
     ("seo/seo_project", seo_seo_project),
     ("seo/site_audit", seo_site_audit),
     ("seo/google_report", seo_google_report),
+    ("seo/templated_metadata", seo_templated_metadata),
     ("seo/youtube_search", seo_youtube_search),
     ("tasklist/validate-tasklist", tasklist_validate_tasklist),
 ];
@@ -127,6 +142,59 @@ pub fn run(args: ScriptArgs) -> CommandResult {
 
 fn cwd() -> std::path::PathBuf {
     std::env::current_dir().unwrap_or_default()
+}
+
+/// Walks up from `cwd()` looking for a `skills/` directory (repo root), so ports of scripts
+/// that load a fixed path relative to their own script location (e.g.
+/// `skills/seo/config/provider-registry.json`) can find it regardless of the caller's cwd.
+/// Falls back to `cwd()` itself if none is found.
+fn find_skills_root() -> std::path::PathBuf {
+    let mut dir = cwd();
+    loop {
+        if dir.join("skills").is_dir() {
+            return dir;
+        }
+        if !dir.pop() {
+            return cwd();
+        }
+    }
+}
+
+// ---- alchemist ---------------------------------------------------------
+
+fn alchemist_parse_events(args: &[String]) -> i32 {
+    let mut stdin_text = String::new();
+    let _ = std::io::Read::read_to_string(&mut std::io::stdin(), &mut stdin_text);
+    let read_file = |path: &str| -> Result<String, String> {
+        std::fs::read_to_string(path).map_err(|e| e.to_string())
+    };
+    let mut stdout = std::io::stdout();
+    let mut stderr = std::io::stderr();
+    p9_skills::alchemist::run(args, &stdin_text, &read_file, &mut stdout, &mut stderr)
+}
+
+fn alchemist_viewer(args: &[String]) -> i32 {
+    let home_dir = dirs_home();
+    let env_run_dir = std::env::var("ALCHEMIST_RUN_DIR").ok();
+    p9_skills::alchemist_viewer::run(args, &home_dir, env_run_dir.as_deref())
+}
+
+fn dirs_home() -> std::path::PathBuf {
+    std::env::var_os("HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(cwd)
+}
+
+// ---- brand-identity ------------------------------------------------------
+
+fn brand_identity_color_check(args: &[String]) -> i32 {
+    p9_skills::brand_identity::run(args)
+}
+
+// ---- covenant --------------------------------------------------------
+
+fn covenant_validate_external_review_packet(args: &[String]) -> i32 {
+    w2_005::run(args)
 }
 
 // ---- seo -------------------------------------------------------------
@@ -172,6 +240,38 @@ fn seo_pagespeed_check(args: &[String]) -> i32 {
     let mut stdout = std::io::stdout();
     let mut stderr = std::io::stderr();
     w2_032::pagespeed_check::run(args, &client, &mut stdout, &mut stderr)
+}
+
+fn seo_provider_registry(args: &[String]) -> i32 {
+    let registry_path = find_skills_root().join("skills/seo/config/provider-registry.json");
+    let registry_json = match std::fs::read_to_string(&registry_path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("error: could not read {}: {e}", registry_path.display());
+            return 2;
+        }
+    };
+    w2_032::provider_registry::run(args, &registry_json)
+}
+
+fn seo_question_inventory(args: &[String]) -> i32 {
+    w2_032::question_inventory::run(args)
+}
+
+fn seo_query_ownership(args: &[String]) -> i32 {
+    w2_032::query_ownership::run(args)
+}
+
+fn seo_templated_metadata(args: &[String]) -> i32 {
+    w2_034::templated_metadata::run(args)
+}
+
+fn seo_render_gap(args: &[String]) -> i32 {
+    let raw = p9_skills::render_gap::ReqwestRawFetcher;
+    let rendered = p9_skills::render_gap::ChromeRenderedFetcher;
+    let mut stdout = std::io::stdout();
+    let mut stderr = std::io::stderr();
+    p9_skills::render_gap::run(args, &raw, &rendered, &mut stdout, &mut stderr)
 }
 
 fn seo_parse_html(args: &[String]) -> i32 {
@@ -504,6 +604,63 @@ fn designer_hook_admin(args: &[String]) -> i32 {
 /// dispatcher (invoked as `legion script designer/context`, not as
 /// `node <skill>/scripts/context.mjs`) has no equivalent of; documented as
 /// a gap in `r04`'s own finish note (`read_local_skill_version`).
+/// Port of `skills/coder/scripts/api-worker.py`'s `main()` (delegates
+/// unmodified to `src/lib/coder-api-worker/api-worker.py`, whose `argparse`
+/// CLI is already ported as `legion_provider_sdk::l1b_port::execution::run`).
+fn coder_api_worker(args: &[String]) -> i32 {
+    let runner = coder_execution::RealProcessRunner;
+    coder_execution::run(args, &runner)
+}
+
+/// `%Y-%m-%d` for today (UTC), matching Python's `datetime.now().strftime(...)`
+/// closely enough for the paste-prompt's evidence-path fragment.
+fn today_ymd() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let days = (secs / 86_400) as i64 + 719_468;
+    let era = if days >= 0 { days } else { days - 146_096 } / 146_097;
+    let doe = (days - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Port of `skills/handoff/scripts/validate-handoff.py`'s `main()`.
+fn handoff_validate_handoff(args: &[String]) -> i32 {
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let code = l1b_port::run(args, &mut stdout, &mut stderr);
+    print_cli_outcome(code, &String::from_utf8_lossy(&stdout), &String::from_utf8_lossy(&stderr))
+}
+
+/// Port of `skills/handoff/scripts/transcript-handoff.py`'s `main()`
+/// (`bootstrap`/`continuity` subcommands).
+fn handoff_transcript_handoff(args: &[String]) -> i32 {
+    let today = today_ymd();
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let runner = l1_port::RealContinuityRunner;
+    let env = l1_port::RunEnv {
+        home,
+        cwd: cwd(),
+        today,
+        env_membrane_bin: std::env::var("MEMBRANE_BIN").ok(),
+        runner: &runner,
+    };
+    let mut stdout = Vec::new();
+    let code = l1_port::run(args, &env, &mut stdout);
+    print_cli_outcome(code, &String::from_utf8_lossy(&stdout), "")
+}
+
 fn designer_context(args: &[String]) -> i32 {
     let cwd = cwd();
     let out = r04::cli::run_cli(args, &cwd, "context", None);

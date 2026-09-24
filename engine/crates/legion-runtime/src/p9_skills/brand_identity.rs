@@ -196,6 +196,118 @@ pub fn audit_pairs(pairs: &[AuditPair]) -> Result<AuditReport, ColorCheckError> 
     Ok(AuditReport { rows, all_pass })
 }
 
+/// CLI entry point mirroring `color-check.mjs`'s `process.argv.slice(2)` dispatch.
+/// `argv` is the script's own arguments (no program name, no leading `color`).
+/// Returns the process exit code: 0 success, 1 `audit` with a failing pair, 2 usage/parse error.
+pub fn run(argv: &[String]) -> i32 {
+    let cmd = argv.first().map(String::as_str).unwrap_or("");
+    let rest = if argv.is_empty() { &argv[..] } else { &argv[1..] };
+    match cmd {
+        "contrast" => {
+            let (fg, bg) = match (rest.first(), rest.get(1)) {
+                (Some(fg), Some(bg)) => (fg, bg),
+                _ => {
+                    eprintln!("error: usage: contrast <fg> <bg>");
+                    return 2;
+                }
+            };
+            match check_contrast(fg, bg) {
+                Ok(report) => {
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap());
+                    0
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    2
+                }
+            }
+        }
+        "oklch" => {
+            let hex = match rest.first() {
+                Some(h) => h,
+                None => {
+                    eprintln!("error: usage: oklch <hex>");
+                    return 2;
+                }
+            };
+            match srgb_to_oklch(hex) {
+                Ok(ok) => {
+                    let out = serde_json::json!({
+                        "hex": hex,
+                        "L": round(ok.l, 4),
+                        "C": round(ok.c, 4),
+                        "H": round(ok.h, 2),
+                    });
+                    println!("{}", serde_json::to_string_pretty(&out).unwrap());
+                    0
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    2
+                }
+            }
+        }
+        "oklch-to-hex" => {
+            if rest.len() < 3 {
+                eprintln!("error: usage: oklch-to-hex <L> <C> <H>");
+                return 2;
+            }
+            let parsed: Result<Vec<f64>, _> = rest[..3].iter().map(|s| s.parse::<f64>()).collect();
+            let vals = match parsed {
+                Ok(v) => v,
+                Err(_) => {
+                    eprintln!("error: L, C, H must be numbers");
+                    return 2;
+                }
+            };
+            let (l, c, h) = (vals[0], vals[1], vals[2]);
+            let res = oklch_to_rgb(l, c, h);
+            let out = serde_json::json!({
+                "L": l, "C": c, "H": h,
+                "hex": res.hex, "inGamut": res.in_gamut,
+            });
+            println!("{}", serde_json::to_string_pretty(&out).unwrap());
+            0
+        }
+        "audit" => {
+            let raw = match rest.first() {
+                Some(r) => r,
+                None => {
+                    eprintln!("error: usage: audit '<json>'");
+                    return 2;
+                }
+            };
+            let pairs: Vec<AuditPair> = match serde_json::from_str(raw) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            match audit_pairs(&pairs) {
+                Ok(report) => {
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap());
+                    if report.all_pass {
+                        0
+                    } else {
+                        1
+                    }
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    2
+                }
+            }
+        }
+        _ => {
+            eprintln!(
+                "usage: contrast <fg> <bg> | oklch <hex> | oklch-to-hex <L> <C> <H> | audit '<json>'"
+            );
+            2
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

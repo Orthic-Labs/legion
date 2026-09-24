@@ -205,6 +205,80 @@ pub fn load_registry(json_text: &str) -> Result<Registry, serde_json::Error> {
     serde_json::from_str(json_text)
 }
 
+/// CLI entry point mirroring `provider_registry.py`'s `main()`: `discover [--host-tool T]...`
+/// or `choose <capability> [--host-tool T]... [--allow-paid] [--no-manual]`. `registry_json`
+/// substitutes for the Python script's fixed-path `REGISTRY.read_text()` (the caller reads
+/// `skills/seo/config/provider-registry.json` relative to the skill root and passes its text
+/// in, since a Rust binary has no equivalent "next to this script" path). Prints the pretty
+/// JSON result and returns 0 for `discover`, or for `choose`: 0 if selected, 2 otherwise
+/// (matching `0 if args.command == 'discover' or result.get('status') == 'selected' else 2`).
+pub fn run(argv: &[String], registry_json: &str) -> i32 {
+    if argv.is_empty() {
+        eprintln!("error: a command (discover|choose) is required");
+        return 2;
+    }
+    let command = argv[0].as_str();
+    let rest = &argv[1..];
+
+    let mut host_tools: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut allow_paid = false;
+    let mut no_manual = false;
+    let mut capability: Option<&str> = None;
+    let mut i = 0;
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--host-tool" => {
+                i += 1;
+                if let Some(v) = rest.get(i) {
+                    host_tools.insert(v.clone());
+                }
+            }
+            "--allow-paid" => allow_paid = true,
+            "--no-manual" => no_manual = true,
+            other if command == "choose" && capability.is_none() => capability = Some(other),
+            _ => {}
+        }
+        i += 1;
+    }
+
+    let registry = match load_registry(registry_json) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+
+    match command {
+        "discover" => {
+            let result = discover(&registry, &host_tools);
+            println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            0
+        }
+        "choose" => {
+            let cap = match capability {
+                Some(c) => c,
+                None => {
+                    eprintln!("error: capability is required");
+                    return 2;
+                }
+            };
+            let result = choose(&registry, cap, &host_tools, allow_paid, !no_manual);
+            let selected = result.is_selected();
+            println!("{}", serde_json::to_string_pretty(&result).unwrap_or_default());
+            if selected {
+                0
+            } else {
+                2
+            }
+        }
+        other => {
+            eprintln!("error: unknown command: {other}");
+            2
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,5 +385,28 @@ mod tests {
         let d = discover(&reg, &HashSet::new());
         assert_eq!(d.providers.len(), 5);
         assert_eq!(d.selection_rules.len(), 1);
+    }
+
+    #[test]
+    fn run_discover_returns_0() {
+        let json = registry_json("PR_RUN_GSC", "PR_RUN_PAID");
+        assert_eq!(run(&["discover".to_string()], &json), 0);
+    }
+
+    #[test]
+    fn run_choose_manual_export_selected_returns_0() {
+        let json = registry_json("PR_RUN2_GSC", "PR_RUN2_PAID");
+        assert_eq!(run(&["choose".to_string(), "rank".to_string()], &json), 0);
+    }
+
+    #[test]
+    fn run_choose_unknown_capability_returns_2() {
+        let json = registry_json("PR_RUN3_GSC", "PR_RUN3_PAID");
+        assert_eq!(run(&["choose".to_string(), "nope".to_string()], &json), 2);
+    }
+
+    #[test]
+    fn run_missing_command_returns_2() {
+        assert_eq!(run(&[], "{\"providers\":{}}"), 2);
     }
 }

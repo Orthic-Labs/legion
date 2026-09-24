@@ -7,8 +7,10 @@
 //! is a library surface; a caller wires its own file reads/writes around
 //! `validate` and `storage_errors`.
 
+pub mod cli;
 pub mod validate;
 
+pub use cli::run;
 pub use validate::{
     clean_path_value, concrete, fenced_after, is_absolute_path, label_value, normalized_path,
     ordered_errors, resume_errors, storage_errors, table_errors, table_rows, validate as validate_handoff,

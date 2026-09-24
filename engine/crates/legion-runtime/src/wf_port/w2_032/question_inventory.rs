@@ -207,6 +207,79 @@ pub fn build_report(rows: &[Row], extras: &[String]) -> InventoryReport {
     }
 }
 
+/// CLI entry point mirroring `question_inventory.py`'s `main()`: positional `input` (GSC
+/// normalized JSON), `--questions` (optional newline-delimited supplied questions file),
+/// `--out` (optional output file). Prints the pretty JSON report to stdout and returns the
+/// exit code `main()` returns (0 on success, 2 on a usage/IO/parse error).
+pub fn run(argv: &[String]) -> i32 {
+    let mut input: Option<&str> = None;
+    let mut questions: Option<&str> = None;
+    let mut out: Option<&str> = None;
+    let mut i = 0;
+    while i < argv.len() {
+        match argv[i].as_str() {
+            "--questions" => {
+                i += 1;
+                questions = argv.get(i).map(String::as_str);
+            }
+            "--out" => {
+                i += 1;
+                out = argv.get(i).map(String::as_str);
+            }
+            other => input = Some(other),
+        }
+        i += 1;
+    }
+    let input_path = match input {
+        Some(p) => p,
+        None => {
+            eprintln!("error: input path is required");
+            return 2;
+        }
+    };
+    let text = match std::fs::read_to_string(input_path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let payload: Value = match serde_json::from_str(&text) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let rows = match rows_from_payload(&payload) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let extras: Vec<String> = match questions {
+        Some(path) => match std::fs::read_to_string(path) {
+            Ok(t) => t.lines().map(str::to_string).collect(),
+            Err(e) => {
+                eprintln!("error: {e}");
+                return 2;
+            }
+        },
+        None => Vec::new(),
+    };
+    let report = build_report(&rows, &extras);
+    let text_out = serde_json::to_string_pretty(&report).unwrap_or_default();
+    if let Some(path) = out {
+        if let Err(e) = std::fs::write(path, format!("{text_out}\n")) {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    }
+    println!("{text_out}");
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +355,31 @@ mod tests {
         let items = build(&rows, &[]);
         assert_eq!(items[0].question, "what is b?");
         assert_eq!(items[1].question, "what is a?");
+    }
+
+    #[test]
+    fn run_writes_report_and_out_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "legion-w2032-qi-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("in.json");
+        let out = dir.join("out.json");
+        std::fs::write(&input, r#"[{"query":"what is seo?","clicks":1,"impressions":10}]"#).unwrap();
+        let code = run(&[
+            input.to_str().unwrap().to_string(),
+            "--out".to_string(),
+            out.to_str().unwrap().to_string(),
+        ]);
+        assert_eq!(code, 0);
+        assert!(out.is_file());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn run_missing_input_returns_2() {
+        assert_eq!(run(&[]), 2);
     }
 }

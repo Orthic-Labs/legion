@@ -216,6 +216,63 @@ pub fn build_report(rows: &[Row]) -> OwnershipReport {
     }
 }
 
+/// CLI entry point mirroring `query_ownership.py`'s `main()`: positional `input`, optional
+/// `--out`. Prints the pretty JSON report to stdout; returns 0 on success, 2 on a
+/// usage/IO/parse error.
+pub fn run(argv: &[String]) -> i32 {
+    let mut input: Option<&str> = None;
+    let mut out: Option<&str> = None;
+    let mut i = 0;
+    while i < argv.len() {
+        match argv[i].as_str() {
+            "--out" => {
+                i += 1;
+                out = argv.get(i).map(String::as_str);
+            }
+            other => input = Some(other),
+        }
+        i += 1;
+    }
+    let input_path = match input {
+        Some(p) => p,
+        None => {
+            eprintln!("error: input path is required");
+            return 2;
+        }
+    };
+    let text = match std::fs::read_to_string(input_path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let payload: Value = match serde_json::from_str(&text) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let rows = match rows_from_payload(&payload) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let report = build_report(&rows);
+    let text_out = serde_json::to_string_pretty(&report).unwrap_or_default();
+    if let Some(path) = out {
+        if let Err(e) = std::fs::write(path, format!("{text_out}\n")) {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    }
+    println!("{text_out}");
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -317,5 +374,24 @@ mod tests {
         let rows = rows_from_payload(&payload).unwrap();
         let report = build_report(&rows);
         assert_eq!(report.query_count, 0);
+    }
+
+    #[test]
+    fn run_missing_input_returns_2() {
+        assert_eq!(run(&[]), 2);
+    }
+
+    #[test]
+    fn run_writes_report_for_valid_input() {
+        let dir = std::env::temp_dir().join(format!(
+            "legion-w2032-qo-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("in.json");
+        std::fs::write(&input, r#"[{"query":"q","page":"/a","clicks":1}]"#).unwrap();
+        assert_eq!(run(&[input.to_str().unwrap().to_string()]), 0);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

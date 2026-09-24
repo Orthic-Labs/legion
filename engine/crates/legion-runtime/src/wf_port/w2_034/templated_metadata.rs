@@ -210,6 +210,64 @@ pub fn rows_from_payload(payload: &Value) -> Result<Vec<PageRow>, &'static str> 
     }
 }
 
+/// CLI entry point mirroring `templated_metadata.py`'s `main()`: positional `input` (JSON
+/// list or object with `pages[]`), `--json <out>`. Prints the pretty JSON result to stdout.
+/// Returns 2 for a missing input argument or unreadable/unparseable input file, 1 for the
+/// `SystemExit("input must be a list or object with pages[]")` shape error, 0 on success.
+pub fn run(argv: &[String]) -> i32 {
+    let mut input: Option<&str> = None;
+    let mut out: Option<&str> = None;
+    let mut i = 0;
+    while i < argv.len() {
+        match argv[i].as_str() {
+            "--json" => {
+                i += 1;
+                out = argv.get(i).map(String::as_str);
+            }
+            other => input = Some(other),
+        }
+        i += 1;
+    }
+    let input_path = match input {
+        Some(p) => p,
+        None => {
+            eprintln!("error: input path is required");
+            return 2;
+        }
+    };
+    let text = match std::fs::read_to_string(input_path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let payload: Value = match serde_json::from_str(&text) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let rows = match rows_from_payload(&payload) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("{e}");
+            return 1;
+        }
+    };
+    let result = analyze(&rows);
+    let text_out = serde_json::to_string_pretty(&result).unwrap_or_default();
+    if let Some(path) = out {
+        if let Err(e) = std::fs::write(path, format!("{text_out}\n")) {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    }
+    println!("{text_out}");
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +340,24 @@ mod tests {
     #[test]
     fn norm_matches_python_casefold_strip_collapse() {
         assert_eq!(norm("  Best   Widgets!! Online.  "), "best widgets online");
+    }
+
+    #[test]
+    fn run_missing_input_returns_2() {
+        assert_eq!(run(&[]), 2);
+    }
+
+    #[test]
+    fn run_writes_result_for_valid_input() {
+        let dir = std::env::temp_dir().join(format!(
+            "legion-w2034-tm-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("in.json");
+        std::fs::write(&input, r#"[{"url":"https://x.com/a","title":"Widgets","meta_desc":"Widgets. Learn more"}]"#).unwrap();
+        assert_eq!(run(&[input.to_str().unwrap().to_string()]), 0);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

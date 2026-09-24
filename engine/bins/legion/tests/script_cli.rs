@@ -321,3 +321,279 @@ fn native_script_seo_google_report_missing_data_file_exits_1() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("Error reading data file"), "{stderr}");
 }
+
+/// `legion script --list` must include the SC4c handoff/coder ports.
+#[test]
+fn native_script_list_includes_handoff_and_coder_ports() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "--list"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let value: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let scripts: Vec<&str> = value["scripts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    for name in [
+        "handoff/validate-handoff",
+        "handoff/transcript-handoff",
+        "coder/api-worker",
+    ] {
+        assert!(scripts.contains(&name), "expected {name} in {scripts:?}");
+    }
+}
+
+/// `handoff/validate-handoff` on a missing file: matches the Python's
+/// `FAIL: handoff file not found: ...` to stderr, exit 2.
+#[test]
+fn native_script_handoff_validate_handoff_missing_file_exits_2() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "script",
+            "handoff/validate-handoff",
+            "/nonexistent/handoff.md",
+            "--template-self-check",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("handoff file not found"), "{stderr}");
+}
+
+/// `handoff/validate-handoff` with no receipt mode and not a template
+/// self-check: `FAIL: exactly one receipt mode is required`, exit 1.
+#[test]
+fn native_script_handoff_validate_handoff_requires_receipt_mode() {
+    let dir = std::env::temp_dir();
+    let path = dir.join(format!(
+        "legion-script-cli-handoff-{}-{}.md",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&path, "not a real handoff\n").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "handoff/validate-handoff", path.to_str().unwrap()])
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_file(&path);
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("exactly one receipt mode is required"),
+        "{stdout}"
+    );
+}
+
+/// `handoff/transcript-handoff bootstrap` with no session on this host
+/// fails closed the same way the Python did (`FAIL: ...`), proving the
+/// dispatcher reaches the real port rather than Legion's own usage path.
+#[test]
+fn native_script_handoff_transcript_handoff_bootstrap_no_session_fails() {
+    let dir = std::env::temp_dir().join(format!(
+        "legion-script-cli-home-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .env("HOME", &dir)
+        .args([
+            "script",
+            "handoff/transcript-handoff",
+            "bootstrap",
+            "--platform",
+            "codex",
+            "--home",
+            dir.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    // No .codex/sessions under a fresh temp HOME, so resolution must fail
+    // closed (non-zero), never fall through to Legion's own "unknown
+    // script" usage path.
+    assert_ne!(output.status.code(), Some(4), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("FAIL"), "{stdout}");
+}
+
+/// `handoff/transcript-handoff` with an unrecognized subcommand: exit 2,
+/// matching argparse's own error-exit code shape.
+#[test]
+fn native_script_handoff_transcript_handoff_unknown_command_exits_2() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "handoff/transcript-handoff", "nope"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+/// `coder/api-worker` with no model/tier/fallback selected and a prompt
+/// supplied: the ported CLI itself must run (not the Legion "unknown
+/// script" path); it fails because no real `pi` CLI is on PATH here.
+#[test]
+fn native_script_coder_api_worker_missing_model_selection_fails() {
+    use std::process::Stdio;
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "coder/api-worker", "--input", "-"])
+        .env("HOME", std::env::temp_dir())
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("unknown script"),
+        "dispatcher fell through to the unknown-script path: {stderr}"
+    );
+    assert_ne!(output.status.code(), Some(4), "{output:?}");
+}
+
+#[test]
+fn native_script_list_includes_sc4d_ports() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "--list"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let value: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let scripts: Vec<&str> = value["scripts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    for name in [
+        "alchemist/parse_events",
+        "alchemist/viewer",
+        "brand-identity/color-check",
+        "covenant/validate-external-review-packet",
+        "seo/provider_registry",
+        "seo/question_inventory",
+        "seo/query_ownership",
+        "seo/render_gap",
+        "seo/templated_metadata",
+    ] {
+        assert!(scripts.contains(&name), "expected {name} in {scripts:?}");
+    }
+}
+
+#[test]
+fn native_script_covenant_validate_external_review_packet_missing_file_exits_2() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "covenant/validate-external-review-packet", "/nonexistent/packet.md"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+#[test]
+fn native_script_brand_identity_color_check_contrast() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "brand-identity/color-check", "contrast", "#000000", "#ffffff"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("\"ratio\": 21.0") || stdout.contains("\"ratio\": 21"), "{stdout}");
+}
+
+#[test]
+fn native_script_brand_identity_color_check_bad_usage_exits_2() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "brand-identity/color-check"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+#[test]
+fn native_script_seo_provider_registry_discover() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "seo/provider_registry", "discover"])
+        .current_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/../../..")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+}
+
+#[test]
+fn native_script_seo_question_inventory_missing_input_exits_2() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "seo/question_inventory"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+#[test]
+fn native_script_seo_query_ownership_missing_input_exits_2() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "seo/query_ownership"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+#[test]
+fn native_script_seo_templated_metadata_missing_input_exits_2() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "seo/templated_metadata"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+#[test]
+fn native_script_seo_render_gap_missing_url_exits_2() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "seo/render_gap"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+#[test]
+fn native_script_alchemist_parse_events_requires_stream_or_summary() {
+    use std::process::Stdio;
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "alchemist/parse_events"])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+}
+
+#[test]
+fn native_script_alchemist_parse_events_stream_mode() {
+    use std::io::Write as _;
+    use std::process::Stdio;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "alchemist/parse_events", "--stream"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"{\"type\":\"agent_message\",\"text\":\"hello\"}\n")
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("hello"), "{stdout}");
+}
