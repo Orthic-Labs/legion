@@ -210,7 +210,7 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
 
 /// Mirrors `rules: RULES.map((rule) => ({ id: rule.id }))`.
 pub fn rule_ids() -> Vec<&'static str> {
-    RULES.iter().map(|r| r.id).collect()
+    rules().iter().map(|r| r.id).collect()
 }
 
 /// Port of `buildVariantStrategy(rule).rootCause(candidate)` for every
@@ -218,7 +218,7 @@ pub fn rule_ids() -> Vec<&'static str> {
 /// for every rule, parameterized only by `rule.id` and the candidate's
 /// `detectorMetadata.file`.
 pub fn variant_root_cause(rule_id: &str, candidate_file: Option<&str>) -> Option<Value> {
-    if !RULES.iter().any(|r| r.id == rule_id) {
+    if !rules().iter().any(|r| r.id == rule_id) {
         return None;
     }
     Some(json!({
@@ -232,7 +232,7 @@ pub fn variant_root_cause(rule_id: &str, candidate_file: Option<&str>) -> Option
 /// (`matches: []` always), only reporting a complete repository-wide
 /// denominator.
 pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<Value> {
-    if !RULES.iter().any(|r| r.id == rule_id) {
+    if !rules().iter().any(|r| r.id == rule_id) {
         return None;
     }
     Some(json!({

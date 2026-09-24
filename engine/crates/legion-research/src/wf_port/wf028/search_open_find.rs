@@ -284,13 +284,19 @@ mod tests {
 
     #[test]
     fn unknown_provider_is_invalid() {
-        let err = provider("made-up", None).unwrap_err();
+        let err = match provider("made-up", None) {
+            Err(e) => e,
+            Ok(_) => panic!("expected error"),
+        };
         assert!(matches!(err, DispatchError::InvalidProvider(_)));
     }
 
     #[test]
     fn local_corpus_without_corpus_flag_is_invalid() {
-        let err = provider("local-corpus", None).unwrap_err();
+        let err = match provider("local-corpus", None) {
+            Err(e) => e,
+            Ok(_) => panic!("expected error"),
+        };
         assert!(matches!(err, DispatchError::InvalidProvider(_)));
     }
 
@@ -322,11 +328,17 @@ mod tests {
         std::env::remove_var("RESEARCH_BROWSER_CMD");
         std::env::remove_var("RESEARCH_AUTHORITY_CMD");
         assert!(matches!(
-            provider("browser", None).unwrap_err(),
+            match provider("browser", None) {
+                Err(e) => e,
+                Ok(_) => panic!("expected error"),
+            },
             DispatchError::Construction(_)
         ));
         assert!(matches!(
-            provider("legal-authority", None).unwrap_err(),
+            match provider("legal-authority", None) {
+                Err(e) => e,
+                Ok(_) => panic!("expected error"),
+            },
             DispatchError::Construction(_)
         ));
     }

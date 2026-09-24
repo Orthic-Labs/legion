@@ -379,6 +379,299 @@ pub fn brief(state: &SearchOpsState) -> Option<Brief> {
     })
 }
 
+/// Minimal option-scanner shared by the `run_argv` subcommand parsers below: walks
+/// `args` from `idx`, collecting `--flag value` pairs (last one wins, matching
+/// argparse) and `--flag` used with `action='append'` into a `Vec`.
+struct ArgScanner<'a> {
+    args: &'a [String],
+    idx: usize,
+}
+
+impl<'a> ArgScanner<'a> {
+    fn new(args: &'a [String], idx: usize) -> Self {
+        Self { args, idx }
+    }
+
+    fn next_flag(&mut self) -> Option<(&'a str, Option<&'a str>)> {
+        let flag = self.args.get(self.idx)?.as_str();
+        self.idx += 1;
+        let value = self.args.get(self.idx).map(|s| s.as_str());
+        Some((flag, value))
+    }
+
+    fn take_value(&mut self) -> Option<String> {
+        let v = self.args.get(self.idx).cloned();
+        if v.is_some() {
+            self.idx += 1;
+        }
+        v
+    }
+}
+
+/// Port of `main()`'s `argparse` surface for `search_ops.py`: `--state` global flag,
+/// then one of `start`/`deploy`/`verify`/`outcome`/`run`/`brief` with that subcommand's
+/// flags. Prints the same pretty-JSON `run_cli` produces and returns the same exit
+/// code (`0` on success, `1` on any parse or state error).
+pub fn run_argv(args: &[String]) -> i32 {
+    let mut state_path = PathBuf::from(DEFAULT_STATE_PATH);
+    let mut idx = 0;
+    while idx < args.len() {
+        if args[idx] == "--state" {
+            match args.get(idx + 1) {
+                Some(v) => {
+                    state_path = PathBuf::from(v);
+                    idx += 2;
+                }
+                None => {
+                    eprintln!("Error: --state requires a value");
+                    return 1;
+                }
+            }
+        } else {
+            break;
+        }
+    }
+    let Some(sub) = args.get(idx) else {
+        eprintln!("Error: a command is required");
+        return 1;
+    };
+    idx += 1;
+    let rest = &args[idx..];
+
+    macro_rules! err {
+        ($msg:expr) => {{
+            eprintln!("Error: {}", $msg);
+            return 1;
+        }};
+    }
+
+    let command = match sub.as_str() {
+        "brief" => Command::Brief,
+        "start" => {
+            let mut id = None;
+            let mut target = None;
+            let mut query_or_topic = None;
+            let mut hypothesis = None;
+            let mut action = None;
+            let mut metric = None;
+            let mut evaluate_after = None;
+            let mut maturity_condition = None;
+            let mut guardrails = Vec::new();
+            let mut baseline = Value::Null;
+            let mut scan = ArgScanner::new(rest, 0);
+            while let Some((flag, _)) = scan.next_flag() {
+                match flag {
+                    "--id" => id = scan.take_value(),
+                    "--target" => target = scan.take_value(),
+                    "--query-or-topic" => query_or_topic = scan.take_value(),
+                    "--hypothesis" => hypothesis = scan.take_value(),
+                    "--action" => action = scan.take_value(),
+                    "--metric" => metric = scan.take_value(),
+                    "--evaluate-after" => evaluate_after = scan.take_value(),
+                    "--maturity-condition" => maturity_condition = scan.take_value(),
+                    "--guardrail" => {
+                        if let Some(v) = scan.take_value() {
+                            guardrails.push(v);
+                        }
+                    }
+                    "--baseline" => {
+                        if let Some(v) = scan.take_value() {
+                            baseline = serde_json::from_str(&v).unwrap_or(Value::Null);
+                        }
+                    }
+                    other => err!(format!("unrecognized argument: {other}")),
+                }
+            }
+            let (Some(id), Some(target), Some(hypothesis), Some(action), Some(metric), Some(evaluate_after)) =
+                (id, target, hypothesis, action, metric, evaluate_after)
+            else {
+                err!("start requires --id --target --hypothesis --action --metric --evaluate-after");
+            };
+            Command::Start(Intervention {
+                id,
+                target,
+                query_or_topic,
+                hypothesis,
+                proposed_action: action,
+                primary_metric: metric,
+                evaluation: Evaluation {
+                    earliest_date: evaluate_after,
+                    maturity_condition,
+                },
+                guardrails,
+                baseline,
+                status: "proposed".to_string(),
+                ..Default::default()
+            })
+        }
+        "deploy" => {
+            let mut id = None;
+            let mut identity = None;
+            let mut authorized_capability = None;
+            let mut idempotency_key = None;
+            let mut effect_receipt = None;
+            let mut rollback = None;
+            let mut evidence = None;
+            let mut scan = ArgScanner::new(rest, 0);
+            while let Some((flag, _)) = scan.next_flag() {
+                match flag {
+                    "--id" => id = scan.take_value(),
+                    "--identity" => identity = scan.take_value(),
+                    "--authorized-capability" => authorized_capability = scan.take_value(),
+                    "--idempotency-key" => idempotency_key = scan.take_value(),
+                    "--effect-receipt" => effect_receipt = scan.take_value(),
+                    "--rollback" => rollback = scan.take_value(),
+                    "--evidence" => evidence = scan.take_value(),
+                    other => err!(format!("unrecognized argument: {other}")),
+                }
+            }
+            let (Some(id), Some(identity), Some(authorized_capability), Some(idempotency_key), Some(effect_receipt), Some(rollback)) =
+                (id, identity, authorized_capability, idempotency_key, effect_receipt, rollback)
+            else {
+                err!("deploy requires --id --identity --authorized-capability --idempotency-key --effect-receipt --rollback");
+            };
+            Command::Deploy {
+                id,
+                deployment: Deployment {
+                    identity,
+                    authorized_capability,
+                    idempotency_key,
+                    effect_receipt,
+                    rollback,
+                    evidence,
+                    ..Default::default()
+                },
+            }
+        }
+        "verify" => {
+            let mut id = None;
+            let mut result = None;
+            let mut evidence = None;
+            let mut scan = ArgScanner::new(rest, 0);
+            while let Some((flag, _)) = scan.next_flag() {
+                match flag {
+                    "--id" => id = scan.take_value(),
+                    "--result" => result = scan.take_value(),
+                    "--evidence" => evidence = scan.take_value(),
+                    other => err!(format!("unrecognized argument: {other}")),
+                }
+            }
+            let (Some(id), Some(result), Some(evidence)) = (id, result, evidence) else {
+                err!("verify requires --id --result --evidence");
+            };
+            if result != "pass" && result != "fail" {
+                err!("--result must be pass or fail");
+            }
+            Command::Verify { id, result, evidence }
+        }
+        "outcome" => {
+            let mut id = None;
+            let mut verdict = None;
+            let mut metrics = Value::Null;
+            let mut evidence = None;
+            let mut confounders = Vec::new();
+            let mut causal_strength = "observational".to_string();
+            let mut scan = ArgScanner::new(rest, 0);
+            while let Some((flag, _)) = scan.next_flag() {
+                match flag {
+                    "--id" => id = scan.take_value(),
+                    "--verdict" => verdict = scan.take_value(),
+                    "--metrics" => {
+                        if let Some(v) = scan.take_value() {
+                            metrics = serde_json::from_str(&v).unwrap_or(Value::Null);
+                        }
+                    }
+                    "--evidence" => evidence = scan.take_value(),
+                    "--confounder" => {
+                        if let Some(v) = scan.take_value() {
+                            confounders.push(v);
+                        }
+                    }
+                    "--causal-strength" => {
+                        if let Some(v) = scan.take_value() {
+                            causal_strength = v;
+                        }
+                    }
+                    other => err!(format!("unrecognized argument: {other}")),
+                }
+            }
+            let (Some(id), Some(verdict)) = (id, verdict) else {
+                err!("outcome requires --id --verdict");
+            };
+            Command::Outcome {
+                id,
+                outcome: Outcome {
+                    verdict,
+                    metrics,
+                    evidence,
+                    confounders,
+                    causal_strength,
+                    ..Default::default()
+                },
+            }
+        }
+        "run" => {
+            let mut cadence = None;
+            let mut property = None;
+            let mut market = None;
+            let mut primary_action = None;
+            let mut critical = Vec::new();
+            let mut watch = Vec::new();
+            let mut evidence = Vec::new();
+            let mut scan = ArgScanner::new(rest, 0);
+            while let Some((flag, _)) = scan.next_flag() {
+                match flag {
+                    "--cadence" => cadence = scan.take_value(),
+                    "--property" => property = scan.take_value(),
+                    "--market" => market = scan.take_value(),
+                    "--primary-action" => primary_action = scan.take_value(),
+                    "--critical" => {
+                        if let Some(v) = scan.take_value() {
+                            critical.push(v);
+                        }
+                    }
+                    "--watch" => {
+                        if let Some(v) = scan.take_value() {
+                            watch.push(v);
+                        }
+                    }
+                    "--evidence" => {
+                        if let Some(v) = scan.take_value() {
+                            evidence.push(v);
+                        }
+                    }
+                    other => err!(format!("unrecognized argument: {other}")),
+                }
+            }
+            let (Some(cadence), Some(property)) = (cadence, property) else {
+                err!("run requires --cadence --property");
+            };
+            Command::Run(Run {
+                cadence,
+                property,
+                market,
+                primary_action,
+                critical,
+                watch,
+                evidence,
+                ..Default::default()
+            })
+        }
+        other => err!(format!("unknown command: {other}")),
+    };
+
+    match run_cli(&state_path, command) {
+        Ok((code, text)) => {
+            println!("{text}");
+            code
+        }
+        Err(e) => {
+            eprintln!("Error: {e}");
+            1
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -602,5 +895,53 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(err, SearchOpsError::UnknownIntervention("missing".into()));
+    }
+
+    #[test]
+    fn run_argv_start_deploy_verify_outcome_brief() {
+        let path = temp_state_path();
+        let path_str = path.to_string_lossy().to_string();
+        let code = run_argv(&[
+            "--state".into(), path_str.clone(), "start".into(),
+            "--id".into(), "argv1".into(), "--target".into(), "/page".into(),
+            "--hypothesis".into(), "h".into(), "--action".into(), "a".into(),
+            "--metric".into(), "m".into(), "--evaluate-after".into(), "2026-01-01".into(),
+        ]);
+        assert_eq!(code, 0);
+
+        let code = run_argv(&[
+            "--state".into(), path_str.clone(), "deploy".into(),
+            "--id".into(), "argv1".into(), "--identity".into(), "op".into(),
+            "--authorized-capability".into(), "cap".into(), "--idempotency-key".into(), "k".into(),
+            "--effect-receipt".into(), "r".into(), "--rollback".into(), "revert".into(),
+        ]);
+        assert_eq!(code, 0);
+
+        let code = run_argv(&[
+            "--state".into(), path_str.clone(), "verify".into(),
+            "--id".into(), "argv1".into(), "--result".into(), "pass".into(), "--evidence".into(), "ev".into(),
+        ]);
+        assert_eq!(code, 0);
+
+        let code = run_argv(&[
+            "--state".into(), path_str.clone(), "outcome".into(),
+            "--id".into(), "argv1".into(), "--verdict".into(), "win".into(),
+        ]);
+        assert_eq!(code, 0);
+
+        let code = run_argv(&["--state".into(), path_str, "brief".into()]);
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn run_argv_missing_command_errors() {
+        assert_eq!(run_argv(&[]), 1);
+    }
+
+    #[test]
+    fn run_argv_start_missing_required_errors() {
+        let path = temp_state_path();
+        let code = run_argv(&["--state".into(), path.to_string_lossy().into_owned(), "start".into()]);
+        assert_eq!(code, 1);
     }
 }

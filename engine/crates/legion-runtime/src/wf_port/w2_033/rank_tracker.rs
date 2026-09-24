@@ -494,6 +494,98 @@ pub fn run(root: &Path, command: Command) -> (i32, String) {
     (if status_ok { 0 } else { 1 }, text)
 }
 
+/// Port of `main()`'s `argparse` surface: `--root` global flag, then `ingest <input>
+/// --market M --language L [--device D] --provider P [--snapshot S]` or `compare`.
+/// Prints the same pretty-JSON `run()` produces and returns the same exit code; a
+/// missing/invalid argument prints `Error: <message>` to match the module's own
+/// `Error: {e}` convention (argparse's own usage errors are not reproduced verbatim,
+/// since this CLI has no interactive terminal to print them to).
+pub fn run_argv(args: &[String]) -> i32 {
+    let mut root = PathBuf::from(".");
+    let mut idx = 0;
+    while idx < args.len() {
+        if args[idx] == "--root" {
+            match args.get(idx + 1) {
+                Some(v) => {
+                    root = PathBuf::from(v);
+                    idx += 2;
+                }
+                None => {
+                    eprintln!("Error: --root requires a value");
+                    return 1;
+                }
+            }
+        } else {
+            break;
+        }
+    }
+    let Some(sub) = args.get(idx) else {
+        eprintln!("Error: a command is required (ingest|compare)");
+        return 1;
+    };
+    idx += 1;
+    let command = match sub.as_str() {
+        "compare" => Command::Compare,
+        "ingest" => {
+            let mut input: Option<PathBuf> = None;
+            let mut market: Option<String> = None;
+            let mut language: Option<String> = None;
+            let mut device = "desktop".to_string();
+            let mut provider: Option<String> = None;
+            let mut snapshot: Option<String> = None;
+            while idx < args.len() {
+                let a = args[idx].as_str();
+                macro_rules! next_val {
+                    () => {{
+                        idx += 1;
+                        match args.get(idx) {
+                            Some(v) => v.clone(),
+                            None => {
+                                eprintln!("Error: {a} requires a value");
+                                return 1;
+                            }
+                        }
+                    }};
+                }
+                match a {
+                    "--market" => market = Some(next_val!()),
+                    "--language" => language = Some(next_val!()),
+                    "--device" => device = next_val!(),
+                    "--provider" => provider = Some(next_val!()),
+                    "--snapshot" => snapshot = Some(next_val!()),
+                    other if !other.starts_with("--") => input = Some(PathBuf::from(other)),
+                    other => {
+                        eprintln!("Error: unrecognized argument: {other}");
+                        return 1;
+                    }
+                }
+                idx += 1;
+            }
+            let (Some(input), Some(market), Some(language), Some(provider)) =
+                (input, market, language, provider)
+            else {
+                eprintln!("Error: ingest requires input, --market, --language, --provider");
+                return 1;
+            };
+            Command::Ingest {
+                input,
+                market,
+                language,
+                device,
+                provider,
+                snapshot,
+            }
+        }
+        other => {
+            eprintln!("Error: unknown command: {other}");
+            return 1;
+        }
+    };
+    let (code, text) = run(&root, command);
+    println!("{text}");
+    code
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -612,6 +704,37 @@ mod tests {
         let root = temp_root();
         let out = compare_root(&root).unwrap();
         assert_eq!(out["status"], "not_testable");
+    }
+
+    #[test]
+    fn run_argv_ingest_then_compare() {
+        let root = temp_root();
+        let root_str = root.to_string_lossy().to_string();
+        let input1 = root.join("in1.json");
+        std::fs::write(&input1, r#"[{"keyword":"k1","position":5,"observed_url":"https://a.example/x"}]"#).unwrap();
+        let code = run_argv(&[
+            "--root".into(), root_str.clone(), "ingest".into(), input1.to_string_lossy().into_owned(),
+            "--market".into(), "US".into(), "--language".into(), "en".into(),
+            "--provider".into(), "acme".into(), "--snapshot".into(), "snap1".into(),
+        ]);
+        assert_eq!(code, 0);
+
+        let input2 = root.join("in2.json");
+        std::fs::write(&input2, r#"[{"keyword":"k1","position":3,"observed_url":"https://a.example/y"}]"#).unwrap();
+        let code = run_argv(&[
+            "--root".into(), root_str.clone(), "ingest".into(), input2.to_string_lossy().into_owned(),
+            "--market".into(), "US".into(), "--language".into(), "en".into(),
+            "--provider".into(), "acme".into(), "--snapshot".into(), "snap2".into(),
+        ]);
+        assert_eq!(code, 0);
+
+        let code = run_argv(&["--root".into(), root_str, "compare".into()]);
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn run_argv_missing_command_errors() {
+        assert_eq!(run_argv(&[]), 1);
     }
 
     #[test]

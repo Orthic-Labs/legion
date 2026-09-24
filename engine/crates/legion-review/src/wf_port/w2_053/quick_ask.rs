@@ -454,7 +454,7 @@ mod tests {
 
     #[test]
     fn parse_args_rejects_unknown_flag() {
-        let args: Vec<String> = ["--nope".to_string()];
+        let args: Vec<String> = vec!["--nope".to_string()];
         assert!(parse_args(&args).is_err());
     }
 

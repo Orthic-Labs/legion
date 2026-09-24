@@ -251,7 +251,7 @@ fn run_honours_out_override_over_output_dir_in_yaml() {
     ]);
     assert_eq!(code, 0);
 
-    let entries: Vec<_> = std::fs::read_dir(&override_dir)
+    let entries = std::fs::read_dir(&override_dir)
         .unwrap()
         .filter_map(|e| e.ok())
         .count();

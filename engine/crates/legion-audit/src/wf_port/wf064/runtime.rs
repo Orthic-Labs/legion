@@ -748,7 +748,7 @@ pub mod chrome_driver {
             let _ = tab.add_event_listener(Arc::new(move |event: &headless_chrome::protocol::cdp::types::Event| {
                 match event {
                     headless_chrome::protocol::cdp::types::Event::RuntimeConsoleAPICalled(ev) => {
-                        let level = format!("{:?}", ev.params.call_type).to_lowercase();
+                        let level = format!("{:?}", ev.params.Type).to_lowercase();
                         if level == "error" || level == "warning" {
                             let text = ev
                                 .params
@@ -775,8 +775,8 @@ pub mod chrome_driver {
         fn navigate_and_wait_ready(&mut self, url: &str, width: u32, height: u32) -> Result<(), String> {
             let tab = self.tab.clone().ok_or_else(|| "no active tab".to_string())?;
             tab.call_method(headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
-                width: width as u64,
-                height: height as u64,
+                width,
+                height,
                 device_scale_factor: 1.0,
                 mobile: false,
                 scale: None,
@@ -788,6 +788,7 @@ pub mod chrome_driver {
                 screen_orientation: None,
                 viewport: None,
                 display_feature: None,
+                device_posture: None,
             })
             .map_err(|e| e.to_string())?;
             let _ = self.eval(INSTRUMENT_JS);

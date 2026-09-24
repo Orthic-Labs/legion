@@ -37,6 +37,7 @@ pub fn unknown_provider_type_error(provider_type: &str) -> String {
 
 /// A constructed, live-callable provider — the Rust analogue of what
 /// `build_provider` returns for the three types this packet owns.
+#[derive(Debug)]
 pub enum ProviderHandle {
     GeminiApi(GeminiConfig),
     MiniMaxAnthropic(MiniMaxConfig),

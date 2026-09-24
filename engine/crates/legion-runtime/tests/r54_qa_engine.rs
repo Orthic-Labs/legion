@@ -122,12 +122,12 @@ impl BrowserSession for FakeBrowserSession {
 
 #[test]
 fn actions_file_parses_and_replays_against_a_fake_session() {
-    let file = r#"[
+    let file = r##"[
         {"type": "waitFor", "selector": "#app"},
         {"type": "click", "selector": "#go"},
         {"type": "assertText", "selector": "#msg", "text": "Hello"},
         {"type": "screenshot", "out": "shot.png"}
-    ]"#;
+    ]"##;
     let actions = parse_actions(file).unwrap();
     assert_eq!(actions.len(), 4);
     let mut session = FakeBrowserSession::default();

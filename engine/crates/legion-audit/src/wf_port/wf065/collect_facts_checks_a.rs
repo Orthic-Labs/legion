@@ -233,7 +233,7 @@ fn count_include_stitches(text: &str) -> u64 {
 /// reading the raw gitleaks report and deleting it once redacted candidates
 /// have been extracted (JS: `readFileSync(rawPath)` then `unlinkSync
 /// (rawPath)`). Abstracted so tests never touch a real file.
-pub trait GitleaksReport {
+pub trait GitleaksReport: Send + Sync {
     fn read(&self, path: &Path) -> std::io::Result<String>;
     fn delete(&self, path: &Path);
 }
@@ -775,7 +775,7 @@ pub fn build_dead_code<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack:
 /// Filesystem access the `duplication` check needs beyond command execution:
 /// reading jscpd's on-disk JSON report (`<outDir>/_jscpd/jscpd-report.json`
 /// — jscpd writes to disk, it does not print JSON to stdout).
-pub trait JscpdReport {
+pub trait JscpdReport: Send + Sync {
     fn read(&self, path: &Path) -> std::io::Result<String>;
 }
 

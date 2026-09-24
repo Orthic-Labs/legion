@@ -416,7 +416,7 @@ pub fn build_tool_coverage<'a>(stack: &'a DetectedStack, root: &'a Path, tracked
                 let txt = read_to_string(root, f);
                 let items: Vec<String> = ignores_re
                     .captures_iter(&txt)
-                    .flat_map(|c| c[1].split(',').map(|s| s.trim_matches(|ch| "'\"` ".contains(ch)).to_string()))
+                    .flat_map(|c| c[1].split(',').map(|s| s.trim_matches(|ch| "'\"` ".contains(ch)).to_string()).collect::<Vec<_>>())
                     .filter(|s| !s.is_empty())
                     .collect();
                 if !items.is_empty() {
@@ -1277,24 +1277,24 @@ pub fn checks_b<'a>(runner: &'a dyn CommandRunner, root: &'a Path, stack: &'a De
 mod tests {
     use super::*;
     use crate::wf_port::wf065::collect_facts_exec::{exec_one, RunOutput};
-    use std::cell::RefCell;
     use std::collections::HashMap;
+    use std::sync::Mutex;
 
     struct FakeRunner {
         which: HashMap<&'static str, bool>,
-        outputs: RefCell<HashMap<String, RunOutput>>,
+        outputs: Mutex<HashMap<String, RunOutput>>,
     }
 
     impl FakeRunner {
         fn new() -> Self {
-            Self { which: HashMap::new(), outputs: RefCell::new(HashMap::new()) }
+            Self { which: HashMap::new(), outputs: Mutex::new(HashMap::new()) }
         }
         fn with_which(mut self, bin: &'static str, present: bool) -> Self {
             self.which.insert(bin, present);
             self
         }
         fn with_output(self, cmd: &str, out: RunOutput) -> Self {
-            self.outputs.borrow_mut().insert(cmd.to_string(), out);
+            self.outputs.lock().unwrap().insert(cmd.to_string(), out);
             self
         }
     }
@@ -1302,7 +1302,7 @@ mod tests {
     impl CommandRunner for FakeRunner {
         fn run(&self, argv: &[String], _cwd: &Path, _timeout_ms: u64) -> RunOutput {
             let key = argv.join(" ");
-            self.outputs.borrow().get(&key).cloned().unwrap_or(RunOutput {
+            self.outputs.lock().unwrap().get(&key).cloned().unwrap_or(RunOutput {
                 code: 0,
                 stdout: String::new(),
                 stderr: String::new(),
