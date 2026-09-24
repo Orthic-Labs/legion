@@ -257,23 +257,29 @@ pub fn relative_path(from: &Path, to: &Path) -> String {
 /// job, done separately, matching the JS split between `resolve` and
 /// `realpathSync`).
 pub fn resolve_path(base: &str, rel: &str) -> String {
-    let rel_path = Path::new(rel);
-    let joined = if rel_path.is_absolute() { rel_path.to_path_buf() } else { Path::new(base).join(rel_path) };
-    let mut out: Vec<Component<'_>> = Vec::new();
-    for component in joined.components() {
-        match component {
-            Component::ParentDir => {
-                if matches!(out.last(), Some(Component::Normal(_))) {
+    // Mirrors JS `path.posix.resolve`/manual slash-joined resolution: the
+    // inputs and output are POSIX-style path strings (forward-slash
+    // separated), independent of the host OS, not real filesystem paths.
+    // Splitting/joining on '/' directly (rather than routing through
+    // `std::path::Path`/`PathBuf`, whose `Component`/`to_string_lossy`
+    // use the platform separator) keeps this correct on Windows.
+    let is_absolute = rel.starts_with('/');
+    let joined = if is_absolute { rel.to_string() } else { format!("{base}/{rel}") };
+    let mut out: Vec<&str> = Vec::new();
+    for segment in joined.split('/') {
+        match segment {
+            "" | "." => {}
+            ".." => {
+                if matches!(out.last(), Some(s) if *s != "..") {
                     out.pop();
                 } else {
-                    out.push(component);
+                    out.push(segment);
                 }
             }
-            Component::CurDir => {}
             other => out.push(other),
         }
     }
-    out.into_iter().collect::<PathBuf>().to_string_lossy().to_string()
+    format!("/{}", out.join("/"))
 }
 
 #[derive(Debug, Clone, Default)]

@@ -1200,7 +1200,7 @@ mod tests {
         let args: Vec<String> = ["https://example.com", "--crux-only"].iter().map(|s| s.to_string()).collect();
         let code = run(&args, &client, &mut out, &mut err);
         assert_eq!(code, 1);
-        assert!(String::from_utf8(err).unwrap().contains("API key required"));
+        assert!(String::from_utf8(err).unwrap().contains("CrUX API requires an API key"));
     }
 
     #[test]

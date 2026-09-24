@@ -600,7 +600,11 @@ mod tests {
         .unwrap();
         assert_eq!(proposal["tier"], json!("MECHANICAL"));
         assert_eq!(proposal["producer"]["id"], json!("structural.tls-reject-unauthorized"));
-        assert_eq!(proposal["patch"]["render"], json!("structural"));
+        // Mirrors JS `createMechanicalProposal`: "render" only exists on the
+        // ephemeral `patchBody` used to compute `patch.digest`, never on the
+        // `patch` object itself.
+        assert_eq!(proposal["patch"]["format"], json!("legion-preview-edits"));
+        assert!(proposal["patch"]["digest"].is_string());
         assert_eq!(proposal["patch"]["edits"][0]["after"], json!("rejectUnauthorized: true"));
     }
 

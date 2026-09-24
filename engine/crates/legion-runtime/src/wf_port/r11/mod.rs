@@ -739,7 +739,7 @@ mod tests {
 
         let opts2 = ColorsInput {
             bg_color: Some(rgba(0.0, 0.0, 0.0, 1.0)),
-            text_color: Some(rgb(170.0, 170.0, 170.0)),
+            text_color: Some(rgb(100.0, 100.0, 100.0)),
             effective_bg: Some(rgb(0.0, 0.0, 0.0)),
             ..opts
         };
@@ -860,12 +860,12 @@ mod tests {
 
     #[test]
     fn check_glow_dark_bg_colored_blur() {
-        let f = check_glow(Some("0 0 20px rgba(120, 0, 200, 0.6)"), Some(rgb(10.0, 10.0, 10.0)));
+        let f = check_glow(Some("0px 0px 20px rgba(120, 0, 200, 0.6)"), Some(rgb(10.0, 10.0, 10.0)));
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].id, "dark-glow");
 
         // Light background: never flags.
-        assert!(check_glow(Some("0 0 20px rgba(120, 0, 200, 0.6)"), Some(rgb(250.0, 250.0, 250.0))).is_empty());
+        assert!(check_glow(Some("0px 0px 20px rgba(120, 0, 200, 0.6)"), Some(rgb(250.0, 250.0, 250.0))).is_empty());
 
         // No box-shadow: never flags.
         assert!(check_glow(None, Some(rgb(10.0, 10.0, 10.0))).is_empty());

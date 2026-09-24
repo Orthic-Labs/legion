@@ -505,6 +505,10 @@ mod tests {
             "checks": [],
             "provider_reconciliation": {"providerResults": []},
             "plan": {"reasoningProviders": [], "selectedProviderIds": [], "binding": {"repositoryRevision": "abc"}},
+            // A missing/invalid plan_binding_verification is itself a
+            // "plan-binding" gap (fail-closed), so a genuinely clean run
+            // must carry an explicit valid verification.
+            "plan_binding_verification": {"valid": true},
         })
     }
 
@@ -566,7 +570,7 @@ mod tests {
     #[test]
     fn finalize_run_sets_generated_at_and_exit_code() {
         let plan = json!({"reasoningProviders": [], "selectedProviderIds": []});
-        let facts = json!({"workspace": "/repo", "network_policy": {"mode": "deny"}, "checks": [], "provider_reconciliation": {"providerResults": []}});
+        let facts = json!({"workspace": "/repo", "network_policy": {"mode": "deny"}, "checks": [], "provider_reconciliation": {"providerResults": []}, "plan_binding_verification": {"valid": true}});
         let report = finalize_run(&plan, &facts, None, None, None, "2024-01-01T00:00:00.000Z");
         assert_eq!(report["generated_at"], "2024-01-01T00:00:00.000Z");
         assert_eq!(report["exit_code"], Exit::Pass.code());

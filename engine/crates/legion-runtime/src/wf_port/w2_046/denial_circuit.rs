@@ -360,7 +360,13 @@ impl<'a> DenialRecorder for FileDenialCircuit<'a> {
             receipt["authentication"] = signed.to_json();
 
             std::fs::create_dir_all(&self.root).map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
-            let tmp = self.root.join(format!(".{}.{}.tmp", std::process::id(), fingerprint));
+            // `fingerprint` is a `digest_value` output ("sha256:<hex>"); the
+            // ':' is illegal in a Windows filename (rename/create fails with
+            // ERROR_INVALID_PARAMETER, os error 87), so sanitize it for the
+            // tmp filename component. The colon never reaches disk in the
+            // final `path` (that's `record_path`'s own sha256 hex digest).
+            let fingerprint_for_filename = fingerprint.replace(':', "-");
+            let tmp = self.root.join(format!(".{}.{}.tmp", std::process::id(), fingerprint_for_filename));
             std::fs::write(&tmp, format!("{}\n", serde_json::to_string(&receipt).unwrap()))
                 .map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
             std::fs::rename(&tmp, &path).map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;

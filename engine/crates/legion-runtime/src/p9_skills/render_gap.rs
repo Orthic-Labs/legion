@@ -268,7 +268,7 @@ pub fn extract_raw(html: &str, url: &str) -> SeoSignals {
     let body = ws_re.replace_all(&no_tags, " ").trim().to_string();
     let main_text_length = body.chars().count() as i64;
 
-    let href_re = regex::Regex::new(r#"(?i)href=["']([^"'#?]+)"#).unwrap();
+    let href_re = regex::Regex::new(r#"(?is)<a\s[^>]*href=["']([^"'#?]+)"#).unwrap();
     let internal_links = href_re
         .captures_iter(html)
         .filter_map(|c| c.get(1).map(|m| m.as_str().to_string()))

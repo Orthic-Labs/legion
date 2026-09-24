@@ -152,11 +152,14 @@ fn concurrency_convergence_id_list_has_five_entries() {
 }
 
 #[test]
-fn scheduler_backed_cases_are_blocked_not_simulated() {
+fn scheduler_backed_cases_now_run_the_real_scheduler() {
+    // R64 ported `scheduler.mjs` in full, so these two cases run the real
+    // scheduler against the fixtures the JS source builds inline, rather
+    // than reporting BlockedOnDependency.
     for id in ["AE-CONCURRENCY-ATTENTION-002", "AE-CONCURRENCY-ATTENTION-006"] {
         assert!(matches!(
             execute_concurrency_convergence_case(id),
-            ConcurrencyConvergenceResult::BlockedOnDependency { .. }
+            ConcurrencyConvergenceResult::Observed { .. }
         ));
     }
 }
@@ -172,10 +175,11 @@ fn pure_pending_cases_carry_their_js_reason_text() {
 }
 
 #[test]
-fn validator_never_accepts_current_concurrency_output() {
+fn validator_accepts_only_the_two_scheduler_backed_cases() {
     for id in concurrency_convergence_binding_ids() {
         let r = execute_concurrency_convergence_case(id);
-        assert!(!validate_concurrency_convergence_observation(&r));
+        let expect_valid = matches!(*id, "AE-CONCURRENCY-ATTENTION-002" | "AE-CONCURRENCY-ATTENTION-006");
+        assert_eq!(validate_concurrency_convergence_observation(&r), expect_valid, "{id}");
     }
 }
 
@@ -190,11 +194,14 @@ fn review_security_id_list_has_four_entries() {
 }
 
 #[test]
-fn gate_backed_cases_are_blocked_not_simulated() {
+fn gate_backed_cases_now_run_the_real_gate_validator() {
+    // The gate/scope dependency is now ported, so these two cases run the
+    // real validator/producer fixtures rather than reporting
+    // BlockedOnDependency.
     for id in ["AE-REVIEW-ADMISSION-001", "AE-REVIEW-VERDICT-SECURITY-006"] {
         assert!(matches!(
             execute_review_security_binding(id),
-            ReviewSecurityResult::BlockedOnDependency { .. }
+            ReviewSecurityResult::Observed { .. }
         ));
     }
 }

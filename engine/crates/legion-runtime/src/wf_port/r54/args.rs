@@ -200,7 +200,7 @@ pub fn split_qa_env(qa_env: &str) -> Option<(String, String)> {
     if name.is_empty() {
         return None;
     }
-    let value = parts.next();
+    let value = parts.next().filter(|v| !v.is_empty());
     Some((name.to_string(), value.map(|v| v.to_string()).unwrap_or_else(|| "1".to_string())))
 }
 

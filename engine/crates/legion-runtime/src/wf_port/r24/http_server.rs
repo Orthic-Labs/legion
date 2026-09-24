@@ -19,6 +19,7 @@ use serde_json::{json, Value};
 use super::manual_edit_deps::{LiveServerManualEditDeps, QueueCallbacks};
 use super::queue::QueueState;
 use super::server_info::remove_live_server_info;
+use super::remove_all_svelte_component_sessions;
 use crate::wf_port::w2_020::browser_script_parts::{
     assemble_live_browser_script, read_live_browser_script_parts,
     resolve_live_browser_script_parts, LIVE_BROWSER_SCRIPT_PARTS,
@@ -55,6 +56,7 @@ struct Request {
     path: String,
     query: std::collections::HashMap<String, String>,
     body: Vec<u8>,
+    content_type: String,
 }
 
 fn parse_query(raw: &str) -> std::collections::HashMap<String, String> {
@@ -113,6 +115,7 @@ fn read_request(stream: &mut impl Read) -> Option<Request> {
     let target = parts.next()?.to_string();
 
     let mut content_length: usize = 0;
+    let mut content_type = String::new();
     loop {
         let mut line = String::new();
         if reader.read_line(&mut line).ok()? == 0 {
@@ -125,6 +128,8 @@ fn read_request(stream: &mut impl Read) -> Option<Request> {
         if let Some((name, value)) = line.split_once(':') {
             if name.trim().eq_ignore_ascii_case("content-length") {
                 content_length = value.trim().parse().unwrap_or(0);
+            } else if name.trim().eq_ignore_ascii_case("content-type") {
+                content_type = value.trim().to_string();
             }
         }
     }
@@ -144,6 +149,7 @@ fn read_request(stream: &mut impl Read) -> Option<Request> {
         path,
         query: parse_query(&query_raw),
         body,
+        content_type,
     })
 }
 
@@ -187,6 +193,16 @@ const POLL_SLEEP_STEP: Duration = Duration::from_millis(200);
 /// the agent's ack).
 const POLL_LEASE_MS: u64 = 30_000;
 
+const MAX_ANNOTATION_BYTES: usize = 10 * 1024 * 1024;
+
+/// `/^[A-Za-z0-9_-]{1,64}$/` — the `eventId` validation the JS route applies
+/// before using it as a filename component.
+fn is_valid_event_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 64
+        && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
 fn handle_request<'a>(
     req: Request,
     mut stream: impl Write,
@@ -195,6 +211,7 @@ fn handle_request<'a>(
     project_root: &Path,
     port: u16,
     manual_apply_controller: &ManualApplyController<QueueCallbacks<'a>>,
+    session_dir: &Path,
 ) -> bool {
     if req.method == "OPTIONS" {
         write_response(&mut stream, 204, "No Content", "text/plain", b"");
@@ -223,6 +240,10 @@ fn handle_request<'a>(
             }
             match serde_json::from_slice::<Value>(&req.body) {
                 Ok(event) => {
+                    // `if (msg.type === 'exit') cleanupSvelteComponentSessionsBeforeExit();`
+                    if event.get("type").and_then(Value::as_str) == Some("exit") {
+                        remove_all_svelte_component_sessions(project_root);
+                    }
                     queue.enqueue_event(event);
                     write_json(&mut stream, 200, "OK", &json!({ "ok": true }));
                 }
@@ -354,12 +375,44 @@ fn handle_request<'a>(
             true
         }
         ("POST", "/annotation") => {
-            write_json(
-                &mut stream,
-                501,
-                "Not Implemented",
-                &json!({ "error": "annotation staging depends on unported live/session-store.mjs" }),
-            );
+            let provided = req.query.get("token").map(String::as_str).unwrap_or("");
+            if provided != token {
+                write_response(&mut stream, 401, "Unauthorized", "text/plain", b"Unauthorized");
+                return true;
+            }
+            let event_id = req.query.get("eventId").map(String::as_str).unwrap_or("");
+            if !is_valid_event_id(event_id) {
+                write_json(&mut stream, 400, "Bad Request", &json!({ "error": "Invalid eventId" }));
+                return true;
+            }
+            if !req.content_type.eq_ignore_ascii_case("image/png") {
+                write_json(
+                    &mut stream,
+                    415,
+                    "Unsupported Media Type",
+                    &json!({ "error": "Content-Type must be image/png" }),
+                );
+                return true;
+            }
+            if req.body.len() > MAX_ANNOTATION_BYTES {
+                write_json(&mut stream, 413, "Payload Too Large", &json!({ "error": "Payload too large" }));
+                return true;
+            }
+            let abs_path = session_dir.join(format!("{event_id}.png"));
+            match std::fs::write(&abs_path, &req.body) {
+                Ok(()) => write_json(
+                    &mut stream,
+                    200,
+                    "OK",
+                    &json!({ "ok": true, "path": abs_path.to_string_lossy() }),
+                ),
+                Err(e) => write_json(
+                    &mut stream,
+                    500,
+                    "Internal Server Error",
+                    &json!({ "error": format!("Write failed: {e}") }),
+                ),
+            }
             true
         }
         ("POST", "/manual-edit-stash")
@@ -426,6 +479,7 @@ pub fn serve<'a>(
     queue: &QueueState,
     project_root: &Path,
     manual_apply_controller: &ManualApplyController<QueueCallbacks<'a>>,
+    session_dir: &Path,
 ) {
     let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
     for incoming in listener.incoming() {
@@ -437,7 +491,16 @@ pub fn serve<'a>(
             Some(r) => r,
             None => continue,
         };
-        let keep_running = handle_request(req, &stream, token, queue, project_root, port, manual_apply_controller);
+        let keep_running = handle_request(
+            req,
+            &stream,
+            token,
+            queue,
+            project_root,
+            port,
+            manual_apply_controller,
+            session_dir,
+        );
         let _ = stream.flush();
         if !keep_running {
             let _ = remove_live_server_info(project_root);
@@ -479,9 +542,11 @@ mod tests {
             path: "/health".into(),
             query: Default::default(),
             body: vec![],
+            content_type: String::new(),
         };
         let mut out = Vec::new();
-        let keep_running = handle_request(req, &mut out, "tok", &queue, Path::new("."), 0, &controller);
+        let session_dir = std::env::temp_dir();
+        let keep_running = handle_request(req, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
         assert!(keep_running);
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("200 OK"));
@@ -497,9 +562,11 @@ mod tests {
             path: "/events".into(),
             query: [("token".to_string(), "wrong".to_string())].into_iter().collect(),
             body: b"{}".to_vec(),
+            content_type: String::new(),
         };
         let mut out = Vec::new();
-        handle_request(req, &mut out, "correct", &queue, Path::new("."), 0, &controller);
+        let session_dir = std::env::temp_dir();
+        handle_request(req, &mut out, "correct", &queue, Path::new("."), 0, &controller, &session_dir);
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("401"));
         assert_eq!(queue.len(), 0);
@@ -514,9 +581,11 @@ mod tests {
             path: "/events".into(),
             query: [("token".to_string(), "tok".to_string())].into_iter().collect(),
             body: br#"{"id":"e1","type":"generate"}"#.to_vec(),
+            content_type: String::new(),
         };
         let mut out = Vec::new();
-        handle_request(post, &mut out, "tok", &queue, Path::new("."), 0, &controller);
+        let session_dir = std::env::temp_dir();
+        handle_request(post, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
         assert_eq!(queue.len(), 1);
 
         let poll = Request {
@@ -524,9 +593,10 @@ mod tests {
             path: "/poll".into(),
             query: [("token".to_string(), "tok".to_string())].into_iter().collect(),
             body: vec![],
+            content_type: String::new(),
         };
         let mut poll_out = Vec::new();
-        handle_request(poll, &mut poll_out, "tok", &queue, Path::new("."), 0, &controller);
+        handle_request(poll, &mut poll_out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
         let text = String::from_utf8(poll_out).unwrap();
         assert!(text.contains("\"id\":\"e1\""));
         // Leased (has an id) so it remains queued until acked.
@@ -546,9 +616,11 @@ mod tests {
             path: "/poll".into(),
             query: [("token".to_string(), "tok".to_string())].into_iter().collect(),
             body: br#"{"id":"e1"}"#.to_vec(),
+            content_type: String::new(),
         };
         let mut out = Vec::new();
-        handle_request(ack, &mut out, "tok", &queue, Path::new("."), 0, &controller);
+        let session_dir = std::env::temp_dir();
+        handle_request(ack, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("\"ok\":true"));
         assert_eq!(queue.len(), 0);
@@ -568,6 +640,7 @@ mod tests {
             path: "/live.js".into(),
             query: Default::default(),
             body: vec![],
+            content_type: String::new(),
         };
         let mut out = Vec::new();
         let dir = std::env::temp_dir().join(format!(
@@ -578,49 +651,70 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        handle_request(req, &mut out, "tok", &queue, &dir, 0, &controller);
+        let session_dir = std::env::temp_dir();
+        handle_request(req, &mut out, "tok", &queue, &dir, 0, &controller, &session_dir);
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("500"));
     }
 
     #[test]
-    fn still_unimplemented_routes_return_501_naming_dependency() {
+    fn annotation_post_stages_png_to_session_dir() {
         let queue = QueueState::new();
         let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let session_dir = std::env::temp_dir().join(format!(
+            "legion-r24-annotation-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&session_dir).unwrap();
         let req = Request {
             method: "POST".into(),
             path: "/annotation".into(),
-            query: Default::default(),
-            body: vec![],
+            query: [
+                ("token".to_string(), "tok".to_string()),
+                ("eventId".to_string(), "e1".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+            body: b"\x89PNG\r\n\x1a\nfake".to_vec(),
+            content_type: "image/png".to_string(),
         };
         let mut out = Vec::new();
-        handle_request(req, &mut out, "tok", &queue, Path::new("."), 0, &controller);
+        handle_request(req, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir);
         let text = String::from_utf8(out).unwrap();
-        assert!(text.contains("501"));
-        assert!(text.contains("session-store.mjs"));
+        assert!(text.contains("200"));
+        assert!(text.contains("\"ok\":true"));
+        assert!(session_dir.join("e1.png").exists());
+        let _ = std::fs::remove_dir_all(&session_dir);
     }
 
     #[test]
     fn stop_route_requires_token_and_signals_shutdown() {
         let queue = QueueState::new();
         let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let session_dir = std::env::temp_dir();
         let bad = Request {
             method: "GET".into(),
             path: "/stop".into(),
             query: [("token".to_string(), "wrong".to_string())].into_iter().collect(),
             body: vec![],
+            content_type: String::new(),
         };
         let mut out = Vec::new();
-        assert!(handle_request(bad, &mut out, "tok", &queue, Path::new("."), 0, &controller));
+        assert!(handle_request(bad, &mut out, "tok", &queue, Path::new("."), 0, &controller, &session_dir));
 
         let good = Request {
             method: "GET".into(),
             path: "/stop".into(),
             query: [("token".to_string(), "tok".to_string())].into_iter().collect(),
             body: vec![],
+            content_type: String::new(),
         };
         let mut out2 = Vec::new();
-        assert!(!handle_request(good, &mut out2, "tok", &queue, Path::new("."), 0, &controller));
+        assert!(!handle_request(good, &mut out2, "tok", &queue, Path::new("."), 0, &controller, &session_dir));
     }
 
     #[test]

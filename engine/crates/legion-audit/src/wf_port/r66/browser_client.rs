@@ -84,12 +84,14 @@ fn evaluate_deployment_aware_claim(
             }
         }
         Some(runtime_compliant) => {
-            if source_compliant == runtime_compliant {
-                if runtime_compliant {
-                    None
-                } else {
-                    Some(DeploymentOutcome { severity_cap: None, uncertainty: vec![], deployment_assumption: None, disagreement: None })
-                }
+            // Observed runtime evidence is authoritative on whether the
+            // control is actually served: if the runtime is compliant, the
+            // claim (e.g. "header missing") is disproven regardless of what
+            // static source inspection found, so no observation is raised.
+            if runtime_compliant {
+                None
+            } else if !source_compliant {
+                Some(DeploymentOutcome { severity_cap: None, uncertainty: vec![], deployment_assumption: None, disagreement: None })
             } else {
                 Some(DeploymentOutcome {
                     severity_cap: Some("medium"),
@@ -558,7 +560,8 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
     }
 
     // csp.missing
-    {
+    let csp_evidence_refs = repo_wide_evidence_refs(context);
+    if !csp_evidence_refs.is_empty() {
         let source_compliant = CSP_MARKER.is_match(&combined_text);
         let runtime_compliant = runtime_header_compliance(context, "content-security-policy", js_truthy);
         if let Some(outcome) = evaluate_deployment_aware_claim("Content-Security-Policy header", source_compliant, runtime_compliant, "present", "absent") {
@@ -584,7 +587,7 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
                 vec![attacker_position_fact("inject-content")],
                 vec![effect_fact("control-bypass", "bypass", None, "content-security-policy")],
                 vec!["enabler"],
-                repo_wide_evidence_refs(context),
+                csp_evidence_refs,
                 metadata,
                 outcome.uncertainty,
             ));

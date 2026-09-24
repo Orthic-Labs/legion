@@ -94,7 +94,16 @@ territorial_jurisdiction: "Cause of action arose within the territorial limits o
 "##;
 
 fn case_yaml_for(out_dir: &std::path::Path) -> String {
-    CASE_YAML.replace("OUT_DIR_PLACEHOLDER", &out_dir.to_string_lossy())
+    // The path is substituted into a double-quoted YAML scalar, where
+    // backslashes are escape introducers. On Windows `out_dir` contains
+    // `\` path separators (e.g. `C:\Users\...`), so they must be escaped
+    // (and any literal `"` too) or the YAML parser fails with "did not
+    // find expected hexadecimal number" trying to read `\U`, `\T`, etc.
+    let escaped = out_dir
+        .to_string_lossy()
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"");
+    CASE_YAML.replace("OUT_DIR_PLACEHOLDER", &escaped)
 }
 
 fn zip_entry_names(path: &std::path::Path) -> Vec<String> {

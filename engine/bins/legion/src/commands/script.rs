@@ -17,8 +17,8 @@ use legion_handoff::{l1_port, l1b_port};
 use legion_provider_sdk::l1b_port::execution as coder_execution;
 use legion_runtime::p9_skills;
 use legion_runtime::wf_port::{
-    r00, r02, r03, r04, r05, r07, r08, r12, r18, r22, r24, r32, r37, r46, r54, w2_005, w2_006,
-    w2_010, w2_016, w2_017, w2_018, w2_019, w2_020, w2_023, w2_028, w2_029, w2_030,
+    r00, r02, r03, r04, r05, r07, r08, r12, r13, r14, r18, r22, r24, r32, r37, r46, r54, w2_005, w2_006,
+    w2_007, w2_010, w2_016, w2_017, w2_018, w2_019, w2_020, w2_023, w2_028, w2_029, w2_030,
     w2_031, w2_032, w2_033, w2_034, w2_044,
 };
 use sha2::{Digest, Sha256};
@@ -69,7 +69,9 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/export-deck-stage-pdf", designer_export_deck_stage_pdf),
     ("designer/fetch-images", designer_fetch_images),
     ("designer/gen-deck-thumbs", designer_gen_deck_thumbs),
+    ("designer/hook", designer_hook),
     ("designer/hook-admin", designer_hook_admin),
+    ("designer/hook-before-edit", designer_hook_before_edit),
     ("designer/live", designer_live),
     ("designer/live-accept", designer_live_accept),
     ("designer/live-commit-manual-edits", designer_live_commit_manual_edits),
@@ -84,6 +86,8 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/live-wrap", designer_live_wrap),
     ("designer/narrate-pipeline", designer_narrate_pipeline),
     ("designer/palette", designer_palette),
+    ("designer/mix-voiceover", designer_mix_voiceover),
+    ("designer/render-narration", designer_render_narration),
     ("designer/render-video", designer_render_video),
     ("designer/render-video-seek", designer_render_video_seek),
     ("designer/tts-doubao", designer_tts_doubao),
@@ -605,6 +609,79 @@ fn designer_hook_admin(args: &[String]) -> i32 {
     print_cli_outcome(outcome.exit_code, &outcome.stdout, &outcome.stderr)
 }
 
+/// Reads stdin fully the way `hook.mjs`'s `readStdin()` does: `""` when
+/// nothing is piped (no TTY check available on the Rust side, so a
+/// blocking read against a closed/empty pipe returns immediately with
+/// `""`, matching every non-interactive invocation this dispatcher runs
+/// under).
+fn read_stdin_to_string() -> String {
+    use std::io::Read;
+    let mut buf = String::new();
+    let _ = std::io::stdin().read_to_string(&mut buf);
+    buf
+}
+
+/// Port of `hook.mjs`: PostToolUse stdin/stdout adapter over
+/// `wf_port::r14::run_hook`. Snapshots the inherited env *before* setting
+/// the `IMPECCABLE_HOOK_DEPTH` re-entrancy guard, same ordering as the JS
+/// (the guard must reflect the parent's value, not the value this process
+/// is about to export for any child it might spawn), always writes the
+/// audit log, and always exits 0 — never breaks the caller's turn.
+fn designer_hook(_args: &[String]) -> i32 {
+    let mut env: std::collections::HashMap<String, String> = std::env::vars().collect();
+    env.entry("IMPECCABLE_HOOK_DEPTH".to_string()).or_insert_with(|| "1".to_string());
+
+    let stdin_json = read_stdin_to_string();
+    let cwd = cwd();
+    let detector = r14::real_detector_adapter::RealHookDetector::new();
+
+    let result = r14::run_hook(r14::RunHookDeps {
+        stdin_json: &stdin_json,
+        env: env.clone(),
+        cwd: cwd.clone(),
+        detector: &detector,
+    });
+
+    r14::write_audit_log(&env, &result.audit, &cwd, None);
+
+    print_cli_outcome(result.exit_code, &result.stdout, "");
+    0
+}
+
+/// Port of `hook-before-edit.mjs`: Cursor `preToolUse` write gate over
+/// `wf_port::r13::run`. Denies only when the real detector finds an issue
+/// in the proposed content; any malformed input or internal error allows
+/// the tool, matching the JS "never break a turn accidentally" contract.
+fn designer_hook_before_edit(_args: &[String]) -> i32 {
+    let env: std::collections::HashMap<String, String> = std::env::vars().collect();
+    let stdin_json = read_stdin_to_string();
+    let cwd = cwd();
+    let cwd_fallback = cwd.to_string_lossy().into_owned();
+    let detector = r14::real_detector_adapter::RealHookDetector::new();
+
+    let outcome = r13::run(r13::RunDeps {
+        stdin_json: &stdin_json,
+        env: &env,
+        cwd_fallback: &cwd_fallback,
+        reader: &r13::RealFileReader,
+        detector: Some(&detector),
+        now_millis: || {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0)
+        },
+    });
+
+    let payload = serde_json::json!({
+        "permission": outcome.permission,
+        "userMessage": outcome.user_message,
+        "agentMessage": outcome.agent_message,
+    });
+    print_cli_outcome(0, &payload.to_string(), "");
+    0
+}
+
 /// Port of `context.mjs`'s CLI: argv parse -> target selection -> load
 /// context -> directive block. The `computeUpdateDirective` skill
 /// self-update network poll is intentionally skipped (`update_directive =
@@ -649,21 +726,15 @@ fn handoff_validate_handoff(args: &[String]) -> i32 {
 }
 
 /// Port of `skills/handoff/scripts/transcript-handoff.py`'s `main()`
-/// (`bootstrap`/`continuity` subcommands).
+/// (`bootstrap` subcommand only — `continuity` shelled out to `membrane`,
+/// which is gone from Legion; see `l1_port::cli`'s module doc comment).
 fn handoff_transcript_handoff(args: &[String]) -> i32 {
     let today = today_ymd();
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|_| std::path::PathBuf::from("."));
-    let runner = l1_port::RealContinuityRunner;
-    let env = l1_port::RunEnv {
-        home,
-        cwd: cwd(),
-        today,
-        env_membrane_bin: std::env::var("MEMBRANE_BIN").ok(),
-        runner: &runner,
-    };
+    let env = l1_port::RunEnv { home, cwd: cwd(), today };
     let mut stdout = Vec::new();
     let code = l1_port::run(args, &env, &mut stdout);
     print_cli_outcome(code, &String::from_utf8_lossy(&stdout), "")
@@ -1264,6 +1335,273 @@ fn designer_render_video_seek(args: &[String]) -> i32 {
 /// `path.join(__dirname, 'tts-doubao.mjs')` (this dispatcher has no
 /// `__dirname`; the huashu `scripts/` directory convention is that every
 /// narration script and `tts-doubao.mjs` live side by side).
+/// `legion script designer/mix-voiceover <video.mp4> --voiceover=<v.mp3> [options]`,
+/// port of `mix-voiceover.sh`. Builds the `ffmpeg` filter-graph args via
+/// `w2_007::mix_voiceover` and runs the real `ffmpeg` binary.
+fn designer_mix_voiceover(args: &[String]) -> i32 {
+    let owned: Vec<String> = args.to_vec();
+    let opts = match w2_007::mix_voiceover::parse_args(owned.iter().map(String::as_str)) {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!("\u{672a}\u{77e5}参数：{}", e.0);
+            return 1;
+        }
+    };
+    let script_dir = cwd();
+    let bgm = match w2_007::mix_voiceover::validate(
+        &opts,
+        |p| std::path::Path::new(p).is_file(),
+        |p| std::path::Path::new(p).is_file(),
+        |p| p.is_file(),
+        &script_dir,
+    ) {
+        Ok(bgm) => bgm,
+        Err(w2_007::mix_voiceover::ValidationError::MissingOrNoSuchInput) => {
+            eprintln!("{}", w2_007::mix_voiceover::USAGE_LINE);
+            return 1;
+        }
+        Err(w2_007::mix_voiceover::ValidationError::MissingOrNoSuchVoiceover) => {
+            eprintln!("{}", w2_007::mix_voiceover::MISSING_VOICEOVER_LINE);
+            return 1;
+        }
+        Err(w2_007::mix_voiceover::ValidationError::MissingBgmFile { path }) => {
+            eprintln!("\u{2717} BGM \u{6587}件不存在: {path}");
+            return 1;
+        }
+    };
+    let input = opts.input.clone().unwrap();
+    let voiceover = opts.voiceover.clone().unwrap();
+    let output = opts
+        .out
+        .clone()
+        .unwrap_or_else(|| w2_007::mix_voiceover::default_output_path(&input));
+    let ffmpeg_args = w2_007::mix_voiceover::build_ffmpeg_args(
+        &input,
+        &voiceover,
+        bgm.as_deref().and_then(|p| p.to_str()),
+        &opts.voice_volume,
+        &opts.bgm_volume,
+        opts.ducking,
+        &output,
+    );
+    match std::process::Command::new("ffmpeg").args(&ffmpeg_args).status() {
+        Ok(status) if status.success() => {
+            println!("\u{2713} 完成: {output}");
+            0
+        }
+        Ok(status) => {
+            eprintln!("✗ ffmpeg failed with status {status}");
+            1
+        }
+        Err(e) => {
+            eprintln!("✗ ffmpeg 无法启动: {e}");
+            1
+        }
+    }
+}
+
+/// `legion script designer/render-narration <html> --timeline=<path> [options]`,
+/// port of `render-narration.sh`: renders the silent MP4 (via
+/// `render-video`/`render-video-seek`, in-process) then mixes in the
+/// voiceover (via `mix-voiceover`, in-process), replacing the shell
+/// pipeline's two subprocess hops and `node -e` JSON field reads.
+fn designer_render_narration(args: &[String]) -> i32 {
+    let owned: Vec<String> = args.to_vec();
+    let opts = match w2_007::render_narration::parse_args(owned.iter().map(String::as_str)) {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!("\u{672a}知参数：{}", e.0);
+            return 1;
+        }
+    };
+    if let Err(err) = w2_007::render_narration::validate(
+        &opts,
+        |p| std::path::Path::new(p).is_file(),
+        |p| std::path::Path::new(p).is_file(),
+    ) {
+        match err {
+            w2_007::render_narration::ValidationError::MissingOrNoSuchHtml => {
+                eprintln!("{}", w2_007::render_narration::USAGE_LINE);
+            }
+            w2_007::render_narration::ValidationError::MissingOrNoSuchTimeline => {
+                eprintln!("{}", w2_007::render_narration::MISSING_TIMELINE_LINE);
+            }
+        }
+        return 1;
+    }
+    let html = opts.html.clone().unwrap();
+    let timeline_path = opts.timeline.clone().unwrap();
+    let timeline_text = match std::fs::read_to_string(&timeline_path) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("✗ 无法读取 timeline.json: {e}");
+            return 1;
+        }
+    };
+    let timeline = match w2_007::render_narration::parse_timeline(&timeline_text) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("✗ timeline.json 解析失败: {}", e.0);
+            return 1;
+        }
+    };
+    let timeline_dir = std::path::Path::new(&timeline_path)
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_default();
+    let voiceover = timeline_dir.join(&timeline.voiceover_rel);
+    if !voiceover.is_file() {
+        eprintln!("✗ voiceover.mp3 不存在: {}", voiceover.display());
+        return 1;
+    }
+    let record_duration = w2_007::render_narration::record_duration(timeline.total_duration);
+    let html_abs = match std::fs::canonicalize(&html) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("✗ 无法解析 HTML 路径: {e}");
+            return 1;
+        }
+    };
+    let paths = w2_007::render_narration::derive_paths(&html_abs, opts.out.as_deref());
+    println!(
+        "{}",
+        w2_007::render_narration::status_block(
+            &opts,
+            &paths,
+            &timeline_path,
+            &voiceover,
+            timeline.total_duration,
+            record_duration,
+        )
+    );
+
+    // ── Step 1: render the silent MP4, in-process ──────────────────────
+    println!();
+    let render_ok = if opts.use_seek {
+        println!("▸ Step 1/2 · 逐帧 seek 渲染 HTML 动画 (无声)");
+        let mut argv = vec!["legion".to_string(), "render-video-seek".to_string()];
+        argv.push(html_abs.to_string_lossy().to_string());
+        argv.push(format!("--duration={record_duration}"));
+        argv.push(format!("--fps={}", opts.seek_fps));
+        argv.push(format!("--width={}", opts.width));
+        argv.push(format!("--height={}", opts.height));
+        match r02::render_video_seek::parse_args(&argv) {
+            Ok(parsed) => match r02::render_video_seek::HeadlessChromeDriver::launch() {
+                Ok(driver) => {
+                    let encoder = r02::render_video_seek::RealFfmpegEncoder;
+                    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                    let suffix = format!(
+                        "{}-{}",
+                        std::process::id(),
+                        COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                    );
+                    let tmp_dir = std::env::temp_dir().join(format!("legion-render-narration-{suffix}"));
+                    match r02::render_video_seek::run(&parsed, &driver, &encoder, &tmp_dir) {
+                        Ok(outcome) => {
+                            for line in &outcome.log_lines {
+                                println!("{line}");
+                            }
+                            true
+                        }
+                        Err(e) => {
+                            eprintln!("{e:?}");
+                            false
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{e}");
+                    false
+                }
+            },
+            Err(_) => {
+                eprintln!("Usage: render-video-seek <html-file> [--duration=N] [--fps=N] [--width=N] [--height=N]");
+                false
+            }
+        }
+    } else {
+        println!("▸ Step 1/2 · 录制 HTML 动画 (无声)");
+        let render_argv = vec![
+            html_abs.to_string_lossy().to_string(),
+            format!("--duration={record_duration}"),
+            format!("--width={}", opts.width),
+            format!("--height={}", opts.height),
+        ];
+        match r03::render_video::ChromeRecorder::launch() {
+            Ok(mut recorder) => {
+                let ffmpeg = r03::render_video::RealFfmpeg;
+                let fs = r03::render_video::RealFileSystem;
+                let mut stdout = std::io::stdout();
+                static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                let suffix = format!(
+                    "{}-{}",
+                    std::process::id(),
+                    COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+                );
+                match r03::render_video::run(
+                    &render_argv,
+                    html_abs.parent().unwrap_or(std::path::Path::new(".")),
+                    &suffix,
+                    &mut recorder,
+                    &ffmpeg,
+                    &fs,
+                    &mut stdout,
+                ) {
+                    Ok(_) => true,
+                    Err(e) => {
+                        eprintln!("{e}");
+                        false
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("{e}");
+                false
+            }
+        }
+    };
+    if !render_ok || !paths.silent_mp4.is_file() {
+        eprintln!("✗ 无声 MP4 没生成: {}", paths.silent_mp4.display());
+        return 1;
+    }
+
+    // ── Step 2: mix in the voiceover ────────────────────────────────────
+    println!();
+    println!("▸ Step 2/2 · 混入人声");
+    let mut mix_args = vec![
+        paths.silent_mp4.to_string_lossy().to_string(),
+        format!("--voiceover={}", voiceover.to_string_lossy()),
+        format!("--out={}", paths.out.to_string_lossy()),
+    ];
+    if let Some(mood) = &opts.bgm_mood {
+        mix_args.push(format!("--bgm-mood={mood}"));
+    }
+    if let Some(bgm) = &opts.bgm {
+        mix_args.push(format!("--bgm={bgm}"));
+    }
+    if opts.bgm_mood.is_some() || opts.bgm.is_some() {
+        mix_args.push(format!("--bgm-volume={}", opts.bgm_volume));
+    }
+    if !opts.ducking {
+        mix_args.push("--no-ducking".to_string());
+    }
+    let mix_status = designer_mix_voiceover(&mix_args);
+    if mix_status != 0 {
+        return mix_status;
+    }
+
+    if !opts.keep_silent {
+        let _ = std::fs::remove_file(&paths.silent_mp4);
+    }
+
+    println!();
+    println!("✓ 完成: {}", paths.out.display());
+    if opts.keep_silent {
+        println!("  (中间产物保留: {})", paths.silent_mp4.display());
+    }
+    0
+}
+
 fn designer_narrate_pipeline(args: &[String]) -> i32 {
     let tts_script = args
         .first()

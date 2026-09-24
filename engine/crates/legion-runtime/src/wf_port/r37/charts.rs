@@ -395,9 +395,15 @@ pub fn chart_index_status(inspect_data: &Value) -> Option<String> {
     let mut svg = svg_open(w, h);
 
     let mut start_deg = -90.0_f64;
-    for (_label, val, color) in &sizes {
+    for (label, val, color) in &sizes {
         let sweep = (val / total) * 360.0;
         svg.push_str(&donut_wedge(cx, cy, r, start_deg, sweep, color));
+        let (lx, ly) = polar_std(cx, cy, r + 20.0, start_deg + sweep / 2.0);
+        svg.push_str(&format!(
+            r#"<text x="{lx:.2}" y="{ly:.2}" text-anchor="middle" font-size="11" fill="{dark}">{label}</text>"#,
+            dark = BRAND.dark,
+            label = xml_escape(label)
+        ));
         start_deg += sweep;
     }
     // Inner circle punches the donut hole, mirroring the matplotlib `Circle` overlay.

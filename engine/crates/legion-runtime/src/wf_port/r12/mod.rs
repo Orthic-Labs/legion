@@ -631,12 +631,14 @@ impl AdminFs for RealFs {
 // ---------------------------------------------------------------------
 
 /// Mirrors `IMPECCABLE_HOOK_COMMAND_MARKERS`.
-const IMPECCABLE_HOOK_COMMAND_MARKERS: [&str; 5] = [
+const IMPECCABLE_HOOK_COMMAND_MARKERS: [&str; 7] = [
     "skills/designer/engine/scripts/hook-probe.mjs",
     "skills/designer/engine/scripts/hook.mjs",
     "skills/designer/engine/scripts/hook-before-edit.mjs",
     "skills/designer/engine/scripts/hook-after-edit.mjs",
     "skills/designer/engine/scripts/hook-stop.mjs",
+    "legion script designer/hook",
+    "legion script designer/hook-before-edit",
 ];
 
 const MANIFEST_TIMEOUT_SECONDS: i64 = 5;
@@ -660,7 +662,7 @@ fn claude_manifest() -> Value {
                     "hooks": [
                         {
                             "type": "command",
-                            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/skills/designer/engine/scripts/hook.mjs\"",
+                            "command": "legion script designer/hook",
                             "timeout": MANIFEST_TIMEOUT_SECONDS,
                             "statusMessage": MANIFEST_STATUS_MESSAGE,
                         }
@@ -681,7 +683,7 @@ fn agents_manifest() -> Value {
                     "hooks": [
                         {
                             "type": "command",
-                            "command": "node \"$(git rev-parse --show-toplevel)/.agents/skills/designer/engine/scripts/hook.mjs\"",
+                            "command": "legion script designer/hook",
                             "timeout": MANIFEST_TIMEOUT_SECONDS,
                             "statusMessage": MANIFEST_STATUS_MESSAGE,
                         }
@@ -698,7 +700,7 @@ fn cursor_manifest() -> Value {
         "hooks": {
             "preToolUse": [
                 {
-                    "command": "node \".cursor/skills/designer/engine/scripts/hook-before-edit.mjs\"",
+                    "command": "legion script designer/hook-before-edit",
                     "timeout": MANIFEST_TIMEOUT_SECONDS,
                 }
             ],
@@ -714,7 +716,7 @@ fn github_manifest() -> Value {
                 {
                     "type": "command",
                     "matcher": "edit|create|apply_patch",
-                    "bash": "node \"$(git rev-parse --show-toplevel)/.github/skills/designer/engine/scripts/hook.mjs\"",
+                    "bash": "legion script designer/hook",
                     "timeoutSec": MANIFEST_TIMEOUT_SECONDS,
                 }
             ],
@@ -1518,7 +1520,12 @@ mod tests {
         run_cli(&mut fs_, &cwd(), &["ignore-file".to_string(), "src/legacy/**".to_string()], None);
         let outcome = run_cli(&mut fs_, &cwd(), &["ignore-file".to_string(), "src/legacy/**".to_string()], None);
         assert_eq!(outcome.exit_code, 0);
-        assert_eq!(outcome.stdout.matches("src/legacy/**").count(), 1);
+        // The glob text itself appears twice in the message (once in
+        // `Added "..."`, once in `Current: ...`) even on the no-op second
+        // call — that's the JS `addIgnoreFile` format. What must not
+        // happen is the glob appearing twice *inside* the `Current:` list.
+        let current = outcome.stdout.split("Current: ").nth(1).unwrap().trim();
+        assert_eq!(current, "src/legacy/**");
     }
 
     #[test]
@@ -1654,7 +1661,7 @@ mod tests {
         assert!(result.already.is_empty());
         assert!(result.backups.is_empty());
         let written = fs_.read_to_string(&cwd().join(".claude/settings.local.json")).unwrap();
-        assert!(written.contains("hook.mjs"));
+        assert!(written.contains("legion script designer/hook"));
         assert!(written.contains("\"PostToolUse\""));
     }
 
@@ -1696,7 +1703,7 @@ mod tests {
         assert_eq!(result.written, vec![".cursor".to_string()]);
         let written = fs_.read_to_string(&cwd().join(".cursor/hooks.json")).unwrap();
         assert!(written.contains("other-tool.mjs"));
-        assert!(written.contains("hook-before-edit.mjs"));
+        assert!(written.contains("legion script designer/hook-before-edit"));
     }
 
     #[test]
@@ -1721,7 +1728,7 @@ mod tests {
                     {
                         "matcher": "Edit|Write|MultiEdit",
                         "hooks": [
-                            { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/skills/designer/engine/scripts/hook.mjs\"" }
+                            { "type": "command", "command": "legion script designer/hook" }
                         ],
                     }
                 ]
@@ -1734,7 +1741,7 @@ mod tests {
                     {
                         "matcher": "Edit|Write|MultiEdit",
                         "hooks": [
-                            { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/skills/designer/engine/scripts/hook.mjs\"" },
+                            { "type": "command", "command": "legion script designer/hook" },
                             { "type": "command", "command": "node other.mjs" }
                         ],
                     }
@@ -1747,7 +1754,7 @@ mod tests {
         assert_eq!(result.already, vec![".claude".to_string()]);
         assert!(result.written.is_empty());
         let pruned = fs_.read_to_string(&cwd().join(".claude/settings.local.json")).unwrap();
-        assert!(!pruned.contains("hook.mjs"));
+        assert!(!pruned.contains("legion script designer/hook"));
         assert!(pruned.contains("other.mjs"));
     }
 

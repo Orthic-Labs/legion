@@ -1237,6 +1237,11 @@ mod tests {
     #[test]
     fn decomposition_flags_oversized_tracked_code_file() {
         let dir = tempdir();
+        // `detect()` walks up from `root` looking for a `.git` directory
+        // (`in_git_worktree`) to set `stack.git`; the decomposition check
+        // short-circuits to "unproven" when that's false, so a bare temp
+        // dir with no `.git` marker never actually runs the check.
+        std::fs::create_dir_all(dir.join(".git")).unwrap();
         std::fs::write(dir.join("big.rs"), "x\n".repeat(150)).unwrap();
         std::fs::write(dir.join("small.rs"), "x\n".repeat(5)).unwrap();
         let runner = FakeRunner::new().with_output("git ls-files", 0, "big.rs\nsmall.rs\n", "");

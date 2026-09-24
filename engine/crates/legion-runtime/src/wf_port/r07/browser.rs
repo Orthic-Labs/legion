@@ -80,13 +80,13 @@ pub fn find_browser_executable(
             .get("ProgramFiles(x86)")
             .unwrap_or_else(|| "C:\\Program Files (x86)".to_string());
         vec![
-            join(&program_files, "Google\\Chrome\\Application\\chrome.exe"),
-            join(
+            join_windows(&program_files, "Google\\Chrome\\Application\\chrome.exe"),
+            join_windows(
                 &program_files_x86,
                 "Google\\Chrome\\Application\\chrome.exe",
             ),
-            join(&program_files, "Microsoft\\Edge\\Application\\msedge.exe"),
-            join(
+            join_windows(&program_files, "Microsoft\\Edge\\Application\\msedge.exe"),
+            join_windows(
                 &program_files_x86,
                 "Microsoft\\Edge\\Application\\msedge.exe",
             ),
@@ -127,6 +127,18 @@ fn join(base: &str, rest: &str) -> String {
         rest.to_string()
     } else {
         format!("{trimmed}/{rest}")
+    }
+}
+
+/// Windows variant of [`join`]: on the real Windows host, Node's default
+/// `path` module is `path.win32`, which joins with `\` — unlike the POSIX
+/// join used for the non-Windows candidate list above.
+fn join_windows(base: &str, rest: &str) -> String {
+    let trimmed = base.trim_end_matches(['/', '\\']);
+    if trimmed.is_empty() {
+        rest.to_string()
+    } else {
+        format!("{trimmed}\\{rest}")
     }
 }
 

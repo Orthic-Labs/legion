@@ -20,3 +20,4 @@ pub mod fetch_images;
 pub mod gen_deck_thumbs;
 pub mod html2pptx;
 pub mod mix_voiceover;
+pub mod render_narration;

@@ -199,7 +199,7 @@ run_worker() {
 printf '%s' "$BRIEF" \
   | run_worker 2>>"${EVENT_LOG}.stderr" \
   | tee "$EVENT_LOG" \
-  | python3 "${SCRIPT_DIR}/parse_events.py" --stream
+  | legion script alchemist/parse_events --stream
 STATUS=${PIPESTATUS[1]}
 
 case $STATUS in

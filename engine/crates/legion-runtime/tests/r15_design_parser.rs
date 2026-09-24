@@ -80,7 +80,10 @@ fn parses_typography_fonts_and_character() {
     let typography = model.typography.expect("typography present");
     assert!(typography.fonts.contains_key("display"));
     assert_eq!(typography.fonts["display"].family, "Inter");
-    assert_eq!(typography.fonts["display"].fallback.as_deref(), Some("system-ui"));
+    // The legacy regex captures everything inside `(with ...)` verbatim
+    // (`fm[3] = ([^)]+)` in design-parser.mjs), including the literal word
+    // "fallback" from the source text — it does not strip it.
+    assert_eq!(typography.fonts["display"].fallback.as_deref(), Some("system-ui fallback"));
     assert_eq!(typography.character.as_deref(), Some("Confident and modern, never loud."));
     assert_eq!(typography.hierarchy.len(), 1);
 }
@@ -89,7 +92,14 @@ fn parses_typography_fonts_and_character() {
 fn parses_elevation_shadow() {
     let model = parse_design_md(SAMPLE);
     let elevation = model.elevation.expect("elevation present");
-    assert_eq!(elevation.shadows.len(), 1);
+    // The bullet parser keeps the full `rgba(...)` value, but the inline
+    // `box-shadow:` fallback scan (ported verbatim from
+    // design-parser.mjs's `value.replace(/[`.)]+$/, '')`) also strips the
+    // shadow's own trailing `)` since it can't distinguish it from a
+    // markdown/backtick artifact. That gives the bullet-parsed and
+    // inline-scanned values different dedupe keys, so both survive here,
+    // matching the legacy JS behaviour on this sample.
+    assert_eq!(elevation.shadows.len(), 2);
     assert_eq!(elevation.shadows[0].name.as_deref(), Some("Card shadow"));
     assert!(elevation.shadows[0].value.contains("rgba(0,0,0,0.1)"));
 }

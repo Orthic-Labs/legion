@@ -68,6 +68,23 @@ impl FileReader for FakeFileReader {
     }
 }
 
+/// Production [`FileReader`]: mirrors `readExistingProjectFile`'s
+/// `fs.statSync`/`fs.readFileSync` pair — only regular files, capped at
+/// 1 MiB, any I/O or UTF-8 error swallowed into `None`.
+pub struct RealFileReader;
+
+const MAX_READ_BYTES: u64 = 1024 * 1024;
+
+impl FileReader for RealFileReader {
+    fn read_to_string(&self, path: &str) -> Option<String> {
+        let meta = std::fs::metadata(path).ok()?;
+        if !meta.is_file() || meta.len() > MAX_READ_BYTES {
+            return None;
+        }
+        std::fs::read_to_string(path).ok()
+    }
+}
+
 /// Result of projecting proposed content for a tool call. Mirrors the two
 /// return shapes `proposedContent` uses in the JS: a plain string, or a
 /// `{ skipped: '<reason>' }` marker object.
@@ -472,7 +489,7 @@ pub fn shell_copy_paths(command: &str) -> Option<(String, String)> {
 
 fn first_match_group2(command: &str, re: &regex::Regex) -> String {
     re.captures(command)
-        .and_then(|c| c.get(2))
+        .and_then(|c| c.get(1).or_else(|| c.get(2)))
         .map(|m| m.as_str().trim().to_string())
         .unwrap_or_default()
 }
@@ -485,7 +502,7 @@ pub fn shell_python_write_destination(command: &str) -> String {
     }
 
     let direct_re = regex::Regex::new(
-        r#"(?:^|[^\w.])(?:pathlib\.)?Path\(\s*(["'])(.*?)\1\s*\)\s*\.write_text\s*\("#,
+        r#"(?:^|[^\w.])(?:pathlib\.)?Path\(\s*(?:"([^"]*)"|'([^']*)')\s*\)\s*\.write_text\s*\("#,
     )
     .expect("static regex");
     let direct = first_match_group2(command, &direct_re);
@@ -493,12 +510,18 @@ pub fn shell_python_write_destination(command: &str) -> String {
         return direct;
     }
 
-    let assignment_re =
-        regex::Regex::new(r#"\b([A-Za-z_]\w*)\s*=\s*(?:pathlib\.)?Path\(\s*(["'])(.*?)\2\s*\)"#)
-            .expect("static regex");
+    let assignment_re = regex::Regex::new(
+        r#"\b([A-Za-z_]\w*)\s*=\s*(?:pathlib\.)?Path\(\s*(?:"([^"]*)"|'([^']*)')\s*\)"#,
+    )
+    .expect("static regex");
     let mut paths_by_var: HashMap<String, String> = HashMap::new();
     for caps in assignment_re.captures_iter(command) {
-        paths_by_var.insert(caps[1].to_string(), caps[3].to_string());
+        let value = caps
+            .get(2)
+            .or_else(|| caps.get(3))
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default();
+        paths_by_var.insert(caps[1].to_string(), value);
     }
 
     let write_var_re = regex::Regex::new(r"\b([A-Za-z_]\w*)\.write_text\s*\(").expect("static regex");
@@ -508,8 +531,10 @@ pub fn shell_python_write_destination(command: &str) -> String {
         }
     }
 
-    let open_re =
-        regex::Regex::new(r#"\bopen\(\s*(["'])(.*?)\1\s*,\s*(["'])[wax](?:\+)?b?\3"#).expect("static regex");
+    let open_re = regex::Regex::new(
+        r#"\bopen\(\s*(?:"([^"]*)"|'([^']*)')\s*,\s*(?:"[wax]\+?b?"|'[wax]\+?b?')"#,
+    )
+    .expect("static regex");
     first_match_group2(command, &open_re)
 }
 

@@ -86,14 +86,18 @@ pub fn sweep_site(fetcher: &dyn PageFetcher, url: &str, site_type: Option<&str>)
     for l in &internal {
         let key = strip_fragment(&l.resolved);
         if !seen.contains_key(&key) {
-            seen.insert(key.clone(), l.clone());
-            order.push(key);
+            order.push(key.clone());
         }
+        // JS `new Map([...].map(...))` keeps insertion position from the
+        // first occurrence but the value from the LAST occurrence.
+        seen.insert(key, l.clone());
     }
     let unique: Vec<_> = order.into_iter().take(80).map(|k| seen.remove(&k).unwrap()).collect();
 
     for l in &unique {
-        let status = fetcher.check_status(&l.resolved);
+        // Fragments are never sent over the wire, so the status check
+        // (JS `fetch`) is keyed on the fragment-stripped URL.
+        let status = fetcher.check_status(&strip_fragment(&l.resolved));
         let bad = match status {
             None => true,
             Some(s) => s >= 400,

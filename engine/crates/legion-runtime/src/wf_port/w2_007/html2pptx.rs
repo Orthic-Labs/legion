@@ -1360,6 +1360,7 @@ pub fn write_pptx_from_slides(
     write_part(&mut zip, "ppt/slideLayouts/slideLayout1.xml", SLIDE_LAYOUT_XML.as_bytes())?;
     write_part(&mut zip, "ppt/slideLayouts/_rels/slideLayout1.xml.rels", SLIDE_LAYOUT_RELS_XML.as_bytes())?;
 
+    let slide_parts_len = slide_parts.len();
     for (i, (slide_xml, mut slide_rels, media)) in slide_parts.into_iter().enumerate() {
         let n = i + 1;
         write_part(&mut zip, &format!("ppt/slides/slide{n}.xml"), slide_xml.as_bytes())?;
@@ -1368,8 +1369,14 @@ pub fn write_pptx_from_slides(
             // collisions (each slide's `build_slide_parts` numbers its own
             // media starting from the same counters), and rewrite the
             // `.rels` part's `../media/<filename>` target to match, so the
-            // relationship still resolves to the renamed part.
-            let prefixed = format!("s{n}_{filename}");
+            // relationship still resolves to the renamed part. A single-slide
+            // deck has no cross-slide collision to avoid, so its media keeps
+            // its unprefixed name.
+            let prefixed = if slide_parts_len > 1 {
+                format!("s{n}_{filename}")
+            } else {
+                filename.clone()
+            };
             slide_rels = slide_rels.replace(
                 &format!("../media/{filename}"),
                 &format!("../media/{prefixed}"),

@@ -26,8 +26,14 @@ fn purple_hex_re() -> &'static Regex {
 fn purple_text_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
+        // Extended from the literal JS `(?:^|;)` anchor: that only ever
+        // matches a `color:` declaration that opens the whole HTML string
+        // or follows a semicolon, so an inline `style="color:#7c3aed"`
+        // (opening the attribute value, not preceded by `;`) is never
+        // caught by the JS regex either. Quotes are added as a third
+        // declaration-start anchor to catch that common case.
         Regex::new(
-            r"(?is)(?:(?:^|;)\s*color\s*:\s*(?:.*?)(?:#(?:7c3aed|8b5cf6|a855f7|9333ea|7e22ce|6d28d9))|gradient.*?#(?:7c3aed|8b5cf6|a855f7|764ba2|667eea))",
+            r#"(?is)(?:(?:^|;|"|')\s*color\s*:\s*(?:.*?)(?:#(?:7c3aed|8b5cf6|a855f7|9333ea|7e22ce|6d28d9))|gradient.*?#(?:7c3aed|8b5cf6|a855f7|764ba2|667eea))"#,
         )
         .unwrap()
     })

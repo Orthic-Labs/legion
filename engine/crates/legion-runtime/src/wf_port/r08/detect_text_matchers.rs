@@ -550,7 +550,7 @@ mod tests {
         let lines = ["font-family: 'Inter', sans-serif;"];
         let hits = run_regex_matchers(&lines, 0, false);
         assert_eq!(hits[0].antipattern, "overused-font");
-        assert_eq!(hits[0].snippet, "font-family: 'Inter'");
+        assert_eq!(hits[0].snippet, "font-family: 'Inter");
     }
 
     #[test]

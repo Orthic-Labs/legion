@@ -460,7 +460,13 @@ mod tests {
             completion_claim: None,
         };
         let deps = CompletionDeps::default();
-        let result = evaluate_completion(&req, &deps, &policy, &[]);
+        // The "signoff" level requires at least "advisory" enforcement
+        // health; deriving from an empty receipt set yields "unsupported"
+        // (the weakest health), which never satisfies that requirement.
+        // One receipt with host-connection-trust authentication derives
+        // "read_only", which does.
+        let receipts = vec![json!({"authentication": {"verificationMethod": "host-connection-trust"}})];
+        let result = evaluate_completion(&req, &deps, &policy, &receipts);
         assert!(result.allowed);
     }
 

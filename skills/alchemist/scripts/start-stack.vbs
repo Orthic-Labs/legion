@@ -34,10 +34,10 @@ Function ResolveExecutable(name)
     On Error GoTo 0
 End Function
 
-Dim omniroute, pythonw, viewer
+Dim omniroute, legionExe, viewerDir
 omniroute = ResolveExecutable("omniroute.cmd")
-pythonw   = ResolveExecutable("pythonw.exe")
-viewer    = fso.BuildPath(fso.GetParentFolderName(WScript.ScriptFullName), "viewer.py")
+legionExe = ResolveExecutable("legion.exe")
+viewerDir = fso.GetParentFolderName(WScript.ScriptFullName)
 
 ' Returns True when something already answers on the given URL.
 Function Listening(url)
@@ -63,18 +63,17 @@ If fso.FileExists(omniroute) Then
     End If
 End If
 
-If fso.FileExists(pythonw) And fso.FileExists(viewer) Then
+If fso.FileExists(legionExe) Then
     If Not Listening("http://127.0.0.1:8790/") Then
-        ' cwd = script dir so `from parse_events import ...` resolves.
-        shell.CurrentDirectory = fso.GetParentFolderName(viewer)
-        shell.Run """" & pythonw & """ """ & viewer & """ --port 8790", 0, False
+        shell.CurrentDirectory = viewerDir
+        shell.Run """" & legionExe & """ script alchemist/viewer --port 8790", 0, False
     End If
 End If
 
 ' Tray last, so its first health poll finds both services already coming up.
 ' One tray only: a second copy would duplicate the icon.
 Dim tray
-tray = fso.GetParentFolderName(viewer) & "\tray.ps1"
+tray = viewerDir & "\tray.ps1"
 If fso.FileExists(tray) Then
     Dim wmi, running, proc
     running = False

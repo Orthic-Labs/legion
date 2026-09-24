@@ -784,9 +784,19 @@ fn extract_key_characteristics_block(text: &str) -> Option<String> {
     let marker = "**Key Characteristics:**";
     let idx = text.find(marker)?;
     let rest = &text[idx + marker.len()..];
-    let rest = rest.strip_prefix(char::is_whitespace).unwrap_or(rest);
-    // Need a newline right after the (trimmed) marker per the JS `\s*\n`.
-    let newline_idx = rest.find('\n')?;
+    // JS `\s*\n`: skip whitespace up to (and including) the first newline;
+    // non-whitespace before any newline means no match.
+    let mut newline_idx = None;
+    for (i, c) in rest.char_indices() {
+        if c == '\n' {
+            newline_idx = Some(i);
+            break;
+        }
+        if !c.is_whitespace() {
+            break;
+        }
+    }
+    let newline_idx = newline_idx?;
     let body_start = &rest[newline_idx + 1..];
     let end = find_first_of(body_start, &["\n##", "\n###"]).unwrap_or(body_start.len());
     Some(body_start[..end].to_string())

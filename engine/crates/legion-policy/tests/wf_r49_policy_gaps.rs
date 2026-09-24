@@ -29,6 +29,20 @@ fn write_temp(name: &str, contents: &str) -> PathBuf {
     path
 }
 
+/// Writes a fixture whose basename must be exactly `name` (the capability
+/// issuance audit allowlists `preeffect-gate.mjs`/`receipt-store.mjs` by
+/// exact `path.basename(file)`, mirroring the JS `ALLOWED_BASENAMES` set) —
+/// unlike [`write_temp`], which prefixes `name` and so can never produce
+/// one of those two exact basenames.
+fn write_temp_exact_basename(name: &str, contents: &str) -> PathBuf {
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("legion-r49-{}-{}-dir", std::process::id(), n));
+    std::fs::create_dir_all(&dir).expect("create temp fixture dir");
+    let path = dir.join(name);
+    std::fs::write(&path, contents).expect("write temp fixture");
+    path
+}
+
 fn fixture_bundle_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/wf_wf008/arcane-policy-v1.json")
 }
@@ -110,8 +124,8 @@ fn policy_duplication_audit_flags_direct_rule_table_reads_and_rank_redeclaration
 
 #[test]
 fn capability_issuance_audit_allows_the_two_trusted_modules() {
-    let gate = write_temp("preeffect-gate.mjs", "export function authorize(x) { return store.issue(x); }\n");
-    let receipts = write_temp("receipt-store.mjs", "export function record(x) { return ledger.issue(x); }\n");
+    let gate = write_temp_exact_basename("preeffect-gate.mjs", "export function authorize(x) { return store.issue(x); }\n");
+    let receipts = write_temp_exact_basename("receipt-store.mjs", "export function record(x) { return ledger.issue(x); }\n");
     let result = capability_issuance_audit(&[gate.as_path(), receipts.as_path()]);
     assert!(result.violations.is_empty());
 }

@@ -63,7 +63,9 @@ fn completion_cli_falls_back_to_session_store_when_no_server() {
     let v: Value = serde_json::from_str(&out).unwrap();
     assert_eq!(v["ok"], json!(true));
     assert_eq!(v["id"], json!("sess-1"));
-    assert_eq!(v["phase"], json!("complete"));
+    // `appendEvent` maps the 'complete' event type to phase 'completed'
+    // (session-store.mjs's `applyEvent`, case 'complete' -> 'completed').
+    assert_eq!(v["phase"], json!("completed"));
 
     // The durable journal file was actually written.
     let journal = cwd.join(".impeccable/live/sessions/sess-1.jsonl");
@@ -102,9 +104,11 @@ fn completion_cli_uses_server_when_server_json_present_and_poll_succeeds() {
     let v: Value = serde_json::from_str(&out).unwrap();
     assert_eq!(v["ok"], json!(true));
     assert_eq!(v["id"], json!("sess-4"));
-    // No prior journal entries, so the store falls back to the parsed
-    // status label as `phase` (mirrors `snapshot?.phase || args.status`).
-    assert_eq!(v["phase"], json!("complete"));
+    // No prior journal entries, so `getSnapshot` rebuilds the default
+    // snapshot (phase 'new') and returns it directly — `getSnapshot` only
+    // returns null for a *completed* session, never for a missing one, so
+    // the `snapshot?.phase || args.status` fallback is not reached here.
+    assert_eq!(v["phase"], json!("new"));
 }
 
 // ─── live_cli.rs: live_cli() ─────────────────────────────────────────────
@@ -140,7 +144,11 @@ fn live_cli_reports_context_missing_when_no_product_md() {
 #[test]
 fn live_cli_reports_config_missing_when_product_present_but_no_live_config() {
     let cwd = tmp_dir("live-config-missing");
+    // Both PRODUCT.md and DESIGN.md must be present, or `missingLiveContext`
+    // reports `context_missing` first (live.mjs checks context before
+    // config.json).
     std::fs::write(cwd.join("PRODUCT.md"), "# Product\n").unwrap();
+    std::fs::write(cwd.join("DESIGN.md"), "# Design\n").unwrap();
     let (code, out) = live_cli(&NeverRunner, &cwd, &[]);
     assert_eq!(code, 0);
     let v: Value = serde_json::from_str(&out).unwrap();

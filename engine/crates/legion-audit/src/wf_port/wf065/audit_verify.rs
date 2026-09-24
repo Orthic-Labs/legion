@@ -702,6 +702,15 @@ mod run_tests {
         path.to_string_lossy().to_string()
     }
 
+    /// `run` reads the process-global `AUDIT_NETWORK_GUARD` env var (mirroring
+    /// the JS CLI's `process.env`), so any test that reads or mutates it must
+    /// hold this lock for its duration: `cargo test` runs `#[test]`s
+    /// concurrently by default, and an unsynchronized `set_var`/`remove_var`
+    /// in one thread can flip `network_sandbox_active` mid-run in another,
+    /// producing spurious `network_sandbox_drift` (a real race, not a logic
+    /// bug in `run` itself).
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
     #[test]
     fn missing_facts_flag_is_usage_error() {
         let runner = FakeRunner { result: Mutex::new(None) };
@@ -724,6 +733,12 @@ mod run_tests {
 
     #[test]
     fn no_replayable_checks_and_clean_seal_is_zero_drift() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // The facts fixture below asserts `sandboxActive: false`; pin the
+        // guard var to match instead of trusting the ambient environment
+        // (some sandboxes/CI runners export `AUDIT_NETWORK_GUARD=active`,
+        // which flips `network_sandbox_active` and adds spurious drift).
+        std::env::remove_var("AUDIT_NETWORK_GUARD");
         let dir = std::env::temp_dir().join(format!("avr2-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let plan = serde_json::json!({
@@ -750,12 +765,21 @@ mod run_tests {
 
     #[test]
     fn matching_replay_is_clean() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir = std::env::temp_dir().join(format!("avr3-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let plan = serde_json::json!({
+        // An unsealed plan is always `DRIFT plan seal is invalid` (matching
+        // `verifyPlanSeal`, which returns false with no seal present) — seal
+        // it for real so this "clean" scenario has zero drift from the seal.
+        let unsealed_plan = serde_json::json!({
             "denominator": {"expectedChecks": ["types"]},
             "scope": {},
         });
+        let sealed_map = crate::wf_port::wf064::plan::seal_plan(
+            unsealed_plan.as_object().unwrap(),
+            None,
+        );
+        let plan = serde_json::Value::Object(sealed_map);
         let plan_path = write_json(&dir, "plan.json", &plan);
         let facts = serde_json::json!({
             "workspace": "/x",
@@ -779,6 +803,7 @@ mod run_tests {
 
     #[test]
     fn replay_spawn_failure_counts_as_drift() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let dir = std::env::temp_dir().join(format!("avr4-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let plan = serde_json::json!({

@@ -33,16 +33,24 @@
 //!   `manual_edit_deps::LiveServerManualEditDeps` (a `ManualEditRoutesDeps`
 //!   + `ManualApplyCallbacks` bridge to this server's `QueueState`).
 //!
+//! Follow-up pass (packet B1) closed the two remaining named gaps:
+//! - `/annotation` now stages the raw PNG body to a per-run session
+//!   directory under `getLiveAnnotationsDir` (mirroring
+//!   `fs.mkdtempSync(path.join(annotRoot, 'session-'))`), with the same
+//!   eventId regex, `Content-Type: image/png` check, and 10 MiB cap as the
+//!   JS route; see [`http_server`].
+//! - Svelte-component session *cleanup* (`removeAllSvelteComponentSessions`,
+//!   called on `exit` events and on shutdown) is ported as
+//!   [`remove_all_svelte_component_sessions`]. The stateful *apply* half
+//!   (`applyDeferredSvelteComponentAccepts` / `inlineSvelteComponentAccept`,
+//!   which rewrites component source CSS/markup) remains out of scope —
+//!   `live/svelte-component.mjs`'s CSS-rewrite machinery is a separate,
+//!   much larger port, not named by this packet.
+//!
 //! Still genuinely out of scope, named exactly: `buildManualEditEvidence`
 //! (`../live-manual-edit-evidence.mjs`) and `commitManualEdits`
-//! (`../live-commit-manual-edits.mjs`), which those manual-edit routes call
-//! into — both shell an LLM copy-edit agent and are outside every packet
-//! ported so far; `/annotation` (`live/session-store.mjs`'s session
-//! directory, also unported); and Svelte-component deferred-accept cleanup
-//! on startup/shutdown (`live/svelte-component.mjs`'s stateful half, as
-//! opposed to the pure scaffolding functions r22 already ports). These
-//! answer `501 Not Implemented` naming the missing module. See
-//! `finish-r22r24.md` for the itemized table.
+//! (`../live-commit-manual-edits.mjs`), which the manual-edit routes call
+//! into — both shell an LLM copy-edit agent.
 
 pub mod http_server;
 pub mod manual_edit_deps;
@@ -73,6 +81,53 @@ pub use server_info::{
 /// the same port again; here we hand back the already-bound listener, which
 /// is strictly race-free and preserves "the port actually returned is the
 /// port actually served" for every caller.
+/// `node_modules/.impeccable-live` — `SVELTE_COMPONENT_ROOT` in
+/// `live/svelte-component.mjs`.
+const SVELTE_COMPONENT_ROOT: &str = "node_modules/.impeccable-live";
+
+/// `removeAllSvelteComponentSessions(cwd)`: rm -rf every non-`__`-prefixed
+/// directory directly under `SVELTE_COMPONENT_ROOT`, non-fatal on error
+/// (matches the JS `try { fs.rmSync(...) } catch {}` per entry). Called on
+/// `exit` events and on server shutdown, same as
+/// `cleanupSvelteComponentSessionsBeforeExit()`.
+pub fn remove_all_svelte_component_sessions(project_root: &Path) {
+    let root = project_root.join(SVELTE_COMPONENT_ROOT);
+    let entries = match std::fs::read_dir(&root) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        if !is_dir {
+            continue;
+        }
+        let name = entry.file_name();
+        if name.to_string_lossy().starts_with("__") {
+            continue;
+        }
+        let _ = std::fs::remove_dir_all(entry.path());
+    }
+}
+
+/// `fs.mkdtempSync(path.join(annotRoot, 'session-'))`. `mkdtemp` itself is
+/// not in std; this derives an equivalently unguessable-enough (process +
+/// wall-clock + atomic counter, same recipe as [`random_token`]) unique
+/// suffix and creates the directory, retrying on an (extremely unlikely)
+/// collision the way `mkdtemp` would.
+pub fn make_session_dir(annot_root: &Path) -> io::Result<std::path::PathBuf> {
+    std::fs::create_dir_all(annot_root)?;
+    for _ in 0..8 {
+        let suffix = random_token();
+        let dir = annot_root.join(format!("session-{suffix}"));
+        match std::fs::create_dir(&dir) {
+            Ok(()) => return Ok(dir),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(io::Error::new(io::ErrorKind::AlreadyExists, "could not create unique session dir"))
+}
+
 pub fn find_open_port(start: u16) -> io::Result<(TcpListener, u16)> {
     let mut port = start;
     loop {
@@ -354,6 +409,18 @@ pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
     println!("Inject: managed by live-inject.mjs; Astro source tags use is:inline automatically.");
     println!("Stop:   node live-server.mjs stop");
 
+    // Annotation screenshots live under the project root, sessioned per run
+    // (mirrors `state.sessionDir = fs.mkdtempSync(path.join(annotRoot,
+    // 'session-'))`).
+    let annot_root = crate::wf_port::w2_016::impeccable_paths::get_live_annotations_dir(project_root);
+    let session_dir = match make_session_dir(&annot_root) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("Failed to create annotation session dir: {e}");
+            return RunOutcome::ServerExited;
+        }
+    };
+
     let queue = QueueState::new();
     // One `ManualApplyController` for the server's whole lifetime (mirrors
     // the JS singleton `manualApply` controller created once at module
@@ -365,8 +432,12 @@ pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
     let callbacks = manual_edit_deps::QueueCallbacks { queue: &queue };
     let manual_apply_controller =
         crate::wf_port::w2_021::manual_apply::ManualApplyController::new(project_root.to_path_buf(), callbacks);
-    http_server::serve(listener, &token, &queue, project_root, &manual_apply_controller);
+    http_server::serve(listener, &token, &queue, project_root, &manual_apply_controller, &session_dir);
+    // `shutdown()`: cleanup order mirrors the JS source (Svelte session
+    // cleanup, then server.json removal, then the annotation session dir).
+    remove_all_svelte_component_sessions(project_root);
     let _ = remove_live_server_info(project_root);
+    let _ = std::fs::remove_dir_all(&session_dir);
     RunOutcome::ServerExited
 }
 
@@ -388,5 +459,53 @@ pub fn main_cli() -> i32 {
                 1
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod session_cleanup_tests {
+    use super::*;
+
+    fn scratch_root(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "legion-r24-{name}-{}-{}",
+            process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ))
+    }
+
+    #[test]
+    fn make_session_dir_creates_unique_directory_under_root() {
+        let root = scratch_root("mkdtemp");
+        let dir = make_session_dir(&root).unwrap();
+        assert!(dir.is_dir());
+        assert!(dir.starts_with(&root));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn removes_non_dunder_svelte_component_sessions_only() {
+        let project_root = scratch_root("svelte-cleanup");
+        let component_root = project_root.join(SVELTE_COMPONENT_ROOT);
+        std::fs::create_dir_all(component_root.join("sess-1")).unwrap();
+        std::fs::create_dir_all(component_root.join("__runtime_dir")).unwrap();
+        std::fs::write(component_root.join("__runtime.js"), b"// keep").unwrap();
+
+        remove_all_svelte_component_sessions(&project_root);
+
+        assert!(!component_root.join("sess-1").exists());
+        assert!(component_root.join("__runtime_dir").exists());
+        assert!(component_root.join("__runtime.js").exists());
+        let _ = std::fs::remove_dir_all(&project_root);
+    }
+
+    #[test]
+    fn cleanup_on_missing_root_is_a_no_op() {
+        let project_root = scratch_root("svelte-missing");
+        // No SVELTE_COMPONENT_ROOT directory exists; must not panic.
+        remove_all_svelte_component_sessions(&project_root);
     }
 }

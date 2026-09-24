@@ -351,7 +351,12 @@ mod tests {
 
     #[test]
     fn best_shape_objective_forces_d2() {
-        let input = json!({"objective": "best_shape", "significance": {"broad_impact": true}});
+        // classify_effect falls back to the whole input object when no
+        // "effect" key is present (mirrors JS `classifyEffect(normalized.effect
+        // ?? input)`), so any other top-level field makes that fallback fail
+        // with "unknown effect classification field". Callers must always
+        // pass "effect" explicitly unless the input is otherwise empty.
+        let input = json!({"objective": "best_shape", "significance": {"broad_impact": true}, "effect": {}});
         let route = route_architecture(&input).unwrap();
         assert_eq!(route.depth, "D2");
         assert_eq!(route.objective, "best_shape");

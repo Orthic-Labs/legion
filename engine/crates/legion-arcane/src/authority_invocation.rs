@@ -382,6 +382,11 @@ mod tests {
             "sourceRevision": "rev1",
             "turnCorrelationDigest": "t1",
             "stopOrdinal": 1,
+            "runId": "r1",
+            "taskId": "task1",
+            "contractId": "c1",
+            "contractVersion": 1,
+            "contractDigest": "cd1",
         })
     }
 

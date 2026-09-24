@@ -65,7 +65,9 @@ fn server_serves_health_events_and_poll_over_real_tcp() {
             let local_queue = QueueState::new();
             local_queue.enqueue_event(serde_json::json!({"id": "seed", "type": "noop"}));
             let controller = ManualApplyController::new(root.clone(), QueueCallbacks { queue: &local_queue });
-            http_server::serve(listener, &token, &local_queue, &root, &controller);
+            let session_dir = root.join("session");
+            std::fs::create_dir_all(&session_dir).unwrap();
+            http_server::serve(listener, &token, &local_queue, &root, &controller, &session_dir);
         })
     };
     // Give the accept loop a moment to start (best-effort; the connect
@@ -96,11 +98,10 @@ fn server_serves_health_events_and_poll_over_real_tcp() {
     let live_js = http_get(port, "/live.js");
     assert!(live_js.contains("500"));
 
-    // A route that genuinely still has no implementation (its dependency,
-    // `live/session-store.mjs`, is unported) still answers 501 naming it.
-    let not_implemented = http_post(port, "/annotation", "{}");
-    assert!(not_implemented.contains("501"));
-    assert!(not_implemented.contains("session-store.mjs"));
+    // `/annotation` without a token is unauthorized like every other
+    // token-gated route (packet B1 closed this route for real).
+    let annotation_unauthorized = http_post(port, "/annotation", "{}");
+    assert!(annotation_unauthorized.contains("401"));
 
     // Shut the server down via /stop so the background thread exits.
     let stop = http_get(port, &format!("/stop?token={token}"));

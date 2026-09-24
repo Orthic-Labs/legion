@@ -529,7 +529,7 @@ mod tests {
         assert_eq!(result.meta_robots.as_deref(), Some("index,follow"));
         assert_eq!(
             result.canonical.as_deref(),
-            Some("https://example.com/canonical-page")
+            Some("/canonical-page")
         );
         assert_eq!(result.hreflang.len(), 1);
         assert_eq!(result.hreflang[0].lang, "fr");

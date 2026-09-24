@@ -18,6 +18,8 @@
 //! detector wiring, and the `hook.mjs` stdin/stdout process shim, are
 //! integration concerns for whichever packet wires up `legion-hook`.
 
+pub mod real_detector_adapter;
+
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};

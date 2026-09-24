@@ -55,9 +55,16 @@ mod tests {
 
     #[test]
     fn reports_out_of_order_heading() {
+        // `ordered_heading_errors` walks REQUIRED_HEADINGS in its own fixed
+        // order, not text order: "# DISPATCH:" precedes "## 1. Mission" in
+        // that list, so it is checked (and sets the cursor) first even
+        // though it appears later in `text`. The heading that is actually
+        // flagged out-of-order is "## 1. Mission" — the one found at a text
+        // index at or before the cursor when its turn comes — matching the
+        // Python original (`validate-dispatch.py`'s `ordered_heading_errors`).
         let text = "## 1. Mission\n# DISPATCH: x\n";
         let errors = ordered_heading_errors(text);
-        assert!(errors.iter().any(|e| e == "heading out of order: # DISPATCH:"));
+        assert!(errors.iter().any(|e| e == "heading out of order: ## 1. Mission"));
     }
 
     #[test]

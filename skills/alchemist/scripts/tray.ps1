@@ -28,8 +28,8 @@ function Stop-Stack {
     Get-CimInstance Win32_Process -Filter "Name='node.exe' OR Name='cmd.exe'" -ErrorAction SilentlyContinue |
         Where-Object { $_.CommandLine -like '*omniroute*' } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-    Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' OR Name='python.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -like '*viewer.py*' } |
+    Get-CimInstance Win32_Process -Filter "Name='legion.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like '*alchemist/viewer*' } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }
 

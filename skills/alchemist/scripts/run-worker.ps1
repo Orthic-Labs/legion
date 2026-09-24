@@ -161,21 +161,10 @@ if ($jsonEventCount -eq 0) {
     [Console]::Error.WriteLine("Worker emitted zero JSON events; see $stderrPath")
     exit 65
 }
-$parser = Join-Path $PSScriptRoot 'parse_events.py'
-$pythonCandidates = @(
-    $env:ALCHEMIST_PYTHON,
-    (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'),
-    (Join-Path $HOME '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe')
-)
-$python = $pythonCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
 # Do not let Windows PowerShell add a BOM while forwarding normalized lines to
 # the native parser. The parser must receive the same BOM-free JSON we counted.
 $OutputEncoding = $utf8
-if ($python) {
-    Get-Content -LiteralPath $EventLog | ForEach-Object { Remove-LeadingJsonPreamble $_ } | & $python $parser --stream
-} else {
-    Get-Content -LiteralPath $EventLog | ForEach-Object { Remove-LeadingJsonPreamble $_ } | & py -3.11 $parser --stream
-}
+Get-Content -LiteralPath $EventLog | ForEach-Object { Remove-LeadingJsonPreamble $_ } | & legion script alchemist/parse_events --stream
 $parseStatus = $LASTEXITCODE
 [Console]::Error.WriteLine("EVENT_LOG=$EventLog")
 exit $parseStatus

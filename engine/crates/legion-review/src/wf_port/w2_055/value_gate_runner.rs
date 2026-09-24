@@ -55,6 +55,8 @@ use regex::Regex;
 use serde::Deserialize;
 use serde_json::Value;
 
+use crate::wf_port::w2_051::dual_review_run;
+use crate::wf_port::w2_051::engine_run::{Engine, VisionPrep};
 use crate::wf_port::w2_054::review_evidence;
 
 /// Port of `PEER_KEYS`.
@@ -605,6 +607,79 @@ pub trait AdvisoryReviewer {
         dissent_policy: &str,
         no_cache: bool,
     ) -> Result<Value, String>;
+}
+
+/// Live [`VerdictReviewer`]/[`AdvisoryReviewer`] implementation wired to
+/// the now-ported `dual_review_run::run_verdict_review`/
+/// `run_advisory_review` (packet r58/r60, `w2_051`). Closes the gap this
+/// module's doc comment previously documented as unported: `dual_review.py`
+/// itself is fully ported, so the stand-in traits can delegate to it
+/// directly instead of remaining stubs. `run_implementer`'s live
+/// Cerebras/Groq/NIM/MiniMax HTTP dispatch (`ImplementerCaller`) is
+/// unaffected — that provider layer still has no Rust port anywhere in
+/// this workspace.
+pub struct EngineReviewer<'a> {
+    pub engine: &'a Engine<'a>,
+    pub vision_prep: &'a dyn VisionPrep,
+}
+
+impl<'a> VerdictReviewer for EngineReviewer<'a> {
+    fn run_verdict_review(
+        &self,
+        skill: &str,
+        revised_input_text: &str,
+        disposition: &Value,
+        out_dir: &Path,
+        enforce_packet: bool,
+        no_cache: bool,
+    ) -> Result<(), String> {
+        dual_review_run::run_verdict_review(
+            self.engine,
+            skill,
+            revised_input_text,
+            disposition,
+            out_dir,
+            enforce_packet,
+            no_cache,
+            self.vision_prep,
+        )
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+    }
+}
+
+impl<'a> AdvisoryReviewer for EngineReviewer<'a> {
+    #[allow(clippy::too_many_arguments)]
+    fn run_advisory_review(
+        &self,
+        skill: &str,
+        input_text: &str,
+        out_dir: &Path,
+        enforce_packet: bool,
+        resume: bool,
+        rebuttal: bool,
+        runs_root: &Path,
+        dissent_policy: &str,
+        no_cache: bool,
+    ) -> Result<Value, String> {
+        dual_review_run::run_advisory_review(
+            self.engine,
+            skill,
+            input_text,
+            out_dir,
+            enforce_packet,
+            resume,
+            rebuttal,
+            runs_root,
+            dissent_policy,
+            no_cache,
+            false,
+            false,
+            None,
+            self.vision_prep,
+        )
+        .map_err(|e| e.to_string())
+    }
 }
 
 /// Port of `_complete_branch(branch_dir, packet, advisory, condition,

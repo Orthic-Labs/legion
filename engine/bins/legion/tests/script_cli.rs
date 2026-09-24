@@ -40,6 +40,8 @@ fn native_script_list_includes_known_ports() {
         "designer/live-server",
         "designer/live-commit-manual-edits",
         "designer/hook-admin",
+        "designer/hook",
+        "designer/hook-before-edit",
     ] {
         assert!(scripts.contains(&name), "expected {name} in {scripts:?}");
     }
@@ -700,4 +702,64 @@ fn native_script_seo_banana_cost_tracker_estimate() {
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("Total est:"), "{stdout}");
+}
+
+/// `legion script designer/hook` never breaks the caller's turn: malformed
+/// (empty) stdin must still exit 0, matching `hook.mjs`'s
+/// "always exit 0" contract.
+#[test]
+fn native_script_designer_hook_empty_stdin_exits_zero() {
+    use std::io::Write;
+    use std::process::Stdio;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "designer/hook"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(b"").unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+}
+
+/// The re-entrancy guard (`IMPECCABLE_HOOK_DEPTH`) must still short-circuit
+/// through the native dispatcher, same as the JS shim.
+#[test]
+fn native_script_designer_hook_reentrant_guard_exits_zero() {
+    use std::io::Write;
+    use std::process::Stdio;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .env("IMPECCABLE_HOOK_DEPTH", "1")
+        .args(["script", "designer/hook"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(b"{}").unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+}
+
+/// `legion script designer/hook-before-edit` on malformed stdin must allow
+/// (never deny/crash), matching `hook-before-edit.mjs`'s
+/// "never break a turn accidentally" contract.
+#[test]
+fn native_script_designer_hook_before_edit_malformed_stdin_allows() {
+    use std::io::Write;
+    use std::process::Stdio;
+    let mut child = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "designer/hook-before-edit"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(b"not json").unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let value: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    assert_eq!(value["permission"], "allow");
 }
