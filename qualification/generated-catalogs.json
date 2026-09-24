@@ -692,6 +692,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "docs",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -699,6 +704,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "architecture",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -706,6 +716,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "correctness",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -713,6 +728,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "ai-slop",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -720,6 +740,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "quality",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -727,6 +752,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "quality",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -734,6 +764,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "contracts",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -741,6 +776,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "security",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -748,6 +788,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "architecture",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -755,6 +800,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "performance",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -762,6 +812,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "accessibility",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -769,6 +824,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "data",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -776,6 +836,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "reliability",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -783,6 +848,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "platform",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {
@@ -790,6 +860,11 @@
       "providerVersion": "1.0.0",
       "role": "adjudicator",
       "family": "release",
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
       "selectable": true
     },
     {

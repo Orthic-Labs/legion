@@ -2780,21 +2780,1105 @@
       ],
       "selectable": true
     },
-    {"schemaVersion":2,"id":"reasoning.doc-drift","providerVersion":"1.0.0","family":"docs","lensIds":["doc-drift"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-doc-drift-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.architecture","providerVersion":"1.0.0","family":"architecture","lensIds":["architecture"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-architecture-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.correctness","providerVersion":"1.0.0","family":"correctness","lensIds":["correctness"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-correctness-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.ai-slop","providerVersion":"1.0.0","family":"ai-slop","lensIds":["ai-slop"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-ai-slop-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.naming","providerVersion":"1.0.0","family":"quality","lensIds":["naming"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-naming-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.dead-file","providerVersion":"1.0.0","family":"quality","lensIds":["dead-file"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-dead-file-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.schema","providerVersion":"1.0.0","family":"contracts","lensIds":["schema"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-schema-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.security","providerVersion":"1.0.0","family":"security","lensIds":["security"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-security-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.minimize","providerVersion":"1.0.0","family":"architecture","lensIds":["minimize"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-minimize-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.performance","providerVersion":"1.0.0","family":"performance","lensIds":["performance"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-performance-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.a11y","providerVersion":"1.0.0","family":"accessibility","lensIds":["a11y"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"anyExtension","extensions":["html","htm","jsx","tsx","vue","svelte","astro","css"]},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-a11y-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.data-safety","providerVersion":"1.0.0","family":"data","lensIds":["data-safety"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"any","selectors":[{"op":"anyExtension","extensions":["sql"]},{"op":"anyPath","patterns":["**/migrations/**","**/schema.prisma"]}]},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-data-safety-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.resilience","providerVersion":"1.0.0","family":"reliability","lensIds":["resilience"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"sourceFilesAtLeast","count":1},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-resilience-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.platform-parity","providerVersion":"1.0.0","family":"platform","lensIds":["platform-parity"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"anyPath","patterns":["src-tauri/**","**/*.swift","**/*.kt","**/Cargo.toml","**/pubspec.yaml"]},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-platform-parity-v1"},"selectable":true},
-    {"schemaVersion":2,"id":"reasoning.release-readiness","providerVersion":"1.0.0","family":"release","lensIds":["release-readiness"],"role":"adjudicator","phase":"judgment","dependsOn":[],"consumes":["blueprint-packet"],"produces":["provider-result"],"selector":{"op":"anyPath","patterns":["package.json","**/Cargo.toml",".github/workflows/**","release/**"]},"denominatorKind":"first-party-source-files","runner":{"kind":"reasoning-contract","contract":"audit-lens-release-readiness-v1"},"selectable":true},
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.doc-drift",
+      "providerVersion": "1.0.0",
+      "family": "docs",
+      "lensIds": [
+        "doc-drift"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-doc-drift-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "docs.source-assurance"
+      ],
+      "scopes": [
+        "family:docs"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.architecture",
+      "providerVersion": "1.0.0",
+      "family": "architecture",
+      "lensIds": [
+        "architecture"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-architecture-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "architecture.source-assurance"
+      ],
+      "scopes": [
+        "family:architecture"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.correctness",
+      "providerVersion": "1.0.0",
+      "family": "correctness",
+      "lensIds": [
+        "correctness"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-correctness-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "correctness.source-assurance"
+      ],
+      "scopes": [
+        "family:correctness"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.ai-slop",
+      "providerVersion": "1.0.0",
+      "family": "ai-slop",
+      "lensIds": [
+        "ai-slop"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-ai-slop-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "ai-slop.source-assurance"
+      ],
+      "scopes": [
+        "family:ai-slop"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.naming",
+      "providerVersion": "1.0.0",
+      "family": "quality",
+      "lensIds": [
+        "naming"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-naming-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "quality.source-assurance"
+      ],
+      "scopes": [
+        "family:quality"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.dead-file",
+      "providerVersion": "1.0.0",
+      "family": "quality",
+      "lensIds": [
+        "dead-file"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-dead-file-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "quality.source-assurance"
+      ],
+      "scopes": [
+        "family:quality"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.schema",
+      "providerVersion": "1.0.0",
+      "family": "contracts",
+      "lensIds": [
+        "schema"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-schema-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "contracts.source-assurance"
+      ],
+      "scopes": [
+        "family:contracts"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.security",
+      "providerVersion": "1.0.0",
+      "family": "security",
+      "lensIds": [
+        "security"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-security-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "security.source-assurance"
+      ],
+      "scopes": [
+        "family:security"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.minimize",
+      "providerVersion": "1.0.0",
+      "family": "architecture",
+      "lensIds": [
+        "minimize"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-minimize-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "architecture.source-assurance"
+      ],
+      "scopes": [
+        "family:architecture"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.performance",
+      "providerVersion": "1.0.0",
+      "family": "performance",
+      "lensIds": [
+        "performance"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-performance-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "performance.source-assurance"
+      ],
+      "scopes": [
+        "family:performance"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.a11y",
+      "providerVersion": "1.0.0",
+      "family": "accessibility",
+      "lensIds": [
+        "a11y"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyExtension",
+        "extensions": [
+          "html",
+          "htm",
+          "jsx",
+          "tsx",
+          "vue",
+          "svelte",
+          "astro",
+          "css"
+        ]
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-a11y-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "accessibility.source-assurance"
+      ],
+      "scopes": [
+        "family:accessibility"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.data-safety",
+      "providerVersion": "1.0.0",
+      "family": "data",
+      "lensIds": [
+        "data-safety"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "any",
+        "selectors": [
+          {
+            "op": "anyExtension",
+            "extensions": [
+              "sql"
+            ]
+          },
+          {
+            "op": "anyPath",
+            "patterns": [
+              "**/migrations/**",
+              "**/schema.prisma"
+            ]
+          }
+        ]
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-data-safety-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "data.source-assurance"
+      ],
+      "scopes": [
+        "family:data"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.resilience",
+      "providerVersion": "1.0.0",
+      "family": "reliability",
+      "lensIds": [
+        "resilience"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "sourceFilesAtLeast",
+        "count": 1
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-resilience-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "reliability.source-assurance"
+      ],
+      "scopes": [
+        "family:reliability"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.platform-parity",
+      "providerVersion": "1.0.0",
+      "family": "platform",
+      "lensIds": [
+        "platform-parity"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "src-tauri/**",
+          "**/*.swift",
+          "**/*.kt",
+          "**/Cargo.toml",
+          "**/pubspec.yaml"
+        ]
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-platform-parity-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "platform.source-assurance"
+      ],
+      "scopes": [
+        "family:platform"
+      ],
+      "selectable": true
+    },
+    {
+      "schemaVersion": 2,
+      "id": "reasoning.release-readiness",
+      "providerVersion": "1.0.0",
+      "family": "release",
+      "lensIds": [
+        "release-readiness"
+      ],
+      "role": "adjudicator",
+      "phase": "judgment",
+      "dependsOn": [],
+      "consumes": [
+        "blueprint-packet"
+      ],
+      "produces": [
+        "provider-result"
+      ],
+      "selector": {
+        "op": "anyPath",
+        "patterns": [
+          "package.json",
+          "**/Cargo.toml",
+          ".github/workflows/**",
+          "release/**"
+        ]
+      },
+      "denominatorKind": "first-party-source-files",
+      "runner": {
+        "kind": "reasoning-contract",
+        "contract": "audit-lens-release-readiness-v1"
+      },
+      "hostCapabilities": [],
+      "execution": {
+        "scheduleClass": "parallel-safe",
+        "resourceClaims": {
+          "cpu": 1,
+          "memoryMb": 256,
+          "io": 1,
+          "projectExecution": 0,
+          "browser": 0,
+          "nativeSurface": 0,
+          "virtualMachine": 0,
+          "simulator": 0,
+          "physicalDevice": 0,
+          "externalSystem": 0,
+          "reviewer": 0,
+          "signer": 0
+        },
+        "concurrencyKey": null,
+        "maxParallelism": null,
+        "orderSensitive": false,
+        "interruptible": true,
+        "cachePolicy": "content-addressed",
+        "failurePolicy": "block-dependents"
+      },
+      "reasoning": {
+        "requirement": "review",
+        "trigger": "none",
+        "subjectKind": "provider-result",
+        "freshContext": true,
+        "producerSeparation": true
+      },
+      "benchmark": {
+        "status": "unproven",
+        "requiredForCleanClaim": true,
+        "qualificationDigest": null
+      },
+      "cleanClaim": "evidence-only",
+      "controlIds": [
+        "release.source-assurance"
+      ],
+      "scopes": [
+        "family:release"
+      ],
+      "selectable": true
+    },
     {
       "schemaVersion": 2,
       "id": "legacy.security.adjudication",
