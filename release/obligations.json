@@ -47,7 +47,9 @@
         {
           "id": "workflow-inventory",
           "requirement": "hosted workflow files exactly match the lanes declared by .rightgit.json",
-          "evidence": "tests/rightkit-pipeline-contract.test.mjs"
+          "evidence": null,
+          "implemented": false,
+          "gap": "tests/rightkit-pipeline-contract.test.mjs was retired with the JS pipeline; no Rust verifier covers .rightgit.json lane parity yet"
         },
         {
           "id": "no-developer-local-values",

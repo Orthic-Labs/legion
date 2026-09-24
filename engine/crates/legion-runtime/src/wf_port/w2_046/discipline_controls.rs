@@ -263,8 +263,30 @@ pub fn resolve_path(base: &str, rel: &str) -> String {
     // Splitting/joining on '/' directly (rather than routing through
     // `std::path::Path`/`PathBuf`, whose `Component`/`to_string_lossy`
     // use the platform separator) keeps this correct on Windows.
-    let is_absolute = rel.starts_with('/');
-    let joined = if is_absolute { rel.to_string() } else { format!("{base}/{rel}") };
+    //
+    // Callers do sometimes feed this a native path (e.g.
+    // `workspace.to_string_lossy()` in `pre_effect_discipline`), which on
+    // Windows can carry a `C:` drive prefix. Always re-rooting the result
+    // under a bare `/` (the original behavior) silently discards that
+    // prefix — `C:/Users/x` becomes `/Users/x`, a different, usually
+    // nonexistent path — so the drive prefix (taken from `rel` if it
+    // supplies one, else from `base`) is preserved separately and
+    // reattached to the final joined/collapsed path.
+    let base = base.replace('\\', "/");
+    let rel = rel.replace('\\', "/");
+    fn split_drive(path: &str) -> (Option<&str>, &str) {
+        let bytes = path.as_bytes();
+        if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+            (Some(&path[..2]), &path[2..])
+        } else {
+            (None, path)
+        }
+    }
+    let (base_drive, base_rest) = split_drive(&base);
+    let (rel_drive, rel_rest) = split_drive(&rel);
+    let is_absolute = rel_rest.starts_with('/') || rel_drive.is_some();
+    let drive = rel_drive.or(base_drive);
+    let joined = if is_absolute { rel_rest.to_string() } else { format!("{base_rest}/{rel_rest}") };
     let mut out: Vec<&str> = Vec::new();
     for segment in joined.split('/') {
         match segment {
@@ -279,7 +301,7 @@ pub fn resolve_path(base: &str, rel: &str) -> String {
             other => out.push(other),
         }
     }
-    format!("/{}", out.join("/"))
+    format!("{}/{}", drive.unwrap_or_default(), out.join("/"))
 }
 
 #[derive(Debug, Clone, Default)]
@@ -479,7 +501,17 @@ pub fn pre_effect_discipline(
         return None;
     }
 
-    let repository_string = commit_repository(payload, &workspace.to_string_lossy(), resolve_path);
+    // `resolve_path` is POSIX-style and only recognizes `/` as a separator
+    // (see its doc comment). `workspace` is a native `Path`, so on Windows
+    // `to_string_lossy()` is backslash-joined (e.g. `C:\Users\...\repo`);
+    // fed straight in as `base`, that whole string is treated as a single
+    // opaque path segment and comes back as a malformed `/C:\Users\...`
+    // path, which then fails to canonicalize/rev-parse and makes staged
+    // paths look "unavailable" instead of gathering them. Normalize to
+    // forward slashes first, matching the `.replace('\\', "/")` pattern
+    // used for git output elsewhere in this file.
+    let workspace_posix = workspace.to_string_lossy().replace('\\', "/");
+    let repository_string = commit_repository(payload, &workspace_posix, resolve_path);
     let repository = Path::new(&repository_string);
     let requirement = commit_receipt_requirement(workspace, repository, policy, contracted);
     if !requirement.required {

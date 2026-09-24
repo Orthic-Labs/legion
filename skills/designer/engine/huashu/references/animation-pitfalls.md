@@ -283,7 +283,8 @@ ffmpeg -i video.mp4 -ss $DURATION-0.1 -vframes 1 frame-end.png
 ```
 首帧必须是动画 t=0 的初始状态（不是中段，不是黑），末帧必须是动画终态（不是第二轮 loop 的某个时刻）。
 
-**参考实现**：`assets/animations.jsx` 的 Stage 组件、`scripts/render-video.js` 都已按此协议实现。手写 HTML 必须套 starter tick 模板——每一行都是防过具体 bug。
+**参考实现**：`assets/animations.jsx` 的 Stage 组件、`legion script designer/render-video` 都已按此协议实现。手写 HTML 必须套 starter tick 模板——每一行都是防过具体 bug。
+
 
 ## 13. 录制时禁止 loop —— `window.__recording` 信号
 
@@ -308,7 +309,8 @@ ffmpeg -i video.mp4 -ss $DURATION-0.1 -vframes 1 frame-end.png
 
 3. **结尾 Sprite 的 fadeOut**：录制场景下应设 `fadeOut={0}`，否则视频末尾会渐变到透明/暗色——用户期望停在清晰的最后一帧，不是淡出。手写 HTML 时建议结尾 Sprite 都用 `fadeOut={0}`。
 
-**参考实现**：`assets/animations.jsx` 的 Stage / `scripts/render-video.js` 都已内置握手。手写 Stage 必须实现 `__recording` 检测——否则录制必踩这个坑。
+**参考实现**：`assets/animations.jsx` 的 Stage / `legion script designer/render-video` 都已内置握手。手写 Stage 必须实现 `__recording` 检测——否则录制必踩这个坑。
+
 
 **验证**：导出 MP4 后 `ffmpeg -ss 19.8 -i video.mp4 -frames:v 1 end.png`，检查倒数 0.2 秒是否还是预期最后一帧，没有突然切换到另一个 scene。
 

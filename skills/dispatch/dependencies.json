@@ -5,10 +5,6 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "python-runtime"
-    },
-    {
-      "class": "PACKAGE_INTERNAL",
-      "path": "scripts/validate-dispatch.py"
     }
   ]
 }

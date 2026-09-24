@@ -4,8 +4,8 @@
 
 **本 skill 的能力覆盖**：
 - **HTML 演示版（基础产物，永远默认必做）** → 每页独立 HTML + `assets/deck_index.html` 聚合，浏览器里键盘翻页、全屏演讲
-- HTML → PDF 导出 → `scripts/export_deck_pdf.mjs` / `scripts/export_deck_stage_pdf.mjs`
-- HTML → 可编辑 PPTX 导出 → `references/editable-pptx.md` + `scripts/html2pptx.js` + `scripts/export_deck_pptx.mjs`（要求 HTML 按 4 条硬约束写）
+- HTML → PDF 导出 → `legion script designer/export-deck-pdf` / `legion script designer/export-deck-stage-pdf`
+- HTML → 可编辑 PPTX 导出 → `references/editable-pptx.md` + scripts/html2pptx.js（内部实现，未单独移植）+ `legion script designer/export-deck-pptx`（要求 HTML 按 4 条硬约束写）
 
 > **⚠️ HTML 是基础，PDF/PPTX 是衍生物。** 不管最终交付什么格式，都**必须**先做 HTML 聚合演示版（`index.html` + `slides/*.html`），它是幻灯片作品的「源」。PDF/PPTX 是从 HTML 一行命令导出的快照。
 >
@@ -303,7 +303,7 @@ window.DECK_MANIFEST = [
 2. **任意页数都要自适应**：固定列数 + 给整墙写死强倾斜，页一多就溢出塌角/透视失真。必须按页数+视口算列数、行多则倾斜变平、一屏放不下就滚动。
 3. **缩略图分辨率别太低**：画廊缩略图 < 1000px，hover 放大后发虚。默认 1600px。
 
-**为画廊生成缩略图**：用 `scripts/gen_deck_thumbs.mjs`（playwright 截每页 + sharp 降采样）：
+**为画廊生成缩略图**：用 `legion script designer/gen-deck-thumbs`（原生端口）：
 ```bash
 npm install playwright sharp
 node gen_deck_thumbs.mjs --slides slides --out thumbs --width 1600

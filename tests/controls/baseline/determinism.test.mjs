@@ -1,1 +1,0 @@
-import assert from 'node:assert/strict';import test from 'node:test';import {compileBaseline} from '../../../src/lib/controls/baseline/compile.mjs';test('baseline digest is reproducible',()=>{const x={packs:[],portfolio:{targets:[]},components:{components:[]}};assert.equal(compileBaseline(x).digest,compileBaseline(x).digest);});

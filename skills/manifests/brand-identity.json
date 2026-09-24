@@ -33,9 +33,7 @@
       "references/manual.md",
       "references/visual-reference-libraries.md"
     ],
-    "scripts": [
-      "scripts/color-check.mjs"
-    ],
+    "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -44,7 +42,6 @@
     ],
     "consumers": [
       "src/registry/skills/index.json",
-      "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
     ]
   },
@@ -83,11 +80,6 @@
       "path": "references/visual-reference-libraries.md",
       "uri": "legion-skill://brand-identity/references/visual-reference-libraries.md",
       "digest": "sha256:c0a2f427947d4475d00faa1ee240be3bbc7a48d474c9e84994d0de0c8b60bd16"
-    },
-    {
-      "path": "scripts/color-check.mjs",
-      "uri": "legion-skill://brand-identity/scripts/color-check.mjs",
-      "digest": "sha256:3741ba6c66a7417829252c22ff206e445ff345e448e77be5dc6278d511a3ab58"
     }
   ]
 }

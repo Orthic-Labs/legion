@@ -80,10 +80,6 @@ export function versionParityReport(root = ROOT, { stable = false } = {}) {
     const observed = workspaceEntries[0].version;
     if (observed !== expected) issues.push({ path: 'engine/Cargo.lock', reason: `${name} lock version ${observed ?? '<missing>'} differs from ${expected}` });
   }
-  const library = readFileSync(join(root, 'src/lib/version.mjs'), 'utf8');
-  if (!library.includes("../../release/version.json")) {
-    issues.push({ path: 'src/lib/version.mjs', reason: 'library version does not consume canonical release version record' });
-  }
   const cli = readFileSync(join(root, 'engine/bins/legion/src/cli.rs'), 'utf8');
   if (!cli.includes('env!("CARGO_PKG_VERSION")')) {
     issues.push({ path: 'engine/bins/legion/src/cli.rs', reason: 'CLI version does not consume Cargo package version' });

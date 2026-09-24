@@ -344,9 +344,9 @@ NarrationStage 自动检测 `window.__recording`：
 
 | 脚本 | 输入 | 输出 |
 |---|---|---|
-| `scripts/tts-doubao.mjs` | 单段文本 | 单个 mp3 + 实测时长 |
-| `scripts/narrate-pipeline.mjs` | 解说稿 .md | voiceover.mp3 + timeline.json |
-| `scripts/mix-voiceover.sh` | 视频 + voiceover.mp3 [+ BGM] | 带音频的 MP4 |
+| `legion script designer/tts-doubao` | 单段文本 | 单个 mp3 + 实测时长 |
+| `legion script designer/narrate-pipeline` | 解说稿 .md | voiceover.mp3 + timeline.json |
+| `legion script designer/mix-voiceover` | 视频 + voiceover.mp3 [+ BGM] | 带音频的 MP4 |
 | `scripts/render-narration.sh` | 解说 HTML + timeline.json | 最终 MP4（录制 + 混音一条龙）|
 
 ## .env 配置

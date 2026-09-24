@@ -32,11 +32,7 @@
       "references/browser-automation.md",
       "references/manual.md"
     ],
-    "scripts": [
-      "scripts/qa-functional.mjs",
-      "scripts/qa-shot.mjs",
-      "scripts/qa.mjs"
-    ],
+    "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -45,7 +41,6 @@
     ],
     "consumers": [
       "src/registry/skills/index.json",
-      "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
     ]
   },
@@ -53,7 +48,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://qa/SKILL.md",
-      "digest": "sha256:229277408cae01c06b4dbe3fd913e968d12c637d9eb10f9e858890f664001dc7"
+      "digest": "sha256:178708e642f6d7420aa50f6ed04c0f11a0990fc4d3c958011efe421e45461291"
     },
     {
       "path": "agents/openai.yaml",
@@ -63,7 +58,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://qa/dependencies.json",
-      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+      "digest": "sha256:8a34d459970a98a73a95601f078181a474bd698c07290b1d1ca2b8c506230384"
     },
     {
       "path": "evals/evals.json",
@@ -78,22 +73,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://qa/references/manual.md",
-      "digest": "sha256:72f5318d637c2ba345d141c04d3de5802e7b2b06fb14b6fb4f33990de5b5db4c"
-    },
-    {
-      "path": "scripts/qa-functional.mjs",
-      "uri": "legion-skill://qa/scripts/qa-functional.mjs",
-      "digest": "sha256:1c0a3a92730af7f4edb37e1aa34d931d00df2b44ebac0a171b11df662b214d70"
-    },
-    {
-      "path": "scripts/qa-shot.mjs",
-      "uri": "legion-skill://qa/scripts/qa-shot.mjs",
-      "digest": "sha256:59ca8ee4710ca20a87a434de1c16cba0501445f7545769232cdabc53f4b383a7"
-    },
-    {
-      "path": "scripts/qa.mjs",
-      "uri": "legion-skill://qa/scripts/qa.mjs",
-      "digest": "sha256:016f4a053227d78dd755d9b174353b2f130266c8b6082571d8e4708fcb51f0a7"
+      "digest": "sha256:c00ccbfdf6afcfd84be17cb2e0407a671528716dd3f22ff14de404ca000857da"
     }
   ]
 }

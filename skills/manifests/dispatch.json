@@ -32,10 +32,7 @@
       "references/agent-routing.md",
       "references/manual.md"
     ],
-    "scripts": [
-      "scripts/test_validate_dispatch.py",
-      "scripts/validate-dispatch.py"
-    ],
+    "scripts": [],
     "templates": [
       "assets/dispatch-template.md"
     ],
@@ -53,7 +50,6 @@
     ],
     "consumers": [
       "src/registry/skills/index.json",
-      "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
     ]
   },
@@ -81,12 +77,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://dispatch/dependencies.json",
-      "digest": "sha256:4906ee5ede30b1455467c20e005f7e25214356413be833b4bcb4770f700930dd"
-    },
-    {
-      "path": "engine/validate-dispatch.py",
-      "uri": "legion-skill://dispatch/engine/validate-dispatch.py",
-      "digest": "sha256:4113cba12f3171083788b9b60f6861ebd7e06b88d730b40a3aabc65392b84b4e"
+      "digest": "sha256:fe72207c01cd0eeb0f130f24dd79e8d71fa3c8d84a3a419cc951ab97ab7fa59a"
     },
     {
       "path": "evals/evals.json",
@@ -159,19 +150,9 @@
       "digest": "sha256:28c0f7c946196020c98a9736036c117073022fc48d108fe5b3e9a1228c3e2233"
     },
     {
-      "path": "goalroute/scripts/validate-route.py",
-      "uri": "legion-skill://dispatch/goalroute/scripts/validate-route.py",
-      "digest": "sha256:5361292e9a7784d9ffa8febc7c0cc7b18b4876e34a4ef59e56230cb818a3477e"
-    },
-    {
       "path": "minimize/POLICY.md",
       "uri": "legion-skill://dispatch/minimize/POLICY.md",
       "digest": "sha256:1f941eb00ec6974705bc299e4cae2a01c031c51fb699fff310882f86f1c321f7"
-    },
-    {
-      "path": "minimize/minimize_gate.py",
-      "uri": "legion-skill://dispatch/minimize/minimize_gate.py",
-      "digest": "sha256:514f21acf463eed860ae4de30f68a6b1eb73c95b468aa2e2a936b400b7232651"
     },
     {
       "path": "references/agent-routing.md",
@@ -182,16 +163,6 @@
       "path": "references/manual.md",
       "uri": "legion-skill://dispatch/references/manual.md",
       "digest": "sha256:e95ce27e09cb6dcc96094a75a2c90a7f0b9f7e8c377b8ca5ffd3ea0accca3839"
-    },
-    {
-      "path": "scripts/test_validate_dispatch.py",
-      "uri": "legion-skill://dispatch/scripts/test_validate_dispatch.py",
-      "digest": "sha256:da0c36e049ef72fe466fc243bfd44dbade95e20bb6241b2944b53284b95d37fe"
-    },
-    {
-      "path": "scripts/validate-dispatch.py",
-      "uri": "legion-skill://dispatch/scripts/validate-dispatch.py",
-      "digest": "sha256:6e8bdb347552291e50e8c137ee455e476cd9e0b1823bc6fb08a23c078064b866"
     }
   ]
 }

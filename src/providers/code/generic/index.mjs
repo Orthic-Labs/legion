@@ -1,1 +1,0 @@
-import {analyzeLanguage} from '../shared.mjs';export const language="generic";export const extensions=["*"];export const config={"id":"generic","extensions":["*"],"variants":{"generic":["*"]},"tools":[]};export function analyze(input={}){return analyzeLanguage(config,input);}

@@ -53,7 +53,7 @@ now also available natively as `legion script qa/qa-shot` and `legion script qa/
 (Rust port `legion-runtime::wf_port::r54`); the `.mjs` wrappers still forward to `qa.mjs` for
 consuming apps that shell out directly.
 
-Run the engine through this skill's own `scripts/qa-functional.mjs` and `scripts/qa-shot.mjs`,
+Run the engine through this skill's own `legion script qa/qa-functional` and `legion script qa/qa-shot`,
 which resolve the bundled copy first and fall back to the repository only during development. `qa-browser.sh`, `qa-browser-stop.sh`, and their `.ps1`
 equivalents are not package files — they are project scripts a consuming app authors itself.
 
@@ -66,9 +66,9 @@ scripts/qa-browser.ps1
 scripts/qa-browser-stop.ps1
 scripts/qa-browser.sh
 scripts/qa-browser-stop.sh
-scripts/qa-functional.mjs
-scripts/qa-shot.mjs
 ```
+
+Use `legion script qa/qa-functional` and `legion script qa/qa-shot` for the runners themselves (no equivalent project script needed).
 
 Recommended `package.json` commands:
 
@@ -79,8 +79,6 @@ Windows:
   "scripts": {
     "qa:browser": "powershell -ExecutionPolicy Bypass -File scripts/qa-browser.ps1",
     "qa:browser:stop": "powershell -ExecutionPolicy Bypass -File scripts/qa-browser-stop.ps1",
-    "qa:functional": "node scripts/qa-functional.mjs",
-    "qa:shot": "node scripts/qa-shot.mjs"
   }
 }
 ```
@@ -92,8 +90,6 @@ Mac/Linux:
   "scripts": {
     "qa:browser": "bash scripts/qa-browser.sh",
     "qa:browser:stop": "bash scripts/qa-browser-stop.sh",
-    "qa:functional": "node scripts/qa-functional.mjs",
-    "qa:shot": "node scripts/qa-shot.mjs"
   }
 }
 ```

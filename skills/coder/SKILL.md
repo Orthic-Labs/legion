@@ -12,6 +12,7 @@ effects:
 hostRequirements:
   - pi-cli
   - python-runtime
+  - legion
 ---
 
 # Coder

@@ -1,1 +1,0 @@
-import {analyzeLanguage} from '../shared.mjs';export const language="rust";export const extensions=["rs"];export const config={"id":"rust","extensions":["rs"],"variants":{"rust":["rs"]},"tools":["metadata","check","lint","test","dependency"],"requiredContext":["features","targets"]};export function analyze(input={}){return analyzeLanguage(config,input);}

@@ -7,12 +7,8 @@
       "capability": "python-runtime"
     },
     {
-      "class": "PACKAGE_INTERNAL",
-      "path": "scripts/transcript-handoff.py"
-    },
-    {
-      "class": "PACKAGE_INTERNAL",
-      "path": "scripts/validate-handoff.py"
+      "class": "HOST_CAPABILITY",
+      "capability": "legion"
     }
   ]
 }

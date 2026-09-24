@@ -605,7 +605,14 @@ mod tests {
         // `patch` object itself.
         assert_eq!(proposal["patch"]["format"], json!("legion-preview-edits"));
         assert!(proposal["patch"]["digest"].is_string());
-        assert_eq!(proposal["patch"]["edits"][0]["after"], json!("rejectUnauthorized: true"));
+        // `edits_for` (wf017::structural) produces line-level edits, matching
+        // the JS `line: index + 1` convention documented on `StructuralEdit`:
+        // `before`/`after` are the whole rewritten line, not just the matched
+        // span.
+        assert_eq!(
+            proposal["patch"]["edits"][0]["after"],
+            json!("const agent = new https.Agent({ rejectUnauthorized: true });")
+        );
     }
 
     #[test]

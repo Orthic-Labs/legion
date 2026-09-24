@@ -1,1 +1,0 @@
-export function deduplicateSources(sources) { const seen = new Map(); for (const source of sources) { if (seen.has(source.digest) && JSON.stringify(seen.get(source.digest)) !== JSON.stringify(source)) throw new Error(`source digest drift: ${source.digest}`); seen.set(source.digest, source); } return [...seen.values()]; }

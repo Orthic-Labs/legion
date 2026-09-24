@@ -289,7 +289,8 @@
       "domain": null,
       "hostRequirements": [
         "pi-cli",
-        "python-runtime"
+        "python-runtime",
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -318,6 +319,17 @@
               "python",
               "py"
             ]
+          }
+        },
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
           }
         }
       ],
@@ -451,8 +463,22 @@
         "model": true
       },
       "domain": "engineering",
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
       "scopedRequirements": [],
       "source": "skills/foundation/SKILL.md"
     },
@@ -484,7 +510,8 @@
       },
       "domain": null,
       "hostRequirements": [
-        "python-runtime"
+        "python-runtime",
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -500,6 +527,17 @@
               "python",
               "py"
             ]
+          }
+        },
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
           }
         }
       ],
@@ -549,8 +587,22 @@
         "model": true
       },
       "domain": "engineering",
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
       "scopedRequirements": [],
       "source": "skills/qa/SKILL.md"
     },
@@ -647,7 +699,8 @@
       },
       "domain": "commercial",
       "hostRequirements": [
-        "python-runtime"
+        "python-runtime",
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -663,6 +716,17 @@
               "python",
               "py"
             ]
+          }
+        },
+        {
+          "id": "legion",
+          "kind": "command-line-tool",
+          "summary": "The Legion native CLI. Backs the `legion` MCP server declared in .claude-plugin/plugin.json and the `legion audit`/`legion run` commands invoked by packaged skills.",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
           }
         }
       ],

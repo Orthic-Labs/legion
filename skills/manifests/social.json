@@ -50,7 +50,6 @@
     ],
     "consumers": [
       "src/registry/skills/index.json",
-      "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
     ]
   },

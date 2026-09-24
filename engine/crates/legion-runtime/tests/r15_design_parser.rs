@@ -85,7 +85,12 @@ fn parses_typography_fonts_and_character() {
     // "fallback" from the source text — it does not strip it.
     assert_eq!(typography.fonts["display"].fallback.as_deref(), Some("system-ui fallback"));
     assert_eq!(typography.character.as_deref(), Some("Confident and modern, never loud."));
-    assert_eq!(typography.hierarchy.len(), 1);
+    // The legacy `parseTypeBullet` regex is `^\*\*(.+?)\*\*\s*\(([^)]+)\):\s*(.*)$`:
+    // `[^)]+` cannot span the nested `clamp(2rem, 4vw, 4rem)` in the sample
+    // bullet, so the JS match fails and the bullet is dropped (verified against
+    // design-parser.mjs's `parseTypeBullet` with node). The Rust port matches
+    // that: hierarchy stays empty here, not 1.
+    assert_eq!(typography.hierarchy.len(), 0);
 }
 
 #[test]

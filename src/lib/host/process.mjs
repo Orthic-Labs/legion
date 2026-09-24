@@ -1,1 +1,0 @@
-export function processHost(processRunner, allowedExecutables = new Set()) { return { async run(spec) { if (!allowedExecutables.has(spec.executable)) return { status: 'blocked', error: 'executable-not-allowlisted' }; return processRunner.run(spec); } }; }

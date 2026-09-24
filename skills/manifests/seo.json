@@ -91,43 +91,7 @@
       "references/workflow-packs.md"
     ],
     "scripts": [
-      "hooks/hooks.json",
-      "hooks/pre-commit-seo-check.sh",
-      "hooks/validate-schema.py",
-      "scripts/ai_visibility_import.py",
-      "scripts/analyze_visual.py",
-      "scripts/bing_webmaster.py",
-      "scripts/capture_screenshot.py",
-      "scripts/checklist_compiler.py",
-      "scripts/contracts.py",
-      "scripts/coverage.py",
-      "scripts/crux_history.py",
-      "scripts/fetch_page.py",
-      "scripts/ga4_report.py",
-      "scripts/google_auth.py",
-      "scripts/google_report.py",
-      "scripts/gsc_inspect.py",
-      "scripts/gsc_query.py",
-      "scripts/gsc_query_v2.py",
-      "scripts/indexing_notify.py",
-      "scripts/indexnow.py",
-      "scripts/keyword_planner.py",
-      "scripts/nlp_analyze.py",
-      "scripts/page_engine.py",
-      "scripts/pagespeed_check.py",
-      "scripts/parse_html.py",
-      "scripts/provider_registry.py",
-      "scripts/query_ownership.py",
-      "scripts/question_inventory.py",
-      "scripts/rank_tracker.py",
-      "scripts/render_gap.mjs",
-      "scripts/search_ops.py",
-      "scripts/seo_closure.py",
-      "scripts/seo_project.py",
-      "scripts/site_audit.py",
-      "scripts/source_freshness.py",
-      "scripts/templated_metadata.py",
-      "scripts/youtube_search.py"
+      "hooks/hooks.json"
     ],
     "templates": [],
     "schemas": [
@@ -140,7 +104,6 @@
     ],
     "consumers": [
       "src/registry/skills/index.json",
-      "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
     ]
   },
@@ -148,7 +111,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://seo/SKILL.md",
-      "digest": "sha256:6e9368d2155232c2e2cfdae1a9a3536efd81bea23397657a529505907f56e255"
+      "digest": "sha256:6872476d5e2e0d2b9655985cdc585bd73f203bbf906c58cf2308a7116493e979"
     },
     {
       "path": "agents/openai.yaml",
@@ -193,7 +156,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://seo/dependencies.json",
-      "digest": "sha256:fe72207c01cd0eeb0f130f24dd79e8d71fa3c8d84a3a419cc951ab97ab7fa59a"
+      "digest": "sha256:0110177bc5373ffb799e2c9695e30fbf3a6dfa520e466477cea20832eb2621f1"
     },
     {
       "path": "evals/evals.json",
@@ -241,54 +204,9 @@
       "digest": "sha256:64d47e8b9e7437e8e14c0104a28a808b30b68590dcafa2865d02d87ee08f659b"
     },
     {
-      "path": "extensions/banana/scripts/batch.py",
-      "uri": "legion-skill://seo/extensions/banana/scripts/batch.py",
-      "digest": "sha256:f655ecd803baa2c9394b47d7b6df68250d73b0686f4a0add67bdb386676a6ae9"
-    },
-    {
-      "path": "extensions/banana/scripts/cost_tracker.py",
-      "uri": "legion-skill://seo/extensions/banana/scripts/cost_tracker.py",
-      "digest": "sha256:21f014eb9cf584bd5b3cdacfb261575ade348d7bd811fb39cd97e3f08ffaefb2"
-    },
-    {
-      "path": "extensions/banana/scripts/edit.py",
-      "uri": "legion-skill://seo/extensions/banana/scripts/edit.py",
-      "digest": "sha256:b80326a40a766299c3a4e4842223780894ccbff70420f784d4aacbb609afe4c1"
-    },
-    {
-      "path": "extensions/banana/scripts/generate.py",
-      "uri": "legion-skill://seo/extensions/banana/scripts/generate.py",
-      "digest": "sha256:eeb43f504527a628b6307915409829bd250cd64dd250754f8f7880dea83dc542"
-    },
-    {
-      "path": "extensions/banana/scripts/presets.py",
-      "uri": "legion-skill://seo/extensions/banana/scripts/presets.py",
-      "digest": "sha256:5f5a063fa4b8d340fdb1e3657d40226f30a6a847fc79a55217a02fb5b2657a99"
-    },
-    {
-      "path": "extensions/banana/scripts/setup_mcp.py",
-      "uri": "legion-skill://seo/extensions/banana/scripts/setup_mcp.py",
-      "digest": "sha256:0b668308ffb1f1893415781a2e6e429723753a15ac5c3411f4000beee31603e5"
-    },
-    {
-      "path": "extensions/banana/scripts/validate_setup.py",
-      "uri": "legion-skill://seo/extensions/banana/scripts/validate_setup.py",
-      "digest": "sha256:3356b67d9d38c2979bc2c595f1a4cc79ad628563db78de4504f2d6df2977b3b3"
-    },
-    {
       "path": "hooks/hooks.json",
       "uri": "legion-skill://seo/hooks/hooks.json",
       "digest": "sha256:fd349d768dd955651fb276d32769924e985bcda3b645b363de826cb9a3f3801e"
-    },
-    {
-      "path": "hooks/pre-commit-seo-check.sh",
-      "uri": "legion-skill://seo/hooks/pre-commit-seo-check.sh",
-      "digest": "sha256:61fbd7846781c8b0aab77bcc7b9cba4d05566492ccefd5b4fbec6193eaa1c498"
-    },
-    {
-      "path": "hooks/validate-schema.py",
-      "uri": "legion-skill://seo/hooks/validate-schema.py",
-      "digest": "sha256:972da015a553b2057d2009a34b258e95386807f06f1140bd36b16249ed1674dd"
     },
     {
       "path": "pdf/google-seo-reference.md",
@@ -528,7 +446,7 @@
     {
       "path": "references/operations.md",
       "uri": "legion-skill://seo/references/operations.md",
-      "digest": "sha256:c1c3df9fb7df80ec4af073b7ca255abb0d154af9a2cce8ece8f8f67c44436a65"
+      "digest": "sha256:b1eb15a84674336765d8a0458101afac39081b98c07eb9fbb9dfb681011ad775"
     },
     {
       "path": "references/page.md",
@@ -573,7 +491,7 @@
     {
       "path": "references/site-audit-checks.md",
       "uri": "legion-skill://seo/references/site-audit-checks.md",
-      "digest": "sha256:ba7383ecb642517c8dd14b78bb090a1cb4617d29bf6d249ca66a0e0825048f5e"
+      "digest": "sha256:39582436b0a93cbe4e0a33b671a13e34030bc59d2f3741fb81b0a7a2c1388ab0"
     },
     {
       "path": "references/sitemap.md",
@@ -604,176 +522,6 @@
       "path": "schema/templates.json",
       "uri": "legion-skill://seo/schema/templates.json",
       "digest": "sha256:6abb051f7ec31e97ca9ff84b10b63b4cc9d35bd1e6f380f8db936a37f282bb79"
-    },
-    {
-      "path": "scripts/ai_visibility_import.py",
-      "uri": "legion-skill://seo/scripts/ai_visibility_import.py",
-      "digest": "sha256:968f18417f94c46805de0b199b74e322b49899a18751228e4df54d7773b65d90"
-    },
-    {
-      "path": "scripts/analyze_visual.py",
-      "uri": "legion-skill://seo/scripts/analyze_visual.py",
-      "digest": "sha256:99bc97419bd08f1b1dba4571aa0d259dca1255d36334da5a44c29d8219d0f4e5"
-    },
-    {
-      "path": "scripts/bing_webmaster.py",
-      "uri": "legion-skill://seo/scripts/bing_webmaster.py",
-      "digest": "sha256:96501efebe0fe00e8120b5b6df3f28ff58348170f3b3742fafb44d4cee7c978f"
-    },
-    {
-      "path": "scripts/capture_screenshot.py",
-      "uri": "legion-skill://seo/scripts/capture_screenshot.py",
-      "digest": "sha256:91081531b2fdd89e3ad61a57500ad58bf7244aa58f51fd957bb8c886e0f87519"
-    },
-    {
-      "path": "scripts/checklist_compiler.py",
-      "uri": "legion-skill://seo/scripts/checklist_compiler.py",
-      "digest": "sha256:c250d85bcc7432da7607e959bb38f88f71aaa1726d2396b7bf03492f4985f40c"
-    },
-    {
-      "path": "scripts/contracts.py",
-      "uri": "legion-skill://seo/scripts/contracts.py",
-      "digest": "sha256:c752b59686aa01867fc38d7850bb4368439f8f121787fe29c4209867cfc00d25"
-    },
-    {
-      "path": "scripts/coverage.py",
-      "uri": "legion-skill://seo/scripts/coverage.py",
-      "digest": "sha256:b611d9a971284bb369a1b5456953d3aa7d3aebb287f660777f62ec687d3c5b87"
-    },
-    {
-      "path": "scripts/crux_history.py",
-      "uri": "legion-skill://seo/scripts/crux_history.py",
-      "digest": "sha256:6f7246cc31394b67f31b8b96e6a0c761e72ba623de3557e656217f2b510fb5df"
-    },
-    {
-      "path": "scripts/fetch_page.py",
-      "uri": "legion-skill://seo/scripts/fetch_page.py",
-      "digest": "sha256:3f7504aa7bddac245280878d3bdd352bd38033685f793be050c187c0586f2807"
-    },
-    {
-      "path": "scripts/ga4_report.py",
-      "uri": "legion-skill://seo/scripts/ga4_report.py",
-      "digest": "sha256:6b2108de4e946d9b5235057fff92c2f383965b4544b600b2cef4a7b1e179063d"
-    },
-    {
-      "path": "scripts/google_auth.py",
-      "uri": "legion-skill://seo/scripts/google_auth.py",
-      "digest": "sha256:fc336c67f77ff755ab6e1b7b6ffa6036b67499fa439421768c596525ad8cfdcf"
-    },
-    {
-      "path": "scripts/google_report.py",
-      "uri": "legion-skill://seo/scripts/google_report.py",
-      "digest": "sha256:c8c3b2393a2e3d6e00717101b838d8a6cb9fb96a59c481b5b0e07c9e0270f146"
-    },
-    {
-      "path": "scripts/gsc_inspect.py",
-      "uri": "legion-skill://seo/scripts/gsc_inspect.py",
-      "digest": "sha256:151e2401c6139b5b32283fed6f48b26f9794d0f6e04da7c50fe0ea4ee8302c0a"
-    },
-    {
-      "path": "scripts/gsc_query.py",
-      "uri": "legion-skill://seo/scripts/gsc_query.py",
-      "digest": "sha256:8f3ac06d9b79f75a94c0cac7d0a8c0382aa9f453b5aa192e8682437def24c1f3"
-    },
-    {
-      "path": "scripts/gsc_query_v2.py",
-      "uri": "legion-skill://seo/scripts/gsc_query_v2.py",
-      "digest": "sha256:636d9d49f9bdbaea9f2c9fe7aa0f59b63d0e6d723d54f31649449c9689ca584b"
-    },
-    {
-      "path": "scripts/indexing_notify.py",
-      "uri": "legion-skill://seo/scripts/indexing_notify.py",
-      "digest": "sha256:48955eb9bd9422636e28665126ec81954244fb5e4f69adec75d3f886cca228ca"
-    },
-    {
-      "path": "scripts/indexnow.py",
-      "uri": "legion-skill://seo/scripts/indexnow.py",
-      "digest": "sha256:1c9a1aea91715200ffd0ace83a49ae76a07590b724a3aa99293749b31ca6a1e2"
-    },
-    {
-      "path": "scripts/keyword_planner.py",
-      "uri": "legion-skill://seo/scripts/keyword_planner.py",
-      "digest": "sha256:77f5aaf3c38a4e0d2773662845d8cdaa7af2d7e3af716240b2ba8cbb364bacc5"
-    },
-    {
-      "path": "scripts/nlp_analyze.py",
-      "uri": "legion-skill://seo/scripts/nlp_analyze.py",
-      "digest": "sha256:45d0026c4022c54be969dd63c58597dc0b55edbc9dd2f0c25e7431687eeb2bec"
-    },
-    {
-      "path": "scripts/page_engine.py",
-      "uri": "legion-skill://seo/scripts/page_engine.py",
-      "digest": "sha256:65308cb5ad1774e4dfdae3c9c536678751ae3532a471c8ad9d64558b980e674a"
-    },
-    {
-      "path": "scripts/pagespeed_check.py",
-      "uri": "legion-skill://seo/scripts/pagespeed_check.py",
-      "digest": "sha256:24a7f080305503d0ff196fdc8b357dd5a3295fefbe3fdded6a20719ca52c2b67"
-    },
-    {
-      "path": "scripts/parse_html.py",
-      "uri": "legion-skill://seo/scripts/parse_html.py",
-      "digest": "sha256:82cda64a701b5198e67458ed551c2578944ff3f95ed0b706fa6bc0808d4bb64d"
-    },
-    {
-      "path": "scripts/provider_registry.py",
-      "uri": "legion-skill://seo/scripts/provider_registry.py",
-      "digest": "sha256:6dea43378a9dfc06be4c7a1eda37730e01832640fc99d2af07b32369365adccf"
-    },
-    {
-      "path": "scripts/query_ownership.py",
-      "uri": "legion-skill://seo/scripts/query_ownership.py",
-      "digest": "sha256:5f70b1916882f55174bb2b7e3d354a7aad406278fb5a079cec3382752357fa04"
-    },
-    {
-      "path": "scripts/question_inventory.py",
-      "uri": "legion-skill://seo/scripts/question_inventory.py",
-      "digest": "sha256:4936c0f9941427dd59228ddf8baae0bd43265fe37613486f9e8bb5b165e797aa"
-    },
-    {
-      "path": "scripts/rank_tracker.py",
-      "uri": "legion-skill://seo/scripts/rank_tracker.py",
-      "digest": "sha256:21a8ae6e5ce484ea4fdeaded33ea471c1617b4ea02417dd09c7e268852cdffca"
-    },
-    {
-      "path": "scripts/render_gap.mjs",
-      "uri": "legion-skill://seo/scripts/render_gap.mjs",
-      "digest": "sha256:6b857bb4293f530602262063fd5dcc14e9f4e18f7eac59dd68e96510a92848ab"
-    },
-    {
-      "path": "scripts/search_ops.py",
-      "uri": "legion-skill://seo/scripts/search_ops.py",
-      "digest": "sha256:73545e07a49a4a59e8474f6df0f00f26aba653f96dba79748af2472bac14bf34"
-    },
-    {
-      "path": "scripts/seo_closure.py",
-      "uri": "legion-skill://seo/scripts/seo_closure.py",
-      "digest": "sha256:efe91e33c4a8ba6a9cd8bb86e34250e469c18e3e0945ace1077e7633c04bd6d0"
-    },
-    {
-      "path": "scripts/seo_project.py",
-      "uri": "legion-skill://seo/scripts/seo_project.py",
-      "digest": "sha256:4bc116a225d50ba94e03a9525cd994ec58ebc432d26b634f0c57ade698472724"
-    },
-    {
-      "path": "scripts/site_audit.py",
-      "uri": "legion-skill://seo/scripts/site_audit.py",
-      "digest": "sha256:2880feda33c84102de412a258a413be75d480163d14d3087ad3ad04eb23b37b6"
-    },
-    {
-      "path": "scripts/source_freshness.py",
-      "uri": "legion-skill://seo/scripts/source_freshness.py",
-      "digest": "sha256:2b6dd1187680319b3289d4a47057f4b3539b0136ac410dc3aa9951ac2da8c834"
-    },
-    {
-      "path": "scripts/templated_metadata.py",
-      "uri": "legion-skill://seo/scripts/templated_metadata.py",
-      "digest": "sha256:9c258106ef23b04c2ba7cac563a62859fd815056b6248531be8c8234b45c31e1"
-    },
-    {
-      "path": "scripts/youtube_search.py",
-      "uri": "legion-skill://seo/scripts/youtube_search.py",
-      "digest": "sha256:9d0ab268928bf71ec908613b7f9dbc361a74484867dbfea8ef91eb20839229d4"
     },
     {
       "path": "tests/fixtures/ai_bing.csv",
@@ -844,36 +592,6 @@
       "path": "tests/fixtures/workflow_pack_cases.json",
       "uri": "legion-skill://seo/tests/fixtures/workflow_pack_cases.json",
       "digest": "sha256:72d6063f4106eacbbae46949d2458b97d5ec1c1bc35a8adbb2df8236aa0507c7"
-    },
-    {
-      "path": "tests/test_assurance_fixtures.py",
-      "uri": "legion-skill://seo/tests/test_assurance_fixtures.py",
-      "digest": "sha256:8f620f752d5059e6c321c4f9c21d1a3c805c4ce2b54c8b76dd94e12dc3185724"
-    },
-    {
-      "path": "tests/test_contracts_and_sources.py",
-      "uri": "legion-skill://seo/tests/test_contracts_and_sources.py",
-      "digest": "sha256:645d464fec47ffeba1916825ea2d97aa537ca301c9d281dfdd8fc65c9521211a"
-    },
-    {
-      "path": "tests/test_page_engine.py",
-      "uri": "legion-skill://seo/tests/test_page_engine.py",
-      "digest": "sha256:3e2fe4f6d0c6e56c53dd84bf9bb10faf760e68a4b548fd2453d211d1146d32d7"
-    },
-    {
-      "path": "tests/test_provider_replay.py",
-      "uri": "legion-skill://seo/tests/test_provider_replay.py",
-      "digest": "sha256:5146e2111434c7fb2e5bae4d9357b22f4da0f39fdee3b7354383722dbf880cdd"
-    },
-    {
-      "path": "tests/test_seo_governance.py",
-      "uri": "legion-skill://seo/tests/test_seo_governance.py",
-      "digest": "sha256:ee75176133586e92646e3e637d95d36ebc7e85c036da44427f7b4e91027c7896"
-    },
-    {
-      "path": "tests/test_seo_kernel.py",
-      "uri": "legion-skill://seo/tests/test_seo_kernel.py",
-      "digest": "sha256:34925f75b4a88665214439beff00cc6d081b6783a95513f00af03588a91b94c5"
     }
   ]
 }

@@ -17,6 +17,7 @@ effects:
   - network-request
 hostRequirements:
   - python-runtime
+  - legion
 ---
 
 # SEO
@@ -35,15 +36,15 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 
 ## Route
 
-- Project setup, provider/capability doctor, market defaults, cache/cost preflight: `references/openseo-absorption.md`; use `scripts/seo_project.py` and `scripts/provider_registry.py`.
-- Full audit, coverage, scorecard, or unfamiliar request: `references/manual.md` + `references/quality-gates.md`; use `scripts/coverage.py` for control coverage and `scripts/seo_closure.py` for repository implementation closure.
-- Recurring operation, prioritization, "what next", decay, monitoring, release verification, intervention review: `references/operations.md`; use `scripts/search_ops.py` for durable state.
+- Project setup, provider/capability doctor, market defaults, cache/cost preflight: `references/openseo-absorption.md`; use `legion script seo/seo_project` and `legion script seo/provider_registry`.
+- Full audit, coverage, scorecard, or unfamiliar request: `references/manual.md` + `references/quality-gates.md`; use scripts/coverage.py for control coverage (not ported) and `legion script seo/seo_closure` for repository implementation closure.
+- Recurring operation, prioritization, "what next", decay, monitoring, release verification, intervention review: `references/operations.md`; use `legion script seo/search_ops` for durable state.
 - Policy, bot-policy, logs/crawl efficiency, agent readiness, search appearance/Discover, media/documents, publisher, access states, migration, analytics, forecast/experiment, monitor/release-gate/incident, feeds: `references/workflow-packs.md`.
 - GEO/AEO/AI search, Google AI Overviews/AI Mode, Bing Copilot/AI citations, ChatGPT/Claude/Perplexity visibility: `references/ai-search-2026.md` + `references/geo.md` when deeper page criteria are needed.
 - Technical/crawl/index/render/CWV: `references/technical.md`, `sitemap.md`, `schema.md`, `hreflang.md`, or `cwv-thresholds.md` as needed.
-- Page/content/query ownership: `references/page.md`, `eeat-framework.md`, `blog-post-contract.md`, or `images.md`; use `scripts/query_ownership.py` for first-party ownership evidence.
-- Questions/AEO inventory: `references/ai-search-2026.md`; use `scripts/question_inventory.py` for GSC-first question extraction.
-- Rank tracking: `references/openseo-absorption.md`; use `scripts/rank_tracker.py` to persist normalized provider observations and ownership changes.
+- Page/content/query ownership: `references/page.md`, `eeat-framework.md`, `blog-post-contract.md`, or `images.md`; use `legion script seo/query_ownership` for first-party ownership evidence.
+- Questions/AEO inventory: `references/ai-search-2026.md`; use `legion script seo/question_inventory` for GSC-first question extraction.
+- Rank tracking: `references/openseo-absorption.md`; use `legion script seo/rank_tracker` to persist normalized provider observations and ownership changes.
 - SERP intent/page-type mismatch or search experience: `references/search-experience.md`.
 - Keyword/topic architecture or semantic clustering: `references/topic-clusters.md`.
 - Ecommerce/product/category/Merchant Center/shopping: `references/ecommerce-2026.md` plus `schema.md` when markup is in scope.
@@ -58,12 +59,12 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 3. Diagnose structural blockers before copy: indexability, canonical/redirect state, render gaps, page family, query ownership, SERP page-type fit, internal links, and intent.
 4. Keep `Evidence -> Finding -> Recommendation -> Action -> Outcome` distinct. Missing evidence is `partial` or `not_testable`, never pass. Separate observed fact, estimate, hypothesis, recommendation, and causal claim.
 5. For decision requests, compare eligible interventions and select one primary next action, or explicitly choose `wait`/`retain` when intervention is not justified. Do not optimize for producing work.
-6. For changes, capture baseline + hypothesis + target + deployment identity + primary metric + guardrails + evaluation condition before execution; verify deployment separately from later search/business outcome. Use `scripts/search_ops.py` for durable intervention/run state when the host/repo permits artifact writes.
-7. For Search Console analytics, prefer `scripts/gsc_query_v2.py`: aggregate totals come from a separate dimensionless query and returned-dimension coverage is explicit. Legacy `gsc_query.py` delegates analytical queries to v2 semantics.
-8. For Google/Bing AI-search exports, normalize with `scripts/ai_visibility_import.py`. Preserve provider/source limitations and never equate impressions, citations, visits, rankings or conversions.
-9. For site-scale metadata audits, use `scripts/templated_metadata.py` where parsed page data is available; its output is heuristic evidence, not a ranking verdict.
+6. For changes, capture baseline + hypothesis + target + deployment identity + primary metric + guardrails + evaluation condition before execution; verify deployment separately from later search/business outcome. Use `legion script seo/search_ops` for durable intervention/run state when the host/repo permits artifact writes.
+7. For Search Console analytics, prefer `legion script seo/gsc_query_v2`: aggregate totals come from a separate dimensionless query and returned-dimension coverage is explicit. Legacy `legion script seo/gsc_query` delegates analytical queries to v2 semantics.
+8. For Google/Bing AI-search exports, normalize with scripts/ai_visibility_import.py (not ported). Preserve provider/source limitations and never equate impressions, citations, visits, rankings or conversions.
+9. For site-scale metadata audits, use `legion script seo/templated_metadata` where parsed page data is available; its output is heuristic evidence, not a ranking verdict.
 10. Apply project country/language defaults to compatible keyword/SERP/rank/provider work. Retrieve deeper SERPs only when the decision requires it. Paid-provider work must preserve cost/provenance and must not become a dependency for owned-site first-party operation.
-11. The governed checklist source is `config/control-catalog.json`; all 30 phases require an owner and exact source range. `scripts/checklist_compiler.py` keeps source changes reviewable. Run `scripts/seo_closure.py` before claiming repository implementation completeness.
+11. The governed checklist source is `config/control-catalog.json`; all 30 phases require an owner and exact source range. scripts/checklist_compiler.py keeps source changes reviewable (not ported). Run `legion script seo/seo_closure` before claiming repository implementation completeness.
 12. Prefer current Google, Bing, schema.org, browser/platform, or protocol authority for unstable rules. `references/ai-search-2026.md` is the current correction layer for AI-search crawler/control/report semantics.
 13. Produce machine findings plus one concise human report. A scheduled run is an operator brief, not a full audit dump.
 14. Require explicit current authority before indexing submission, external mutation, spend, outreach, publication, deletion, redirect/consolidation, or other consequential effect.

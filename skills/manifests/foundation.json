@@ -32,9 +32,7 @@
       "references/model.md",
       "references/protocol.md"
     ],
-    "scripts": [
-      "scripts/validate_atom_report.py"
-    ],
+    "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -43,7 +41,6 @@
     ],
     "consumers": [
       "src/registry/skills/index.json",
-      "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
     ]
   },
@@ -56,7 +53,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://foundation/SKILL.md",
-      "digest": "sha256:6bd62d39f8281dcca0daa4f263b7d07627d2417335e5eeb40ed809d401d9668e"
+      "digest": "sha256:dac3d3ed433e9eb8318857aa6c9ddf37ac3ea5af2988a9f40db1ac0ece94ca0f"
     },
     {
       "path": "agents/openai.yaml",
@@ -66,7 +63,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://foundation/dependencies.json",
-      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+      "digest": "sha256:8a34d459970a98a73a95601f078181a474bd698c07290b1d1ca2b8c506230384"
     },
     {
       "path": "evals/evals.json",
@@ -82,11 +79,6 @@
       "path": "references/protocol.md",
       "uri": "legion-skill://foundation/references/protocol.md",
       "digest": "sha256:6c68e598454af139d98fac13442cb6e849ece88f9f0c807d5bb1a4cfca12dced"
-    },
-    {
-      "path": "scripts/validate_atom_report.py",
-      "uri": "legion-skill://foundation/scripts/validate_atom_report.py",
-      "digest": "sha256:2ddba8ad232f5763f90aeff5d521c4533116b647da5a01dfcb274e5cd60bd739"
     }
   ]
 }

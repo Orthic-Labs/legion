@@ -22,22 +22,12 @@ export LEGION_TEST_NATIVE_CLI_PATH="${RUNNER_TEMP}/legion-install/bin/legion.exe
 
 pnpm test
 
-# The research-core parity suite uses pytest fixtures (monkeypatch, tmp_path),
-# so pytest is a real dependency of `test:python`, not an optional extra. The
-# runner degrades cleanly when no interpreter exists but cannot conjure a
-# missing module, and CI had been failing on `No module named pytest`.
-if command -v py >/dev/null 2>&1; then
-  py -3.11 -m pip install --quiet --disable-pip-version-check pytest
-else
-  python3 -m pip install --quiet --disable-pip-version-check pytest
-fi
-
-pnpm test:python
-
 # Known-answer recall gate. The bench scores planted defects against
 # negative controls and fails on any false positive, so a detector that
 # flags everything cannot pass. It was lost when the skill became a
 # product and the conformance suite has been dead at its ninth case since.
-node bench/run-bench.mjs
-node bench/run-provider-selection-benchmark.mjs
-node tests/run-audit-conformance-tests.mjs
+# Recall, provider-selection, and conformance gates now run as native Rust
+# integration tests covered by `cargo test` above:
+#   engine/crates/legion-audit/tests/bench_recall.rs
+#   engine/crates/legion-audit/tests/provider_selection_benchmark.rs
+#   engine/crates/legion-audit/tests/audit_conformance.rs

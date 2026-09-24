@@ -1,1 +1,0 @@
-export function extractDataContext(projection = {}, contract = {}) { return { dataClasses: [...new Set([...(projection.dataClasses ?? []), ...(contract.declared?.dataClasses ?? [])])].sort(), assets: projection.assets ?? [] }; }

@@ -14,7 +14,8 @@ effects:
   - source-read
   - artifact-write
   - process-exec
-hostRequirements: []
+hostRequirements:
+  - legion
 ---
 
 # QA
@@ -41,7 +42,7 @@ TERMINAL: Frozen criteria have exact passing evidence or failing artifact.
        - repository-truth-read
        - source-read
 3. Use smallest decisive project-native check. For web/browser behavior, test with
-   `scripts/qa-functional.mjs`; use `scripts/qa-shot.mjs` only for supporting viewport artifacts
+   `legion script qa/qa-functional`; use `legion script qa/qa-shot` only for supporting viewport artifacts
    against frozen observable criteria. Focused native checks need no browser ceremony.
    EXECUTOR:
      semantic: conditional

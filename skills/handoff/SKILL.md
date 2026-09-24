@@ -14,6 +14,7 @@ effects:
   - process-exec
 hostRequirements:
   - python-runtime
+  - legion
 ---
 
 # Handoff

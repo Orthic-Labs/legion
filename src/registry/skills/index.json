@@ -340,7 +340,8 @@
       ],
       "hostRequirements": [
         "pi-cli",
-        "python-runtime"
+        "python-runtime",
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -365,6 +366,15 @@
               "python",
               "py"
             ]
+          }
+        },
+        {
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
           }
         }
       ],
@@ -539,8 +549,20 @@
         "source-read",
         "artifact-write"
       ],
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
       "scopedRequirementDetails": [],
       "source": "skills/foundation/SKILL.md",
       "manifest": "skills/manifests/foundation.json"
@@ -586,7 +608,8 @@
         "process-exec"
       ],
       "hostRequirements": [
-        "python-runtime"
+        "python-runtime",
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -600,6 +623,15 @@
               "python",
               "py"
             ]
+          }
+        },
+        {
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
           }
         }
       ],
@@ -668,8 +700,20 @@
         "artifact-write",
         "process-exec"
       ],
-      "hostRequirements": [],
-      "hostRequirementDetails": [],
+      "hostRequirements": [
+        "legion"
+      ],
+      "hostRequirementDetails": [
+        {
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        }
+      ],
       "scopedRequirementDetails": [],
       "source": "skills/qa/SKILL.md",
       "manifest": "skills/manifests/qa.json"
@@ -782,7 +826,8 @@
         "network-request"
       ],
       "hostRequirements": [
-        "python-runtime"
+        "python-runtime",
+        "legion"
       ],
       "hostRequirementDetails": [
         {
@@ -796,6 +841,15 @@
               "python",
               "py"
             ]
+          }
+        },
+        {
+          "id": "legion",
+          "degradation": "The legion MCP server fails to start and legion_m1_invoke/legion_m1_status are absent from the tool list. Skills that shell out to `legion` must treat it as unavailable, never as returning an empty result.",
+          "remedy": "Install the Legion native release so `legion` is on PATH, or run against a host that provides it.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
           }
         }
       ],

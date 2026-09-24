@@ -8,15 +8,11 @@
     },
     {
       "class": "HOST_CAPABILITY",
+      "capability": "legion"
+    },
+    {
+      "class": "HOST_CAPABILITY",
       "capability": "python-runtime"
-    },
-    {
-      "class": "PACKAGE_INTERNAL",
-      "path": "scripts/api-worker.py"
-    },
-    {
-      "class": "PACKAGE_INTERNAL",
-      "path": "../../src/lib/coder-api-worker/api-worker.py"
     }
   ]
 }

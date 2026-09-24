@@ -32,10 +32,7 @@
       "references/durable-workflow.md",
       "references/legacy-durable-workflow.md"
     ],
-    "scripts": [
-      "scripts/test_validate_tasklist.py",
-      "scripts/validate-tasklist.py"
-    ],
+    "scripts": [],
     "templates": [
       "assets/tasklist-template.md"
     ],
@@ -51,7 +48,6 @@
     ],
     "consumers": [
       "src/registry/skills/index.json",
-      "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
     ]
   },
@@ -74,22 +70,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://tasklist/dependencies.json",
-      "digest": "sha256:1679acc0c01b19721076dfa5428207224d01a8053d80621427e9931839f587a8"
-    },
-    {
-      "path": "engine/validate-dispatch.py",
-      "uri": "legion-skill://tasklist/engine/validate-dispatch.py",
-      "digest": "sha256:4113cba12f3171083788b9b60f6861ebd7e06b88d730b40a3aabc65392b84b4e"
-    },
-    {
-      "path": "engine/validate-tasklist-legacy.py",
-      "uri": "legion-skill://tasklist/engine/validate-tasklist-legacy.py",
-      "digest": "sha256:bced1d4e2e49cf1de95684a0ab73bbf593f433b5e46804081388c9a877cdf1b7"
-    },
-    {
-      "path": "engine/validate-tasklist.py",
-      "uri": "legion-skill://tasklist/engine/validate-tasklist.py",
-      "digest": "sha256:05a1ab81c051b0bc62499f7e12fe47fa1f868a2cb78f8e43277d10049b67dc65"
+      "digest": "sha256:fe72207c01cd0eeb0f130f24dd79e8d71fa3c8d84a3a419cc951ab97ab7fa59a"
     },
     {
       "path": "evals/evals.json",
@@ -147,19 +128,9 @@
       "digest": "sha256:452b4b92561c9ddc058ecc72714ce2bbfd2bb90b0fe9c4e931d3c682a66eff7e"
     },
     {
-      "path": "goalroute/scripts/validate-route.py",
-      "uri": "legion-skill://tasklist/goalroute/scripts/validate-route.py",
-      "digest": "sha256:5361292e9a7784d9ffa8febc7c0cc7b18b4876e34a4ef59e56230cb818a3477e"
-    },
-    {
       "path": "minimize/POLICY.md",
       "uri": "legion-skill://tasklist/minimize/POLICY.md",
       "digest": "sha256:1f941eb00ec6974705bc299e4cae2a01c031c51fb699fff310882f86f1c321f7"
-    },
-    {
-      "path": "minimize/minimize_gate.py",
-      "uri": "legion-skill://tasklist/minimize/minimize_gate.py",
-      "digest": "sha256:514f21acf463eed860ae4de30f68a6b1eb73c95b468aa2e2a936b400b7232651"
     },
     {
       "path": "references/durable-workflow.md",
@@ -169,22 +140,7 @@
     {
       "path": "references/legacy-durable-workflow.md",
       "uri": "legion-skill://tasklist/references/legacy-durable-workflow.md",
-      "digest": "sha256:201e9ef49a3f62b5da99978c6c9d020d3a3a2d314c2ff2e1f48806b081f8fb74"
-    },
-    {
-      "path": "scripts/test_validate_tasklist.py",
-      "uri": "legion-skill://tasklist/scripts/test_validate_tasklist.py",
-      "digest": "sha256:47424b286959bafd755bbe30cdd36dcf0a32c448a7679d923125deeff008cc7f"
-    },
-    {
-      "path": "scripts/validate-tasklist.py",
-      "uri": "legion-skill://tasklist/scripts/validate-tasklist.py",
-      "digest": "sha256:2f8d718fea30818770bbf58bb3cdb496becb4afd5208a803916e2fdfba412dd1"
-    },
-    {
-      "path": "tests/tasklist-entrypoint.test.py",
-      "uri": "legion-skill://tasklist/tests/tasklist-entrypoint.test.py",
-      "digest": "sha256:41a5d49aa7bb0e5ca301aada07cced46a15edc8e0168262bf04bf707d5dc6251"
+      "digest": "sha256:9787a1c7721415d8c277332792f9ed54fdf348bef3b02577774469640202ad16"
     }
   ]
 }

@@ -29,10 +29,7 @@
       "Convene Legion's optional independent challenge chamber for a named decision, work artifact, blocker, or packet-only review preparation. Use /covenant."
     ],
     "outputs": [],
-    "scripts": [
-      "scripts/test_validate_external_review_packet.py",
-      "scripts/validate-external-review-packet.py"
-    ],
+    "scripts": [],
     "templates": [
       "assets/external-review-packet-template.md"
     ],
@@ -42,13 +39,11 @@
     ],
     "receipts": [],
     "evals": [
-      "evals/covenant.test.mjs",
       "evals/evals.json",
       "evals/legacy-council.json"
     ],
     "consumers": [
       "src/registry/skills/index.json",
-      "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
     ]
   },
@@ -74,16 +69,6 @@
       "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
     },
     {
-      "path": "engine/packet-validator.py",
-      "uri": "legion-skill://covenant/engine/packet-validator.py",
-      "digest": "sha256:1409d162c5ffae5518c1553313741ab576c96b0e243a0bc1989e07e5dbf27405"
-    },
-    {
-      "path": "evals/covenant.test.mjs",
-      "uri": "legion-skill://covenant/evals/covenant.test.mjs",
-      "digest": "sha256:ef618e67282d5063a7205d98a4917954b6b06d9287c44b72740c2c4415516353"
-    },
-    {
       "path": "evals/evals.json",
       "uri": "legion-skill://covenant/evals/evals.json",
       "digest": "sha256:1093447d5e75e122c1caaecb0b4e537ab6f67b79966b2681cd23540f45928a32"
@@ -94,16 +79,6 @@
       "digest": "sha256:0f0b116943c1c59070c978ea66ee5420e6eb5c5216dad9a0d8013c4c3d7bbf9a"
     },
     {
-      "path": "lib/contracts.mjs",
-      "uri": "legion-skill://covenant/lib/contracts.mjs",
-      "digest": "sha256:c633187bde8e13f4decafa8983eca59011bb912fdeac58693fb216d35094ddfd"
-    },
-    {
-      "path": "lib/flows.mjs",
-      "uri": "legion-skill://covenant/lib/flows.mjs",
-      "digest": "sha256:23c683d4bb79b830809b97f905de34ce25662a17acfadab1fb55a78d0f37d41b"
-    },
-    {
       "path": "lib/schemas/covenant-record-v1.schema.json",
       "uri": "legion-skill://covenant/lib/schemas/covenant-record-v1.schema.json",
       "digest": "sha256:86a9770696bc4f1812569218b7c44dcfae256f96efb4b7ab05bd609f0e57a5af"
@@ -112,16 +87,6 @@
       "path": "lib/schemas/covenant-request-v1.schema.json",
       "uri": "legion-skill://covenant/lib/schemas/covenant-request-v1.schema.json",
       "digest": "sha256:9928c784b6de4d61566fbc105c972304970eabe9197848eb52f32adc3c0417b6"
-    },
-    {
-      "path": "scripts/test_validate_external_review_packet.py",
-      "uri": "legion-skill://covenant/scripts/test_validate_external_review_packet.py",
-      "digest": "sha256:d938e180c1b7b559ff3814b4e36e43204631f77a7cd87efd040452ce1f3edc09"
-    },
-    {
-      "path": "scripts/validate-external-review-packet.py",
-      "uri": "legion-skill://covenant/scripts/validate-external-review-packet.py",
-      "digest": "sha256:c0649bbafcb79615680a782776a62505932c681943b46c51658ecc98276e0c5c"
     }
   ]
 }

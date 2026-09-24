@@ -1,1 +1,0 @@
-export function selectionTrace(control, subject, selected) { return { controlId: control.id, subjectId: subject?.id ?? 'product', selected, selector: control.selector, reason: selected ? 'selector-matched-frozen-inventory' : 'selector-not-matched' }; }

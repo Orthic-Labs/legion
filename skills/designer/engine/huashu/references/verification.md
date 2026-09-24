@@ -30,7 +30,8 @@ legion script designer/verify path/to/design.html
 3. 抓取控制台错误
 4. 报告status
 
-详见`scripts/verify.py`。
+详见`legion script designer/verify`。
+
 
 ### 3. 多视口检查
 

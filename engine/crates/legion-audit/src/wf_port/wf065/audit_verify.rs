@@ -756,11 +756,15 @@ mod run_tests {
         let args = VerifyArgs { facts: Some(facts_path), plan: Some(plan_path) };
         let (code, outcome) = run(&args, &runner);
         // "build" is always unproven — 1 drift point, matching the JS
-        // `unprovenChecks.length` contribution.
+        // `unprovenChecks.length` contribution. The plan here is also
+        // unsealed, which `verify_plan_seal` (mirroring JS) always treats as
+        // invalid — see `matching_replay_is_clean` below, which seals its
+        // plan for real specifically to get zero drift from the seal. So
+        // this fixture's total is unproven(1) + unsealed-plan(1) = 2, not 1.
         assert_eq!(code, 1);
         assert_eq!(outcome.unproven_checks, vec!["build".to_string()]);
-        assert_eq!(outcome.drift_count, 1);
-        assert!(outcome.seal_valid == false || outcome.seal_valid == true); // no seal present => invalid, still counted
+        assert_eq!(outcome.drift_count, 2);
+        assert_eq!(outcome.seal_valid, false); // no seal present => invalid, counted above
     }
 
     #[test]

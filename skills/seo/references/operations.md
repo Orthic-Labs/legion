@@ -14,7 +14,7 @@ A full audit is one input to this loop, not the loop itself.
 
 ## Deterministic state tool
 
-Where artifact writes are permitted, use `scripts/search_ops.py` to persist run/intervention state under `.seo/search-ops.json` (or an explicitly supplied state path). It does **not** schedule itself; a host scheduler invokes the recurring SEO job. Its job is to preserve baselines, deployment identity, verification state, later outcomes, and compact operator-run history.
+Where artifact writes are permitted, use `legion script seo/search_ops` to persist run/intervention state under `.seo/search-ops.json` (or an explicitly supplied state path). It does **not** schedule itself; a host scheduler invokes the recurring SEO job. Its job is to preserve baselines, deployment identity, verification state, later outcomes, and compact operator-run history.
 
 Typical lifecycle:
 

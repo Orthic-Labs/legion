@@ -1,6 +1,6 @@
 # site_audit.py — deterministic crawl checks (Ahrefs Site Audit taxonomy)
 
-`scripts/site_audit.py` is the deterministic evidence layer for `/seo audit`. It crawls a
+`legion script seo/site_audit` is the deterministic evidence layer for `/seo audit`. It crawls a
 site from its sitemap + internal links (stdlib only, no browser, sites up to ~300 URLs) and
 flags the **mechanical, no-judgment** issue classes that Ahrefs Site Audit / Screaming Frog
 report. Run it FIRST on any full/site audit — the LLM lenses reason over its JSON, they don't

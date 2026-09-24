@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "kind": "audit-provider-ground-truth",
+  "samples": [
+    {
+      "id": "react-positive",
+      "provider": "react.hooks-config",
+      "expected": true,
+      "projection": {
+        "state": "ready",
+        "files": ["package.json", "src/App.tsx"],
+        "parsedExtensions": ["ts", "tsx"],
+        "fileSetDigest": "sha256:fixture",
+        "auditFacts": {
+          "packageManifests": [
+            { "path": "package.json", "dependencies": ["react"], "scripts": ["build"] }
+          ]
+        }
+      }
+    },
+    {
+      "id": "react-negative",
+      "provider": "react.hooks-config",
+      "expected": false,
+      "projection": {
+        "state": "ready",
+        "files": ["package.json", "src/index.ts"],
+        "parsedExtensions": ["ts"],
+        "fileSetDigest": "sha256:fixture",
+        "auditFacts": {
+          "packageManifests": [
+            { "path": "package.json", "dependencies": ["hono"], "scripts": ["build"] }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tauri-positive",
+      "provider": "tauri.contract-mirror",
+      "expected": true,
+      "projection": {
+        "state": "ready",
+        "files": ["src-tauri/tauri.conf.json", "src-tauri/src/lib.rs", "src/invoke.ts"],
+        "parsedExtensions": ["rs", "ts"],
+        "fileSetDigest": "sha256:fixture",
+        "auditFacts": { "packageManifests": [] }
+      }
+    },
+    {
+      "id": "tauri-negative",
+      "provider": "tauri.contract-mirror",
+      "expected": false,
+      "projection": {
+        "state": "ready",
+        "files": ["Cargo.toml", "src/lib.rs"],
+        "parsedExtensions": ["rs"],
+        "fileSetDigest": "sha256:fixture",
+        "auditFacts": { "packageManifests": [] }
+      }
+    },
+    {
+      "id": "rust-advisory-positive",
+      "provider": "security.rust-advisories",
+      "expected": true,
+      "projection": {
+        "state": "ready",
+        "files": ["Cargo.toml", "Cargo.lock", "src/lib.rs"],
+        "parsedExtensions": ["rs"],
+        "fileSetDigest": "sha256:fixture",
+        "auditFacts": { "packageManifests": [] }
+      }
+    },
+    {
+      "id": "rust-advisory-negative-no-lock",
+      "provider": "security.rust-advisories",
+      "expected": false,
+      "projection": {
+        "state": "ready",
+        "files": ["Cargo.toml", "src/lib.rs"],
+        "parsedExtensions": ["rs"],
+        "fileSetDigest": "sha256:fixture",
+        "auditFacts": { "packageManifests": [] }
+      }
+    }
+  ]
+}

@@ -32,10 +32,7 @@
       "references/provider-runbook.md"
     ],
     "scripts": [
-      "hooks/enforce_cheap_review_routing.py",
-      "hooks/hooks.json",
-      "hooks/install.py",
-      "scripts/api-worker.py"
+      "hooks/hooks.json"
     ],
     "templates": [],
     "schemas": [],
@@ -45,7 +42,6 @@
     ],
     "consumers": [
       "src/registry/skills/index.json",
-      "src/lib/skills/resolver.mjs",
       "src/registry/routing/domains.json"
     ]
   },
@@ -53,7 +49,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://coder/SKILL.md",
-      "digest": "sha256:0db6a269160c727cda055ef7d67118fd85fdc094b9c71767bfd7a91522cfbd36"
+      "digest": "sha256:6385276bb5c13cc22d66976282c73b09cfa147e7d76782927b07f7edea2dde74"
     },
     {
       "path": "agents/openai.yaml",
@@ -63,12 +59,7 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://coder/dependencies.json",
-      "digest": "sha256:745bca3fc8ffd9dfef041b246b4add9f47237031ea68e9033cdbadc5af6ead6c"
-    },
-    {
-      "path": "engine/api-worker.py",
-      "uri": "legion-skill://coder/engine/api-worker.py",
-      "digest": "sha256:1dbb5670bd0e2deef095dd9149fbddebaccb940a95e8d3ed8d6272d26f1db705"
+      "digest": "sha256:c30290f4ce895aa1817dfa4130d343380a2ef5b84f0892c6f116ab2c83b61356"
     },
     {
       "path": "evals/evals.json",
@@ -76,34 +67,14 @@
       "digest": "sha256:0b6900fa67f43ec77bb2405ec3625a83cb5564af582e65f3c60fcc77b59b96d0"
     },
     {
-      "path": "hooks/enforce_cheap_review_routing.py",
-      "uri": "legion-skill://coder/hooks/enforce_cheap_review_routing.py",
-      "digest": "sha256:c39226932233b5f13e36ebb095b2a30ba1f8b4c1addaeeb2f6712d3f948bc33e"
-    },
-    {
       "path": "hooks/hooks.json",
       "uri": "legion-skill://coder/hooks/hooks.json",
       "digest": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
     },
     {
-      "path": "hooks/install.py",
-      "uri": "legion-skill://coder/hooks/install.py",
-      "digest": "sha256:9853723e95ae29d8912353d1014a6ef8bdee240f0dd0d809fa1865542b84eb25"
-    },
-    {
       "path": "references/provider-runbook.md",
       "uri": "legion-skill://coder/references/provider-runbook.md",
       "digest": "sha256:6700b90ef797646b6bf85ddfd6fb977eaeff46c5efd8cca075bfca26f65b6eca"
-    },
-    {
-      "path": "scripts/api-worker.py",
-      "uri": "legion-skill://coder/scripts/api-worker.py",
-      "digest": "sha256:67deaeeb17e8af856b74357e333610c6d384d7c3beaeaad0be924119398647ad"
-    },
-    {
-      "path": "tests/coder-entrypoint.test.py",
-      "uri": "legion-skill://coder/tests/coder-entrypoint.test.py",
-      "digest": "sha256:986f26c5720b2568584a94c1a0916f35607eef7270b75b8767d2faa86c1fb65c"
     }
   ]
 }

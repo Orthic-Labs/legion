@@ -91,7 +91,7 @@ export function deriveParity(bundle, semantic, packageFiles) {
     schemas: selected((path) => /(^|\/)schemas?\//.test(path) || /\.schema\.json$/.test(path)),
     receipts: selected((path) => /\.receipt\.json$/.test(path)),
     evals: selected((path) => /(^|\/)evals?\//.test(path)),
-    consumers: ['src/registry/skills/index.json', 'src/lib/skills/resolver.mjs', 'src/registry/routing/domains.json'],
+    consumers: ['src/registry/skills/index.json', 'src/registry/routing/domains.json'],
   };
 }
 

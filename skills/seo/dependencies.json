@@ -5,6 +5,10 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "python-runtime"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "legion"
     }
   ]
 }

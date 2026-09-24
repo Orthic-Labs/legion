@@ -20,10 +20,6 @@
       },
       {
         "class": "PACKAGE_INTERNAL",
-        "path": "scripts/parse_events.py"
-      },
-      {
-        "class": "PACKAGE_INTERNAL",
         "path": "model-catalog.json"
       }
     ]

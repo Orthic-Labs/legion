@@ -22,7 +22,11 @@ const ALLOWED_JS_PREFIXES = [
 	'tests/native-cli-characterization/',
 	'node_modules/',
 ];
-const PRODUCT_CLI_TESTS = ['tests/bind.test.mjs'];
+// The Node-side CLI binding test was retired with the JS CLI; CLI behaviour is
+// now exercised directly against the native binary by engine/bins/legion/tests/*.rs
+// (e.g. cli_truthfulness.rs, native_cutover_cli.rs) under `cargo test`. Any future
+// JS-side product CLI test must still go through the native executable helper.
+const PRODUCT_CLI_TESTS = [];
 const NODE_RUNTIME_EXTENSIONS = new Set(['.cjs', '.js', '.mjs']);
 
 const issues = [];

@@ -1,1 +1,0 @@
-export function reviewerPolicy({ producer, reviewer, contextId, usedContexts = [] }) { if (producer === reviewer) throw new TypeError('reviewer self-adjudication forbidden'); if (usedContexts.includes(contextId)) throw new TypeError('reviewer context reuse forbidden'); return { producer, reviewer, contextId, fresh: true }; }

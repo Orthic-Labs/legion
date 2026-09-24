@@ -1,6 +1,7 @@
 # 可编辑 PPTX 导出：HTML 硬约束 + 尺寸决策 + 常见错误
 
-本文档讲的是**用 `scripts/html2pptx.js` + `pptxgenjs` 把 HTML 逐元素翻译成真·可编辑 PowerPoint 文本框**的路径，也是 `export_deck_pptx.mjs` 唯一支持的路径。
+本文档讲的是**用 scripts/html2pptx.js（内部实现，未单独移植/无独立 CLI 入口）+ `pptxgenjs` 把 HTML 逐元素翻译成真·可编辑 PowerPoint 文本框**的路径，也是 `legion script designer/export-deck-pptx` 唯一支持的路径。
+
 
 > **核心前提**：要走这条路，HTML 必须从第一行就按下面 4 条约束写。**不是写完再转**——事后补救会触发 2-3 小时返工（2026-04-20 期权私董会项目实测踩坑）。
 >
@@ -231,7 +232,6 @@ background: #FF6B6B;
 
 ```js
 const pptxgen = require('pptxgenjs');
-const html2pptx = require('../scripts/html2pptx.js');  // 本 skill 脚本
 
 (async () => {
   const pres = new pptxgen();
@@ -307,8 +307,8 @@ const html2pptx = require('../scripts/html2pptx.js');  // 本 skill 脚本
 
 ### Step 4 · 导出 & 双格式交付
 
-- `editable` 版 HTML → 跑 `scripts/export_deck_pptx.mjs` 出可编辑 PPTX
-- **建议同时保留**原视觉稿 → 跑 `scripts/export_deck_pdf.mjs` 出高保真 PDF
+- `editable` 版 HTML → 跑 `legion script designer/export-deck-pptx` 出可编辑 PPTX
+- **建议同时保留**原视觉稿 → 跑 `legion script designer/export-deck-pdf` 出高保真 PDF
 - 双格式交付给用户：视觉稿的 PDF + 可编辑的 PPTX，各司其职
 
 ### 什么情况下直接拒绝 B 方案

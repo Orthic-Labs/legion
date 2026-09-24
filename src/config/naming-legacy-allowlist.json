@@ -30,11 +30,11 @@
         "sorcerer"
       ],
       "occurrences": {
-        "nemesis": 13,
-        "forge": 141,
-        "seer": 44,
-        "sentinel": 38,
-        "sorcerer": 15
+        "nemesis": 12,
+        "forge": 109,
+        "seer": 40,
+        "sentinel": 35,
+        "sorcerer": 14
       },
       "class": "R2",
       "reason": "legacy-token classification source"
@@ -59,42 +59,12 @@
       "reason": "legacy-token detector and exact prohibited path checks"
     },
     {
-      "path": "tests/bind.test.mjs",
-      "tokens": [
-        "seer"
-      ],
-      "class": "R5",
-      "reason": "prior binding migration fixture"
-    },
-    {
-      "path": "tests/naming-contract.test.mjs",
-      "tokens": [
-        "nemesis",
-        "forge",
-        "seer",
-        "sentinel",
-        "sorcerer"
-      ],
-      "class": "R5",
-      "reason": "compatibility contract fixtures"
-    },
-    {
       "pathPrefix": "src/lib/dispatch-validator/",
       "tokens": [
-        "forge",
         "seer"
       ],
       "class": "R3",
       "reason": "package-local validator preserves predecessor wire aliases"
-    },
-    {
-      "pathPrefix": "skills/dispatch/engine/",
-      "tokens": [
-        "forge",
-        "seer"
-      ],
-      "class": "R3",
-      "reason": "bundled copy of the package-local validator, same predecessor wire aliases"
     },
     {
       "pathPrefix": "src/lib/goalroute/",
@@ -103,31 +73,6 @@
       ],
       "class": "R3",
       "reason": "package-local GoalRoute preserves predecessor wire fields"
-    },
-    {
-      "pathPrefix": "skills/dispatch/goalroute/",
-      "tokens": [
-        "forge"
-      ],
-      "class": "R3",
-      "reason": "bundled copy of the package-local GoalRoute, same predecessor wire fields"
-    },
-    {
-      "pathPrefix": "skills/tasklist/engine/",
-      "tokens": [
-        "forge",
-        "seer"
-      ],
-      "class": "R3",
-      "reason": "bundled copy of the package-local validator, same predecessor wire aliases"
-    },
-    {
-      "pathPrefix": "skills/tasklist/goalroute/",
-      "tokens": [
-        "forge"
-      ],
-      "class": "R3",
-      "reason": "bundled copy of the package-local GoalRoute, same predecessor wire fields"
     },
     {
       "path": "engine/crates/legion-runtime/src/validation/dispatch.rs",
@@ -190,26 +135,6 @@
       "reason": "frozen predecessor mapping evidence"
     },
     {
-      "path": "src/lib/host/arcane/legacy-bridge.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 18
-      },
-      "class": "R3",
-      "reason": "predecessor state reader"
-    },
-    {
-      "path": "tests/arcane-package-s01-bridge.test.mjs",
-      "tokens": [
-        "forge",
-        "sentinel"
-      ],
-      "class": "R5",
-      "reason": "predecessor migration fixtures"
-    },
-    {
       "path": "engine/bins/legion/src/commands/bind.rs",
       "tokens": [
         "forge",
@@ -257,63 +182,6 @@
       "reason": "native legacy binding diagnosis fixture"
     },
     {
-      "path": "tests/arcane-package-s02-policy.test.mjs",
-      "tokens": [
-        "forge",
-        "sentinel"
-      ],
-      "class": "R5",
-      "reason": "predecessor policy fixture"
-    },
-    {
-      "path": "tests/arcane-package-s03-receipt-auth.test.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "class": "R5",
-      "reason": "predecessor authentication fixture"
-    },
-    {
-      "path": "tests/arcane-package-s04-host-event.test.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "class": "R5",
-      "reason": "predecessor host-event fixture"
-    },
-    {
-      "path": "tests/arcane-package-s05-evidence-envelope.test.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "class": "R5",
-      "reason": "predecessor evidence fixture"
-    },
-    {
-      "path": "tests/arcane-package-s05-invalidation.test.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "class": "R5",
-      "reason": "predecessor invalidation fixture"
-    },
-    {
-      "path": "tests/arcane-package-s05-migration.test.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "class": "R5",
-      "reason": "predecessor migration fixture"
-    },
-    {
-      "path": "tests/arcane-package-s07-gate2-integration.test.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "class": "R5",
-      "reason": "predecessor gate fixture"
-    },
-    {
       "path": "src/packages/contracts/schemas/legacy-envelope-v1.schema.json",
       "tokens": [
         "forge"
@@ -323,17 +191,6 @@
       },
       "class": "R4",
       "reason": "read-only predecessor wire envelope"
-    },
-    {
-      "path": "src/integrations/forges.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R0",
-      "reason": "generic source-code-hosting term"
     },
     {
       "path": "references/security-checklist.md",
@@ -358,50 +215,6 @@
       "reason": "ordinary security verb"
     },
     {
-      "path": "src/providers/security/packs/abuse-resilience.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R0",
-      "reason": "ordinary security verb"
-    },
-    {
-      "path": "src/providers/security/packs/crypto-identity-protocols.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 1
-      },
-      "class": "R0",
-      "reason": "ordinary security verb"
-    },
-    {
-      "path": "src/providers/security/packs/mobile.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R0",
-      "reason": "ordinary security verb"
-    },
-    {
-      "path": "src/providers/security/packs/output-handling.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R0",
-      "reason": "ordinary security verb"
-    },
-    {
       "path": "skills/designer/engine/huashu/references/animation-pitfalls.md",
       "tokens": [
         "forge"
@@ -419,17 +232,6 @@
       ],
       "occurrences": {
         "forge": 1
-      },
-      "class": "R0",
-      "reason": "ordinary creative verb"
-    },
-    {
-      "path": "skills/designer/engine/scripts/palette.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 5
       },
       "class": "R0",
       "reason": "ordinary creative verb"
@@ -486,28 +288,6 @@
       },
       "class": "R2",
       "reason": "machine-readable migration evidence preserves exact predecessor paths"
-    },
-    {
-      "path": "docs/provenance/migrations/2026-08-29-pending/migrate-arcane-package.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 6
-      },
-      "class": "R2",
-      "reason": "reproducible migration utility preserves exact predecessor path mapping"
-    },
-    {
-      "path": "docs/provenance/migrations/2026-08-29-pending/repair-arcane-migration-imports.mjs",
-      "tokens": [
-        "forge"
-      ],
-      "occurrences": {
-        "forge": 2
-      },
-      "class": "R2",
-      "reason": "reproducible repair utility preserves exact predecessor path mapping"
     },
     {
       "path": "docs/provenance/migrations/2026-08-29-pending/arcane-package-triage.md",

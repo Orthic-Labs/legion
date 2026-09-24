@@ -226,8 +226,6 @@ function Scene() {
 
 **录制成视频**
 → 用 skill 自带工具链（一条命令出三种格式）：见 `video-export.md`
-- `scripts/render-video.js` — HTML → 25fps MP4（Playwright + ffmpeg）
-- `scripts/convert-formats.sh` — 25fps MP4 → 60fps MP4 + 优化 GIF
 - 想要更精确的帧渲染？让 render(t) 成为 pure function，见 `animation-pitfalls.md` 第 5 条
 
 ## 和视频工具的配合

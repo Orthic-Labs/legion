@@ -12,7 +12,8 @@ operations:
 effects:
   - source-read
   - artifact-write
-hostRequirements: []
+hostRequirements:
+  - legion
 metadata:
   legion:
     provenance: legion-authored
@@ -69,7 +70,7 @@ Mark a repository/atom pair `Observed` only when all are true: exact production 
 
 Only operative source proves claims. Never read README, docs, marketing, web pages, issues, benchmark claims, or prior research reports during inspection passes. Preserve unique & minority findings; never majority-vote facts. Run one adversarial self-review per pass, fix defects, then stop — never demand exhaustiveness.
 
-Run `scripts/validate_atom_report.py` against every inventory, comparison, & final report. Automated PASS does not replace semantic review.
+Run `legion script foundation/validate-atom-report` against every inventory, comparison, & final report. Automated PASS does not replace semantic review.
 
 ## Completion
 
