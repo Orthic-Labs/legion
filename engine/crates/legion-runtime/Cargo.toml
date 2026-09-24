@@ -22,6 +22,7 @@ tokio.workspace = true
 tokio-util.workspace = true
 zip.workspace = true
 headless_chrome.workspace = true
+lopdf.workspace = true
 image.workspace = true
 scraper.workspace = true
 libc.workspace = true

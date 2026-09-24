@@ -81,7 +81,7 @@
     {
       "path": "references/protocol.md",
       "uri": "legion-skill://foundation/references/protocol.md",
-      "digest": "sha256:119244030dc074713c08202a0e549541859693023beb47913b413e286f762857"
+      "digest": "sha256:6c68e598454af139d98fac13442cb6e849ece88f9f0c807d5bb1a4cfca12dced"
     },
     {
       "path": "scripts/validate_atom_report.py",

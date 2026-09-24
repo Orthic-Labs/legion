@@ -102,7 +102,7 @@
 - **Exact action:**
 
 ```text
-python3 <package-root>/skills/handoff/scripts/validate-handoff.py <package-root>/skills/handoff/examples/validated-forward-test.md --verify-receipt <package-root>/skills/handoff/examples/validated-forward-test.receipt.json
+legion script handoff/validate-handoff <package-root>/skills/handoff/examples/validated-forward-test.md --verify-receipt <package-root>/skills/handoff/examples/validated-forward-test.receipt.json
 ```
 
 - **Expected result:** Receipt verifier reports RECEIPT_PASS.
@@ -118,7 +118,7 @@ python3 <package-root>/skills/handoff/scripts/validate-handoff.py <package-root>
 - **Exact action:**
 
 ```text
-python3 <package-root>/skills/handoff/scripts/validate-handoff.py <package-root>/skills/handoff/assets/handoff-template.md --template-self-check
+legion script handoff/validate-handoff <package-root>/skills/handoff/assets/handoff-template.md --template-self-check
 ```
 
 - **Expected result:** Template self-check reports PASS.
@@ -157,13 +157,13 @@ Check package changes: git -C <workspace-root> status --short -- legion/skills/h
 - **Validator command:**
 
 ```text
-python3 <package-root>/skills/handoff/scripts/validate-handoff.py <package-root>/skills/handoff/examples/validated-forward-test.md --write-receipt <package-root>/skills/handoff/examples/validated-forward-test.receipt.json
+legion script handoff/validate-handoff <package-root>/skills/handoff/examples/validated-forward-test.md --write-receipt <package-root>/skills/handoff/examples/validated-forward-test.receipt.json
 ```
 
 - **Receiver receipt check:**
 
 ```text
-python3 <package-root>/skills/handoff/scripts/validate-handoff.py <package-root>/skills/handoff/examples/validated-forward-test.md --verify-receipt <package-root>/skills/handoff/examples/validated-forward-test.receipt.json
+legion script handoff/validate-handoff <package-root>/skills/handoff/examples/validated-forward-test.md --verify-receipt <package-root>/skills/handoff/examples/validated-forward-test.receipt.json
 ```
 
 ## 12. First Output & Readback Contract

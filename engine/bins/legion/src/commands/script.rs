@@ -17,10 +17,11 @@ use legion_handoff::{l1_port, l1b_port};
 use legion_provider_sdk::l1b_port::execution as coder_execution;
 use legion_runtime::p9_skills;
 use legion_runtime::wf_port::{
-    r00, r02, r03, r04, r05, r07, r08, r12, r18, r22, r24, r32, r37, r46, w2_005, w2_010, w2_016,
-    w2_017, w2_018, w2_019, w2_020, w2_023, w2_028, w2_029, w2_030, w2_031, w2_032, w2_033,
-    w2_034, w2_044,
+    r00, r02, r03, r04, r05, r07, r08, r12, r18, r22, r24, r32, r37, r46, r54, w2_005, w2_006,
+    w2_010, w2_016, w2_017, w2_018, w2_019, w2_020, w2_023, w2_028, w2_029, w2_030,
+    w2_031, w2_032, w2_033, w2_034, w2_044,
 };
+use sha2::{Digest, Sha256};
 
 /// Reads a file from disk the way Python's `open(path).read()` would,
 /// surfacing any I/O error as a `String` for the ported CLI's own error
@@ -63,6 +64,7 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/critique-storage", designer_critique_storage),
     ("designer/detect", designer_detect),
     ("designer/detect-csp", designer_detect_csp),
+    ("designer/export-deck-pdf", designer_export_deck_pdf),
     ("designer/export-deck-pptx", designer_export_deck_pptx),
     ("designer/export-deck-stage-pdf", designer_export_deck_stage_pdf),
     ("designer/fetch-images", designer_fetch_images),
@@ -87,8 +89,14 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/tts-doubao", designer_tts_doubao),
     ("designer/verify", designer_verify),
     ("dispatch/validate-dispatch", dispatch_validate_dispatch),
+    ("foundation/validate-atom-report", foundation_validate_atom_report),
     ("handoff/transcript-handoff", handoff_transcript_handoff),
     ("handoff/validate-handoff", handoff_validate_handoff),
+    ("qa/qa-functional", qa_qa_functional),
+    ("qa/qa-shot", qa_qa_shot),
+    ("seo/banana-cost-tracker", seo_banana_cost_tracker),
+    ("seo/banana-generate", seo_banana_generate),
+    ("seo/banana-presets", seo_banana_presets),
     ("seo/bing_webmaster", seo_bing_webmaster),
     ("seo/crux_history", seo_crux_history),
     ("seo/edit", seo_edit),
@@ -1653,4 +1661,665 @@ fn civil_today() -> w2_029::ga4_report::CivilDate {
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = if m <= 2 { y + 1 } else { y };
     w2_029::ga4_report::CivilDate::new(year, m as u32, d as u32)
+}
+
+// ---- designer/export-deck-pdf ------------------------------------------
+
+/// `legion script designer/export-deck-pdf --slides <dir> --out <file.pdf>`,
+/// port of `export_deck_pdf.mjs`: discovers `.html` slides, prints each via
+/// a real headless-Chrome tab, and merges the per-slide PDFs into one
+/// vector PDF with `lopdf`. See `w2_006::export_deck_pdf::run_production`.
+struct RealDeckPdfFs;
+impl w2_006::export_deck_pdf::DeckPdfFs for RealDeckPdfFs {
+    fn read_dir_names(&self, path: &std::path::Path) -> std::io::Result<Vec<String>> {
+        let mut names = Vec::new();
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            if let Some(name) = entry.file_name().to_str() {
+                names.push(name.to_string());
+            }
+        }
+        Ok(names)
+    }
+    fn write(&self, path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+        std::fs::write(path, bytes)
+    }
+}
+
+fn designer_export_deck_pdf(args: &[String]) -> i32 {
+    let parsed = match w2_006::export_deck_pdf::parse_args(args) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("{e}");
+            return 1;
+        }
+    };
+    let mut printer = match w2_006::export_deck_pdf::ChromeSlidePrinter::launch(
+        parsed.width.max(1) as u32,
+        parsed.height.max(1) as u32,
+    ) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("failed to launch headless chrome: {e}");
+            return 1;
+        }
+    };
+    let fs = RealDeckPdfFs;
+    match w2_006::export_deck_pdf::run_production(&fs, &mut printer, &parsed) {
+        Ok(outcome) => {
+            for line in &outcome.log_lines {
+                println!("{line}");
+            }
+            println!("{}", outcome.summary_line);
+            0
+        }
+        Err(e) => {
+            eprintln!("{e}");
+            1
+        }
+    }
+}
+
+// ---- qa ----------------------------------------------------------------
+
+/// `legion script qa/qa-shot ...`, forwarding to the ported QA engine
+/// (`r54::run`) with `--shot` forced when the caller passed neither
+/// `--shot` nor an explicit action flag, mirroring
+/// `skills/qa/scripts/qa-shot.mjs`'s wrapper around `qa-shot.mjs` /
+/// `qa.mjs`.
+fn qa_qa_shot(args: &[String]) -> i32 {
+    let has_shot = args.iter().any(|a| a == "--shot" || a.starts_with("--shot="));
+    let forwarded: Vec<String> = if has_shot {
+        args.to_vec()
+    } else {
+        let mut v = vec!["--shot".to_string()];
+        v.extend_from_slice(args);
+        v
+    };
+    let repo_root = std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| ".".to_string());
+    r54::run(&forwarded, &repo_root)
+}
+
+/// `legion script qa/qa-functional ...`, port of
+/// `skills/qa/scripts/qa-functional.mjs`: forwards to the QA engine with
+/// `--actions` forced, falling back to `--help` when the caller passed
+/// neither `--actions` nor `--actions=...` (matching the `.mjs`'s
+/// `args.includes("--actions") || args.some(a => a.startsWith("--actions="))
+/// ? args : ["--help"]`).
+fn qa_qa_functional(args: &[String]) -> i32 {
+    let has_actions = args.iter().any(|a| a == "--actions" || a.starts_with("--actions="));
+    let forwarded: Vec<String> = if has_actions {
+        args.to_vec()
+    } else {
+        vec!["--help".to_string()]
+    };
+    let repo_root = std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| ".".to_string());
+    r54::run(&forwarded, &repo_root)
+}
+
+// ---- foundation ----------------------------------------------------------
+
+struct RealReportFs;
+impl w2_005::validate_atom_report::ReportFs for RealReportFs {
+    fn read_to_string(&self, path: &str) -> std::io::Result<String> {
+        std::fs::read_to_string(path)
+    }
+    fn is_file(&self, path: &str) -> bool {
+        std::path::Path::new(path).is_file()
+    }
+    fn resolve(&self, path: &str) -> String {
+        let p = std::path::Path::new(path);
+        let abs = if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            std::env::current_dir().unwrap_or_default().join(p)
+        };
+        // Collapse `.`/`..` components the way Python's `Path.resolve()`
+        // does, without requiring the path to exist.
+        let mut out = std::path::PathBuf::new();
+        for comp in abs.components() {
+            match comp {
+                std::path::Component::CurDir => {}
+                std::path::Component::ParentDir => {
+                    out.pop();
+                }
+                other => out.push(other.as_os_str()),
+            }
+        }
+        out.to_string_lossy().to_string()
+    }
+}
+
+fn sha256_hex_file(path: &str) -> std::io::Result<String> {
+    let bytes = std::fs::read(path)?;
+    Ok(hex::encode(Sha256::digest(&bytes)))
+}
+
+/// `legion script foundation/validate-atom-report <report> --mode <mode>
+/// [--expected-rows N] [--max-repeat N] [--manifest <path>]
+/// [--write-receipt <path>]`, port of `validate_atom_report.py`.
+fn foundation_validate_atom_report(args: &[String]) -> i32 {
+    let mut report: Option<String> = None;
+    let mut mode: Option<String> = None;
+    let mut expected_rows: Option<usize> = None;
+    let mut max_repeat: usize = 8;
+    let mut manifest_path: Option<String> = None;
+    let mut write_receipt: Option<String> = None;
+
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--mode" => {
+                mode = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--expected-rows" => {
+                expected_rows = args.get(i + 1).and_then(|v| v.parse().ok());
+                i += 2;
+            }
+            "--max-repeat" => {
+                if let Some(v) = args.get(i + 1).and_then(|v| v.parse().ok()) {
+                    max_repeat = v;
+                }
+                i += 2;
+            }
+            "--manifest" => {
+                manifest_path = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--write-receipt" => {
+                write_receipt = args.get(i + 1).cloned();
+                i += 2;
+            }
+            other => {
+                if report.is_none() && !other.starts_with("--") {
+                    report = Some(other.to_string());
+                }
+                i += 1;
+            }
+        }
+    }
+
+    let (Some(report), Some(mode)) = (report, mode) else {
+        eprintln!("usage: validate_atom_report.py <report> --mode <mode> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--write-receipt <path>]");
+        return 1;
+    };
+
+    let report_text = match std::fs::read_to_string(&report) {
+        Ok(t) => t,
+        Err(e) => {
+            println!("FAIL: {e}");
+            return 1;
+        }
+    };
+
+    let mut manifest = None;
+    if let Some(mp) = &manifest_path {
+        let text = match std::fs::read_to_string(mp) {
+            Ok(t) => t,
+            Err(e) => {
+                println!("FAIL: invalid manifest: {e}");
+                return 1;
+            }
+        };
+        let value: serde_json::Value = match serde_json::from_str(&text) {
+            Ok(v) => v,
+            Err(e) => {
+                println!("FAIL: invalid manifest: {e}");
+                return 1;
+            }
+        };
+        let repo_roots = value
+            .get("repo_roots")
+            .and_then(|v| v.as_object())
+            .map(|m| {
+                m.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let scope_repos = value
+            .get("scope_repos")
+            .and_then(|v| v.as_object())
+            .map(|m| {
+                m.iter()
+                    .filter_map(|(k, v)| {
+                        v.as_array().map(|arr| {
+                            (
+                                k.clone(),
+                                arr.iter().filter_map(|e| e.as_str().map(|s| s.to_string())).collect(),
+                            )
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        manifest = Some(w2_005::validate_atom_report::Manifest { repo_roots, scope_repos });
+    }
+
+    let opts = w2_005::validate_atom_report::ValidateOptions {
+        expected_rows,
+        max_repeat,
+        manifest,
+    };
+    let fs = RealReportFs;
+    let outcome = w2_005::validate_atom_report::run(&report_text, &mode, &opts, &fs, &report);
+    println!("{}", outcome.stdout);
+
+    if outcome.code == 0 {
+        if let Some(receipt_path) = write_receipt {
+            let report_hash = match sha256_hex_file(&report) {
+                Ok(h) => h,
+                Err(e) => {
+                    println!("FAIL: could not write PASS receipt: {e}");
+                    return 1;
+                }
+            };
+            let manifest_json = if let Some(mp) = &manifest_path {
+                match sha256_hex_file(mp) {
+                    Ok(h) => Some(json!({ "path": mp, "sha256": h })),
+                    Err(e) => {
+                        println!("FAIL: could not write PASS receipt: {e}");
+                        return 1;
+                    }
+                }
+            } else {
+                None
+            };
+            let receipt = json!({
+                "schema_version": 1,
+                "producer": "validate_atom_report.py",
+                "result": "PASS",
+                "output": outcome.stdout,
+                "mode": mode,
+                "expected_rows": expected_rows,
+                "actual_rows": w2_005::validate_atom_report::parse_table(
+                    &report_text,
+                    w2_005::validate_atom_report::headers(&mode).unwrap_or(&[]),
+                )
+                .map(|r| r.len())
+                .unwrap_or(0),
+                "report": { "path": report, "sha256": report_hash },
+                "manifest": manifest_json,
+                "argv": args,
+            });
+            if let Err(e) = std::fs::write(&receipt_path, format!("{}\n", serde_json::to_string_pretty(&receipt).unwrap_or_default())) {
+                println!("FAIL: could not write PASS receipt: {e}");
+                return 1;
+            }
+            println!("RECEIPT: {receipt_path}");
+        }
+    }
+    outcome.code
+}
+
+// ---- seo/banana extension -------------------------------------------------
+
+fn banana_dir() -> std::path::PathBuf {
+    std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".banana")
+}
+
+/// `legion script seo/banana-presets <list|show|create|delete> ...`, port of
+/// `skills/seo/extensions/banana/scripts/presets.py`. Persists each preset
+/// at `~/.banana/presets/<name>.json`, matching the Python CLI's on-disk
+/// layout exactly.
+fn seo_banana_presets(args: &[String]) -> i32 {
+    use legion_runtime::wf_port::w2_025::presets;
+
+    let Some(command) = args.first() else {
+        eprintln!("usage: presets.py <list|show|create|delete> ...");
+        return 1;
+    };
+    let presets_dir = banana_dir().join("presets");
+
+    match command.as_str() {
+        "list" => {
+            if !presets_dir.is_dir() {
+                println!("No presets found.");
+                return 0;
+            }
+            let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir(&presets_dir)
+                .map(|rd| rd.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.extension().is_some_and(|e| e == "json")).collect())
+                .unwrap_or_default();
+            entries.sort();
+            if entries.is_empty() {
+                println!("No presets found.");
+                return 0;
+            }
+            println!("Available presets:");
+            for path in entries {
+                let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+                let parsed = std::fs::read_to_string(&path)
+                    .ok()
+                    .and_then(|t| serde_json::from_str::<presets::Preset>(&t).ok());
+                println!("{}", presets::format_list_row(&stem, parsed.as_ref()));
+            }
+            0
+        }
+        "show" => {
+            let Some(name) = args.get(1) else {
+                eprintln!("usage: presets.py show <name>");
+                return 1;
+            };
+            let filename = match presets::preset_filename(name) {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("Error: {e}");
+                    return 1;
+                }
+            };
+            let path = presets_dir.join(filename);
+            match std::fs::read_to_string(&path) {
+                Ok(text) => {
+                    println!("{text}");
+                    0
+                }
+                Err(_) => {
+                    eprintln!("Error: Preset '{name}' not found.");
+                    1
+                }
+            }
+        }
+        "create" => {
+            let Some(name) = args.get(1) else {
+                eprintln!("usage: presets.py create <name> [--colors ...] [--style ...] ...");
+                return 1;
+            };
+            let mut input = presets::CreatePresetInput { name: name.as_str(), ..Default::default() };
+            let mut i = 2;
+            let (mut colors, mut style, mut typography, mut lighting, mut mood, mut description, mut ratio, mut resolution) =
+                (String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new(), String::new());
+            while i < args.len() {
+                let (flag, val) = (args[i].as_str(), args.get(i + 1).cloned().unwrap_or_default());
+                match flag {
+                    "--colors" => colors = val,
+                    "--style" => style = val,
+                    "--typography" => typography = val,
+                    "--lighting" => lighting = val,
+                    "--mood" => mood = val,
+                    "--description" => description = val,
+                    "--ratio" => ratio = val,
+                    "--resolution" => resolution = val,
+                    _ => {}
+                }
+                i += 2;
+            }
+            input.colors = &colors;
+            input.style = &style;
+            input.typography = &typography;
+            input.lighting = &lighting;
+            input.mood = &mood;
+            input.description = &description;
+            input.ratio = &ratio;
+            input.resolution = &resolution;
+
+            let filename = match presets::preset_filename(name) {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("Error: {e}");
+                    return 1;
+                }
+            };
+            let path = presets_dir.join(&filename);
+            if path.exists() {
+                eprintln!("Error: Preset '{name}' already exists. Use a different name.");
+                return 1;
+            }
+            let preset = presets::build_preset(&input);
+            let json_text = serde_json::to_string_pretty(&preset).unwrap_or_default();
+            if let Err(e) = std::fs::create_dir_all(&presets_dir) {
+                eprintln!("Error: {e}");
+                return 1;
+            }
+            if let Err(e) = std::fs::write(&path, &json_text) {
+                eprintln!("Error: {e}");
+                return 1;
+            }
+            println!("Preset '{name}' created at {}", path.display());
+            println!("{json_text}");
+            0
+        }
+        "delete" => {
+            let Some(name) = args.get(1) else {
+                eprintln!("usage: presets.py delete <name> [--confirm]");
+                return 1;
+            };
+            let confirmed = args.iter().any(|a| a == "--confirm");
+            if presets::require_confirm(confirmed).is_err() {
+                eprintln!("Error: Pass --confirm to delete the preset.");
+                return 1;
+            }
+            let filename = match presets::preset_filename(name) {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("Error: {e}");
+                    return 1;
+                }
+            };
+            let path = presets_dir.join(filename);
+            if !path.exists() {
+                eprintln!("Error: Preset '{name}' not found.");
+                return 1;
+            }
+            if let Err(e) = std::fs::remove_file(&path) {
+                eprintln!("Error: {e}");
+                return 1;
+            }
+            println!("Preset '{name}' deleted.");
+            0
+        }
+        other => {
+            eprintln!("Error: unknown command '{other}'");
+            1
+        }
+    }
+}
+
+fn banana_ledger_path() -> std::path::PathBuf {
+    banana_dir().join("costs.json")
+}
+
+fn load_banana_ledger() -> legion_runtime::wf_port::w2_025::cost_tracker::CostLedger {
+    std::fs::read_to_string(banana_ledger_path())
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default()
+}
+
+fn save_banana_ledger(ledger: &legion_runtime::wf_port::w2_025::cost_tracker::CostLedger) -> std::io::Result<()> {
+    let path = banana_ledger_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, serde_json::to_string_pretty(ledger).unwrap_or_default())
+}
+
+/// `legion script seo/banana-cost-tracker <log|summary|today|estimate|reset> ...`,
+/// port of `skills/seo/extensions/banana/scripts/cost_tracker.py`. Persists
+/// the ledger at `~/.banana/costs.json`, matching the Python CLI exactly.
+fn seo_banana_cost_tracker(args: &[String]) -> i32 {
+    use legion_runtime::wf_port::w2_025::cost_tracker;
+
+    let Some(command) = args.first() else {
+        eprintln!("usage: cost_tracker.py <log|summary|today|estimate|reset> ...");
+        return 1;
+    };
+
+    let mut flags: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut batch = false;
+    let mut confirm = false;
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--batch" => {
+                batch = true;
+                i += 1;
+            }
+            "--confirm" => {
+                confirm = true;
+                i += 1;
+            }
+            key if key.starts_with("--") => {
+                flags.insert(key.trim_start_matches("--").to_string(), args.get(i + 1).cloned().unwrap_or_default());
+                i += 2;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    match command.as_str() {
+        "log" => {
+            let model = flags.get("model").cloned().unwrap_or_default();
+            let resolution = flags.get("resolution").cloned().unwrap_or_default();
+            let prompt = flags.get("prompt").cloned().unwrap_or_default();
+            let mut ledger = load_banana_ledger();
+            let today = civil_today();
+            let today_str = format!("{:04}-{:02}-{:02}", today.year, today.month, today.day);
+            let now_str = format!("{today_str}T00:00:00");
+            let (result, warnings) = cost_tracker::log_entry(&mut ledger, &model, &resolution, &prompt, batch, &today_str, &now_str);
+            for w in warnings {
+                match w {
+                    cost_tracker::CostWarning::UnknownModel(m) => eprintln!("Warning: unknown model '{m}', using default pricing"),
+                    cost_tracker::CostWarning::UnknownResolution(r) => eprintln!("Warning: unknown resolution '{r}', using 1K pricing"),
+                }
+            }
+            if let Err(e) = save_banana_ledger(&ledger) {
+                eprintln!("Error: {e}");
+                return 1;
+            }
+            println!(
+                "{}",
+                json!({ "logged": true, "cost": result.cost, "total_cost": result.total_cost, "total_images": result.total_images })
+            );
+            0
+        }
+        "summary" => {
+            let ledger = load_banana_ledger();
+            println!("Total cost:   ${:.3}", ledger.total_cost);
+            println!("Total images: {}", ledger.total_images);
+            println!("\nLast 7 days:");
+            for (day, usage) in cost_tracker::last_n_days(&ledger, 7) {
+                println!("  {day}: {} images, ${:.3}", usage.count, usage.cost);
+            }
+            0
+        }
+        "today" => {
+            let ledger = load_banana_ledger();
+            let today = civil_today();
+            let today_str = format!("{:04}-{:02}-{:02}", today.year, today.month, today.day);
+            let usage = cost_tracker::today_usage(&ledger, &today_str);
+            println!("Today ({today_str}): {} images, ${:.3}", usage.count, usage.cost);
+            0
+        }
+        "estimate" => {
+            let model = flags.get("model").cloned().unwrap_or_default();
+            let resolution = flags.get("resolution").cloned().unwrap_or_default();
+            let count: u64 = flags.get("count").and_then(|v| v.parse().ok()).unwrap_or(0);
+            let (lookup, total, batch_total) = cost_tracker::estimate(&model, &resolution, count, batch);
+            println!("Model:      {model}");
+            println!("Resolution: {resolution}");
+            println!("Count:      {count}");
+            println!("Cost/image: ${:.3}", lookup.cost);
+            println!("Total est:  ${total:.3}");
+            if let Some(bt) = batch_total {
+                println!("Batch est:  ${bt:.3} (50% discount)");
+            }
+            0
+        }
+        "reset" => {
+            if !confirm {
+                eprintln!("Error: Pass --confirm to reset the cost ledger.");
+                return 1;
+            }
+            let ledger = cost_tracker::reset_ledger();
+            if let Err(e) = save_banana_ledger(&ledger) {
+                eprintln!("Error: {e}");
+                return 1;
+            }
+            println!("Cost ledger reset.");
+            0
+        }
+        other => {
+            eprintln!("Error: unknown command '{other}'");
+            1
+        }
+    }
+}
+
+/// `legion script seo/banana-generate --prompt <text> [...]`, port of
+/// `skills/seo/extensions/banana/scripts/generate.py` (already fully ported
+/// in `w2_025::generate::run`; this wires it to real HTTP + filesystem
+/// I/O and env vars).
+fn seo_banana_generate(args: &[String]) -> i32 {
+    use legion_runtime::wf_port::w2_025::generate;
+
+    let mut parsed = generate::GenerateArgs::default();
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--prompt" => {
+                parsed.prompt = args.get(i + 1).cloned().unwrap_or_default();
+                i += 2;
+            }
+            "--aspect-ratio" => {
+                parsed.aspect_ratio = args.get(i + 1).cloned().unwrap_or(parsed.aspect_ratio);
+                i += 2;
+            }
+            "--resolution" => {
+                parsed.resolution = args.get(i + 1).cloned().unwrap_or(parsed.resolution);
+                i += 2;
+            }
+            "--model" => {
+                parsed.model = args.get(i + 1).cloned().unwrap_or(parsed.model);
+                i += 2;
+            }
+            "--api-key" => {
+                parsed.api_key = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--thinking" => {
+                parsed.thinking = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--image-only" => {
+                parsed.image_only = true;
+                i += 1;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    let google_ai_key = std::env::var("GOOGLE_AI_API_KEY").ok();
+    let google_key = std::env::var("GOOGLE_API_KEY").ok();
+    let transport = generate::ReqwestImageTransport::default();
+    let fs = generate::StdFs;
+    let output_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+        .join("Documents")
+        .join("nanobanana_generated");
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_micros())
+        .unwrap_or(0);
+    let today = civil_today();
+    let timestamp = format!("{:04}{:02}{:02}_{:06}_{:06}", today.year, today.month, today.day, (now / 1_000_000) % 1_000_000, now % 1_000_000);
+
+    let outcome = generate::run(
+        &parsed,
+        google_ai_key.as_deref(),
+        google_key.as_deref(),
+        &transport,
+        &fs,
+        &output_dir,
+        &timestamp,
+    );
+    println!("{}", outcome.printed);
+    outcome.exit_code
 }

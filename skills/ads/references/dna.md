@@ -50,19 +50,19 @@ Capture the following:
 
 1. **Homepage hero section** (above the fold):
 ```bash
-node ../../qa/scripts/qa-shot.mjs --url [url] --out ./brand-screenshots/
+node ../../qa/scripts/qa-shot.mjs --url [url] --out ./brand-screenshots/   # or: legion script qa/qa-shot --url [url] --out ./brand-screenshots/
 ```
 Saves: `./brand-screenshots/{domain}_homepage.png`
 
 2. **Product or services page**:
 ```bash
-node ../../qa/scripts/qa-shot.mjs --url [url]/products --out ./brand-screenshots/
+node ../../qa/scripts/qa-shot.mjs --url [url]/products --out ./brand-screenshots/   # or: legion script qa/qa-shot --url [url]/products --out ./brand-screenshots/
 ```
 Saves: `./brand-screenshots/{domain}_product.png`
 
 3. **About page** (brand personality):
 ```bash
-node ../../qa/scripts/qa-shot.mjs --url [url]/about --out ./brand-screenshots/
+node ../../qa/scripts/qa-shot.mjs --url [url]/about --out ./brand-screenshots/   # or: legion script qa/qa-shot --url [url]/about --out ./brand-screenshots/
 ```
 Saves: `./brand-screenshots/{domain}_about.png`
 

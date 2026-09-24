@@ -109,10 +109,10 @@ for site truth, signature, or differentiation.
 website-structure scan against the rendered page at both viewports:
 
 ```text
-node skills/designer/engine/scripts/detect.mjs --json --viewport=1440x900 <url>
-node skills/designer/engine/scripts/detect.mjs --json --tablet <url>
-node skills/designer/engine/scripts/detect.mjs --json --mobile <url>
-node skills/designer/engine/scripts/detect.mjs --json --site --site-type=<app|ecommerce|content> <homepage-url>
+legion script designer/detect --json --viewport=1440x900 <url>
+legion script designer/detect --json --tablet <url>
+legion script designer/detect --json --mobile <url>
+legion script designer/detect --json --site --site-type=<app|ecommerce|content> <homepage-url>
 ```
 
 Any `structure` hit (`cta-below-fold`, `hero-cta-competition`, `headline-word-wall`,

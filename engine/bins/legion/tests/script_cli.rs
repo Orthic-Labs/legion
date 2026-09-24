@@ -597,3 +597,107 @@ fn native_script_alchemist_parse_events_stream_mode() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("hello"), "{stdout}");
 }
+
+#[test]
+fn native_script_list_includes_sc5_entries() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "--list"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let value: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let scripts: Vec<&str> = value["scripts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    for name in [
+        "designer/export-deck-pdf",
+        "qa/qa-shot",
+        "qa/qa-functional",
+        "foundation/validate-atom-report",
+        "seo/banana-presets",
+        "seo/banana-cost-tracker",
+        "seo/banana-generate",
+    ] {
+        assert!(scripts.contains(&name), "expected {name} in {scripts:?}");
+    }
+}
+
+#[test]
+fn native_script_foundation_validate_atom_report_requires_mode() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "foundation/validate-atom-report", "report.md"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("usage:"), "{stderr}");
+}
+
+#[test]
+fn native_script_foundation_validate_atom_report_passes_clean_report() {
+    let dir = std::env::temp_dir().join(format!(
+        "legion-atom-report-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let report = dir.join("report.md");
+    std::fs::write(
+        &report,
+        "| Platform | Domain | Atom | Definition / boundary | Source evidence |\n\
+         | --- | --- | --- | --- | --- |\n\
+         | macOS | Paste | Clipboard transaction | boundary text | some/path.rs |\n",
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "script",
+            "foundation/validate-atom-report",
+            report.to_str().unwrap(),
+            "--mode",
+            "inventory",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.starts_with("PASS:"), "{stdout}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn native_script_seo_banana_presets_requires_command() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "seo/banana-presets"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+}
+
+#[test]
+fn native_script_seo_banana_cost_tracker_estimate() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args([
+            "script",
+            "seo/banana-cost-tracker",
+            "estimate",
+            "--model",
+            "gemini-3.1-flash-image-preview",
+            "--resolution",
+            "2K",
+            "--count",
+            "10",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Total est:"), "{stdout}");
+}

@@ -365,7 +365,7 @@ DOUBAO_TTS_ENDPOINT=https://openspeech.bytedance.com/api/v1/tts
 ## 标准工作流（10 步）
 
 1. **写解说稿**：解说稿是源代码。先把整段口播写完整，标段标题 `## scene-id`，关键句前加 `[[cue:xx]]`
-2. **跑 narrate-pipeline**：`node scripts/narrate-pipeline.mjs --script script.md --out-dir _narration`
+2. **跑 narrate-pipeline**：`legion script designer/narrate-pipeline --script script.md --out-dir _narration`
 3. **听整段 voiceover.mp3**：节奏不对回去改稿。**这一步决定整片质量上限**
 4. **🛑 设计前先回答铁律**：hero element 是什么？它在每段是什么状态？跨场景怎么 morph？答不上不要写代码
 5. **写动画 HTML**：用 NarrationStage + 一个或几个 hero element 跨 scene 演戏

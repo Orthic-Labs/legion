@@ -48,7 +48,10 @@ skills/qa/scripts/
 - `qa.mjs`: shared dependency-free engine used by both wrappers.
 
 These runners use installed Chrome/Edge directly through headless flags and raw CDP. They do not
-use Playwright or Puppeteer.
+use Playwright or Puppeteer. The engine (`qa.mjs`'s `--shot`/`--actions`/`--sweep` dispatch) is
+now also available natively as `legion script qa/qa-shot` and `legion script qa/qa-functional`
+(Rust port `legion-runtime::wf_port::r54`); the `.mjs` wrappers still forward to `qa.mjs` for
+consuming apps that shell out directly.
 
 Run the engine through this skill's own `scripts/qa-functional.mjs` and `scripts/qa-shot.mjs`,
 which resolve the bundled copy first and fall back to the repository only during development. `qa-browser.sh`, `qa-browser-stop.sh`, and their `.ps1`

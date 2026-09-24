@@ -10,7 +10,7 @@ Preferred capture order:
    - Use the QA URL it emits, usually `http://127.0.0.1:<port>/?qa=1` or a documented route.
    - QA mode should use deterministic mocks for visual states.
    - Capture only the web/app surface, not the OS chrome.
-   - Use `skills/qa/scripts/qa-shot.mjs` for viewport screenshots and `skills/qa/scripts/qa-functional.mjs` for hover/click/type/key/assert flows.
+   - Use `skills/qa/scripts/qa-shot.mjs` (or the native `legion script qa/qa-shot`) for viewport screenshots and `skills/qa/scripts/qa-functional.mjs` (or `legion script qa/qa-functional`) for hover/click/type/key/assert flows.
 
 2. **Shared headless Chrome/Edge runner.**
    - Launch installed Chrome/Edge through the `/qa` scripts against the QA URL or local dev URL.

@@ -63,7 +63,7 @@ sites are owned, so the free stack below covers them completely.
 4. **GA4 property ID** — GA4 Admin → Property Settings → the numeric **Property ID** (e.g. `123456789`).
 5. **Bing API key** — [Bing Webmaster Tools](https://www.bing.com/webmasters) → verify your site →
    Settings (gear) → **API access → API Key** → generate. One key covers all your BWT sites.
-6. **IndexNow key** — no signup. Run `python scripts/indexnow.py genkey`, then host the printed key
+6. **IndexNow key** — no signup. Run `legion script seo/indexnow genkey`, then host the printed key
    as a text file at the site root: `https://<host>/<key>.txt` whose *contents are exactly the key*
    (for the Right-Suite Qwik sites: drop `<key>.txt` in `public/`).
 
@@ -87,7 +87,7 @@ inherits them — env is captured at process start.)
 # Bing Webmaster
 [Environment]::SetEnvironmentVariable('BING_API_KEY','PASTE_BING_KEY','User'); $env:BING_API_KEY='PASTE_BING_KEY'
 
-# IndexNow (value from `python scripts/indexnow.py genkey`)
+# IndexNow (value from `legion script seo/indexnow genkey`)
 [Environment]::SetEnvironmentVariable('INDEXNOW_KEY','PASTE_INDEXNOW_KEY','User'); $env:INDEXNOW_KEY='PASTE_INDEXNOW_KEY'
 ```
 

@@ -121,6 +121,8 @@ Run the validator with the corpus manifest so it verifies expected repository na
 
 ```bash
 python3 scripts/validate_atom_report.py REPORT.md --mode stage2 --expected-rows N --manifest corpus.json
+# native Rust port (preferred):
+legion script foundation/validate-atom-report REPORT.md --mode stage2 --expected-rows N --manifest corpus.json
 ```
 
 The validator removes the atom label from recommendations before high-risk semantic-signature checks; quoting or prefixing the atom name cannot satisfy the gate. Extend `SEMANTIC_SIGNATURES` when the canon adds a high-risk atom whose wrong category template could still read plausibly. Then adversarially inspect semantic samples from every platform/domain. Structural PASS with semantic failure is failure.

@@ -37,7 +37,7 @@ Plain `/handoff` in source chat emits only a bound pointer. Do not summarize, in
 or synthesize a packet there. Run bootstrap with current platform, exact task/session ID, & workspace:
 
 ```bash
-python3 skills/handoff/scripts/transcript-handoff.py bootstrap --platform codex --session-id "<TASK_ID>" --workspace "<WORKSPACE>"
+legion script handoff/transcript-handoff bootstrap --platform codex --session-id "<TASK_ID>" --workspace "<WORKSPACE>"
 ```
 
 On Windows, use `py -3.11 skills/handoff/scripts/transcript-handoff.py ...`. Return its
@@ -54,8 +54,8 @@ its selection method. Source output is a pointer, not a permanent handoff packet
 5. Validate packet, verify receipt, return required `READBACK`, then proceed under packet mode.
 
 ```bash
-python3 skills/handoff/scripts/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
-python3 skills/handoff/scripts/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
+legion script handoff/validate-handoff <handoff.md> --write-receipt <handoff.receipt.json>
+legion script handoff/validate-handoff <handoff.md> --verify-receipt <handoff.receipt.json>
 ```
 
 Preserve exact intent, decisions, failures, boundaries, active work, gaps, first resume action, &

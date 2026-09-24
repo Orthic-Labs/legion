@@ -238,7 +238,7 @@
     {
       "path": "extensions/banana/references/seo-image-presets.md",
       "uri": "legion-skill://seo/extensions/banana/references/seo-image-presets.md",
-      "digest": "sha256:3db9c5cdcc7a30e94ffdb7e4013bb2bd51c17f9f6f931876a113c43b134f4eb8"
+      "digest": "sha256:64d47e8b9e7437e8e14c0104a28a808b30b68590dcafa2865d02d87ee08f659b"
     },
     {
       "path": "extensions/banana/scripts/batch.py",
@@ -353,7 +353,7 @@
     {
       "path": "references/free-data-sources.md",
       "uri": "legion-skill://seo/references/free-data-sources.md",
-      "digest": "sha256:158f382134e65aa221542575cdd072ab91601297d3f5097c8aa19d18048ae480"
+      "digest": "sha256:b5f0d7b1ec77d6c843e199bd1c3e0ec289e935b9b1749501bc19ebeaea3fa895"
     },
     {
       "path": "references/geo.md",
@@ -363,7 +363,7 @@
     {
       "path": "references/google-assets/auth-setup.md",
       "uri": "legion-skill://seo/references/google-assets/auth-setup.md",
-      "digest": "sha256:2b3c50fa66d481284a780e6dda990e811c46c0343ced1f7613268dad7799fce1"
+      "digest": "sha256:0f349923b8b32ba46ba410086cddfdc36f379d30b59813a79cbdf87016d7a967"
     },
     {
       "path": "references/google-assets/ga4-data-api.md",
@@ -413,7 +413,7 @@
     {
       "path": "references/google.md",
       "uri": "legion-skill://seo/references/google.md",
-      "digest": "sha256:6cdf2101a8a4be1e21de99cdb2c48ba7b02524bac4a005b519094a3c861bf527"
+      "digest": "sha256:6c0d70ef563dc78ba35ce30c09cb498486350f25572ad53402afb8c544586665"
     },
     {
       "path": "references/hreflang.md",
@@ -458,7 +458,7 @@
     {
       "path": "references/image-gen.md",
       "uri": "legion-skill://seo/references/image-gen.md",
-      "digest": "sha256:8b330cd6e2aae900cf8e63d1b74d092b019d2a4487faeb32b6e948bcf502ddca"
+      "digest": "sha256:9e4528cdf60973ee53e8680468dc4edddd94b29a3229c51c26aac3f3fbd06e6d"
     },
     {
       "path": "references/images.md",
@@ -573,7 +573,7 @@
     {
       "path": "references/site-audit-checks.md",
       "uri": "legion-skill://seo/references/site-audit-checks.md",
-      "digest": "sha256:6b8fde5386fc98cdbd3547d3daed06bfe461a16a6ccfbe96e21ae5a0df0484ec"
+      "digest": "sha256:ba7383ecb642517c8dd14b78bb090a1cb4617d29bf6d249ca66a0e0825048f5e"
     },
     {
       "path": "references/sitemap.md",

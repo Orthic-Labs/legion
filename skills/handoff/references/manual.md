@@ -35,7 +35,7 @@ Use `--platform claude` for Claude Code. If runtime exposes no ID, omit `--sessi
 macOS:
 
 ```bash
-python3 skills/handoff/scripts/transcript-handoff.py bootstrap --platform claude --session-id "<CURRENT_TASK_ID>" --workspace "<CURRENT_WORKSPACE>"
+legion script handoff/transcript-handoff bootstrap --platform claude --session-id "<CURRENT_TASK_ID>" --workspace "<CURRENT_WORKSPACE>"
 ```
 
 Source output is pointer, not handoff, so permanent packet/receipt gate does not apply yet.
@@ -262,8 +262,8 @@ py -3.11 skills/handoff/scripts/validate-handoff.py <handoff.md> --verify-receip
 macOS:
 
 ```bash
-python3 skills/handoff/scripts/validate-handoff.py <handoff.md> --write-receipt <handoff.receipt.json>
-python3 skills/handoff/scripts/validate-handoff.py <handoff.md> --verify-receipt <handoff.receipt.json>
+legion script handoff/validate-handoff <handoff.md> --write-receipt <handoff.receipt.json>
+legion script handoff/validate-handoff <handoff.md> --verify-receipt <handoff.receipt.json>
 ```
 
 Write handoff to durable, named `.md` artifact before validation. Temporary-only & inline-only handoffs are forbidden. File remains canonical audit & resume source. Send packet + receipt together. If cold chat cannot access filesystem, paste exact validated bytes inline while retaining canonical file + receipt. Receiver verifies receipt before readback. Do not paste content different from validated file.

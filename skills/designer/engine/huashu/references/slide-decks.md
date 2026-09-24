@@ -585,6 +585,8 @@ HTML 优先是第一公民。但用户经常需要 PPTX/PDF 交付。提供两�
 
 ```bash
 node scripts/export_deck_pdf.mjs --slides <slides-dir> --out deck.pdf
+# 原生 Rust 端口（推荐）：
+legion script designer/export-deck-pdf --slides <slides-dir> --out deck.pdf
 ```
 
 **特点**：
@@ -603,6 +605,8 @@ node scripts/export_deck_pdf.mjs --slides <slides-dir> --out deck.pdf
 
 ```bash
 node scripts/export_deck_stage_pdf.mjs --html deck.html --out deck.pdf
+# 原生 Rust 端口（推荐）：
+legion script designer/export-deck-stage-pdf --html deck.html --out deck.pdf
 ```
 
 **为什么不能复用 export_deck_pdf.mjs**（2026-04-20 真实踩坑记录）：
@@ -657,6 +661,8 @@ await page.pdf({ width: '1920px', height: '1080px', printBackground: true, prefe
 ```bash
 # 唯一模式：文本框原生可编辑（字体会回落到系统字体）
 node scripts/export_deck_pptx.mjs --slides <dir> --out deck.pptx
+# 原生 Rust 端口（推荐）：
+legion script designer/export-deck-pptx --slides <dir> --out deck.pptx
 ```
 
 工作原理：`html2pptx` 逐元素读 computedStyle 把 DOM 翻译成 PowerPoint 对象（text frame / shape / picture）。文字变成真文本框，PPT 里双击即可编辑。

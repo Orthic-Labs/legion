@@ -220,7 +220,7 @@ description: 花叔Design——用HTML做高保真原型、交互Demo、幻灯�
 
 🔴 **具名产品 logo 子门（spawn 三套逻辑前必过，硬要求）**：把设计里会出现的产品 / 品牌名**逐个列成清单**，确认每个都已取到官方 logo 并内嵌（base64 / 本地路径），再 spawn。**清单里有一个没取到 logo = 🛑 STOP 补齐**（实在取不到才退诚实 placeholder 并明说「X 的 logo 待补」）。三个 subagent 共用这批 logo。⚠️ 这是对比 / 榜单 / 评测 deck 最常见的翻车点——「只抽了品牌色就开做」就是漏了这道门（2026-06-06 五大 Coding Agent PPT 实测翻车，见 brand-asset-protocol 反例）。
 
-🛠️ **取图用现成脚本（别每次现写）**：`python3 scripts/fetch_images.py --query "英文关键词1" "英文关键词2" --out 项目/assets/img --count 2 --width 1600`——已内置清代理 + 合规 UA + 许可输出 + 失败兜底，下次只改关键词。
+🛠️ **取图用现成脚本（别每次现写）**：`legion script designer/fetch-images --query "英文关键词1" "英文关键词2" --out 项目/assets/img --count 2 --width 1600`——已内置清代理 + 合规 UA + 许可输出 + 失败兜底，下次只改关键词。
 
 - 取图后做**真图诚实性测试**：「去掉这张图，信息是否有损？」有损才用，别配 stock「灵感图」（那是 slop）
 - 取到的真图用 base64 内嵌或本地路径，传给三个 subagent 复用

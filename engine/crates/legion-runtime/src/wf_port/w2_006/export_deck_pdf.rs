@@ -180,6 +180,200 @@ pub fn wrote_summary_line(out_file: &str, byte_length: u64, page_count: usize) -
     format!("\n\u{2713} Wrote {out_file}  ({kb} KB, {page_count} pages, vector)")
 }
 
+/// Directory listing + write boundary used by [`run_production`], matching
+/// `fs.readdir(slidesDir)` and the final `fs.writeFile(outFile, merged)`.
+pub trait DeckPdfFs {
+    fn read_dir_names(&self, path: &std::path::Path) -> std::io::Result<Vec<String>>;
+    fn write(&self, path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()>;
+}
+
+/// Per-slide print boundary: navigate a headless browser tab to the slide's
+/// `file://` URL and return that single page's rendered PDF bytes, matching
+/// Playwright's `page.goto(url)` + `page.pdf(opts)` per slide.
+pub trait SlidePrinter {
+    fn print_slide(&mut self, file_url: &str, opts: &PagePdfOptions) -> Result<Vec<u8>, String>;
+}
+
+#[derive(Debug)]
+pub enum RunError {
+    Args(ArgError),
+    Io(std::path::PathBuf, String),
+    NoSlides(String),
+    Print(String, String),
+    Merge(String),
+}
+
+impl std::fmt::Display for RunError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Args(e) => write!(f, "{e}"),
+            Self::Io(p, e) => write!(f, "{}: {e}", p.display()),
+            Self::NoSlides(dir) => write!(f, "{}", no_slides_error(dir)),
+            Self::Print(file, e) => write!(f, "failed to render {file}: {e}"),
+            Self::Merge(e) => write!(f, "failed to merge slide PDFs: {e}"),
+        }
+    }
+}
+
+pub struct RunOutcome {
+    pub log_lines: Vec<String>,
+    pub summary_line: String,
+}
+
+/// Port of `main()`'s full body: discover/sort slides, render each to a
+/// single-page PDF via `printer`, merge the pages page-per-slide into one
+/// vector PDF, and write it via `fs`. Deterministic decision logic (arg
+/// parsing, slide selection, options, message formats) is delegated to the
+/// pure functions above; only the browser render and the byte-level merge
+/// happen here.
+pub fn run_production(
+    fs: &dyn DeckPdfFs,
+    printer: &mut dyn SlidePrinter,
+    args: &DeckPdfArgs,
+) -> Result<RunOutcome, RunError> {
+    let slides_dir = args.slides.clone().ok_or(RunError::Args(ArgError::MissingSlidesOrOut))?;
+    let out = args.out.clone().ok_or(RunError::Args(ArgError::MissingSlidesOrOut))?;
+    let slides_path = std::path::Path::new(&slides_dir);
+
+    let entries = fs
+        .read_dir_names(slides_path)
+        .map_err(|e| RunError::Io(slides_path.to_path_buf(), e.to_string()))?;
+    let files = select_and_sort_slides(&entries);
+    if files.is_empty() {
+        return Err(RunError::NoSlides(slides_dir.clone()));
+    }
+
+    let mut log_lines = vec![found_slides_line(files.len(), &slides_dir)];
+    let opts = page_pdf_options(args.width, args.height);
+
+    let mut page_pdfs: Vec<Vec<u8>> = Vec::with_capacity(files.len());
+    for (idx, file) in files.iter().enumerate() {
+        let url = slide_file_url(&slides_dir, file);
+        let bytes = printer
+            .print_slide(&url, &opts)
+            .map_err(|e| RunError::Print(file.clone(), e))?;
+        page_pdfs.push(bytes);
+        log_lines.push(progress_line(idx + 1, files.len(), file));
+    }
+
+    let merged = merge_page_pdfs(&page_pdfs).map_err(RunError::Merge)?;
+    let out_path = std::path::Path::new(&out);
+    fs.write(out_path, &merged)
+        .map_err(|e| RunError::Io(out_path.to_path_buf(), e.to_string()))?;
+
+    Ok(RunOutcome {
+        summary_line: wrote_summary_line(&out, merged.len() as u64, files.len()),
+        log_lines,
+    })
+}
+
+/// Merges N single-page PDFs (as produced by Chrome's `Page.printToPDF` for
+/// each slide) into one multi-page vector PDF, page order preserved,
+/// matching `pdf-lib`'s `PDFDocument.copyPages` + `addPage` loop the `.mjs`
+/// used. Backed by `lopdf`: parse each page PDF, copy its page object (and
+/// the objects it transitively references) into a fresh accumulator
+/// document, and renumber.
+pub fn merge_page_pdfs(pages: &[Vec<u8>]) -> Result<Vec<u8>, String> {
+    if pages.is_empty() {
+        return Err("no pages to merge".to_string());
+    }
+    let mut documents: Vec<lopdf::Document> = Vec::with_capacity(pages.len());
+    for (i, bytes) in pages.iter().enumerate() {
+        let doc = lopdf::Document::load_mem(bytes)
+            .map_err(|e| format!("failed to parse page {} PDF: {e}", i + 1))?;
+        documents.push(doc);
+    }
+
+    // lopdf's documented merge recipe: renumber each document's object IDs
+    // into a disjoint range, then splice their objects and page trees
+    // together into one accumulator document.
+    let mut max_id: u32 = 1;
+    let mut documents_pages = lopdf::Dictionary::new();
+    let mut documents_objects = std::collections::BTreeMap::new();
+    for mut doc in documents {
+        doc.renumber_objects_with(max_id);
+        max_id = doc.max_id + 1;
+        documents_pages.extend(
+            doc.get_pages()
+                .into_iter()
+                .map(|(_, object_id)| (object_id.0.to_string().into_bytes(), lopdf::Object::Reference(object_id))),
+        );
+        documents_objects.extend(doc.objects.clone());
+    }
+
+    let mut merged = lopdf::Document::with_version("1.5");
+    merged.objects = documents_objects.into_iter().collect();
+
+    let pages_id = merged.new_object_id();
+    let mut kids = Vec::new();
+    for (_, object) in documents_pages.iter() {
+        if let lopdf::Object::Reference(id) = object {
+            kids.push(lopdf::Object::Reference(*id));
+        } else if let Ok(id) = merged.add_object(object.clone()) {
+            kids.push(lopdf::Object::Reference(id));
+        }
+    }
+    let page_count = kids.len() as i64;
+    let pages_dict = lopdf::dictionary! {
+        "Type" => "Pages",
+        "Kids" => kids.clone(),
+        "Count" => page_count,
+    };
+    merged.objects.insert(pages_id, lopdf::Object::Dictionary(pages_dict));
+
+    for kid in &kids {
+        if let lopdf::Object::Reference(id) = kid {
+            if let Ok(lopdf::Object::Dictionary(dict)) = merged.get_object_mut(*id) {
+                dict.set("Parent", lopdf::Object::Reference(pages_id));
+            }
+        }
+    }
+
+    let catalog_id = merged.add_object(lopdf::dictionary! {
+        "Type" => "Catalog",
+        "Pages" => pages_id,
+    });
+    merged.trailer.set("Root", catalog_id);
+    merged.max_id = merged.objects.keys().map(|id| id.0).max().unwrap_or(1);
+    merged.renumber_objects();
+    merged.compress();
+
+    let mut out = Vec::new();
+    merged
+        .save_to(&mut out)
+        .map_err(|e| format!("failed to write merged PDF: {e}"))?;
+    Ok(out)
+}
+
+/// Production `headless_chrome`-backed [`SlidePrinter`]: one browser, one
+/// tab reused per slide (`navigate_to` + `print_to_pdf` per call), mirroring
+/// the `.mjs`'s single shared Playwright page across the slide loop.
+pub struct ChromeSlidePrinter {
+    tab: std::sync::Arc<headless_chrome::Tab>,
+    _browser: headless_chrome::Browser,
+}
+
+impl ChromeSlidePrinter {
+    pub fn launch(width: u32, height: u32) -> Result<Self, String> {
+        let launch_options = headless_chrome::LaunchOptions::default_builder()
+            .headless(true)
+            .window_size(Some((width, height)))
+            .build()
+            .map_err(|e| e.to_string())?;
+        let browser = headless_chrome::Browser::new(launch_options).map_err(|e| e.to_string())?;
+        let tab = browser.new_tab().map_err(|e| e.to_string())?;
+        Ok(Self { tab, _browser: browser })
+    }
+}
+
+impl SlidePrinter for ChromeSlidePrinter {
+    fn print_slide(&mut self, file_url: &str, _opts: &PagePdfOptions) -> Result<Vec<u8>, String> {
+        self.tab.navigate_to(file_url).map_err(|e| e.to_string())?;
+        self.tab.wait_until_navigated().map_err(|e| e.to_string())?;
+        self.tab.print_to_pdf(None).map_err(|e| e.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

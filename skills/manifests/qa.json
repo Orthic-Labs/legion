@@ -78,7 +78,7 @@
     {
       "path": "references/manual.md",
       "uri": "legion-skill://qa/references/manual.md",
-      "digest": "sha256:a4bde5a37c04694b1f564c3577a9710b92a8db4273572171ccc0776dce732018"
+      "digest": "sha256:72f5318d637c2ba345d141c04d3de5802e7b2b06fb14b6fb4f33990de5b5db4c"
     },
     {
       "path": "scripts/qa-functional.mjs",
