@@ -289,41 +289,41 @@ fn push_batch_in_chunks_and_wait_aggregates_applied_and_failed() {
     let batch_clone = batch.clone();
     let dispatch = thread::spawn(move || controller_for_dispatch.push_batch_in_chunks_and_wait(&batch_clone, Some("/index.html"), None));
 
-    // Resolve chunk 1 as done for entry-1, chunk 2 as done for entry-2. Each
-    // dispatched event carries exactly one entry (chunk size forced to 1
-    // above), so matching by entry id in the enqueued event's batch is
-    // unambiguous.
+    // Resolve every dispatched chunk as done for exactly the entries it
+    // carries, however the controller chose to split the batch. A deadline
+    // keeps a wiring regression from hanging the suite.
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
     let mut already_resolved: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for expected_entry in ["entry-1", "entry-2"] {
-        let event_id = loop {
-            let candidate = {
-                let recorded_guard = recorded.lock().unwrap();
-                recorded_guard
-                    .enqueued
-                    .iter()
-                    .find(|e| {
-                        let id = e.get("id").and_then(Value::as_str).unwrap_or("").to_string();
-                        !already_resolved.contains(&id)
-                            && e.get("batch")
-                                .and_then(|b| b.get("entries"))
-                                .and_then(Value::as_array)
-                                .map(|entries| {
-                                    entries.iter().any(|en| en.get("id").and_then(Value::as_str) == Some(expected_entry))
-                                })
-                                .unwrap_or(false)
-                    })
-                    .and_then(|e| e.get("id").and_then(Value::as_str).map(str::to_string))
-            };
-            if let Some(id) = candidate {
-                break id;
-            }
-            thread::sleep(Duration::from_millis(5));
+    while !dispatch.is_finished() {
+        assert!(std::time::Instant::now() < deadline, "controller never finished dispatching chunks");
+        let pending: Vec<(String, Vec<Value>)> = {
+            let recorded_guard = recorded.lock().unwrap();
+            recorded_guard
+                .enqueued
+                .iter()
+                .filter_map(|e| {
+                    let id = e.get("id").and_then(Value::as_str)?.to_string();
+                    if already_resolved.contains(&id) {
+                        return None;
+                    }
+                    let entry_ids = e
+                        .get("batch")
+                        .and_then(|b| b.get("entries"))
+                        .and_then(Value::as_array)
+                        .map(|entries| entries.iter().filter_map(|en| en.get("id").cloned()).collect())
+                        .unwrap_or_default();
+                    Some((id, entry_ids))
+                })
+                .collect()
         };
-        already_resolved.insert(event_id.clone());
-        controller.resolve_deferred(
-            &event_id,
-            json!({ "status": "done", "appliedEntryIds": [expected_entry], "failed": [], "files": [], "notes": [] }),
-        );
+        for (event_id, entry_ids) in pending {
+            already_resolved.insert(event_id.clone());
+            controller.resolve_deferred(
+                &event_id,
+                json!({ "status": "done", "appliedEntryIds": entry_ids, "failed": [], "files": [], "notes": [] }),
+            );
+        }
+        thread::sleep(Duration::from_millis(5));
     }
 
     let result = dispatch.join().unwrap();

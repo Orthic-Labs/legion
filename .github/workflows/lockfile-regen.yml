@@ -35,6 +35,7 @@ jobs:
             ${{ runner.temp }}/check.log
             engine/Cargo.lock
   rust-test:
+    timeout-minutes: 40
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -60,6 +61,7 @@ jobs:
           name: check-windows-log
           path: ${{ runner.temp }}/check-windows.log
   rust-test-windows:
+    timeout-minutes: 40
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
