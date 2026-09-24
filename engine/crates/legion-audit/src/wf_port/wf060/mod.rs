@@ -6,6 +6,10 @@
 //! `analyze()` is ported; `variantStrategies` coverage-report plumbing is
 //! out of scope).
 //!
+//! `injection.rs` additionally ports the full `variantStrategies`
+//! (`rootCause`/`enumerate`) plumbing for `injection.mjs`, not just
+//! `analyze()` — see its module doc.
+//!
 //! Integration note (owned by the integrator, not this module): the parent
 //! crate needs `pub mod wf_port;` and `wf_port` needs `pub mod wf060;`
 //! wired in for these submodules to be reachable outside this directory.

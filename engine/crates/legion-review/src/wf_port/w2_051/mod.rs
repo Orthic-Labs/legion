@@ -5,17 +5,21 @@
 //! I/O, disposition/round logic, and CLI arg parsing) — the file had no
 //! network or YAML-config dependency and ports cleanly end to end.
 //!
-//! `engine_logic`, `dual_review_logic`, `health_check_logic`, and
-//! `jury_cli` port the deterministic, network-free logic out of
-//! `engine.py`, `dual_review.py`, `health_check.py`, and `jury.py`
-//! respectively. Those four Python files are CLI/orchestration entry
-//! points built around live HTTP calls to LLM providers, a YAML
-//! `models.yaml` config, an on-disk verdict cache, and (for
-//! `dual_review.py`) an agent-room driver — none of which this crate or
-//! chunk owns a Rust counterpart for. See each module's doc comment and
-//! `docs/pending` (or the chunk report) for the exact gap.
+//! `engine_logic`, `dual_review_logic`, and `health_check_logic` port the
+//! deterministic, network-free logic out of `engine.py`, `dual_review.py`,
+//! and `health_check.py` respectively. `engine_run` (r59), `dual_review_run`
+//! (r60), `health_check_run`, and `jury_cli`'s `run()` (r60) close the
+//! remaining orchestration gap for each: the live-HTTP-calling,
+//! `models.yaml`/cache-wired half, with the HTTP boundary itself behind
+//! the `JuryProvider`/`VisionPrep` traits (`engine_run.rs`), exercised in
+//! tests with fakes, never real network or browser I/O. `dual_review.py`'s
+//! Agent Room lane additionally drives `w2_050::room_driver::run_room_advisory`
+//! (already ported) through the same `RunsEvidence`/`CommandRunner` trait
+//! seams. See each module's doc comment for exact scope and any residual
+//! gap.
 
 pub mod dual_review_logic;
+pub mod dual_review_run;
 pub mod engine_logic;
 pub mod engine_run;
 pub mod health_check_logic;

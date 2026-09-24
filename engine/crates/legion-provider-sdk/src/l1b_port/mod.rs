@@ -1,13 +1,21 @@
-//! L1b literal port of `src/lib/coder-api-worker/api-worker.py`.
+//! L1b literal port of `src/lib/coder-api-worker/api-worker.py`, reached
+//! unmodified via the `skills/coder/scripts/api-worker.py` delegator.
 //!
-//! Ports the pure preflight/shaping logic only: model catalog + fallback
+//! `worker` ports the pure preflight/shaping logic: model catalog + fallback
 //! chains, prompt/model validation with secret-marker preflight, argv
 //! construction, redacted receipt argv, `<think>`-stripping, and per-item
-//! model selection. Subprocess execution (`run_pi`/`run_batch`) and the
-//! `argparse` CLI are process-transport, not logic, and are not ported.
+//! model selection. `execution` ports the process-transport layer on top of
+//! it: `run_pi`/`_terminate`, `run_item`, `run_batch`, and the `argparse`
+//! `main()`, behind a `ProcessRunner` trait so tests never spawn a real `pi`
+//! CLI.
 
+pub mod execution;
 pub mod worker;
 
+pub use execution::{
+    run, run_with_io, ManifestItem, ProcessOutcome, ProcessRunner, RealProcessRunner, RunResult,
+    run_batch, run_item, run_pi, utc_now_iso,
+};
 pub use worker::{
     build_argv, clip, fallback_chain, free_models, model_catalog, models_for_item,
     prepare_prompt, redacted_argv, strip_think, validate_model, validate_prompt, ModelSelector,

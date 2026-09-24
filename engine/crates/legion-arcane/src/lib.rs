@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+pub mod advisory_certification;
 pub mod advisory_judgment;
 pub mod budget;
 pub mod session_binding;

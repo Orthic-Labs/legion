@@ -6,7 +6,7 @@
 
 use super::common::{digest, line_of, window_around, Context, Fact, Observation};
 use regex::Regex;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::sync::OnceLock;
 
 pub const ID: &str = "security.ics-ot";
@@ -206,4 +206,47 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
         }
     }
     observations
+}
+
+/// Port of `buildVariantStrategy(rule).rootCause(candidate)` for every
+/// `ics-ot.*` rule (`variantStrategies` in `ics-ot.mjs`): identical shape
+/// for every rule, parameterized only by `rule.id` and the candidate's
+/// `detectorMetadata.file`.
+pub fn variant_root_cause(rule_id: &str, candidate_file: Option<&str>) -> Option<Value> {
+    if !RULES.iter().any(|r| r.id == rule_id) {
+        return None;
+    }
+    Some(json!({
+        "class": format!("{rule_id}-observation"),
+        "semanticFeatures": ["ics-ot", rule_id, candidate_file.unwrap_or(rule_id)],
+    }))
+}
+
+/// Port of `buildVariantStrategy(rule).enumerate(context)` for every
+/// `ics-ot.*` rule: the JS strategy never re-scans for additional matches
+/// (`matches: []` always), only reporting a complete repository-wide
+/// denominator.
+pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<Value> {
+    if !RULES.iter().any(|r| r.id == rule_id) {
+        return None;
+    }
+    Some(json!({
+        "denominator": {
+            "kind": "source-files",
+            "digest": context.denominator_digest,
+            "expected": context.files.len(),
+            "examined": context.files.len(),
+            "unexamined": [],
+        },
+        "strategies": [{
+            "id": format!("{rule_id}-search"),
+            "kind": "lexical-fallback",
+            "description": format!("Enumerate every {rule_id} observation across the denominator."),
+            "queryDigest": digest(rule_id),
+            "complete": true,
+            "coverageGaps": [],
+        }],
+        "matches": [],
+        "coverageGaps": [],
+    }))
 }

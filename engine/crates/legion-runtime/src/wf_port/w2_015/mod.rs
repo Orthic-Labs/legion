@@ -465,7 +465,7 @@ pub struct Finding {
 }
 
 /// A single persisted ignore-value entry (`ignoreValues` config array).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IgnoreValueEntry {
     pub rule: String,
     pub value: String,

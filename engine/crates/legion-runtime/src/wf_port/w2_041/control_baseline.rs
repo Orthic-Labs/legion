@@ -479,6 +479,7 @@ mod tests {
 
     mod live_wiring {
         use super::super::live::control_baseline_stage_live;
+        use serde_json::{json, Value};
 
         fn control(id: &str) -> Value {
             json!({"id": id, "selector": {"op": "always"}, "providers": []})

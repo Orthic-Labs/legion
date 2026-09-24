@@ -39,6 +39,14 @@ use super::manual_edits_buffer::{
     count_by_page, read_buffer, remove_entries, stage_entry, truncate_buffer,
 };
 
+/// Views a JSON `Value` as an array slice, treating anything that is not a
+/// JSON array (including `Value::Null`, the common "field absent" case
+/// here) as an empty array.
+fn as_value_slice(value: &Value) -> &[Value] {
+    static EMPTY: Vec<Value> = Vec::new();
+    value.as_array().map(|a| a.as_slice()).unwrap_or(&EMPTY)
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct PendingManualEditBatchSummary {
     pub pending_entry_count: usize,
@@ -365,7 +373,7 @@ fn handle_commit(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd: 
             "skipped": t.get("skipped").cloned().unwrap_or(Value::Null),
             "rolledBackFiles": t.get("rolledBackFiles").cloned().unwrap_or(Value::Null),
             "rollbackFailures": summarize_manual_diagnostics(
-                t.get("rollbackFailures").unwrap_or(&Value::Null),
+                as_value_slice(t.get("rollbackFailures").unwrap_or(&Value::Null)),
                 cwd,
             ),
         })
@@ -495,7 +503,7 @@ fn handle_commit(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd: 
                 "provider": routed_provider,
                 "transactionId": transaction.as_ref().or(existing_transaction.as_ref()).and_then(|t| t.get("id").cloned()),
                 "repair": result.get("repair").cloned().unwrap_or(Value::Null),
-                "failed": summarize_manual_apply_failures(result.get("failed").unwrap_or(&Value::Null), cwd),
+                "failed": summarize_manual_apply_failures(as_value_slice(result.get("failed").unwrap_or(&Value::Null)), cwd),
                 "files": summarize_files(&result, cwd),
                 "remainingCount": remaining,
                 "totalCount": after.total_count,
@@ -511,11 +519,11 @@ fn handle_commit(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd: 
                 "repair": result.get("repair").cloned().unwrap_or(Value::Null),
                 "appliedCount": result.get("applied").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0),
                 "failedCount": result.get("failed").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0),
-                "failed": summarize_manual_apply_failures(result.get("failed").unwrap_or(&Value::Null), cwd),
+                "failed": summarize_manual_apply_failures(as_value_slice(result.get("failed").unwrap_or(&Value::Null)), cwd),
                 "files": summarize_files(&result, cwd),
-                "warnings": summarize_manual_diagnostics(result.get("warnings").unwrap_or(&Value::Null), cwd),
+                "warnings": summarize_manual_diagnostics(as_value_slice(result.get("warnings").unwrap_or(&Value::Null)), cwd),
                 "rolledBackFiles": summarize_named_files(&result, "rolledBackFiles", cwd),
-                "rollbackFailures": summarize_manual_diagnostics(result.get("rollbackFailures").unwrap_or(&Value::Null), cwd),
+                "rollbackFailures": summarize_manual_diagnostics(as_value_slice(result.get("rollbackFailures").unwrap_or(&Value::Null)), cwd),
                 "unreportedFiles": result.get("unreportedFiles").and_then(Value::as_array).map(|_| summarize_named_files(&result, "unreportedFiles", cwd)),
                 "noteCount": result.get("notes").and_then(Value::as_array).map(|a| a.len()).unwrap_or(0),
                 "cleared": result.get("cleared").cloned().unwrap_or(json!(0)),
@@ -652,7 +660,7 @@ fn handle_discard(deps: &dyn ManualEditRoutesDeps, req: &ManualEditRequest, cwd:
         json!({
             "id": t.get("id").cloned().unwrap_or(Value::Null),
             "rolledBackFiles": files,
-            "rollbackFailures": summarize_manual_diagnostics(t.get("rollbackFailures").unwrap_or(&Value::Null), cwd),
+            "rollbackFailures": summarize_manual_diagnostics(as_value_slice(t.get("rollbackFailures").unwrap_or(&Value::Null)), cwd),
             "skipped": t.get("skipped").cloned().unwrap_or(Value::Null),
         })
     });

@@ -1,16 +1,237 @@
-//! Partial port of `tools/audit/audit-complete.mjs`.
+//! Port of `tools/audit/audit-complete.mjs`.
 //!
-//! Scope note: `runCompleteAudit` orchestrates Blueprint discovery,
-//! `collect-facts.mjs` as a child process, and five provider-suite modules
-//! this chunk (wf064) does not own — that process/IO orchestration is not
-//! ported. The pure reconciliation logic (`reconcileCompleteRun` and its
-//! `familyCoverage`/`denominatorDrift` helpers) and the deterministic parts
-//! of `applyOfflinePolicy` (the network-dependent/project-execution check
-//! sets and the resulting skip-set union) are ported faithfully below.
+//! Scope note: `runCompleteAudit`'s deep provider-suite calls
+//! (`runNativeFamilies`, `runFrameworkSuite`, `runDataSuite`,
+//! `runInfrastructureSuite`, `generateSecurityCandidates`,
+//! `auditVisualArtifacts`, Blueprint projection via
+//! `readBlueprintPacket`/`enrichProjectionWithEcosystems`, and provider
+//! registry loading) are each a separate, un-ported legacy `.mjs` module
+//! outside this packet's two target files — genuinely impossible to port
+//! faithfully here since no Rust equivalents of those provider-suite
+//! modules exist in this crate tree. Every piece of `audit-complete.mjs`
+//! that is *this file's own logic* — CLI argv parsing, the direct-entrypoint
+//! check, the offline policy, the small pure helpers
+//! (`providerPlan`/`selected`/`frozenFiles`/`securityProviderPlans`), the
+//! `collect-facts.mjs` subprocess invocation shape, and the reconciliation
+//! logic (`reconcileCompleteRun` and its `familyCoverage`/
+//! `denominatorDrift` helpers) — is ported faithfully below, with
+//! process/filesystem I/O pushed behind traits so the logic is testable
+//! with fakes (per the port brief's subprocess-orchestration rule).
 
 use crate::wf_port::wf064::plan::reconcile_plan_with_facts;
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
+
+/// Mirrors `providerPlan(plan, id)`.
+pub fn provider_plan_by_id<'a>(plan: &'a Value, id: &str) -> Option<&'a Value> {
+    provider_plan(plan, id)
+}
+
+/// Mirrors `selected(plan, id)`.
+pub fn selected(plan: &Value, id: &str) -> bool {
+    provider_plan(plan, id).is_some()
+}
+
+/// Mirrors `frozenFiles(plan, id, fallback)`.
+pub fn frozen_files(plan: &Value, id: &str, fallback: &[String]) -> Vec<String> {
+    match provider_plan(plan, id) {
+        None => Vec::new(),
+        Some(provider) => provider
+            .pointer("/denominator/paths")
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_else(|| fallback.to_vec()),
+    }
+}
+
+/// Mirrors `securityProviderPlans(plan)`: every planned provider whose
+/// runner is the `security-suite.mjs` runtime script.
+pub fn security_provider_plans(plan: &Value) -> Vec<&Value> {
+    plan.get("providers")
+        .and_then(|v| v.as_array())
+        .map(|providers| {
+            providers
+                .iter()
+                .filter(|p| {
+                    p.pointer("/runner/kind").and_then(|v| v.as_str()) == Some("runtime-script")
+                        && p.pointer("/runner/script").and_then(|v| v.as_str())
+                            == Some("src/providers/security-suite.mjs")
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Mirrors the `arg(args, name)` CLI helper: the value following the first
+/// occurrence of `name`, or `None` if `name` is absent or is the last
+/// argument.
+pub fn cli_arg<'a>(args: &'a [String], name: &str) -> Option<&'a str> {
+    args.iter()
+        .position(|a| a == name)
+        .and_then(|i| args.get(i + 1))
+        .map(String::as_str)
+}
+
+/// Mirrors the `values(args, name)` CLI helper: a comma-separated `arg`
+/// value split into trimmed, non-empty parts.
+pub fn cli_values(args: &[String], name: &str) -> Vec<String> {
+    match cli_arg(args, name) {
+        None => Vec::new(),
+        Some(raw) => raw
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect(),
+    }
+}
+
+/// Mirrors the `first(args)` CLI helper: the first bare (non-`--flag`)
+/// argument, skipping the value that follows any recognized valued flag.
+/// Falls back to `cwd_fallback` (JS falls back to `process.cwd()`) when no
+/// bare argument is present.
+pub fn cli_first<'a>(args: &'a [String], cwd_fallback: &'a str) -> &'a str {
+    const VALUED: &[&str] = &[
+        "--out",
+        "--only",
+        "--skip",
+        "--type",
+        "--base",
+        "--base-commit",
+        "--dir",
+        "--blueprint-out",
+        "--url",
+        "--surfaces",
+        "--visual-spec",
+        "--visual-baselines",
+        "--width",
+        "--height",
+    ];
+    let mut index = 0usize;
+    while index < args.len() {
+        let a = args[index].as_str();
+        if a.starts_with("--") {
+            if VALUED.contains(&a) {
+                index += 1;
+            }
+            index += 1;
+            continue;
+        }
+        return a;
+    }
+    cwd_fallback
+}
+
+/// Mirrors `isMainEntrypoint`'s normalization step
+/// (`normalizedExecutableHref`): on Windows, compare case-insensitively;
+/// elsewhere, compare as-is. The actual `realpathSync`/`pathToFileURL`
+/// resolution is filesystem/URL I/O owned by the caller — this function
+/// takes two already-resolved, canonical href/path strings and applies only
+/// the deterministic platform-normalization + comparison JS performs last.
+pub fn is_main_entrypoint_href(resolved_argv_href: &str, resolved_module_href: &str, platform_is_windows: bool) -> bool {
+    if platform_is_windows {
+        resolved_argv_href.to_lowercase() == resolved_module_href.to_lowercase()
+    } else {
+        resolved_argv_href == resolved_module_href
+    }
+}
+
+/// Mirrors the argv passed to `spawnSync(process.execPath, args, ...)` when
+/// invoking `collect-facts.mjs`: `[COLLECT_FACTS, root, '--out', outDir,
+/// '--only', expectedChecks.join(',')]` plus the optional `--type`/`--base`/
+/// `--base-commit`/`--dir` scope flags. Pure argv construction, kept
+/// separate from the actual `Command` spawn so it is trivially testable.
+#[derive(Debug, Clone, Default)]
+pub struct CollectFactsScope {
+    pub scope_type: Option<String>,
+    pub base: Option<String>,
+    pub base_commit: Option<String>,
+    pub dir: Option<String>,
+}
+
+pub fn collect_facts_argv(
+    collect_facts_script: &str,
+    root: &str,
+    out_dir: &str,
+    expected_checks: &[String],
+    scope: &CollectFactsScope,
+) -> Vec<String> {
+    let mut args = vec![
+        collect_facts_script.to_string(),
+        root.to_string(),
+        "--out".to_string(),
+        out_dir.to_string(),
+        "--only".to_string(),
+        expected_checks.join(","),
+    ];
+    if let Some(scope_type) = &scope.scope_type {
+        if scope_type != "all" {
+            args.push("--type".to_string());
+            args.push(scope_type.clone());
+        }
+    }
+    if let Some(base) = &scope.base {
+        args.push("--base".to_string());
+        args.push(base.clone());
+    }
+    if let Some(base_commit) = &scope.base_commit {
+        args.push("--base-commit".to_string());
+        args.push(base_commit.clone());
+    }
+    if let Some(dir) = &scope.dir {
+        args.push("--dir".to_string());
+        args.push(dir.clone());
+    }
+    args
+}
+
+/// Behind-a-trait stand-in for `spawnSync`, so orchestration logic that
+/// shells out (the `collect-facts.mjs` invocation, and analogous
+/// `audit-runtime.mjs` calls made elsewhere in this file) can be exercised
+/// with a fake runner instead of a real process, per the port brief's
+/// subprocess-orchestration rule.
+pub trait CommandRunner {
+    /// Runs `program` with `args` in `cwd`; returns the process exit code
+    /// (mirrors the subset of `spawnSync`'s result this file inspects:
+    /// `run.status`).
+    fn run(&mut self, program: &str, args: &[String], cwd: &str) -> i32;
+}
+
+/// Mirrors `applyOfflinePolicy`'s environment-variable side effects
+/// (`AUDIT_OFFLINE`, `npm_config_offline`, `CARGO_NET_OFFLINE`,
+/// `PIP_NO_INDEX`, `GOPROXY`, `GOSUMDB`, `BUNDLE_FROZEN`, and the
+/// `MAVEN_ARGS`/`GRADLE_OPTS` append-if-present pattern) behind a trait so
+/// the pure policy computation in [`offline_policy_skip_set`] can be
+/// exercised without mutating real process environment.
+pub trait EnvSetter {
+    fn get(&self, key: &str) -> Option<String>;
+    fn set(&mut self, key: &str, value: &str);
+}
+
+/// Mirrors the environment-mutation half of `applyOfflinePolicy`: sets the
+/// fixed offline flags, and appends `-o` / `-Dorg.gradle.offline=true` to
+/// any existing `MAVEN_ARGS`/`GRADLE_OPTS` (JS: `[existing, flag].filter(Boolean).join(' ')`).
+pub fn apply_offline_env(env: &mut dyn EnvSetter) {
+    env.set("AUDIT_OFFLINE", "1");
+    env.set("npm_config_offline", "true");
+    env.set("CARGO_NET_OFFLINE", "true");
+    env.set("PIP_NO_INDEX", "1");
+    env.set("GOPROXY", "off");
+    env.set("GOSUMDB", "off");
+    env.set("BUNDLE_FROZEN", "true");
+    let maven = [env.get("MAVEN_ARGS"), Some("-o".to_string())]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" ");
+    env.set("MAVEN_ARGS", &maven);
+    let gradle = [env.get("GRADLE_OPTS"), Some("-Dorg.gradle.offline=true".to_string())]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(" ");
+    env.set("GRADLE_OPTS", &gradle);
+}
 
 /// `NETWORK_DEPENDENT_CHECKS`.
 pub fn network_dependent_checks() -> BTreeSet<&'static str> {
@@ -374,6 +595,115 @@ mod tests {
         let binding_verification = json!({"valid": true});
         let out = reconcile_complete_run(&plan, &facts, &provider_results, &security_result, &projection, &binding_verification);
         assert_eq!(out["incomplete"], json!(true));
+    }
+
+    #[test]
+    fn cli_first_skips_valued_flag_arguments() {
+        let args = ["--out".to_string(), "outdir".to_string(), "/repo".to_string()];
+        assert_eq!(cli_first(&args, "/cwd"), "/repo");
+    }
+
+    #[test]
+    fn cli_first_falls_back_to_cwd_when_no_bare_arg() {
+        let args = ["--quiet".to_string()];
+        assert_eq!(cli_first(&args, "/cwd"), "/cwd");
+    }
+
+    #[test]
+    fn cli_arg_and_values_parse_comma_lists() {
+        let args = ["--skip".to_string(), " a, b ,,c".to_string()];
+        assert_eq!(cli_arg(&args, "--skip"), Some(" a, b ,,c"));
+        assert_eq!(cli_values(&args, "--skip"), vec!["a", "b", "c"]);
+        assert_eq!(cli_values(&args, "--missing"), Vec::<String>::new());
+    }
+
+    #[test]
+    fn is_main_entrypoint_href_is_case_sensitive_off_windows() {
+        assert!(!is_main_entrypoint_href("file:///Repo/x.mjs", "file:///repo/x.mjs", false));
+        assert!(is_main_entrypoint_href("file:///repo/x.mjs", "file:///repo/x.mjs", false));
+    }
+
+    #[test]
+    fn is_main_entrypoint_href_is_case_insensitive_on_windows() {
+        assert!(is_main_entrypoint_href("file:///Repo/x.mjs", "file:///repo/x.mjs", true));
+    }
+
+    #[test]
+    fn collect_facts_argv_includes_diff_scope_flags() {
+        let scope = CollectFactsScope {
+            scope_type: Some("changed".to_string()),
+            base: Some("main".to_string()),
+            base_commit: None,
+            dir: None,
+        };
+        let argv = collect_facts_argv("collect-facts.mjs", "/repo", "/out", &["lint".to_string(), "build".to_string()], &scope);
+        assert_eq!(
+            argv,
+            vec!["collect-facts.mjs", "/repo", "--out", "/out", "--only", "lint,build", "--type", "changed", "--base", "main"]
+        );
+    }
+
+    #[test]
+    fn collect_facts_argv_omits_type_flag_when_all() {
+        let scope = CollectFactsScope { scope_type: Some("all".to_string()), ..Default::default() };
+        let argv = collect_facts_argv("collect-facts.mjs", "/repo", "/out", &[], &scope);
+        assert!(!argv.contains(&"--type".to_string()));
+    }
+
+    #[test]
+    fn security_provider_plans_filters_by_runner() {
+        let plan = json!({
+            "providers": [
+                {"id": "security.injection", "runner": {"kind": "runtime-script", "script": "src/providers/security-suite.mjs"}},
+                {"id": "framework.major-suite", "runner": {"kind": "runtime-script", "script": "src/providers/framework-suite.mjs"}},
+            ]
+        });
+        let plans = security_provider_plans(&plan);
+        assert_eq!(plans.len(), 1);
+        assert_eq!(plans[0]["id"], json!("security.injection"));
+    }
+
+    #[test]
+    fn frozen_files_falls_back_when_no_denominator_paths() {
+        let plan = json!({"providers": [{"id": "data.internal-suite", "denominator": {}}]});
+        let fallback = vec!["a.rs".to_string()];
+        assert_eq!(frozen_files(&plan, "data.internal-suite", &fallback), fallback);
+        assert_eq!(frozen_files(&plan, "missing", &fallback), Vec::<String>::new());
+    }
+
+    struct FakeEnv {
+        vars: std::collections::HashMap<String, String>,
+    }
+    impl EnvSetter for FakeEnv {
+        fn get(&self, key: &str) -> Option<String> {
+            self.vars.get(key).cloned()
+        }
+        fn set(&mut self, key: &str, value: &str) {
+            self.vars.insert(key.to_string(), value.to_string());
+        }
+    }
+
+    #[test]
+    fn apply_offline_env_appends_to_existing_maven_and_gradle_opts() {
+        let mut env = FakeEnv {
+            vars: [
+                ("MAVEN_ARGS".to_string(), "-DskipTests".to_string()),
+                ("GRADLE_OPTS".to_string(), "-Xmx2g".to_string()),
+            ]
+            .into_iter()
+            .collect(),
+        };
+        apply_offline_env(&mut env);
+        assert_eq!(env.get("MAVEN_ARGS").as_deref(), Some("-DskipTests -o"));
+        assert_eq!(env.get("GRADLE_OPTS").as_deref(), Some("-Xmx2g -Dorg.gradle.offline=true"));
+        assert_eq!(env.get("AUDIT_OFFLINE").as_deref(), Some("1"));
+    }
+
+    #[test]
+    fn apply_offline_env_sets_flag_alone_when_unset() {
+        let mut env = FakeEnv { vars: std::collections::HashMap::new() };
+        apply_offline_env(&mut env);
+        assert_eq!(env.get("MAVEN_ARGS").as_deref(), Some("-o"));
     }
 
     #[test]

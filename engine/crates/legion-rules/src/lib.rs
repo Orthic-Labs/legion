@@ -6,6 +6,7 @@ pub mod evidence;
 pub mod lexical;
 pub mod schema;
 pub mod structural;
+pub mod wf_port;
 
 pub use compiler::{CompiledRules, RuleCompiler};
 pub use error::{Result, RuleError};

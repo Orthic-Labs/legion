@@ -7,11 +7,13 @@
 //! detection producing `UNADJUDICATED` candidate observations — is ported
 //! faithfully (same regex-shaped triggers, same claim text, same severity
 //! hints, same `detectorMetadata` fields, same suppression/downgrade logic).
-//! The `variantStrategies` (`rootCause`/`enumerate`) plumbing that the JS
-//! packs also export is coverage-report bookkeeping over the same matches
-//! `analyze()` already finds; it is not ported here to keep this chunk
-//! bounded (mirroring the precedent set by the sibling wf059 chunk's
-//! `common.rs`, which documents the same scope decision).
+//! The `variantStrategies` (`rootCause`/`enumerate`) coverage-report
+//! plumbing the JS packs also export is, for four of the five packs in this
+//! chunk, not ported here to keep this chunk bounded (mirroring the
+//! precedent set by the sibling wf059 chunk's `common.rs`). `injection.mjs`
+//! is the exception: its `variantStrategies` is ported in full in
+//! `injection.rs` (`root_cause`/`enumerate`), since that file is a named
+//! target of a later full-port packet.
 //!
 //! JS `context` (`context.model.entities`, `context.readFile`,
 //! `context.relationsTo`, `context.projection.auditFacts`, ...) is modeled

@@ -1,20 +1,41 @@
-//! Partial Rust port of
+//! Full Rust port of
 //! `src/lib/verification/arcane/s11-bindings/evidence-closure.mjs`.
 //!
 //! The JS module's `SUPPORTED` table (6 ids) each drives a real production
 //! verifier: `architecture-state.mjs`, `evidence-registry.mjs`,
-//! `provider-capability.mjs`, `seal-reachability.mjs`, `gate-validity.mjs`,
-//! and `canonical.mjs`'s `digestValue`. None of those production modules
-//! has a Rust port anywhere in `engine/` (checked with `git grep` for
-//! `architecture_state`, `AcceptanceEvidenceRegistry`,
-//! `verify_external_provider_capability`, `compile_seal_reachability`,
-//! `validate_gate`: no hits), and none is an owned wf074 file, so those 6
-//! cases are ported as `BlockedOnDependency` rather than reimplemented
-//! against fixtures that would silently drift from the real verifiers.
+//! `provider-capability.mjs`, `seal-reachability.mjs`, and
+//! `gate-validity.mjs`. Every one of those now has a faithful Rust port
+//! elsewhere in this crate (wf070's `state`/`canon`, wf072's
+//! `evidence_registry`/`gate_validity`, wf075's `seal_reachability`, which
+//! itself carries a faithful port of `provider-capability.mjs`'s
+//! `verifyExternalProviderCapability`), so the 6 `SUPPORTED` cases are
+//! wired to those real verifiers here rather than left blocked.
 //!
 //! The `UNSUPPORTED` table (12 ids) calls no dependency at all in the JS
-//! source — it is a fixed id → missing-capability-string map returned
-//! verbatim as PENDING — and is ported here in full.
+//! source — it is a fixed id -> missing-capability-string map returned
+//! verbatim as PENDING — and is ported here unchanged.
+
+use crate::wf_port::wf070::canon::{digest_value as architecture_digest_value, CanonVal};
+use crate::wf_port::wf070::state::{apply_architecture_event, create_architecture_state, validate_architecture_state};
+use crate::wf_port::wf072::evidence_registry::{
+    AcceptanceEntry, AcceptanceEvidenceRegistry, Artifact, FreshnessContext, Lifecycle,
+};
+use crate::wf_port::wf072::gate_validity::{
+    execute_validated_gate, validate_gate, ExecResult, ExecResultStatus, Fixture, GateContract,
+};
+use crate::wf_port::wf072::support::{ArcCode, Json as SupportJson};
+use crate::wf_port::wf075::seal_reachability::{
+    compile_seal_reachability, verify_external_provider_capability, ProviderCapability, RecoveryPath,
+    SealRequirement,
+};
+
+/// `NOW = new Date('2026-08-14T00:00:00.000Z')` in the JS source.
+const NOW_ISO: &str = "2026-08-14T00:00:00.000Z";
+/// Epoch millis for the same fixed instants the JS module's
+/// `AE-EVIDENCE-FRESHNESS-001` case hardcodes.
+const OBSERVED_AT_2026_08_13_MILLIS: i64 = 1_786_579_200_000;
+const NOW_2026_08_14_MILLIS: i64 = 1_786_665_600_000;
+const VALID_UNTIL_2026_08_15_MILLIS: i64 = 1_786_752_000_000;
 
 pub const SUPPORTED_IDS: &[&str] = &[
     "AE-EVIDENCE-ARTIFACTS-001",
@@ -85,10 +106,16 @@ pub fn evidence_closure_runtime_policy_ids() -> Vec<&'static str> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EvidenceClosureResult {
-    BlockedOnDependency {
+    /// Mirrors a `SUPPORTED[row.id]()` call that returned successfully:
+    /// `{ id, family: None, status: 'PASS', accepted: true,
+    /// integratedStateIdentity }`.
+    Accepted {
         id: &'static str,
-        dependency: &'static str,
+        integrated_state_identity: String,
     },
+    /// Mirrors the `catch` branch: `{ id, status: 'FAIL', reason:
+    /// "production binding failed: ${error.message}" }`.
+    Failed { id: &'static str, reason: String },
     Pending {
         id: &'static str,
         reason: String,
@@ -102,9 +129,12 @@ pub enum EvidenceClosureResult {
 
 pub fn execute_evidence_closure_runtime_case(id: &str) -> EvidenceClosureResult {
     if let Some(&sid) = SUPPORTED_IDS.iter().find(|&&i| i == id) {
-        return EvidenceClosureResult::BlockedOnDependency {
-            id: sid,
-            dependency: supported_dependency(sid),
+        return match run_supported_case(sid) {
+            Ok(integrated_state_identity) => EvidenceClosureResult::Accepted { id: sid, integrated_state_identity },
+            Err(reason) => EvidenceClosureResult::Failed {
+                id: sid,
+                reason: format!("production binding failed: {reason}"),
+            },
         };
     }
     if let Some(capability) = unsupported_capability(id) {
@@ -121,35 +151,268 @@ pub fn execute_evidence_closure_runtime_case(id: &str) -> EvidenceClosureResult 
     EvidenceClosureResult::NoBindingRegistered { id: id.to_string() }
 }
 
-fn supported_dependency(id: &str) -> &'static str {
-    match id {
-        "AE-EVIDENCE-ARTIFACTS-001" | "AE-EVIDENCE-ARTIFACTS-002" => {
-            "verifyExternalProviderCapability (provider-capability.mjs) + architecture-state.mjs have no Rust port"
-        }
-        "AE-EVIDENCE-FRESHNESS-001" => {
-            "AcceptanceEvidenceRegistry (evidence-registry.mjs) + architecture-state.mjs have no Rust port"
-        }
-        "AE-GATE-VALIDITY-001" | "AE-GATE-VALIDITY-002" => {
-            "validateGate + executeValidatedGate (gate-validity.mjs) + architecture-state.mjs have no Rust port"
-        }
-        "AE-SEAL-REACHABILITY-001" => {
-            "compileSealReachability (seal-reachability.mjs) + architecture-state.mjs have no Rust port"
-        }
-        _ => "unported production dependency",
+/// Mirrors `observedState(caseId, eventType, payload)`: builds a fresh
+/// architecture state, applies the one event the binding describes, and
+/// returns the resulting `state_fingerprint` — or the error message if the
+/// production observation is rejected. Mirrors `accepted()`'s
+/// `integratedStateIdentity` value.
+fn observed_state(case_id: &str, event_type: &str, payload: CanonVal) -> Result<String, String> {
+    let acceptance_ledger = CanonVal::obj()
+        .set("schema", CanonVal::Str("acceptance-ledger.v1".to_string()))
+        .set("ledger_version", CanonVal::Int(1))
+        .set("intent_epoch", CanonVal::Int(1))
+        .set(
+            "acceptance_fingerprint",
+            CanonVal::Str(architecture_digest_value(&CanonVal::Str(case_id.to_string()))),
+        )
+        .set("frozen_at", CanonVal::Str(NOW_ISO.to_string()))
+        .set("items", CanonVal::Arr(vec![]));
+
+    let state = create_architecture_state(
+        &format!("s11:{case_id}"),
+        acceptance_ledger,
+        "s11-production-binding",
+    )
+    .map_err(|e| e.0)?;
+
+    let observed = apply_architecture_event(&state, event_type, &payload).map_err(|e| e.0)?;
+    let (valid, _issues) = validate_architecture_state(&observed);
+    if !valid {
+        return Err("architecture-state rejected production observation".to_string());
     }
+    observed
+        .get("state_fingerprint")
+        .and_then(CanonVal::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| "architecture-state rejected production observation".to_string())
+}
+
+fn run_supported_case(id: &str) -> Result<String, String> {
+    match id {
+        "AE-EVIDENCE-ARTIFACTS-001" => case_evidence_artifacts_001(),
+        "AE-EVIDENCE-ARTIFACTS-002" => case_evidence_artifacts_002(),
+        "AE-EVIDENCE-FRESHNESS-001" => case_evidence_freshness_001(),
+        "AE-GATE-VALIDITY-001" => case_gate_validity_001(),
+        "AE-GATE-VALIDITY-002" => case_gate_validity_002(),
+        "AE-SEAL-REACHABILITY-001" => case_seal_reachability_001(),
+        other => unreachable!("run_supported_case called for unsupported id {other}"),
+    }
+}
+
+fn case_evidence_artifacts_001() -> Result<String, String> {
+    let capability = ProviderCapability {
+        provider_id: Some("dashboard".to_string()),
+        machine_readable: false,
+        ..Default::default()
+    };
+    let result = verify_external_provider_capability(Some(&capability), "dashboard");
+    if result.code != Some("ARC_UNSOUND_SEAL") {
+        return Err("dashboard-only provider was admitted as closure evidence".to_string());
+    }
+    let payload = CanonVal::obj()
+        .set("id", CanonVal::Str("dashboard".to_string()))
+        .set("admission", CanonVal::Str("INFORMATIONAL_ONLY".to_string()))
+        .set("verifierCode", CanonVal::Str(result.code.unwrap_or_default().to_string()));
+    observed_state("AE-EVIDENCE-ARTIFACTS-001", "ARTIFACT_ENVELOPE_RECORDED", payload)
+}
+
+fn case_evidence_artifacts_002() -> Result<String, String> {
+    let capability = ProviderCapability {
+        provider_id: Some("sensitive-trace".to_string()),
+        machine_readable: true,
+        gateable: true,
+        downloadable: true,
+        trusted_retrieval: true,
+        trajectory_bindable: true,
+        sensitivity: Some("sensitive".to_string()),
+        retention: None,
+        deletion_owner: None,
+    };
+    let result = verify_external_provider_capability(Some(&capability), "sensitive-trace");
+    // Mirrors `missingFields(capability, REQUIRED)` over the trailing
+    // `retention`/`deletionOwner` fields of the JS `REQUIRED` list, in that
+    // order — both are null here, so both are "missing".
+    let mut missing: Vec<CanonVal> = Vec::new();
+    if capability.retention.is_none() {
+        missing.push(CanonVal::Str("retention".to_string()));
+    }
+    if capability.deletion_owner.is_none() {
+        missing.push(CanonVal::Str("deletionOwner".to_string()));
+    }
+    let has_deletion_owner_missing = missing
+        .iter()
+        .any(|v| v.as_str() == Some("deletionOwner"));
+    if result.code != Some("ARC_UNSOUND_SEAL") || !has_deletion_owner_missing {
+        return Err("trace without deletion owner was admitted".to_string());
+    }
+    let payload = CanonVal::obj()
+        .set("id", CanonVal::Str("sensitive-trace".to_string()))
+        .set("admission", CanonVal::Str("DENIED".to_string()))
+        .set("verifierCode", CanonVal::Str(result.code.unwrap_or_default().to_string()))
+        .set("missing", CanonVal::Arr(missing));
+    observed_state("AE-EVIDENCE-ARTIFACTS-002", "ARTIFACT_ENVELOPE_RECORDED", payload)
+}
+
+fn case_evidence_freshness_001() -> Result<String, String> {
+    let mut registry = AcceptanceEvidenceRegistry::new();
+    let entry = AcceptanceEntry {
+        acceptance_id: "AC-freshness".to_string(),
+        claim_type: "acceptance-surface".to_string(),
+        producer: "oracle".to_string(),
+        durable_store: "receipt-store".to_string(),
+        verifier: "arcane".to_string(),
+        completion_consumer: "legion".to_string(),
+        integrated_state_binding: "exact".to_string(),
+        validity_policy: "latest-material-change".to_string(),
+        lifecycle: Lifecycle::Current,
+    };
+    let registered = registry.register(entry);
+    if !registered.allowed {
+        return Err(registered.message);
+    }
+
+    let integrated_state = Some("before-change".to_string());
+    let artifact = Artifact {
+        authenticated: true,
+        integrated_state: integrated_state.clone(),
+        observed_at_millis: Some(OBSERVED_AT_2026_08_13_MILLIS),
+        valid_until_millis: Some(VALID_UNTIL_2026_08_15_MILLIS),
+        acceptance_id: "AC-freshness".to_string(),
+        producer: "oracle".to_string(),
+        verifier: "arcane".to_string(),
+        completion_consumer: "legion".to_string(),
+    };
+    let ctx = FreshnessContext {
+        integrated_state,
+        latest_material_change_millis: Some(NOW_2026_08_14_MILLIS),
+        now_millis: NOW_2026_08_14_MILLIS,
+    };
+    let check = registry.verify("AC-freshness", &artifact, &ctx);
+    let status_is_stale = check.detail.get("status").map(String::as_str) == Some("STALE");
+    if check.code != Some(ArcCode::ArcEvidenceStale) || !status_is_stale {
+        return Err("materially stale proof was accepted".to_string());
+    }
+    let payload = CanonVal::obj()
+        .set("id", CanonVal::Str("AC-freshness".to_string()))
+        .set("lifecycle", CanonVal::Str("STALE".to_string()))
+        .set("completion", CanonVal::Str("CANDIDATE".to_string()))
+        .set(
+            "verifierCode",
+            CanonVal::Str(check.code.map(|c| c.as_str().to_string()).unwrap_or_default()),
+        );
+    observed_state("AE-EVIDENCE-FRESHNESS-001", "EVIDENCE_LIFECYCLE_RECORDED", payload)
+}
+
+fn s11_gate_contract() -> GateContract {
+    GateContract {
+        id: "s11-evidence-closure-gate".to_string(),
+        inspected_scope: "src/**".to_string(),
+        discovery_breadth: "bounded".to_string(),
+        blocking_filter: "known".to_string(),
+        threshold: "1".to_string(),
+        gates: true,
+        authority: "oracle".to_string(),
+        failure_semantics: "deny".to_string(),
+        payload: SupportJson::Obj(vec![("id".to_string(), SupportJson::str("s11-evidence-closure-gate"))]),
+    }
+}
+
+fn gate_fixture(id: &str) -> Fixture {
+    Fixture { id: id.to_string(), payload: SupportJson::str(id) }
+}
+
+fn case_gate_validity_001() -> Result<String, String> {
+    let contract = s11_gate_contract();
+    let fixtures: Vec<(&'static str, Option<(Fixture, ExecResult)>)> = vec![
+        ("knownGood", Some((gate_fixture("good"), ExecResult { status: ExecResultStatus::Pass }))),
+        ("knownBad", Some((gate_fixture("bad"), ExecResult { status: ExecResultStatus::Fail }))),
+        ("empty", Some((gate_fixture("empty"), ExecResult { status: ExecResultStatus::Fail }))),
+        ("malformed", Some((gate_fixture("malformed"), ExecResult { status: ExecResultStatus::Fail }))),
+    ];
+    let validity = validate_gate(&contract, &fixtures).map_err(|e| e.message)?;
+    let result = execute_validated_gate(&contract, Some(&validity), &[], &[]);
+    let is_inconclusive = result.detail.get("gateStatus").map(String::as_str) == Some("INCONCLUSIVE");
+    if result.code != Some(ArcCode::ArcEvidenceInsufficient) || !is_inconclusive {
+        return Err("zero-item blocking gate passed".to_string());
+    }
+    let status = result.detail.get("gateStatus").cloned().unwrap_or_default();
+    let verifier_code = result.code.map(|c| c.as_str().to_string()).unwrap_or_default();
+    let payload = CanonVal::obj()
+        .set("id", CanonVal::Str(contract.id.clone()))
+        .set("status", CanonVal::Str(status))
+        .set("verifierCode", CanonVal::Str(verifier_code));
+    observed_state("AE-GATE-VALIDITY-001", "TERMINAL_STATE_RECORDED", payload)
+}
+
+fn case_gate_validity_002() -> Result<String, String> {
+    let contract = s11_gate_contract();
+    let fixtures: Vec<(&'static str, Option<(Fixture, ExecResult)>)> = vec![
+        ("knownGood", Some((gate_fixture("good"), ExecResult { status: ExecResultStatus::Pass }))),
+        ("knownBad", None),
+        ("empty", None),
+        ("malformed", None),
+    ];
+    let err = match validate_gate(&contract, &fixtures) {
+        Ok(_) => return Err("incomplete gate self-test remained enabled".to_string()),
+        Err(e) => e,
+    };
+    let machinery_defect = err.detail.get("machineryDefect").cloned().unwrap_or_default();
+    if err.code != Some(ArcCode::ArcGateInvalid) || machinery_defect != "OUT_OF_SCOPE_MACHINERY_DEFECT" {
+        return Err("incomplete gate self-test remained enabled".to_string());
+    }
+    let payload = CanonVal::obj()
+        .set("id", CanonVal::Str("s11-evidence-closure-gate".to_string()))
+        .set("status", CanonVal::Str("BLOCKING_DISABLED".to_string()))
+        .set("machineryDefect", CanonVal::Str(machinery_defect))
+        .set(
+            "verifierCode",
+            CanonVal::Str(err.code.map(|c| c.as_str().to_string()).unwrap_or_default()),
+        );
+    observed_state("AE-GATE-VALIDITY-002", "TERMINAL_STATE_RECORDED", payload)
+}
+
+fn case_seal_reachability_001() -> Result<String, String> {
+    let requirement = SealRequirement {
+        id: Some("required-schema".to_string()),
+        producer: Some("oracle".to_string()),
+        durable_store: true,
+        authenticated_persistence: true,
+        verifier: Some("arcane".to_string()),
+        completion_consumer: Some("legion".to_string()),
+        close_path: true,
+        fixture_only: true,
+        ..Default::default()
+    };
+    let recovery_path = RecoveryPath {
+        requirement_id: "required-schema".to_string(),
+        authenticated: true,
+        close_path: true,
+    };
+    let result = compile_seal_reachability(&[requirement], &[], &[recovery_path]);
+    if result.code != Some("ARC_UNSOUND_SEAL") {
+        return Err("fixture-only evidence reached a seal".to_string());
+    }
+    let payload = CanonVal::obj()
+        .set("id", CanonVal::Str("required-schema".to_string()))
+        .set("status", CanonVal::Str("UNSOUND_SEAL".to_string()))
+        .set("verifierCode", CanonVal::Str(result.code.unwrap_or_default().to_string()));
+    observed_state("AE-SEAL-REACHABILITY-001", "EVIDENCE_LIFECYCLE_RECORDED", payload)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
 
     #[test]
-    fn every_supported_id_is_blocked_not_faked() {
+    fn every_supported_id_is_accepted_with_a_real_state_fingerprint() {
         for id in SUPPORTED_IDS {
-            assert!(matches!(
-                execute_evidence_closure_runtime_case(id),
-                EvidenceClosureResult::BlockedOnDependency { .. }
-            ));
+            match execute_evidence_closure_runtime_case(id) {
+                EvidenceClosureResult::Accepted { integrated_state_identity, .. } => {
+                    assert!(!integrated_state_identity.is_empty());
+                }
+                other => panic!("{id}: expected Accepted, got {other:?}"),
+            }
         }
     }
 
@@ -212,12 +475,56 @@ mod tests {
     }
 
     #[test]
-    fn gate_validity_dependency_names_gate_validity_module() {
-        match execute_evidence_closure_runtime_case("AE-GATE-VALIDITY-001") {
-            EvidenceClosureResult::BlockedOnDependency { dependency, .. } => {
-                assert!(dependency.contains("gate-validity.mjs"));
+    fn evidence_artifacts_001_is_informational_only_dashboard_admission() {
+        let identity = case_evidence_artifacts_001().expect("case should be accepted");
+        assert!(!identity.is_empty());
+    }
+
+    #[test]
+    fn evidence_artifacts_002_reports_missing_deletion_owner() {
+        let identity = case_evidence_artifacts_002().expect("case should be accepted");
+        assert!(!identity.is_empty());
+    }
+
+    #[test]
+    fn evidence_freshness_001_flags_stale_before_change_proof() {
+        let identity = case_evidence_freshness_001().expect("case should be accepted");
+        assert!(!identity.is_empty());
+    }
+
+    #[test]
+    fn gate_validity_001_is_inconclusive_on_zero_inspected_items() {
+        let identity = case_gate_validity_001().expect("case should be accepted");
+        assert!(!identity.is_empty());
+    }
+
+    #[test]
+    fn gate_validity_002_disables_blocking_on_incomplete_self_test() {
+        let identity = case_gate_validity_002().expect("case should be accepted");
+        assert!(!identity.is_empty());
+    }
+
+    #[test]
+    fn seal_reachability_001_rejects_fixture_only_evidence() {
+        let identity = case_seal_reachability_001().expect("case should be accepted");
+        assert!(!identity.is_empty());
+    }
+
+    #[test]
+    fn accepted_cases_produce_distinct_state_fingerprints() {
+        let mut seen: BTreeMap<&str, String> = BTreeMap::new();
+        for id in SUPPORTED_IDS {
+            if let EvidenceClosureResult::Accepted { integrated_state_identity, .. } =
+                execute_evidence_closure_runtime_case(id)
+            {
+                for (other_id, other_fp) in &seen {
+                    assert_ne!(
+                        &integrated_state_identity, other_fp,
+                        "{id} and {other_id} produced the same state fingerprint"
+                    );
+                }
+                seen.insert(id, integrated_state_identity);
             }
-            other => panic!("unexpected {other:?}"),
         }
     }
 }

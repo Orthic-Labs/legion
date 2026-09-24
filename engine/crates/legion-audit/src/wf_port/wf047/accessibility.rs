@@ -1,19 +1,17 @@
 //! Port of `src/providers/runtime/web/accessibility/index.mjs`
 //! (`verifyWebAccessibility`).
 //!
-//! **Known gap for the integrator:** `verifyWebAccessibility` calls
-//! `captureWebEvidence` from `src/providers/runtime/web/capture/index.mjs`
-//! for its `digest` and `coverageGaps` (nothing else of that call's return
-//! value is used here). `capture/index.mjs` is not in this chunk's file
-//! list and pulls in `journey-plan.mjs`, `matrix/index.mjs`, and
-//! `lib/platform/artifact-sanitize.mjs` — none of which wf047 owns or has
-//! found native coverage for. This port therefore takes the
-//! `captureWebEvidence` result as an injected `CaptureEvidence` value
-//! (`digest` + `coverageGaps`) rather than recomputing it, so this file's
-//! own logic — the part actually assigned to wf047 — is faithfully ported
-//! and independently testable. The integrator should wire a real
-//! `captureWebEvidence` port (or an equivalent) as the source of that
-//! value once one exists.
+//! `verifyWebAccessibility` calls `captureWebEvidence` from
+//! `src/providers/runtime/web/capture/index.mjs` for its `digest` and
+//! `coverageGaps` (nothing else of that call's return value is used here).
+//! `verify_web_accessibility` below still takes that as an injected
+//! `CaptureEvidence` value (useful for fixture-driven tests, and this
+//! file's own logic — the part actually assigned to wf047 — stays
+//! independently testable that way), but `verify_web_accessibility_production`
+//! at the end of this file wires it to the real
+//! `wf048::capture_web_evidence_production` (which itself now wires the
+//! real `wf049::journey_plan` / `wf049::matrix` ports) — that is the
+//! production entry point callers should use.
 
 use super::shared::{denominator, finalize, same_binding, sort_by_id};
 use serde_json::{Map, Value};
@@ -174,9 +172,49 @@ pub fn verify_web_accessibility(
     )
 }
 
+/// Production entry point: mirrors `verifyWebAccessibility(input)` calling
+/// `captureWebEvidence(input)` on the same `{ binding, surface, tool,
+/// captures }` input, using the real `wf048::capture_web_evidence_production`
+/// (which itself resolves the real `journey-plan.mjs` / `matrix/index.mjs`
+/// data via `wf049`) instead of an injected `CaptureEvidence` fixture.
+pub fn verify_web_accessibility_production(
+    binding: &Value,
+    surface: &Value,
+    captures: &Value,
+    inspections: &Value,
+    tool: &Value,
+) -> Value {
+    let capture_result =
+        crate::wf_port::wf048::capture_web_evidence_production(binding, surface, tool, captures);
+    let capture = CaptureEvidence {
+        digest: capture_result.get("digest").cloned().unwrap_or(Value::Null),
+        coverage_gaps: capture_result
+            .get("coverageGaps")
+            .and_then(Value::as_array)
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .unwrap_or_default(),
+    };
+    verify_web_accessibility(binding, captures, inspections, tool, capture)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn production_entry_point_runs_against_real_capture_pipeline() {
+        let out = verify_web_accessibility_production(
+            &Value::Null,
+            &Value::Null,
+            &Value::Array(vec![]),
+            &Value::Array(vec![]),
+            &Value::Null,
+        );
+        // Real captures/inspections are empty arrays (valid collections),
+        // so this exercises the full real capture pipeline rather than the
+        // collections-invalid short-circuit, without panicking.
+        assert!(out.get("status").is_some());
+    }
 
     fn full_binding() -> Value {
         let mut m = Map::new();

@@ -25,17 +25,47 @@
 
 use headless_chrome::Tab;
 use serde_json::Value;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use super::session_client::{BrowserSession, Conditions, ElementPoint, Rect, SessionData};
 
 pub struct ChromeSession {
     pub tab: Arc<Tab>,
+    console_errors: Arc<Mutex<Vec<String>>>,
 }
 
 impl ChromeSession {
     pub fn new(tab: Arc<Tab>) -> Self {
-        ChromeSession { tab }
+        // `client.on("Runtime.consoleAPICalled"/"Runtime.exceptionThrown", ...)` (qa.mjs
+        // `runActions`, lines 692-701). Field shape confirmed against this crate's other CDP
+        // event-subscription use (`wf_port::r03::verify::ChromeBrowserDriver::open`), which is
+        // the only other packet here to have needed `Tab::add_event_listener` rather than plain
+        // request/response CDP calls.
+        let console_errors: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let sink = console_errors.clone();
+        let _ = tab.add_event_listener(Arc::new(move |event: &headless_chrome::protocol::cdp::types::Event| {
+            match event {
+                headless_chrome::protocol::cdp::types::Event::RuntimeConsoleAPICalled(ev) => {
+                    let level = format!("{:?}", ev.params.call_type).to_lowercase();
+                    if level == "error" || level == "warning" {
+                        let text = ev
+                            .params
+                            .args
+                            .iter()
+                            .filter_map(|a| a.value.as_ref().map(|v| v.to_string()))
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        sink.lock().unwrap().push(format!("console.{level}: {text}"));
+                    }
+                }
+                headless_chrome::protocol::cdp::types::Event::RuntimeExceptionThrown(ev) => {
+                    let text = ev.params.exception_details.text.clone();
+                    sink.lock().unwrap().push(format!("exception: {text}"));
+                }
+                _ => {}
+            }
+        }));
+        ChromeSession { tab, console_errors }
     }
 
     fn eval_raw(&self, expression: &str) -> Result<Value, String> {
@@ -215,5 +245,9 @@ impl BrowserSession for ChromeSession {
             .and_then(|v| v.as_str().and_then(|s| serde_json::from_str(s).ok()))
             .unwrap_or(Value::Object(Default::default()));
         Ok(SessionData { cookies: Value::Array(vec![]), local_storage })
+    }
+
+    fn take_console_errors(&mut self) -> Vec<String> {
+        std::mem::take(&mut *self.console_errors.lock().unwrap())
     }
 }

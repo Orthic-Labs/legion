@@ -6,11 +6,9 @@
 //! redacted receipt shaping, `<think>` stripping, and per-item model
 //! selection (`_models_for_item`/`_prepare_prompt`).
 //!
-//! The actual Pi CLI subprocess execution (`run_pi`, `run_batch`, the
-//! `argparse` `main()`) is a process-transport hop, not logic, and is not
-//! reproduced here — consistent with the L1 disposition for
-//! `transcript_handoff.py`'s `request_continuity`. A caller wires its own
-//! process execution around `build_argv`/`redacted_receipt_argv`.
+//! The Pi CLI subprocess execution (`run_pi`, `run_batch`, the `argparse`
+//! `main()`) is ported in the sibling [`super::execution`] module, behind a
+//! `ProcessRunner` trait so tests never spawn a real `pi` process.
 
 use regex::Regex;
 use std::collections::BTreeSet;

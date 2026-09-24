@@ -591,10 +591,12 @@ pub fn line_matches_manual_edit_locator_op(
     op: &crate::wf_port::w2_021::manual_edits_buffer::ManualEditOp,
 ) -> bool {
     let element_id = op.extra.get("elementId").and_then(|v| v.as_str());
+    let tag = op_tag(op);
+    let classes = op_classes(op);
     let locator = ManualEditLocator {
-        tag: op_tag(op).as_deref(),
+        tag: tag.as_deref(),
         element_id,
-        classes: &op_classes(op),
+        classes: &classes,
     };
     line_matches_manual_edit_locator(line, &locator)
 }

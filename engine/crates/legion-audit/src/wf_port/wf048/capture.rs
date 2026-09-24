@@ -3,23 +3,17 @@
 //!
 //! The JS source also imports `WEB_JOURNEYS` / `webJourneySurfaceMatches`
 //! from `../journey-plan.mjs` and `isWebMatrixCombinationId` from
-//! `../matrix/index.mjs`. Neither file is in this chunk's owned list, and
-//! both are themselves registry-driven (they load
-//! `registry/platform-scenarios/web.json` and
-//! `registry/platform-matrices/web.json` at import time) rather than
-//! self-contained logic, so porting them here would duplicate whatever
-//! chunk owns `src/providers/runtime/web/journey-plan.mjs` /
-//! `src/providers/runtime/web/matrix/index.mjs`. This port takes the
-//! equivalent data as parameters instead of re-deriving it from the
-//! registry JSON:
+//! `../matrix/index.mjs`. `capture_web_evidence` below still takes those as
+//! injected parameters (useful for fixture-driven tests), but
+//! `capture_web_evidence_production` at the end of this file wires them to
+//! the real `wf049::journey_plan` / `wf049::matrix` ports, which now exist
+//! — that is the production entry point callers should use.
 //!   - `journeys`: the planned, `applicable: true` journey rows (the Rust
 //!     shape of `WEB_JOURNEYS`).
 //!   - `journey_surface_matches`: callback equivalent to
 //!     `webJourneySurfaceMatches`.
 //!   - `is_matrix_combination_id`: callback equivalent to
 //!     `isWebMatrixCombinationId`.
-//! Wire these to whatever module ends up porting `journey-plan.mjs` /
-//! `matrix/index.mjs` (or to the registry JSON directly).
 
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
@@ -327,5 +321,83 @@ fn value_to_id_string(value: &Value) -> String {
         Value::Bool(b) => b.to_string(),
         Value::Null => "null".to_string(),
         other => other.to_string(),
+    }
+}
+
+/// Production entry point for `captureWebEvidence`: wires `journeys`,
+/// `journey_surface_matches`, and `is_matrix_combination_id` to the real
+/// `journey-plan.mjs` / `matrix/index.mjs` ports (`wf049::journey_plan`,
+/// `wf049::matrix`) instead of requiring the caller to inject fixtures for
+/// them. `capture_web_evidence` above remains available directly for
+/// tests/fixture injection.
+pub fn capture_web_evidence_production(binding: &Value, surface: &Value, tool: &Value, captures: &Value) -> Value {
+    use crate::wf_port::wf049::journey_plan::{web_journey_surface_matches, web_journeys, WebJourneySurfaceMatchesInput};
+    use crate::wf_port::wf049::matrix::is_web_matrix_combination_id;
+
+    fn str_field<'a>(row: &'a Value, key: &str) -> &'a str {
+        row.get(key).and_then(Value::as_str).unwrap_or("")
+    }
+    fn str_vec_field<'a>(row: &'a Value, key: &str) -> Vec<&'a str> {
+        row.get(key)
+            .and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(Value::as_str).collect())
+            .unwrap_or_default()
+    }
+
+    let applicable_rows: Vec<&Value> = web_journeys()
+        .iter()
+        .filter(|row| row.get("applicable") == Some(&Value::Bool(true)))
+        .collect();
+
+    // `protocol_ids` need owned storage since `WebJourneyRow` borrows `&[&str]`.
+    let protocol_id_storage: Vec<Vec<&str>> =
+        applicable_rows.iter().map(|&row| str_vec_field(row, "protocolIds")).collect();
+
+    let journeys: Vec<WebJourneyRow<'_>> = applicable_rows
+        .iter()
+        .zip(protocol_id_storage.iter())
+        .map(|(&row, protocol_ids)| WebJourneyRow {
+            id: str_field(row, "id"),
+            control_id: str_field(row, "controlId"),
+            route_id: str_field(row, "routeId"),
+            route: str_field(row, "route"),
+            state_id: str_field(row, "stateId"),
+            action_id: str_field(row, "actionId"),
+            protocol_ids: protocol_ids.as_slice(),
+            direct_applicable: row.get("directApplicable") == Some(&Value::Bool(true)),
+            deep_applicable: row.get("deepApplicable") == Some(&Value::Bool(true)),
+            matrix_combination_id: str_field(row, "matrixCombinationId"),
+        })
+        .collect();
+
+    capture_web_evidence(
+        binding,
+        surface,
+        tool,
+        captures,
+        &journeys,
+        |s: &Value| {
+            web_journey_surface_matches(WebJourneySurfaceMatchesInput {
+                journey_id: s.get("journeyId").and_then(Value::as_str),
+                route: s.get("route").and_then(Value::as_str),
+                state_id: s.get("stateId").and_then(Value::as_str),
+                matrix_combination_id: s.get("matrixCombinationId").and_then(Value::as_str),
+            })
+        },
+        |id: &str| is_web_matrix_combination_id(id),
+    )
+}
+
+#[cfg(test)]
+mod production_tests {
+    use super::*;
+
+    #[test]
+    fn production_entry_point_runs_against_real_journey_plan_and_matrix() {
+        let out = capture_web_evidence_production(&Value::Null, &Value::Null, &Value::Null, &Value::Null);
+        // Empty surface/tool are invalid objects -> deterministic error
+        // path, but the call must not panic while resolving the real
+        // journey-plan/matrix data.
+        assert_eq!(out["status"], "error");
     }
 }

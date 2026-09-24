@@ -207,11 +207,13 @@ fn advisory_judgment_cases_validate_true() {
 
 // ---------------------------------------------------------------------
 // evidence-closure.mjs — twelve UNSUPPORTED ids ported in full; six
-// SUPPORTED ids honestly blocked on architecture-state.mjs and friends.
+// SUPPORTED ids wired to the now-ported architecture-state.mjs,
+// evidence-registry.mjs, provider-capability.mjs, gate-validity.mjs, and
+// seal-reachability.mjs production verifiers (wf070/wf072/wf075).
 // ---------------------------------------------------------------------
 
 #[test]
-fn evidence_closure_supported_ids_all_blocked() {
+fn evidence_closure_supported_ids_all_accepted() {
     for id in [
         "AE-EVIDENCE-ARTIFACTS-001",
         "AE-EVIDENCE-ARTIFACTS-002",
@@ -222,7 +224,7 @@ fn evidence_closure_supported_ids_all_blocked() {
     ] {
         assert!(matches!(
             execute_evidence_closure_runtime_case(id),
-            EvidenceClosureResult::BlockedOnDependency { .. }
+            EvidenceClosureResult::Accepted { .. }
         ));
     }
 }

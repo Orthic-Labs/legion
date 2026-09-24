@@ -159,6 +159,31 @@ impl QueueState {
         self.inner.lock().unwrap().pending_events.len()
     }
 
+    /// Port of `summarizePendingEventForStatus` mapped over
+    /// `state.pendingEvents`, for the `/status` route's `pendingEvents`
+    /// field. Only the `id`/`type`/`leased`/`leaseUntil` fields are
+    /// populated faithfully; the `manual_edit_apply`-only fields
+    /// (`pageUrl`/`chunk`/`repair`/`evidencePath`/`agentAction`/
+    /// `manualApplySummary`) depend on `live/manual-apply.mjs`'s
+    /// `buildAgentAction`/`summarizeEvent`, which are not ported, so those
+    /// keys are left off entirely rather than fabricated.
+    pub fn status_summary(&self) -> Vec<Value> {
+        let now = now_ms();
+        let inner = self.inner.lock().unwrap();
+        inner
+            .pending_events
+            .iter()
+            .map(|entry| {
+                serde_json::json!({
+                    "id": entry.id(),
+                    "type": entry.event_type(),
+                    "leased": entry.lease_until_ms != 0 && entry.lease_until_ms > now,
+                    "leaseUntil": if entry.lease_until_ms == 0 { Value::Null } else { Value::from(entry.lease_until_ms) },
+                })
+            })
+            .collect()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }

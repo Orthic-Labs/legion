@@ -11,8 +11,12 @@
 //! `observed_controls` (a model control entity was found) or noted in
 //! `uncertainty` (only a lexical mitigating signal was found).
 //!
-//! Only `analyze()` is ported (see `wf060/common.rs` module doc for why
-//! `variantStrategies` is out of scope for this chunk).
+//! `analyze()` is ported faithfully below. `variantStrategies`
+//! (`rootCause`/`enumerate` per rule) is also ported here as
+//! [`root_cause`] and [`enumerate`] — see [`VariantStrategyResult`] and
+//! [`RootCause`] — closing the scope gap `wf060/common.rs`'s module doc
+//! originally noted for this chunk (that note now applies only to the
+//! chunk's other four packs, not `injection.mjs`).
 
 use super::common::{digest, line_of, Context, Fact, InjectionTrace, Observation};
 use regex::Regex;
@@ -21,6 +25,140 @@ use std::sync::OnceLock;
 
 pub const ID: &str = "security.injection";
 pub const CANDIDATE_CLASS: &str = "injection";
+pub const VERSION: &str = "1.0.0";
+pub const DESCRIPTION: &str =
+    "Injection into SQL, NoSQL, ORM, command, LDAP, template, regex, prototype, and XML/formula sinks.";
+
+/// Mirrors `rules: RULES.map((rule) => ({ id: rule.id }))` on the default
+/// export: the stable list of rule ids this pack registers.
+pub fn rule_ids() -> Vec<&'static str> {
+    rules().into_iter().map(|r| r.id).collect()
+}
+
+/// Mirrors one `buildVariantStrategy(rule).enumerate(context)` match entry.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct VariantMatch {
+    pub file: String,
+    pub line: usize,
+    pub semantic_fingerprint: String,
+    pub disposition: &'static str,
+}
+
+/// Mirrors the `denominator` object `enumerate()` returns.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct Denominator {
+    pub kind: &'static str,
+    pub digest: String,
+    pub expected: usize,
+    pub examined: usize,
+    pub unexamined: Vec<String>,
+}
+
+/// Mirrors one entry of the `strategies` array `enumerate()` returns.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct Strategy {
+    pub id: String,
+    pub kind: &'static str,
+    pub description: String,
+    pub query_digest: String,
+    pub complete: bool,
+    pub coverage_gaps: Vec<String>,
+}
+
+/// Mirrors the object `buildVariantStrategy(rule).enumerate(context)`
+/// returns.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct VariantStrategyResult {
+    pub denominator: Denominator,
+    pub strategies: Vec<Strategy>,
+    pub matches: Vec<VariantMatch>,
+    pub coverage_gaps: Vec<String>,
+}
+
+/// Mirrors `buildVariantStrategy(rule).rootCause(candidate)`. `candidate`
+/// only needs `detectorMetadata.sinkEngine`, modeled here as the already
+/// resolved sink-engine string (or `None` when the candidate carries no
+/// `sinkEngine` field, mirroring `candidate.detectorMetadata?.sinkEngine`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct RootCause {
+    pub class: String,
+    pub sink_class: String,
+    pub sink_kind: String,
+    pub missing_control: Option<String>,
+    pub semantic_features: Vec<String>,
+}
+
+pub fn root_cause(rule_id: &str, candidate_sink_engine: Option<&str>) -> Option<RootCause> {
+    let rule = rules().into_iter().find(|r| r.id == rule_id)?;
+    let sink_engine = candidate_sink_engine.unwrap_or(rule.sink_class);
+    Some(RootCause {
+        class: format!("{}-unmitigated-sink", rule.sink_class),
+        sink_class: rule.sink_class.to_string(),
+        sink_kind: rule.sink_kind.to_string(),
+        missing_control: rule.downgrade.as_ref().map(|d| d.control_types[0].to_string()),
+        semantic_features: vec![
+            "tainted-input-to-sink".to_string(),
+            rule.sink_class.to_string(),
+            sink_engine.to_string(),
+        ],
+    })
+}
+
+/// Mirrors `buildVariantStrategy(rule).enumerate(context)`: independently
+/// re-walks every scanned file for `rule`'s risky pattern (not reusing
+/// `analyze()`'s downgrade/control bookkeeping), recording one
+/// `MITIGATED`/`CONFIRMED` match per hit.
+pub fn enumerate(context: &Context, rule_id: &str) -> Option<VariantStrategyResult> {
+    let rule = rules().into_iter().find(|r| r.id == rule_id)?;
+    let mut matches = Vec::new();
+    for file in &context.files {
+        let text = context.read_file(file);
+        if text.is_empty() {
+            continue;
+        }
+        if let Some(guard) = rule.file_guard {
+            if !guard().is_match(text) {
+                continue;
+            }
+        }
+        for m in (rule.risky_pattern)().find_iter(text) {
+            let suppressed = test_around(
+                rule.suppress_pattern.map(|f| f()),
+                text,
+                m.start(),
+                m.len(),
+                rule.suppress_scope,
+            );
+            matches.push(VariantMatch {
+                file: file.clone(),
+                line: line_of(text, m.start()),
+                semantic_fingerprint: digest(
+                    json!({ "ruleId": rule.id, "file": file, "snippet": m.as_str() }).to_string(),
+                ),
+                disposition: if suppressed { "MITIGATED" } else { "CONFIRMED" },
+            });
+        }
+    }
+    Some(VariantStrategyResult {
+        denominator: Denominator {
+            kind: "source-files",
+            digest: context.denominator_digest.clone(),
+            expected: context.files.len(),
+            examined: context.files.len(),
+            unexamined: Vec::new(),
+        },
+        strategies: vec![Strategy {
+            id: format!("{}-search", rule.id),
+            kind: "lexical-fallback",
+            description: format!("Enumerate every {} sink across the denominator.", rule.sink_class),
+            query_digest: digest(rule.id),
+            complete: true,
+            coverage_gaps: Vec::new(),
+        }],
+        matches,
+        coverage_gaps: Vec::new(),
+    })
+}
 
 /// Mirrors `testAround(pattern, text, index, matchLength, scope)`:
 /// `scope: "match"` tests the exact match text, `scope: "forward"` (the

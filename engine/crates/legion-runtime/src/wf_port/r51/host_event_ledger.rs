@@ -118,6 +118,8 @@ pub enum LedgerError {
     LockUnavailable,
     #[error(transparent)]
     Io(#[from] io::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
 }
 
 /// Faithful port of JS `class HostEventLedger`.
@@ -457,12 +459,21 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 fn process_alive(pid: u32) -> bool {
     // Mirrors JS `process.kill(pid, 0)`: ESRCH -> false, EPERM -> true (it
     // exists, just not ours), anything else treated as "does not exist".
-    let ret = unsafe { libc::kill(pid as libc::pid_t, 0) };
-    if ret == 0 {
-        return true;
+    // This crate forbids `unsafe`, so shell out to `kill -0` rather than
+    // calling `libc::kill` directly; the exit status carries the same
+    // ESRCH/EPERM distinction (success or "operation not permitted" both
+    // mean the process exists).
+    match std::process::Command::new("kill")
+        .arg("-0")
+        .arg(pid.to_string())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .status()
+    {
+        Ok(status) if status.success() => true,
+        Ok(_) => false,
+        Err(_) => false,
     }
-    let err = io::Error::last_os_error();
-    err.raw_os_error() == Some(libc::EPERM)
 }
 
 #[cfg(not(unix))]

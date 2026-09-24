@@ -508,3 +508,168 @@ pub fn mechanical_splits(files: &[FileLoc], threshold: u64) -> Vec<MechanicalSpl
     out.sort_by(|a, b| b.logical_loc.cmp(&a.logical_loc));
     out
 }
+
+// ---------------------------------------------------------------------------
+// Stack detection + run-directory pruning.
+//
+// Ported here because both are pure filesystem inspection with no spawned
+// process involved (`detect()` only calls `existsSync`/`readdirSync`;
+// `pruneOldRuns` only calls `readdirSync`/`rmSync`), so — unlike the
+// tool-specific check runners this module's header comment scopes out —
+// they are faithful, testable ports, not a reimplementation of a
+// third-party tool's own output format.
+// ---------------------------------------------------------------------------
+
+use std::path::Path;
+
+/// `detect()`'s stack-detection fields. `pkg` is the parsed `package.json`
+/// (if present and valid JSON), matching `pkgJson()`'s `try { JSON.parse
+/// (...) } catch { return null }`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DetectedStack {
+    pub git: bool,
+    pub node: bool,
+    pub pkg: Option<serde_json::Value>,
+    pub pkg_mgr: &'static str,
+    pub ts: bool,
+    pub py: bool,
+    pub rust: bool,
+    pub rust_dir: Option<String>,
+    pub swift: bool,
+    pub tauri: bool,
+    pub build_script: bool,
+    pub eslint: bool,
+    pub biome: bool,
+    pub workflows: bool,
+    pub dockerfile: bool,
+}
+
+fn file_exists(root: &Path, rel: &str) -> bool {
+    root.join(rel).exists()
+}
+
+/// `inGitWorktree()`: walk up to 12 ancestors from `root` looking for a
+/// `.git` entry — audits are often scoped to a subtree whose repo root is a
+/// parent.
+pub fn in_git_worktree(root: &Path) -> bool {
+    let mut dir = root.to_path_buf();
+    for _ in 0..12 {
+        if dir.join(".git").exists() {
+            return true;
+        }
+        let Some(parent) = dir.parent() else { break };
+        if parent == dir {
+            break;
+        }
+        dir = parent.to_path_buf();
+    }
+    false
+}
+
+/// `detect()`: stack detection from filesystem markers alone (no `git`/`npm`
+/// subprocess is spawned by the JS function itself — `pkgMgr`/`eslint`/etc.
+/// are all file-presence checks; only the *checks* built from this result
+/// later spawn tools).
+pub fn detect(root: &Path) -> DetectedStack {
+    let pkg = std::fs::read_to_string(root.join("package.json"))
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok());
+    let pkg_mgr = if file_exists(root, "pnpm-lock.yaml") {
+        "pnpm"
+    } else if file_exists(root, "yarn.lock") {
+        "yarn"
+    } else {
+        "npm"
+    };
+    let rust_dir = if file_exists(root, "Cargo.toml") {
+        Some(".".to_string())
+    } else if file_exists(root, "src-tauri/Cargo.toml") {
+        Some("src-tauri".to_string())
+    } else {
+        None
+    };
+    let swift = file_exists(root, "Package.swift")
+        || std::fs::read_dir(root)
+            .map(|entries| {
+                entries.filter_map(|e| e.ok()).any(|e| {
+                    let name = e.file_name();
+                    let name = name.to_string_lossy();
+                    name.ends_with(".xcodeproj") || name.ends_with(".xcworkspace")
+                })
+            })
+            .unwrap_or(false);
+    let eslint_configs = [
+        ".eslintrc",
+        ".eslintrc.js",
+        ".eslintrc.cjs",
+        ".eslintrc.json",
+        ".eslintrc.yml",
+        "eslint.config.js",
+        "eslint.config.mjs",
+        "eslint.config.cjs",
+    ];
+    let eslint = eslint_configs.iter().any(|f| file_exists(root, f))
+        || pkg.as_ref().is_some_and(|p| p.get("eslintConfig").is_some());
+    let biome = ["biome.json", "biome.jsonc"].iter().any(|f| file_exists(root, f));
+    let build_script = pkg
+        .as_ref()
+        .and_then(|p| p.get("scripts"))
+        .and_then(|s| s.get("build"))
+        .is_some();
+
+    DetectedStack {
+        git: in_git_worktree(root),
+        node: pkg.is_some(),
+        pkg_mgr,
+        ts: file_exists(root, "tsconfig.json"),
+        py: file_exists(root, "pyproject.toml") || file_exists(root, "setup.py") || file_exists(root, "requirements.txt"),
+        rust: rust_dir.is_some(),
+        rust_dir,
+        swift,
+        tauri: file_exists(root, "src-tauri/tauri.conf.json"),
+        build_script,
+        eslint,
+        biome,
+        workflows: file_exists(root, ".github/workflows"),
+        dockerfile: file_exists(root, "Dockerfile"),
+        pkg,
+    }
+}
+
+/// `RUN_DIR_RE`: matches exactly the shape produced by
+/// `new Date().toISOString().replace(/[:.]/g,'-')`, e.g.
+/// `2026-07-21T00-00-00-000Z`. Only entries matching this exact shape are
+/// eligible for pruning.
+pub fn is_run_dir_name(name: &str) -> bool {
+    let re = Regex::new(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$").unwrap();
+    re.is_match(name)
+}
+
+/// `pruneOldRuns`: keep only the newest `keep` timestamped run directories
+/// under `audit_root` (including `current_ts`, which is never deleted even
+/// if it would otherwise fall outside the keep window — it was just
+/// created). ISO-8601 timestamp directory names sort lexically by time, so a
+/// plain string sort suffices. Best-effort: a delete failure for one
+/// directory does not stop the others (mirrors the JS `catch { /* best
+/// effort */ }`).
+pub fn prune_old_runs(audit_root: &Path, current_ts: &str, keep: usize) {
+    let Ok(entries) = std::fs::read_dir(audit_root) else {
+        return;
+    };
+    let mut runs: Vec<String> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .filter_map(|e| e.file_name().into_string().ok())
+        .filter(|name| is_run_dir_name(name))
+        .collect();
+    runs.sort();
+    runs.reverse(); // newest first
+
+    let keep = keep.max(1);
+    for name in runs.into_iter().skip(keep) {
+        if name == current_ts {
+            continue; // never delete the run we just started
+        }
+        let _ = std::fs::remove_dir_all(audit_root.join(&name));
+    }
+}

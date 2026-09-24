@@ -16,9 +16,10 @@ use legion_audit::wf_port::wf065::audit_verify::{
     normalize_checks, offline_env_overrides, project_execution_checks, result_digest, CheckResult,
 };
 use legion_audit::wf_port::wf065::collect_facts::{
-    classify_file, clean_path, decomposition_review_loc, gitleaks_candidates,
-    is_generated_or_vendored_path, git_ref, in_scope, looks_missing, mechanical_splits,
-    oversized_files, redact, resolve_root_positional, FileClass, FileLoc,
+    classify_file, clean_path, decomposition_review_loc, detect, gitleaks_candidates,
+    in_git_worktree, is_generated_or_vendored_path, is_run_dir_name, git_ref, in_scope,
+    looks_missing, mechanical_splits, oversized_files, prune_old_runs, redact,
+    resolve_root_positional, FileClass, FileLoc,
 };
 use legion_audit::wf_port::wf065::provider_benchmarks::{
     benchmark_record_for, compute_fixtures_digest, digest_file, file_bindings, is_result_fresh,
@@ -801,4 +802,249 @@ fn benchmark_record_for_falls_back_to_unmeasured_when_stale() {
     let stale_record = benchmark_record_for(&result, &mismatched);
     assert_eq!(stale_record.status, "unproven");
     assert_eq!(stale_record.qualification_digest, None);
+}
+
+// =================================================================================================
+// provider_benchmarks CLI (verify/status — the fs+JSON-only subset of the
+// legacy `measure|verify|status` CLI; `measure` needs a dynamic JS import
+// and has no Rust equivalent, see provider_benchmarks.rs's CLI section doc).
+// =================================================================================================
+
+use legion_audit::wf_port::wf065::provider_benchmarks::{
+    cmd_status, cmd_verify, parse_current_binding_file, run_cli, BenchmarkResult,
+};
+
+fn write_results_doc(path: &std::path::Path, result: &BenchmarkResult) {
+    let doc = serde_json::json!({
+        "schemaVersion": 1,
+        "kind": "audit-provider-benchmark-results",
+        "generatedAt": "2026-07-21T00:00:00.000Z",
+        "results": [result],
+    });
+    fs::write(path, serde_json::to_string_pretty(&doc).unwrap()).unwrap();
+}
+
+#[test]
+fn cmd_verify_counts_results_and_freshness_against_root() {
+    let tmp = std::env::temp_dir().join(format!("legion-wf065-cli-verify-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    fs::write(tmp.join("engine.mjs"), "export const engine = true;\n").unwrap();
+    fs::write(tmp.join("pack.mjs"), "export const rules = [];\n").unwrap();
+
+    let provider = ProviderIdentity { id: "security.credentials".into(), version: "1".into(), rule_pack: None };
+    let binding = ProviderBinding {
+        implementation_digests: file_bindings(&["engine.mjs".to_string()], &tmp).unwrap(),
+        rule_pack_digests: file_bindings(&["pack.mjs".to_string()], &tmp).unwrap(),
+    };
+    let result = measure_fixture_set(&provider, &binding, runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
+    let results_path = tmp.join("results.json");
+    write_results_doc(&results_path, &result);
+
+    // No root: just counts results, no freshness field.
+    let report = cmd_verify(&results_path, None).unwrap();
+    assert!(report.valid);
+    assert_eq!(report.results, 1);
+    assert_eq!(report.fresh, None);
+
+    // With root: the on-disk files match the recorded digests exactly => fresh.
+    let report = cmd_verify(&results_path, Some(&tmp)).unwrap();
+    assert_eq!(report.fresh, Some(1));
+
+    // Mutate a bound file so its digest no longer matches => not fresh.
+    fs::write(tmp.join("engine.mjs"), "export const engine = false; // changed\n").unwrap();
+    let report = cmd_verify(&results_path, Some(&tmp)).unwrap();
+    assert_eq!(report.fresh, Some(0));
+
+    // run_cli wires the same path end-to-end and prints valid JSON to stdout.
+    let argv = vec![
+        "verify".to_string(),
+        "--results".to_string(),
+        results_path.to_string_lossy().to_string(),
+    ];
+    assert_eq!(run_cli(&argv), 0);
+
+    let _ = fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn cmd_status_reports_unmeasured_providers_and_matching_exit_code() {
+    let tmp = std::env::temp_dir().join(format!("legion-wf065-cli-status-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+
+    let provider = ProviderIdentity { id: "security.credentials".into(), version: "1".into(), rule_pack: None };
+    let result = measure_fixture_set(&provider, &binding_for(), runner_detects_first_file_only, &fixtures_doc(), "2026-07-21T00:00:00.000Z").unwrap();
+    let doc = serde_json::json!({
+        "schemaVersion": 1,
+        "kind": "audit-provider-benchmark-results",
+        "results": [result],
+    });
+    let results_json = serde_json::to_string(&doc).unwrap();
+
+    // Required id is measured and its current binding matches => exit 0.
+    let mut current = BTreeMap::new();
+    current.insert("security.credentials".to_string(), binding_for());
+    let report = cmd_status(&results_json, &["security.credentials".to_string()], &current).unwrap();
+    assert_eq!(report.exit_code, 0);
+    assert!(report.qualification.unmeasured_providers.is_empty());
+
+    // A required id with no result at all is unmeasured => exit 1.
+    let report = cmd_status(
+        &results_json,
+        &["security.credentials".to_string(), "security.injection".to_string()],
+        &current,
+    )
+    .unwrap();
+    assert_eq!(report.exit_code, 1);
+    assert_eq!(report.qualification.unmeasured_providers, vec!["security.injection".to_string()]);
+
+    // run_cli end-to-end via files, including --current-binding parsing.
+    let results_path = tmp.join("results.json");
+    fs::write(&results_path, &results_json).unwrap();
+    let binding_path = tmp.join("bindings.json");
+    fs::write(
+        &binding_path,
+        serde_json::to_string(&serde_json::json!({ "byProvider": { "security.credentials": binding_for() } })).unwrap(),
+    )
+    .unwrap();
+    let argv = vec![
+        "status".to_string(),
+        "--results".to_string(),
+        results_path.to_string_lossy().to_string(),
+        "--require".to_string(),
+        "security.credentials".to_string(),
+        "--current-binding".to_string(),
+        binding_path.to_string_lossy().to_string(),
+    ];
+    assert_eq!(run_cli(&argv), 0);
+
+    let _ = fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn parse_current_binding_file_accepts_by_provider_and_bare_shapes() {
+    let by_provider = serde_json::json!({ "byProvider": { "p1": binding_for() } });
+    let parsed = parse_current_binding_file(&serde_json::to_string(&by_provider).unwrap()).unwrap();
+    assert!(parsed.contains_key("p1"));
+
+    let bare = serde_json::json!({ "p2": binding_for() });
+    let parsed = parse_current_binding_file(&serde_json::to_string(&bare).unwrap()).unwrap();
+    assert!(parsed.contains_key("p2"));
+
+    assert!(parse_current_binding_file("[]").is_err());
+}
+
+#[test]
+fn run_cli_measure_reports_unsupported_and_unknown_command_is_usage_error() {
+    assert_eq!(run_cli(&["measure".to_string()]), 2);
+    assert_eq!(run_cli(&["bogus".to_string()]), 2);
+    assert_eq!(run_cli(&[]), 2);
+}
+
+// =================================================================================================
+// collect_facts: detect() + prune_old_runs (fs-only, no spawned process).
+// =================================================================================================
+
+#[test]
+fn detect_reads_stack_markers_from_a_real_temp_workspace() {
+    let tmp = std::env::temp_dir().join(format!("legion-wf065-detect-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(tmp.join("src-tauri")).unwrap();
+    fs::write(tmp.join("package.json"), r#"{"scripts":{"build":"tsc"},"dependencies":{"react":"18.0.0"}}"#).unwrap();
+    fs::write(tmp.join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\n").unwrap();
+    fs::write(tmp.join("tsconfig.json"), "{}").unwrap();
+    fs::write(tmp.join("eslint.config.mjs"), "export default [];\n").unwrap();
+    fs::write(tmp.join("src-tauri/Cargo.toml"), "[package]\nname=\"x\"\n").unwrap();
+    fs::write(tmp.join("src-tauri/tauri.conf.json"), "{}").unwrap();
+    fs::create_dir_all(tmp.join(".git")).unwrap();
+
+    let d = detect(&tmp);
+    assert!(d.git);
+    assert!(d.node);
+    assert_eq!(d.pkg_mgr, "pnpm");
+    assert!(d.ts);
+    assert!(!d.py);
+    assert!(d.rust);
+    assert_eq!(d.rust_dir.as_deref(), Some("src-tauri"));
+    assert!(d.tauri);
+    assert!(d.build_script);
+    assert!(d.eslint);
+    assert!(!d.biome);
+    assert_eq!(
+        d.pkg.as_ref().and_then(|p| p.get("dependencies")).and_then(|d| d.get("react")).and_then(|v| v.as_str()),
+        Some("18.0.0")
+    );
+
+    let _ = fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn detect_defaults_to_npm_and_no_node_without_package_json() {
+    let tmp = std::env::temp_dir().join(format!("legion-wf065-detect-bare-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+
+    let d = detect(&tmp);
+    assert!(!d.node);
+    assert!(d.pkg.is_none());
+    assert_eq!(d.pkg_mgr, "npm");
+    assert!(!d.rust);
+    assert_eq!(d.rust_dir, None);
+    assert!(!d.tauri);
+
+    let _ = fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn in_git_worktree_walks_up_to_a_parent_git_dir() {
+    let tmp = std::env::temp_dir().join(format!("legion-wf065-gitwalk-{}", std::process::id()));
+    let sub = tmp.join("a/b/c");
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&sub).unwrap();
+    fs::create_dir_all(tmp.join(".git")).unwrap();
+
+    assert!(in_git_worktree(&sub));
+
+    // Immediately under `.git`'s own directory: also found (depth 0).
+    assert!(in_git_worktree(&tmp));
+
+    let _ = fs::remove_dir_all(&tmp);
+}
+
+#[test]
+fn is_run_dir_name_matches_only_the_iso_timestamp_shape() {
+    assert!(is_run_dir_name("2026-07-21T00-00-00-000Z"));
+    assert!(!is_run_dir_name("2026-07-21"));
+    assert!(!is_run_dir_name("audit"));
+    assert!(!is_run_dir_name("2026-07-21T00-00-00-000Z-extra"));
+}
+
+#[test]
+fn prune_old_runs_keeps_newest_n_and_never_deletes_the_current_run() {
+    let tmp = std::env::temp_dir().join(format!("legion-wf065-prune-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let runs = [
+        "2026-01-01T00-00-00-000Z",
+        "2026-01-02T00-00-00-000Z",
+        "2026-01-03T00-00-00-000Z",
+    ];
+    for r in runs {
+        fs::create_dir_all(tmp.join(r)).unwrap();
+    }
+    // A non-matching entry (e.g. a persistent store dir) must never be touched.
+    fs::create_dir_all(tmp.join("audit")).unwrap();
+
+    // keep=1, current is the OLDEST run: it survives even though it would
+    // otherwise be pruned, and only the newest-besides-current is kept too
+    // per the JS `slice(Math.max(keep,1))` + `name === currentTs` skip.
+    prune_old_runs(&tmp, "2026-01-01T00-00-00-000Z", 1);
+
+    assert!(tmp.join("2026-01-03T00-00-00-000Z").exists(), "newest kept");
+    assert!(tmp.join("2026-01-01T00-00-00-000Z").exists(), "current run never deleted");
+    assert!(!tmp.join("2026-01-02T00-00-00-000Z").exists(), "middle run pruned");
+    assert!(tmp.join("audit").exists(), "non-run-shaped dir untouched");
+
+    let _ = fs::remove_dir_all(&tmp);
 }

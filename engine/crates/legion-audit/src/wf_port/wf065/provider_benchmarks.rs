@@ -795,3 +795,228 @@ pub fn resolve_results_path(root: &Path, results_path: &str) -> PathBuf {
         root.join(p)
     }
 }
+
+// ---------------------------------------------------------------------------
+// CLI — `verify` and `status` subcommands.
+//
+// `measure` is NOT ported: it dynamically `import()`s a caller-supplied JS
+// runner module and invokes whatever `run`/default export it exports. Rust
+// has no equivalent capability to load and execute arbitrary, unknown code
+// discovered at runtime by a file path — that is the one genuinely
+// impossible piece of `provider-benchmarks.mjs`'s CLI surface. Callers of
+// this port supply `run_provider` as a statically-known closure to
+// `measure_fixture_set` directly, which is the intended Rust replacement for
+// the dynamic-import step.
+// ---------------------------------------------------------------------------
+
+/// `cmdVerify`: load a results document, and when `root` is given, recompute
+/// freshness for every result whose bound paths still exist under `root`
+/// ("nothing comparable on disk here" skips a result rather than counting it
+/// stale), matching the JS `existing()`/`rebased` logic exactly.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct VerifyReport {
+    pub valid: bool,
+    pub kind: String,
+    pub results: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fresh: Option<usize>,
+}
+
+pub fn cmd_verify(results_path: &Path, root: Option<&Path>) -> Result<VerifyReport> {
+    let doc = load_benchmark_results(results_path)?;
+    let fresh = root.map(|root| {
+        let mut count = 0usize;
+        for result in &doc.results {
+            let existing = |list: &[Binding]| -> Vec<String> {
+                list.iter()
+                    .filter(|b| root.join(&b.path).exists())
+                    .map(|b| b.path.clone())
+                    .collect()
+            };
+            let impl_paths = existing(&result.binding.implementation_digests);
+            let pack_paths = existing(&result.binding.rule_pack_digests);
+            if impl_paths.is_empty() && pack_paths.is_empty() {
+                continue; // nothing comparable on disk here
+            }
+            let rebased = ProviderBinding {
+                implementation_digests: file_bindings(&impl_paths, root).unwrap_or_default(),
+                rule_pack_digests: file_bindings(&pack_paths, root).unwrap_or_default(),
+            };
+            if is_result_fresh(result, &rebased) {
+                count += 1;
+            }
+        }
+        count
+    });
+    Ok(VerifyReport {
+        valid: true,
+        kind: doc.kind,
+        results: doc.results.len(),
+        fresh,
+    })
+}
+
+/// `cmdStatus`: qualify a results document (as JSON, not necessarily
+/// schema-strict — the JS reads it with `JSON.parse` directly, not
+/// `loadBenchmarkResults`/`assertValidResults`) against `required` provider
+/// ids and an optional current-binding map. Returns the qualification plus
+/// the process exit code the JS CLI would produce
+/// (`unmeasuredProviders.length ? 1 : 0`).
+pub struct StatusReport {
+    pub qualification: Qualification,
+    pub exit_code: i32,
+}
+
+pub fn cmd_status(
+    results_json: &str,
+    required: &[String],
+    current_by_provider: &BTreeMap<String, ProviderBinding>,
+) -> Result<StatusReport> {
+    let doc: ResultsDoc =
+        serde_json::from_str(results_json).map_err(|e| err(format!("invalid results JSON: {e}")))?;
+    let results: Vec<BenchmarkResult> = doc.results.into_iter().map(BenchmarkResult::from).collect();
+    let qualification = qualification_from_results(&results, current_by_provider, required);
+    let exit_code = if qualification.unmeasured_providers.is_empty() { 0 } else { 1 };
+    Ok(StatusReport { qualification, exit_code })
+}
+
+/// Parses a `--current-binding <bindings.json>` file's `{byProvider: {...}}`
+/// (or bare `{id: binding}`) shape into the map `cmd_status` expects.
+pub fn parse_current_binding_file(json_text: &str) -> Result<BTreeMap<String, ProviderBinding>> {
+    let value: serde_json::Value =
+        serde_json::from_str(json_text).map_err(|e| err(format!("invalid current-binding JSON: {e}")))?;
+    let by_provider = value.get("byProvider").cloned().unwrap_or(value);
+    let obj = by_provider
+        .as_object()
+        .ok_or_else(|| err("current-binding file must be an object"))?;
+    let mut out = BTreeMap::new();
+    for (id, v) in obj {
+        let binding: ProviderBinding =
+            serde_json::from_value(v.clone()).map_err(|e| err(format!("invalid binding for {id}: {e}")))?;
+        out.insert(id.clone(), binding);
+    }
+    Ok(out)
+}
+
+fn flag_value(argv: &[String], name: &str) -> Option<String> {
+    let bare = format!("--{name}");
+    let prefixed = format!("--{name}=");
+    for (i, tok) in argv.iter().enumerate() {
+        if tok == &bare {
+            return argv.get(i + 1).cloned();
+        }
+        if let Some(v) = tok.strip_prefix(&prefixed) {
+            return Some(v.to_string());
+        }
+    }
+    None
+}
+
+/// `runCli`: dispatches `verify`/`status` (pure fs + JSON, fully ported) and
+/// reports `measure` as unsupported rather than silently no-op'ing (mirrors
+/// the JS usage-error exit code 2 shape for a bad/missing subcommand).
+/// `measure` cannot be ported — see the CLI section header comment above.
+pub fn run_cli(argv: &[String]) -> i32 {
+    let Some(command) = argv.first() else {
+        eprintln!("usage: provider-benchmarks <measure|verify|status> [options]");
+        return 2;
+    };
+    let rest = &argv[1..];
+    match command.as_str() {
+        "measure" => {
+            eprintln!(
+                "error: `measure` is not supported by this Rust port — it requires dynamically loading an \
+                 arbitrary caller-supplied JS runner module, which has no Rust equivalent. Call \
+                 `measure_fixture_set` directly with a statically-known `run_provider` closure instead."
+            );
+            2
+        }
+        "verify" => {
+            let Some(results_path) = flag_value(rest, "results") else {
+                eprintln!("usage: provider-benchmarks verify --results <results.json> [--root <dir>]");
+                return 2;
+            };
+            let root = flag_value(rest, "root").map(PathBuf::from);
+            match cmd_verify(Path::new(&results_path), root.as_deref()) {
+                Ok(report) => {
+                    println!("{}", serde_json::to_string(&report).unwrap_or_default());
+                    0
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    2
+                }
+            }
+        }
+        "status" => {
+            let Some(results_path) = flag_value(rest, "results") else {
+                eprintln!(
+                    "usage: provider-benchmarks status --results <results.json> [--require <id,id>] \
+                     [--current-binding <bindings.json>]"
+                );
+                return 2;
+            };
+            let required: Vec<String> = flag_value(rest, "require")
+                .unwrap_or_default()
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            let current_by_provider = match flag_value(rest, "current-binding") {
+                Some(p) => {
+                    match fs::read_to_string(&p)
+                        .map_err(BenchmarkError::from)
+                        .and_then(|t| parse_current_binding_file(&t))
+                    {
+                        Ok(m) => m,
+                        Err(e) => {
+                            eprintln!("error: {e}");
+                            return 2;
+                        }
+                    }
+                }
+                None => BTreeMap::new(),
+            };
+            let results_json = match fs::read_to_string(&results_path) {
+                Ok(t) => t,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            match cmd_status(&results_json, &required, &current_by_provider) {
+                Ok(report) => {
+                    #[derive(serde::Serialize)]
+                    struct Out<'a> {
+                        records: &'a BTreeMap<String, BenchmarkRecord>,
+                        #[serde(rename = "unmeasuredProviders")]
+                        unmeasured_providers: &'a [String],
+                        #[serde(rename = "benchmarkGaps")]
+                        benchmark_gaps: &'a [BenchmarkGap],
+                        #[serde(rename = "precisionMeasured")]
+                        precision_measured: bool,
+                    }
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&Out {
+                            records: &report.qualification.records,
+                            unmeasured_providers: &report.qualification.unmeasured_providers,
+                            benchmark_gaps: &report.qualification.benchmark_gaps,
+                            precision_measured: report.qualification.precision_measured,
+                        })
+                        .unwrap_or_default()
+                    );
+                    report.exit_code
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    2
+                }
+            }
+        }
+        _ => {
+            eprintln!("usage: provider-benchmarks <measure|verify|status> [options]");
+            2
+        }
+    }
+}

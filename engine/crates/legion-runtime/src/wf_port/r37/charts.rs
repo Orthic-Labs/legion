@@ -155,7 +155,7 @@ pub fn chart_cwv_distributions(data_with_crux: &Value) -> Option<String> {
         let poor_w = row.poor * scale;
 
         svg.push_str(&format!(
-            r#"<text x="{lx}" y="{ty}" font-size="12" text-anchor="end" fill="#1e293b">{label}</text>"#,
+            r##"<text x="{lx}" y="{ty}" font-size="12" text-anchor="end" fill="#1e293b">{label}</text>"##,
             lx = left - 10.0,
             ty = y + bar_h / 2.0 + 4.0,
             label = xml_escape(&row.label)
@@ -342,7 +342,7 @@ pub fn chart_top_queries(gsc_data: &Value) -> Option<String> {
         let bar_h = 14.0;
         let bar_w = impr * scale;
         svg.push_str(&format!(
-            r#"<text x="{lx}" y="{ty}" font-size="10" text-anchor="end" fill="#1e293b">{label}</text>"#,
+            r##"<text x="{lx}" y="{ty}" font-size="10" text-anchor="end" fill="#1e293b">{label}</text>"##,
             lx = left - 8.0,
             ty = y + bar_h / 2.0 + 3.0,
             label = xml_escape(label)

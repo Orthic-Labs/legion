@@ -485,8 +485,8 @@ impl PageBrowser for ChromePageBrowser {
     fn set_viewport(&mut self, width: u32, height: u32, device_scale_factor: f64) -> Result<(), String> {
         self.tab
             .call_method(headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
-                width: width as u64,
-                height: height as u64,
+                width,
+                height,
                 device_scale_factor,
                 mobile: device_scale_factor > 1.0,
                 scale: None,
@@ -498,6 +498,7 @@ impl PageBrowser for ChromePageBrowser {
                 screen_orientation: None,
                 viewport: None,
                 display_feature: None,
+                device_posture: None,
             })
             .map(|_| ())
             .map_err(|e| e.to_string())
@@ -519,7 +520,7 @@ impl PageBrowser for ChromePageBrowser {
     fn bounding_box(&mut self, selector: &str) -> Option<BoundingBox> {
         let el = self.tab.find_element(selector).ok()?;
         let box_model = el.get_box_model().ok()?;
-        Some(BoundingBox { y: box_model.content.top() })
+        Some(BoundingBox { y: box_model.content.most_top() })
     }
 
     fn attribute(&mut self, selector: &str, attr: &str) -> Option<String> {

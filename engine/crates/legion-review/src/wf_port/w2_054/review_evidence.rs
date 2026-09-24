@@ -913,7 +913,7 @@ pub fn frozen_value_gate() -> Value {
 }
 
 /// Mirrors `_material_changes`.
-fn material_changes(sample: &Value) -> Vec<&'static str> {
+pub(crate) fn material_changes(sample: &Value) -> Vec<&'static str> {
     let blind = &sample["blind"];
     let debate = &sample["peer_debate"];
     let mut changes = Vec::new();
@@ -962,7 +962,7 @@ fn material_changes(sample: &Value) -> Vec<&'static str> {
 }
 
 /// Mirrors `_inflation_ratio`.
-fn inflation_ratio(blind_count: usize, debate_count: usize) -> f64 {
+pub(crate) fn inflation_ratio(blind_count: usize, debate_count: usize) -> f64 {
     if blind_count == 0 {
         if debate_count == 0 {
             1.0
@@ -975,7 +975,7 @@ fn inflation_ratio(blind_count: usize, debate_count: usize) -> f64 {
 }
 
 /// Mirrors `_branch_outcome`.
-fn branch_outcome(run_dir: &Path) -> Result<Value> {
+pub(crate) fn branch_outcome(run_dir: &Path) -> Result<Value> {
     let disposition_path = run_dir.join("review.disposition.json");
     let jury_path = run_dir.join("jury.verdict.json");
     if !disposition_path.is_file() || !jury_path.is_file() {
@@ -1058,7 +1058,7 @@ fn branch_outcome(run_dir: &Path) -> Result<Value> {
 }
 
 /// Mirrors `_peer_round_accounting`.
-fn peer_round_accounting(run_dir: &Path) -> Result<Value> {
+pub(crate) fn peer_round_accounting(run_dir: &Path) -> Result<Value> {
     let mut calls: i64 = 0;
     let mut tokens: i64 = 0;
     let mut complete = true;
@@ -1385,6 +1385,120 @@ pub fn evaluate_frozen_value_gate(run_dirs: &[PathBuf], runs_root: &Path) -> Res
     }))
 }
 
+/// Port of `main(argv)` / the `argparse` CLI: `pin`, `verify`, `evaluate`,
+/// and `sample` subcommands. Mirrors Python's exit-code contract (`verify`
+/// exits 1 on mismatch, `evaluate` exits 1 when the gate fails, everything
+/// else exits 0 after printing the pretty-printed JSON result to stdout);
+/// errors are printed to stderr and return exit code 2 (Python's
+/// `argparse`/uncaught-exception convention).
+///
+/// `--runs-root` defaults to the caller-supplied `default_runs_root`
+/// (Python derived a module-relative `RUNS_ROOT` from `__file__`, which has
+/// no Rust equivalent; callers own where `.council-runs` actually lives).
+pub fn run(args: &[String], default_runs_root: &Path) -> i32 {
+    match run_inner(args, default_runs_root) {
+        Ok(code) => code,
+        Err(message) => {
+            eprintln!("{message}");
+            2
+        }
+    }
+}
+
+fn flag_value(args: &[String], name: &str) -> Option<String> {
+    args.iter()
+        .position(|a| a == name)
+        .and_then(|i| args.get(i + 1))
+        .cloned()
+}
+
+fn flag_present(args: &[String], name: &str) -> bool {
+    args.iter().any(|a| a == name)
+}
+
+fn positionals(args: &[String]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut skip_next = false;
+    for arg in args {
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+        if arg.starts_with("--") {
+            skip_next = true;
+            continue;
+        }
+        out.push(arg.clone());
+    }
+    out
+}
+
+fn run_inner(args: &[String], default_runs_root: &Path) -> std::result::Result<i32, String> {
+    let mut iter = args.iter();
+    let command = iter.next().ok_or("a command is required: pin|verify|evaluate|sample")?;
+    let rest: Vec<String> = iter.cloned().collect();
+    let runs_root_arg = flag_value(&rest, "--runs-root");
+    let runs_root = runs_root_arg
+        .as_deref()
+        .map(Path::new)
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| default_runs_root.to_path_buf());
+    let pos = positionals(&rest);
+
+    match command.as_str() {
+        "pin" => {
+            let run_dir = pos.first().ok_or("pin requires run_dir")?;
+            let result = pin_run_evidence(Path::new(run_dir), &runs_root).map_err(|e| e.to_string())?;
+            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            Ok(0)
+        }
+        "verify" => {
+            let run_dir = pos.first().ok_or("verify requires run_dir")?;
+            let result = verify_run_evidence(Path::new(run_dir), &runs_root).map_err(|e| e.to_string())?;
+            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            let ok = result.get("ok").and_then(Value::as_bool).unwrap_or(false);
+            Ok(if ok { 0 } else { 1 })
+        }
+        "evaluate" => {
+            if pos.len() != 3 {
+                return Err("evaluate requires exactly 3 run_dirs".to_string());
+            }
+            let run_dirs: Vec<PathBuf> = pos.iter().map(PathBuf::from).collect();
+            let result = evaluate_frozen_value_gate(&run_dirs, &runs_root).map_err(|e| e.to_string())?;
+            if let Some(output) = flag_value(&rest, "--output") {
+                write_json(Path::new(&output), &result).map_err(|e| e.to_string())?;
+            }
+            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            let passed = result.get("passed").and_then(Value::as_bool).unwrap_or(false);
+            Ok(if passed { 0 } else { 1 })
+        }
+        "sample" => {
+            let run_id = pos.first().ok_or("sample requires run_id")?;
+            let blind_run = flag_value(&rest, "--blind-run").ok_or("sample requires --blind-run")?;
+            let peer_debate_run =
+                flag_value(&rest, "--peer-debate-run").ok_or("sample requires --peer-debate-run")?;
+            let review_kind = flag_value(&rest, "--review-kind").ok_or("sample requires --review-kind")?;
+            let self_referential = flag_present(&rest, "--self-referential");
+            let adjudication_path =
+                flag_value(&rest, "--adjudication").ok_or("sample requires --adjudication")?;
+            let adjudication = read_json(Path::new(&adjudication_path)).map_err(|e| e.to_string())?;
+            let result = build_value_gate_sample(
+                run_id,
+                Path::new(&blind_run),
+                Path::new(&peer_debate_run),
+                &review_kind,
+                self_referential,
+                &adjudication,
+                &runs_root,
+            )
+            .map_err(|e| e.to_string())?;
+            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            Ok(0)
+        }
+        other => Err(format!("unknown command: {other}")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1415,6 +1529,40 @@ mod tests {
     #[test]
     fn inflation_ratio_normal() {
         assert_eq!(inflation_ratio(4, 8), 2.0);
+    }
+
+    #[test]
+    fn cli_pin_then_verify_exits_zero() {
+        let root = tempdir();
+        let run_dir = root.join("run-a");
+        fs::create_dir_all(&run_dir).unwrap();
+        fs::write(run_dir.join("artifact.txt"), b"hello").unwrap();
+        let pin_code = run(
+            &[
+                "pin".to_string(),
+                run_dir.to_string_lossy().to_string(),
+                "--runs-root".to_string(),
+                root.to_string_lossy().to_string(),
+            ],
+            &root,
+        );
+        assert_eq!(pin_code, 0);
+        let verify_code = run(
+            &[
+                "verify".to_string(),
+                run_dir.to_string_lossy().to_string(),
+                "--runs-root".to_string(),
+                root.to_string_lossy().to_string(),
+            ],
+            &root,
+        );
+        assert_eq!(verify_code, 0);
+    }
+
+    #[test]
+    fn cli_unknown_command_returns_exit_2() {
+        let root = tempdir();
+        assert_eq!(run(&["bogus".to_string()], &root), 2);
     }
 
     #[test]

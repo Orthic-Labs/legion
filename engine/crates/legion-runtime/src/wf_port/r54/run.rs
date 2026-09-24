@@ -318,15 +318,40 @@ fn run_cdp_session(args: &Args, url: &str, browser_path: &str, repo_root: &str, 
         println!("[qa] screenshot {file}");
     }
     if do_actions {
-        let actions_path = args.actions.as_deref().ok_or("--actions path missing")?;
-        let abs_path = abs(repo_root, actions_path);
-        let raw = std::fs::read_to_string(&abs_path).map_err(|e| e.to_string())?;
-        let parsed = super::actions::parse_actions(&raw)?;
-        for (i, action) in parsed.iter().enumerate() {
-            let line = super::actions::run_action(&mut session, action, i)?;
-            println!("{line}");
+        // `runActions`'s `finally` block (qa.mjs lines 711-725): the console error/warning log is
+        // written under `.cache/qa-console.log` whether the actions succeeded or a later one
+        // threw, so it always reflects what happened during this run.
+        let actions_result = (|| -> Result<(), String> {
+            let actions_path = args.actions.as_deref().ok_or("--actions path missing")?;
+            let abs_path = abs(repo_root, actions_path);
+            let raw = std::fs::read_to_string(&abs_path).map_err(|e| e.to_string())?;
+            let parsed = super::actions::parse_actions(&raw)?;
+            for (i, action) in parsed.iter().enumerate() {
+                let line = super::actions::run_action(&mut session, action, i)?;
+                println!("{line}");
+            }
+            println!("[qa] actions complete {}", abs_path.display());
+            Ok(())
+        })();
+        let console_errors = session.take_console_errors();
+        let log_path = abs(repo_root, ".cache/qa-console.log");
+        if let Some(parent) = log_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
         }
-        println!("[qa] actions complete {}", abs_path.display());
+        let mut contents = console_errors.join("\n");
+        if !console_errors.is_empty() {
+            contents.push('\n');
+        }
+        let _ = std::fs::write(&log_path, contents);
+        if !console_errors.is_empty() {
+            println!("[qa] {} console error/warning(s) — see {}", console_errors.len(), log_path.display());
+            for e in console_errors.iter().take(20) {
+                println!("[qa]   {e}");
+            }
+        } else {
+            println!("[qa] no console errors or warnings");
+        }
+        actions_result?;
     }
     if let Some(save_path) = &args.save_session {
         let data = session.save_session()?;

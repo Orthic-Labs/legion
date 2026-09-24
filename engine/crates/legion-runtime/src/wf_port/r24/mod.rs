@@ -34,6 +34,7 @@
 //! `finish-r24.md` for the itemized table.
 
 pub mod http_server;
+pub mod manual_edit_deps;
 pub mod queue;
 pub mod server_info;
 
@@ -169,6 +170,12 @@ pub enum RunOutcome {
     StopFailedNoServer,
     AlreadyRunning { port: u16, pid: u32 },
     ServerExited,
+    /// `--background`: the detached child was spawned and (if
+    /// `server.json` appeared within the readiness timeout) its connection
+    /// info was printed. `ready` is `false` if the timeout elapsed first
+    /// (JS gives no explicit timeout for this poll; a bounded wait here
+    /// avoids hanging forever if the child fails silently).
+    BackgroundStarted { port: u16, pid: u32, ready: bool },
 }
 
 /// `stop` subcommand: read `server.json`, hit `GET /stop?token=...` on the

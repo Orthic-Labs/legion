@@ -282,8 +282,9 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
             if scope_obj.is_none() || read.is_none() || forbidden.is_none() {
                 errors.push("Oracle packet requires read-only scope".to_string());
             } else if let (Some(read), Some(forbidden)) = (read, forbidden) {
-                let read_set: BTreeSet<&Value> = read.iter().collect();
-                if forbidden.iter().any(|v| read_set.contains(v)) {
+                let read_set: BTreeSet<String> =
+                    read.iter().map(|v| v.to_string()).collect();
+                if forbidden.iter().any(|v| read_set.contains(&v.to_string())) {
                     errors.push("Oracle scope overlaps forbidden paths".to_string());
                 }
             }
@@ -309,8 +310,9 @@ pub fn authority_packet_errors(packet: &Value, artifact: &Path) -> (Vec<String>,
             let contract_own = scope_obj.and_then(|o| o.get("contractOwn")).and_then(|v| v.as_array());
             let subset_ok = match (own, contract_own) {
                 (Some(own), Some(contract_own)) => {
-                    let contract_own_set: BTreeSet<&Value> = contract_own.iter().collect();
-                    own.iter().all(|v| contract_own_set.contains(v))
+                    let contract_own_set: BTreeSet<String> =
+                        contract_own.iter().map(|v| v.to_string()).collect();
+                    own.iter().all(|v| contract_own_set.contains(&v.to_string()))
                 }
                 _ => false,
             };

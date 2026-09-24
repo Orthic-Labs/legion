@@ -1563,3 +1563,538 @@ mod tests {
         fs::remove_dir_all(root).expect("cleanup");
     }
 }
+
+
+/// Packet U01: Rust port of `right-release.config.mjs`, the RightKit release
+/// pipeline's declarative Windows/macOS packaging config. Live callers of
+/// the `.mjs` original remain JS (`scripts/assemble-native-release.mjs`,
+/// `scripts/package-windows-release.mjs`, `scripts/qualify-windows-release.mjs`,
+/// `scripts/check-distribution-contract.mjs`) — this module is a faithful
+/// value-for-value port of the config shape those scripts read, built from
+/// the same environment variables and `release/version.json`.
+pub mod right_release_config {
+    use serde_json::{json, Value};
+    use std::path::Path;
+
+    /// Port of `WINDOWS_ARCHITECTURES`.
+    pub struct WindowsArchSpec {
+        pub platform: &'static str,
+        pub architecture: &'static str,
+        pub native_architecture: &'static str,
+        pub target_triple: &'static str,
+        pub artifact_id: &'static str,
+    }
+
+    pub const WINDOWS_X86_64: WindowsArchSpec = WindowsArchSpec {
+        platform: "windows",
+        architecture: "x86_64",
+        native_architecture: "x64",
+        target_triple: "x86_64-pc-windows-msvc",
+        artifact_id: "windows-x86_64",
+    };
+    pub const WINDOWS_ARM64: WindowsArchSpec = WindowsArchSpec {
+        platform: "windows",
+        architecture: "arm64",
+        native_architecture: "arm64",
+        target_triple: "aarch64-pc-windows-msvc",
+        artifact_id: "windows-arm64",
+    };
+
+    fn windows_arch(name: &str) -> Option<&'static WindowsArchSpec> {
+        match name {
+            "x86_64" => Some(&WINDOWS_X86_64),
+            "arm64" => Some(&WINDOWS_ARM64),
+            _ => None,
+        }
+    }
+
+    fn windows_assembly_root(spec: &WindowsArchSpec, version: &str) -> String {
+        format!("dist/native/windows-{}/legion-{version}", spec.architecture)
+    }
+    fn windows_archive_name(spec: &WindowsArchSpec, version: &str) -> String {
+        format!("legion-{version}-windows-{}.zip", spec.architecture)
+    }
+
+    fn windows_arch_json(spec: &WindowsArchSpec, version: &str) -> Value {
+        json!({
+            "platform": spec.platform,
+            "architecture": spec.architecture,
+            "nativeArchitecture": spec.native_architecture,
+            "targetTriple": spec.target_triple,
+            "artifactId": spec.artifact_id,
+            "assemblyRoot": windows_assembly_root(spec, version),
+            "archive": windows_archive_name(spec, version),
+        })
+    }
+
+    /// Port of `MACOS_ARCHITECTURES`.
+    pub struct MacArchSpec {
+        pub platform: &'static str,
+        pub architecture: &'static str,
+        pub target_triple: &'static str,
+    }
+    pub const MACOS_ARM64: MacArchSpec =
+        MacArchSpec { platform: "macos", architecture: "arm64", target_triple: "aarch64-apple-darwin" };
+    pub const MACOS_X86_64: MacArchSpec =
+        MacArchSpec { platform: "macos", architecture: "x86_64", target_triple: "x86_64-apple-darwin" };
+
+    fn macos_arch(name: &str) -> Option<&'static MacArchSpec> {
+        match name {
+            "arm64" => Some(&MACOS_ARM64),
+            "x86_64" => Some(&MACOS_X86_64),
+            _ => None,
+        }
+    }
+
+    fn macos_arch_json(spec: &MacArchSpec) -> Value {
+        json!({
+            "platform": spec.platform,
+            "architecture": spec.architecture,
+            "targetTriple": spec.target_triple,
+        })
+    }
+
+    /// Port of `WINDOWS_INSTALL_CONTRACT`.
+    pub fn windows_install_contract() -> Value {
+        json!({
+            "origin": "installed",
+            "localAppDataSubdir": ["Orthic Labs", "Legion"],
+            "installRootSubdir": "Orthic Labs/Legion",
+            "stableCurrentName": "current",
+            "previousCurrentName": ".current-previous",
+            "nextCurrentName": ".current-next",
+            "integrationJournalName": "integration-journal.json",
+            "executablePath": "bin/legion.exe",
+            "generationFormat": "release-version:declarative-assets-sha256",
+            "forbiddenBindingSegments": ["repo", "dist", "target", "node_modules"],
+        })
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct ConfigError(pub String);
+    impl std::fmt::Display for ConfigError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+    impl std::error::Error for ConfigError {}
+
+    /// Environment inputs the `.mjs` config reads via `process.env`. Passed
+    /// explicitly (rather than read from `std::env` inside this function) so
+    /// callers and tests control them precisely — same effect as the
+    /// `?? "default"` fallbacks in the original.
+    #[derive(Debug, Clone, Default)]
+    pub struct ConfigEnv {
+        pub legion_windows_arch: Option<String>,
+        pub right_git_release_architecture: Option<String>,
+        pub legion_macos_arch: Option<String>,
+        pub legion_unsigned_candidate_root: Option<String>,
+        pub legion_source_revision: Option<String>,
+    }
+
+    fn node_command(args: &[String]) -> Value {
+        json!({"cmd": "node", "args": args})
+    }
+
+    /// Port of the module's `export default` build. `release_version` is the
+    /// content of `release/version.json`'s `version` field (read separately
+    /// by [`read_release_version`] — this builder itself has no filesystem
+    /// access, the same I/O-seam pattern the rest of this crate's
+    /// `wf_port`/`l1b_port` modules use).
+    pub fn build_config(release_version: &str, env: &ConfigEnv) -> Result<Value, ConfigError> {
+        let selected_architecture = env
+            .legion_windows_arch
+            .clone()
+            .or_else(|| env.right_git_release_architecture.clone())
+            .unwrap_or_else(|| "x86_64".to_string())
+            .trim()
+            .to_lowercase();
+        let selected_windows = windows_arch(&selected_architecture).ok_or_else(|| {
+            ConfigError(format!(
+                "unsupported LEGION_WINDOWS_ARCH: {selected_architecture}; expected x86_64 or arm64"
+            ))
+        })?;
+
+        let mac_architecture = env
+            .legion_macos_arch
+            .clone()
+            .or_else(|| env.right_git_release_architecture.clone())
+            .unwrap_or_else(|| "arm64".to_string())
+            .trim()
+            .to_lowercase();
+        let selected_mac = macos_arch(&mac_architecture).ok_or_else(|| {
+            ConfigError(format!("unsupported LEGION_MACOS_ARCH: {mac_architecture}; expected arm64 or x86_64"))
+        })?;
+
+        let selected_candidate = env
+            .legion_unsigned_candidate_root
+            .clone()
+            .unwrap_or_else(|| "REQUIRED_LEGION_UNSIGNED_CANDIDATE_ROOT".to_string());
+        let selected_source_revision = env
+            .legion_source_revision
+            .clone()
+            .unwrap_or_else(|| "REQUIRED_LEGION_SOURCE_REVISION".to_string());
+
+        let windows_assembly_root = windows_assembly_root(selected_windows, release_version);
+        let windows_archive = windows_archive_name(selected_windows, release_version);
+        let selected_output = format!("dist/releases/windows/{release_version}/{}", selected_windows.architecture);
+        let selected_receipt =
+            format!(".right-release/receipts/windows-{}-raw-exe.json", selected_windows.architecture);
+        let selected_provenance =
+            format!(".right-release/receipts/windows-{}-provenance.json", selected_windows.architecture);
+        let selected_qualification =
+            format!(".right-release/receipts/windows-{}-qualification.json", selected_windows.architecture);
+        let selected_candidate_receipt =
+            format!(".right-release/receipts/windows-{}-candidate-input.json", selected_windows.architecture);
+
+        let selected_candidate_pre_package = node_command(&[
+            "scripts/prepare-windows-candidate-finalization.mjs".to_string(),
+            "--candidate".to_string(),
+            selected_candidate.clone(),
+            "--architecture".to_string(),
+            selected_windows.architecture.to_string(),
+            "--source-revision".to_string(),
+            selected_source_revision.clone(),
+            "--version".to_string(),
+            release_version.to_string(),
+            "--output".to_string(),
+            windows_assembly_root.clone(),
+            "--receipt".to_string(),
+            selected_candidate_receipt.clone(),
+        ]);
+
+        let mac_assembly_root = format!("dist/native/macos-{mac_architecture}/legion-{release_version}");
+        let mac_output = format!("dist/releases/mac/{release_version}/{mac_architecture}");
+        let mac_stem = format!("legion-{release_version}-macos-{mac_architecture}");
+        let mac_archive = format!("{mac_output}/{mac_stem}.tar.gz");
+        let mac_sbom = format!("{mac_output}/{mac_stem}.cdx.json");
+        let mac_provenance = format!("{mac_output}/{mac_stem}.intoto.jsonl");
+        let mac_notarization_archive = format!(".right-release/notary/{mac_stem}.zip");
+        let mac_candidate_receipt = format!(".right-release/receipts/macos-{mac_architecture}-candidate-input.json");
+        let mac_signing_receipt = format!(".right-release/receipts/macos-{mac_architecture}-signing.json");
+        let mac_notarization_receipt =
+            format!(".right-release/receipts/macos-{mac_architecture}-notarization.json");
+
+        let mac_candidate_pre_package = node_command(&[
+            "scripts/finalize-macos-candidate.mjs".to_string(),
+            "--candidate".to_string(),
+            selected_candidate.clone(),
+            "--architecture".to_string(),
+            mac_architecture.clone(),
+            "--source-revision".to_string(),
+            selected_source_revision.clone(),
+            "--version".to_string(),
+            release_version.to_string(),
+            "--output".to_string(),
+            mac_assembly_root.clone(),
+            "--receipt".to_string(),
+            mac_candidate_receipt.clone(),
+        ]);
+
+        let windows_targets = json!({
+            "x86_64": windows_arch_json(&WINDOWS_X86_64, release_version),
+            "arm64": windows_arch_json(&WINDOWS_ARM64, release_version),
+        });
+
+        let package_matrix_entry = |spec: &WindowsArchSpec| {
+            json!({
+                "platform": spec.platform,
+                "architecture": spec.architecture,
+                "nativeArchitecture": spec.native_architecture,
+                "targetTriple": spec.target_triple,
+                "input": selected_candidate,
+                "output": format!("dist/releases/windows/{release_version}/{}", spec.architecture),
+                "archive": windows_archive_name(spec, release_version),
+                "receipt": format!(".right-release/receipts/windows-{}-raw-exe.json", spec.architecture),
+                "candidateReceipt": format!(".right-release/receipts/windows-{}-candidate-input.json", spec.architecture),
+                "provenance": format!(".right-release/receipts/windows-{}-provenance.json", spec.architecture),
+                "qualification": format!(".right-release/receipts/windows-{}-qualification.json", spec.architecture),
+                "artifact": format!(
+                    "dist/releases/windows/{release_version}/{}/{}",
+                    spec.architecture,
+                    windows_archive_name(spec, release_version)
+                ),
+            })
+        };
+
+        let win_target = json!({
+            "signed": true,
+            "platform": "windows",
+            "targetTriple": selected_windows.target_triple,
+            "packageKind": "portable-zip",
+            "distribution": "direct-bootstrap",
+            "defaultArchitecture": "x86_64",
+            "selectedArchitecture": selected_architecture,
+            "architectures": windows_targets.clone(),
+            "releaseArchitectures": ["x86_64", "arm64"],
+            "signingContract": "windows-raw-exe-authenticode-before-portable-v1",
+            "manifestSigningContract": "windows-authenticode-catalog-v1",
+            "publishBlocked": "direct bootstrap remains blocked until signed manifest catalog, native signatures, provenance, qualification, and channel evidence are verified",
+            "prePackage": selected_candidate_pre_package,
+            "sign": {
+                "prePackageFiles": [
+                    format!("{windows_assembly_root}/bin/legion.exe"),
+                    format!("{windows_assembly_root}/bin/legion-hook.exe"),
+                    format!("{windows_assembly_root}/bin/legion-mcp.exe"),
+                ],
+                "receipt": selected_receipt,
+                "requiredEnvironment": [
+                    "AZURE_ARTIFACT_SIGNING_DLIB_PATH",
+                    "AZURE_ARTIFACT_SIGNING_ENDPOINT",
+                    "AZURE_ARTIFACT_SIGNING_ACCOUNT",
+                    "AZURE_ARTIFACT_SIGNING_PROFILE",
+                ],
+            },
+            "evidence": {
+                "candidateInput": selected_candidate_receipt,
+                "signature": selected_receipt,
+                "provenance": selected_provenance,
+                "qualification": selected_qualification,
+                "artifacts": ["release-manifest.json", "release-manifest.cat", "checksums.json", "*.cdx.json", "*.intoto.jsonl", "install.ps1"],
+            },
+            "package": {
+                "cmd": "pnpm",
+                "args": [
+                    "windows:package",
+                    "--",
+                    "--architecture",
+                    selected_windows.architecture,
+                    "--input",
+                    windows_assembly_root.as_str(),
+                    "--source-revision",
+                    selected_source_revision.as_str(),
+                    "--output",
+                    selected_output.as_str(),
+                    "--force",
+                ],
+            },
+            "packageMatrix": [package_matrix_entry(&WINDOWS_X86_64), package_matrix_entry(&WINDOWS_ARM64)],
+            "artifacts": [format!("{selected_output}/{windows_archive}")],
+        });
+
+        let mac_target = json!({
+            "signed": true,
+            "platform": "macos",
+            "architecture": mac_architecture,
+            "targetTriple": selected_mac.target_triple,
+            "architectures": {
+                "arm64": macos_arch_json(&MACOS_ARM64),
+                "x86_64": macos_arch_json(&MACOS_X86_64),
+            },
+            "packageKind": "portable-tar-gz",
+            "distribution": "direct-bootstrap",
+            "signingContract": "macos-developer-id-notarized-portable-v1",
+            "publishBlocked": "release publication remains separate from signed candidate production",
+            "prePackage": mac_candidate_pre_package,
+            "sign": {
+                "prePackageFiles": [
+                    format!("{mac_assembly_root}/bin/legion"),
+                    format!("{mac_assembly_root}/bin/legion-hook"),
+                    format!("{mac_assembly_root}/bin/legion-mcp"),
+                ],
+                "receipt": mac_signing_receipt,
+            },
+            "notarize": {
+                "file": mac_notarization_archive,
+                "receipt": mac_notarization_receipt,
+            },
+            "package": {
+                "cmd": "node",
+                "args": [
+                    "scripts/finalize-macos-candidate.mjs",
+                    "--package",
+                    "--input",
+                    mac_assembly_root.as_str(),
+                    "--output",
+                    mac_output.as_str(),
+                    "--notarization-archive",
+                    mac_notarization_archive.as_str(),
+                    "--architecture",
+                    mac_architecture.as_str(),
+                    "--source-revision",
+                    selected_source_revision.as_str(),
+                    "--version",
+                    release_version,
+                ],
+            },
+            "evidence": {
+                "candidateInput": mac_candidate_receipt,
+                "signature": mac_signing_receipt,
+                "notarization": mac_notarization_receipt,
+                "provenance": mac_provenance,
+                "sbom": mac_sbom,
+            },
+            "artifacts": [mac_archive, mac_sbom, mac_provenance],
+        });
+
+        Ok(json!({
+            "schema": 1,
+            "app": "legion",
+            "hostedWorkflows": "right-git-ci-only",
+            "version": release_version,
+            "distribution": {
+                "provider": "github-releases",
+                "repository": "Orthic-Labs/legion",
+                "payloadAuthority": "immutable-github-release",
+                "manifestAuthority": "release-manifest.json+release-manifest.cat",
+                "manifest": {
+                    "file": "release-manifest.json",
+                    "signature": "release-manifest.cat",
+                    "signatureAlgorithm": "authenticode-catalog-sha256",
+                    "signatureProvider": "windows-authenticode-catalog",
+                    "signatureProviderVersion": 1,
+                },
+                "checksums": {
+                    "file": "checksums.json",
+                    "role": "manifest-bound-convenience",
+                },
+                "publisher": "rightkit-release",
+                "bootstrap": {
+                    "provider": "rightkit-worker-r2",
+                    "publisher": "rightkit-release",
+                    "mode": "worker-r2-stable-object",
+                    "payloadAuthority": "immutable-github-release",
+                    "stableUrl": "https://legion.orthiclabs.com/install.ps1",
+                    "objectKey": "legion/install.ps1",
+                },
+                "install": windows_install_contract(),
+            },
+            "packageManager": "pnpm",
+            "workdir": ".",
+            "checks": ["legion:check", "test"],
+            "releaseVerifier": "scripts/verify-release.mjs",
+            "buildInputs": {
+                "include": [
+                    "engine/**",
+                    "skills/**",
+                    "packs/native/manifest.v1.json",
+                    "src/registry/**",
+                    "scripts/assemble-native-release.mjs",
+                    "scripts/package-windows-release.mjs",
+                    "scripts/prepare-windows-candidate-finalization.mjs",
+                    "scripts/finalize-macos-candidate.mjs",
+                    "scripts/qualify-windows-release.mjs",
+                    "release/**",
+                    "packaging/windows/sign.md",
+                    "packaging/macos/sign.md",
+                    "docs/THIRD_PARTY_NOTICES.md",
+                    "package.json",
+                    "pnpm-lock.yaml",
+                ],
+            },
+            "nativeAssembly": {
+                "cargoManifest": "engine/Cargo.toml",
+                "defaultProfile": "release",
+                "localProvenanceScheme": "local-build",
+                "signedProvenanceScheme": "rightkit-release",
+                "targetArchitectures": windows_targets,
+                "candidateInput": "exact-unsigned-candidate",
+                "archive": format!("{selected_output}/{windows_archive}"),
+                "packageHook": selected_candidate_pre_package,
+                "finalizer": {
+                    "cmd": "pnpm",
+                    "args": [
+                        "native:assemble",
+                        "--",
+                        "--profile",
+                        "release",
+                        "--platform",
+                        "windows",
+                        "--architecture",
+                        selected_windows.architecture,
+                        "--target",
+                        selected_windows.target_triple,
+                        "--out",
+                        windows_assembly_root.as_str(),
+                        "--finalize-signed",
+                        "--provenance",
+                        "{provenance}",
+                    ],
+                    "output": selected_provenance,
+                },
+                "packageIdentity": {
+                    "name": windows_archive,
+                    "path": format!("{selected_output}/{windows_archive}"),
+                    "kind": "portable-zip",
+                    "version": release_version,
+                    "target": selected_windows.target_triple,
+                    "platform": "windows",
+                    "architecture": selected_windows.architecture,
+                },
+            },
+            "targets": {
+                "win": win_target,
+                "mac": mac_target,
+            },
+        }))
+    }
+
+    /// Reads `release/version.json`'s `version` field the way the `.mjs`
+    /// original does (`readFileSync` + `JSON.parse(...).version`), given the
+    /// repo root.
+    pub fn read_release_version(repo_root: &Path) -> Result<String, ConfigError> {
+        let raw = std::fs::read_to_string(repo_root.join("release/version.json"))
+            .map_err(|e| ConfigError(format!("reading release/version.json: {e}")))?;
+        let value: Value =
+            serde_json::from_str(&raw).map_err(|e| ConfigError(format!("parsing release/version.json: {e}")))?;
+        value
+            .get("version")
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| ConfigError("release/version.json missing \"version\"".to_string()))
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn defaults_select_x86_64_windows_and_arm64_macos() {
+            let cfg = build_config("1.2.3", &ConfigEnv::default()).unwrap();
+            assert_eq!(cfg["targets"]["win"]["selectedArchitecture"], "x86_64");
+            assert_eq!(cfg["targets"]["mac"]["architecture"], "arm64");
+            assert_eq!(
+                cfg["targets"]["win"]["artifacts"][0],
+                "dist/releases/windows/1.2.3/x86_64/legion-1.2.3-windows-x86_64.zip"
+            );
+        }
+
+        #[test]
+        fn windows_arch_env_selects_arm64() {
+            let env = ConfigEnv { legion_windows_arch: Some(" ARM64 ".to_string()), ..Default::default() };
+            let cfg = build_config("2.0.0", &env).unwrap();
+            assert_eq!(cfg["targets"]["win"]["selectedArchitecture"], "arm64");
+            assert_eq!(cfg["targets"]["win"]["targetTriple"], "aarch64-pc-windows-msvc");
+        }
+
+        #[test]
+        fn unsupported_windows_arch_is_rejected() {
+            let env = ConfigEnv { legion_windows_arch: Some("mips".to_string()), ..Default::default() };
+            let err = build_config("1.0.0", &env).unwrap_err();
+            assert!(err.0.contains("unsupported LEGION_WINDOWS_ARCH: mips"));
+        }
+
+        #[test]
+        fn unsupported_macos_arch_is_rejected() {
+            let env = ConfigEnv { legion_macos_arch: Some("risc".to_string()), ..Default::default() };
+            let err = build_config("1.0.0", &env).unwrap_err();
+            assert!(err.0.contains("unsupported LEGION_MACOS_ARCH: risc"));
+        }
+
+        #[test]
+        fn mac_artifacts_use_version_and_architecture() {
+            let cfg = build_config("9.9.9", &ConfigEnv::default()).unwrap();
+            let artifacts = cfg["targets"]["mac"]["artifacts"].as_array().unwrap();
+            assert_eq!(artifacts[0], "dist/releases/mac/9.9.9/arm64/legion-9.9.9-macos-arm64.tar.gz");
+        }
+
+        #[test]
+        fn required_placeholders_surface_when_candidate_env_is_absent() {
+            let cfg = build_config("1.0.0", &ConfigEnv::default()).unwrap();
+            assert_eq!(
+                cfg["targets"]["win"]["prePackage"]["args"][2],
+                "REQUIRED_LEGION_UNSIGNED_CANDIDATE_ROOT"
+            );
+        }
+    }
+}

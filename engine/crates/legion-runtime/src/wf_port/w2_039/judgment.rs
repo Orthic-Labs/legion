@@ -279,6 +279,7 @@ pub struct AdjudicationPolicy {
 }
 
 /// Mirrors one element of the array `prepareAdjudication` returns.
+#[derive(Debug)]
 pub struct Prepared {
     pub policy: ReviewerPolicy,
     pub packet: JudgmentPacket,

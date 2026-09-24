@@ -11,18 +11,22 @@
 //!   (`route_resolve.rs`): `build_subject`, `resolve`, `pending_gates`,
 //!   `gate_verdicts`, `grant_effects`, `validate_route`. The `argparse`
 //!   `main` shim is not ported (see that module's doc comment).
-//! - `run.py`: **partial**. The pure decision functions
+//! - `run.py`: **full faithful port** (packet r56, resuming/finishing the
+//!   partial state left by an earlier chunk). The pure decision functions
 //!   (`_default_search_provider`, `_resolve_acquire_provider`,
-//!   `_check_effects`, the `init_run` scale-budget mapping) are ported in
-//!   `run.rs`. The stateful orchestrator functions (`init_run`'s directory
-//!   write, `grant`, `acquire`, `record_evidence`, `record_claim`,
+//!   `_check_effects`, the `init_run` scale-budget mapping) and the full
+//!   stateful orchestrator (`init_run`'s directory write, `grant`,
+//!   `meter_worker`, `acquire`, `record_evidence`, `record_claim`,
 //!   `render_draft`, `issue_patch_receipt`, `apply_draft_patch`, `verify`,
-//!   `finalize`, and the `argparse` `main`) are NOT ported: they depend on
-//!   `manifest.py`, `ledger.py`, `citecheck.py`, `contradictions.py`,
-//!   `gap_critic.py`, `domain_verify.py`, `retraction.py`, `patcher.py`,
-//!   `draft_integrity.py`, `effect_audit.py`, `meter.py`, `patch_guard.py`,
-//!   and `providers/search_open_find.py`, none of which has a canonical
-//!   port under `legion-research` yet.
+//!   `finalize`, and the `argparse` `main`, as [`run::run`]) are all in
+//!   `run.rs`, wired against the now-canonical ports of every dependency
+//!   (`manifest.py`/`ledger.py` in wf025, `citecheck.py`/`contradictions.py`
+//!   in wf023, `domain_verify.py`/`draft_integrity.py`/`effect_audit.py` in
+//!   wf024, `meter.py`/`patcher.py`/`patch_guard.py` in wf026,
+//!   `retraction.py`'s pure logic and `providers/search_open_find.py` in
+//!   wf028, and `query.py` as `research_port::query`). `retraction.py`'s
+//!   live OpenAlex/Crossref network calls, which no prior packet had a real
+//!   transport for, are backed by `run::ReqwestRetractionTransport`.
 //! - `shards.py`: **ALREADY-NATIVE-VERIFIED**, at
 //!   `crate::wf_port::wf023::shards`. That module is a faithful,
 //!   independently-tested port of this exact file (confirmed identical by

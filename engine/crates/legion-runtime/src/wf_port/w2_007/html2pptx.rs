@@ -556,6 +556,7 @@ pub struct RawPlaceholder {
 /// in the JS — `slide` there is a live `pptxgenjs` object; here it is the
 /// `.pptx` file this module writes instead, so the caller gets the
 /// placeholders and the output path).
+#[derive(Debug)]
 pub struct Html2PptxOutcome {
     pub slide_data: RawSlideData,
     pub placeholders: Vec<RawPlaceholder>,
@@ -576,7 +577,7 @@ pub fn run_html2pptx<D: PageDriver>(
     layout_width_in: Option<f64>,
     layout_height_in: Option<f64>,
 ) -> Result<Html2PptxOutcome, String> {
-    let run = || -> Result<Html2PptxOutcome, String> {
+    let mut run = || -> Result<Html2PptxOutcome, String> {
         let file_path = resolve_html_file(html_file, cwd);
         driver.navigate_file(&file_path)?;
 
@@ -723,8 +724,8 @@ impl PageDriver for HeadlessChromeDriver {
         // viewport resize does before the DOM is walked.
         self.tab
             .call_method(headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
-                width: width as u64,
-                height: height as u64,
+                width,
+                height,
                 device_scale_factor: 1.0,
                 mobile: false,
                 scale: None,
@@ -736,6 +737,7 @@ impl PageDriver for HeadlessChromeDriver {
                 screen_orientation: None,
                 viewport: None,
                 display_feature: None,
+                device_posture: None,
             })
             .map_err(|e| e.to_string())?;
         Ok(())

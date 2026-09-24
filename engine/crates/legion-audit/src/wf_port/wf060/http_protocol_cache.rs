@@ -13,7 +13,7 @@
 //! Only `analyze()` is ported (see `wf060/common.rs` module doc for why
 //! `variantStrategies` is out of scope for this chunk).
 
-use super::common::{cap_severity, line_of, Context, Fact, Observation};
+use super::common::{cap_severity, digest, line_of, Context, Fact, Observation};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::sync::OnceLock;

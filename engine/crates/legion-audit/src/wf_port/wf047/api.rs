@@ -1,17 +1,17 @@
 //! Port of `src/providers/runtime/web/api/index.mjs` (`verifyApiExercise`).
 //!
-//! **Known gap for the integrator:** the JS source imports
-//! `sanitizeProducedArtifact` from `lib/platform/artifact-sanitize.mjs`
-//! (not in this chunk, no native port found by `git grep`). It is used
-//! here only to decide `produced.valid`/`produced.sensitive`/
-//! `produced.artifact` for `rawArtifacts` entries. This port models it the
-//! same way `data.rs` in this chunk does (see that file's
-//! `sanitize_produced_artifact` doc comment): sanitized artifact =
-//! `redact(artifact, "")`, `sensitive` = redaction changed the value,
-//! `valid` = the artifact is a non-null object. Swap in a real port of
-//! `sanitizeProducedArtifact` if/when one lands.
+//! `sanitizeProducedArtifact` from `lib/platform/artifact-sanitize.mjs` is
+//! wired to the real port at
+//! `legion_runtime::l4_platform::artifact_sanitize::sanitize_produced_artifact`,
+//! which takes the caller-configured `sensitiveFields` (unlike the
+//! `wf048::sanitize` copy used elsewhere in this crate, which deliberately
+//! drops that parameter because its callers never pass it). This file's
+//! caller *does* pass configured sensitive fields, so it uses the
+//! `legion-runtime` port directly rather than reimplementing redaction
+//! locally.
 
 use super::shared::{canonicalize, denominator, exact_binding, finalize, redact, same_binding, sort_by_id};
+use legion_runtime::l4_platform::artifact_sanitize::sanitize_produced_artifact as runtime_sanitize_produced_artifact;
 use serde_json::{Map, Value};
 
 const RESILIENCE: &[&str] = &["idempotency", "pagination", "retry", "rateLimit", "malformed", "partialFailure"];
@@ -322,15 +322,14 @@ fn sensitive_fields_valid(value: Option<&Value>) -> bool {
     })
 }
 
-/// Local re-implementation of `sanitizeProducedArtifact`'s externally
-/// visible contract for this call site — see the module doc comment.
-fn sanitize_produced_artifact(artifact: Option<&Value>, _sensitive_fields: &[Value]) -> (bool, bool, Value) {
+/// Adapter to the real `legion-runtime` port, matching this call site's
+/// `Option<&Value>` artifact and `(valid, sensitive, produced)` shape.
+fn sanitize_produced_artifact(artifact: Option<&Value>, sensitive_fields: &[Value]) -> (bool, bool, Value) {
     match artifact {
         None => (false, false, Value::Null),
         Some(a) => {
-            let sanitized = redact(a, "");
-            let sensitive = sanitized != *a;
-            (true, sensitive, sanitized)
+            let result = runtime_sanitize_produced_artifact(a, sensitive_fields);
+            (result.valid, result.sensitive, result.artifact.unwrap_or(Value::Null))
         }
     }
 }

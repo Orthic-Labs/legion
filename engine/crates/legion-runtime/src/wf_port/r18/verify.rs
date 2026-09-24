@@ -140,7 +140,7 @@ fn pathdiff(to: &std::path::Path, from: &std::path::Path) -> Option<std::path::P
     Some(out)
 }
 
-fn candidates_for(batch: &Value, entry_id: &str) -> Vec<&Value> {
+fn candidates_for<'a>(batch: &'a Value, entry_id: &str) -> Vec<&'a Value> {
     batch
         .get("candidates")
         .and_then(Value::as_array)

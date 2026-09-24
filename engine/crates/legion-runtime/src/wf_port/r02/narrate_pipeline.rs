@@ -451,6 +451,7 @@ pub enum PipelineError {
     Failed(String),
 }
 
+#[derive(Debug)]
 pub struct PipelineOutcome {
     pub timeline: Timeline,
     pub voiceover_path: PathBuf,

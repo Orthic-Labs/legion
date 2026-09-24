@@ -29,6 +29,6 @@ pub mod sanitize;
 pub mod shared;
 
 pub use backend::inspect_web_backend;
-pub use capture::{capture_web_evidence, WebJourneyRow};
+pub use capture::{capture_web_evidence, capture_web_evidence_production, WebJourneyRow};
 pub use data::{verify_data_exercise, DataExerciseAdapter, MissingAdapter};
 pub use discovery::discover_web_surfaces;

@@ -75,6 +75,14 @@ pub trait BrowserSession {
     /// `loadSession`/`saveSession` (lines 125-147).
     fn load_session(&mut self, data: &SessionData) -> Result<(), String>;
     fn save_session(&mut self) -> Result<SessionData, String>;
+    /// Drains and returns the console `error`/`warning` and uncaught-exception lines observed
+    /// since the last call (qa.mjs's `runActions` `consoleErrors` accumulator, lines 685,
+    /// 692-701: `console.${type}: ${text}` for `Runtime.consoleAPICalled` with type `error` or
+    /// `warning`, `exception: ${description}` for `Runtime.exceptionThrown`). Sessions that
+    /// cannot observe console events (fakes, or the fast `--shot` path) default to none.
+    fn take_console_errors(&mut self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// Port of `elementPoint`'s polling body (lines 483-493), generic over any `eval`-capable

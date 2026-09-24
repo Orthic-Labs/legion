@@ -391,6 +391,7 @@ pub enum SeekError {
     Other(String),
 }
 
+#[derive(Debug)]
 pub struct SeekOutcome {
     pub mp4_path: PathBuf,
     pub frames_captured: usize,

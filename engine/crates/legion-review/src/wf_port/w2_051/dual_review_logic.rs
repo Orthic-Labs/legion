@@ -28,15 +28,16 @@
 //! `Engine.run` seam actually produces and consumes, and it keeps this
 //! port a direct structural mirror of the Python dict-shaped protocol.
 //! `run_rebuttal_round`, `run_response_round`, `run_advisory_review`,
-//! `run_verdict_review`, `run_dual_review`, and `main` remain
-//! PORTED-PARTIAL: each drives a live `engine.run(...)` call (HTTP to an
-//! LLM provider plus `models.yaml` panel config and an on-disk verdict
-//! cache) that is not yet behind a Rust trait anywhere in this crate —
-//! that seam belongs to the `engine.py` packet, not this one. Everything
-//! those functions do *around* that seam (prompt assembly strings,
-//! per-seat retry/re-wake bookkeeping shape, envelope merging) is now
-//! expressed here as pure functions so a future engine-seam trait can
-//! call straight into them.
+//! `run_verdict_review`, `run_dual_review`, and `main` were PORTED-PARTIAL
+//! as of r58 (each drives a live `engine.run(...)` call not yet behind a
+//! Rust trait in this crate). r60 closes that gap in a sibling module,
+//! `dual_review_run.rs`, now that `engine_run::Engine::run` (r59) exists:
+//! it wires the pure functions in this module to that `Engine`, giving
+//! Rust equivalents of every function named above plus `jury.py`'s
+//! `main()` (in `jury_cli.rs`). See `dual_review_run.rs`'s module doc
+//! comment for the one remaining, genuinely out-of-scope wrinkle
+//! (`RUNS_ROOT`'s module-relative default has no Rust equivalent; callers
+//! own the path, same treatment `review_evidence.rs` already documents).
 
 use sha2::{Digest, Sha256};
 use serde_json::{json, Map, Value};
@@ -217,7 +218,7 @@ pub fn finding_records(jurors: &[JurorVerdict]) -> Vec<FindingRecord> {
     findings
 }
 
-fn jurors_from_value(envelope: &Value) -> Vec<JurorVerdict> {
+pub(crate) fn jurors_from_value(envelope: &Value) -> Vec<JurorVerdict> {
     envelope
         .get("jurors")
         .and_then(|v| v.as_array())

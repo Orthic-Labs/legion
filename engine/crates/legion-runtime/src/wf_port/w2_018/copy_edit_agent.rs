@@ -1685,6 +1685,7 @@ mod tests {
         )
         .unwrap();
         let runner = FakeProcessRunner {
+            calls: std::sync::Mutex::new(Vec::new()),
             scripted: vec![
                 (
                     "node -e".to_string(),

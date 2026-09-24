@@ -447,11 +447,11 @@ impl ChromeRecorder {
     }
 
     fn set_bounds(tab: &headless_chrome::Tab, width: u32, height: u32) {
-        let _ = tab.set_bounds(headless_chrome::protocol::cdp::Browser::Bounds {
+        let _ = tab.set_bounds(headless_chrome::types::Bounds {
             left: Some(0),
             top: Some(0),
-            width: Some(width as f64),
-            height: Some(height as f64),
+            width: Some(width),
+            height: Some(height),
             window_state: None,
         });
     }

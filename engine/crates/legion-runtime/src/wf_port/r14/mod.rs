@@ -614,7 +614,7 @@ pub fn ensure_hook_git_excludes(cwd: &Path) -> ExcludeResult {
     }
 }
 
-fn ensure_session(cache: &mut Cache, session_id: &str) -> &mut Session {
+fn ensure_session<'a>(cache: &'a mut Cache, session_id: &str) -> &'a mut Session {
     cache
         .sessions
         .entry(session_id.to_string())
@@ -1024,13 +1024,6 @@ fn apply_patch_text(raw_args: &Value) -> String {
             .to_string();
     }
     String::new()
-}
-
-fn env_project_dir<'a>(env: &'a HashMap<String, String>, fallback: &'a str) -> String {
-    env.get("CURSOR_PROJECT_DIR")
-        .filter(|v| !v.is_empty())
-        .cloned()
-        .unwrap_or_else(|| fallback.to_string())
 }
 
 fn normalize_github_event(mut event: Value, project_cwd: &str, env: &HashMap<String, String>) -> Value {

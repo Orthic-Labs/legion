@@ -12,6 +12,7 @@ legion-provider-sdk = { path = "../legion-provider-sdk" }
 legion-rules = { path = "../legion-rules" }
 legion-effects = { path = "../legion-effects" }
 legion-runtime = { path = "../legion-runtime" }
+headless_chrome.workspace = true
 hmac.workspace = true
 hex.workspace = true
 sha2.workspace = true
