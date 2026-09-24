@@ -11,7 +11,9 @@ use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
 
+use legion_runtime::wf_port::r24::manual_edit_deps::QueueCallbacks;
 use legion_runtime::wf_port::r24::{find_open_port, http_server, parse_port_arg, QueueState};
+use legion_runtime::wf_port::w2_021::manual_apply::ManualApplyController;
 
 fn http_get(port: u16, path: &str) -> String {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
@@ -62,7 +64,8 @@ fn server_serves_health_events_and_poll_over_real_tcp() {
         thread::spawn(move || {
             let local_queue = QueueState::new();
             local_queue.enqueue_event(serde_json::json!({"id": "seed", "type": "noop"}));
-            http_server::serve(listener, &token, &local_queue, &root);
+            let controller = ManualApplyController::new(root.clone(), QueueCallbacks { queue: &local_queue });
+            http_server::serve(listener, &token, &local_queue, &root, &controller);
         })
     };
     // Give the accept loop a moment to start (best-effort; the connect
@@ -87,9 +90,17 @@ fn server_serves_health_events_and_poll_over_real_tcp() {
     let unauthorized = http_get(port, "/poll?token=wrong");
     assert!(unauthorized.contains("401"));
 
-    let not_implemented = http_get(port, "/live.js");
+    // `/live.js` is a real static-asset route now (packet r22r24): with no
+    // `skills/designer/engine/scripts` directory under `tmp_root`, it fails
+    // closed with 500 rather than a fabricated body.
+    let live_js = http_get(port, "/live.js");
+    assert!(live_js.contains("500"));
+
+    // A route that genuinely still has no implementation (its dependency,
+    // `live/session-store.mjs`, is unported) still answers 501 naming it.
+    let not_implemented = http_get(port, "/annotation");
     assert!(not_implemented.contains("501"));
-    assert!(not_implemented.contains("browser-script-parts.mjs"));
+    assert!(not_implemented.contains("session-store.mjs"));
 
     // Shut the server down via /stop so the background thread exits.
     let stop = http_get(port, &format!("/stop?token={token}"));

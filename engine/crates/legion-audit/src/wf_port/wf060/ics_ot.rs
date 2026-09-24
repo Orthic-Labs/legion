@@ -208,6 +208,11 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
     observations
 }
 
+/// Mirrors `rules: RULES.map((rule) => ({ id: rule.id }))`.
+pub fn rule_ids() -> Vec<&'static str> {
+    RULES.iter().map(|r| r.id).collect()
+}
+
 /// Port of `buildVariantStrategy(rule).rootCause(candidate)` for every
 /// `ics-ot.*` rule (`variantStrategies` in `ics-ot.mjs`): identical shape
 /// for every rule, parameterized only by `rule.id` and the candidate's

@@ -1,19 +1,34 @@
-//! Port of the pure/testable functions from
-//! `skills/designer/engine/scripts/live-poll.mjs`: the two timeout
+//! Port of `skills/designer/engine/scripts/live-poll.mjs`, now including
+//! the network/CLI half (packet r22r24 follow-up): the two timeout
 //! constants, `buildPollReplyPayload`, `parseReplyArgs` (+ its
 //! `validateReplyArgs` helper), `requiresAgentReply`, `isEventPending`,
-//! `buildAcceptScriptArgs`, and `manualApplyPollBanner`.
-//!
-//! NOT ported (needs network I/O, `readLiveServerInfo` from
-//! `lib/impeccable-paths.mjs` — only partially ported outside this packet
-//! in chunk `q_q1` — and/or `execFileSync` on the unported
-//! `live-accept.mjs`, all outside this packet's files): `readServerInfo`,
+//! `buildAcceptScriptArgs`, `manualApplyPollBanner`, `readServerInfo`,
 //! `postReply`, `fetchServerStatus`, `waitForEventAck`, `fetchNextEvent`,
 //! `augmentEventWithAcceptHandling`, `writeCarbonizeBanner`,
-//! `printPollEvent`, `runPollOnce`, `runPollStream`, `handlePollError`,
-//! `pollCli`.
+//! `printPollEvent`, `runPollOnce`, `runPollStream`, `handlePollError`, and
+//! `pollCli` (-> [`run`]).
+//!
+//! HTTP calls against the local `live-server.mjs`/`r24` server use
+//! `reqwest::blocking` (already a `legion-runtime` dependency, `features =
+//! ["blocking"]`). `augmentEventWithAcceptHandling`'s
+//! `execFileSync('node', ['live-accept.mjs', ...])` becomes an in-process
+//! call to [`crate::wf_port::w2_016::live_accept::run`]: that script is
+//! itself now a Rust module in this same crate (not a separate file to
+//! shell out to), so calling it directly is the faithful equivalent of "run
+//! live-accept.mjs and capture its stdout" once both live in one binary —
+//! same argv, same stdout-JSON contract, no process spawn needed.
+//! `readServerInfo` reuses `r24::server_info::read_live_server_info`
+//! (mirrors `lib/impeccable-paths.mjs::readLiveServerInfo`) rather than
+//! re-deriving it.
+
+use std::path::Path;
+use std::time::Duration;
 
 use serde_json::{json, Value};
+
+use crate::wf_port::r24;
+use crate::wf_port::w2_016::live_accept;
+use crate::wf_port::w2_020::completion::{completion_ack_for_accept_result, completion_type_for_accept_result};
 
 /// Mirrors `PER_REQUEST_TIMEOUT_MS`.
 pub const PER_REQUEST_TIMEOUT_MS: u64 = 270_000;
@@ -248,6 +263,358 @@ pub fn manual_apply_poll_banner(event_id: Option<&str>) -> String {
         "Do not poll again before replying.".to_string(),
     ];
     format!("{}\n", lines.join("\n"))
+}
+
+/// Failure shape shared by the network functions below, mirroring the JS
+/// `Error` objects with a `.code` property that `handlePollError`/callers
+/// branch on (`AUTH_FAILED`, `ACK_TIMEOUT`, or `None` for a plain message).
+#[derive(Debug, Clone)]
+pub struct PollError {
+    pub code: Option<&'static str>,
+    pub message: String,
+}
+
+impl PollError {
+    fn plain(message: impl Into<String>) -> Self {
+        Self { code: None, message: message.into() }
+    }
+    fn auth_failed() -> Self {
+        Self { code: Some("AUTH_FAILED"), message: "Authentication failed. The server token may have changed.".to_string() }
+    }
+}
+
+impl std::fmt::Display for PollError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+/// Mirrors `readServerInfo()`: resolves the running live server's
+/// connection record via `r24`'s port of `readLiveServerInfo`.
+pub fn read_server_info(cwd: &Path) -> Result<r24::ServerInfo, String> {
+    r24::read_live_server_info(cwd)
+        .map(|(info, _path)| info)
+        .ok_or_else(|| {
+            "No running live server found. Start one with: node live-server.mjs".to_string()
+        })
+}
+
+fn http_client() -> reqwest::blocking::Client {
+    // No fixed per-request timeout here: callers pass an explicit slice via
+    // `PER_REQUEST_TIMEOUT_MS`/`totalDeadline` math, same as the JS relying
+    // on `fetch`'s per-request headers timeout being bounded by that
+    // constant rather than a client-wide setting.
+    reqwest::blocking::Client::builder()
+        .timeout(Duration::from_millis(PER_REQUEST_TIMEOUT_MS + 5_000))
+        .build()
+        .unwrap_or_else(|_| reqwest::blocking::Client::new())
+}
+
+/// Mirrors `postReply(base, token, reply)`.
+pub fn post_reply(base: &str, token: &str, reply: &ParsedReply) -> Result<(), PollError> {
+    let client = http_client();
+    let body = build_poll_reply_payload(
+        token,
+        &reply.id,
+        &reply.reply_type,
+        reply.message.as_deref(),
+        reply.file.as_deref(),
+        reply.data.clone(),
+    );
+    let res = client
+        .post(format!("{base}/poll"))
+        .json(&body)
+        .send()
+        .map_err(|e| PollError::plain(e.to_string()))?;
+    if !res.status().is_success() {
+        let body: Value = res.json().unwrap_or(Value::Null);
+        let parts: Vec<String> = [
+            body.get("error").and_then(Value::as_str).map(str::to_string),
+            body.get("reason").and_then(Value::as_str).map(str::to_string),
+            body.get("hint").and_then(Value::as_str).map(str::to_string),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        return Err(PollError::plain(parts.join(": ")));
+    }
+    Ok(())
+}
+
+/// Mirrors `fetchServerStatus(base, token)`.
+pub fn fetch_server_status(base: &str, token: &str) -> Result<Value, PollError> {
+    let client = http_client();
+    let res = client
+        .get(format!("{base}/status"))
+        .query(&[("token", token)])
+        .send()
+        .map_err(|e| PollError::plain(e.to_string()))?;
+    if res.status().as_u16() == 401 {
+        return Err(PollError::auth_failed());
+    }
+    if !res.status().is_success() {
+        return Err(PollError::plain(format!(
+            "Status failed: {} {}",
+            res.status().as_u16(),
+            res.status().canonical_reason().unwrap_or("")
+        )));
+    }
+    res.json::<Value>().map_err(|e| PollError::plain(e.to_string()))
+}
+
+/// Mirrors `waitForEventAck(base, token, eventId, { pollIntervalMs, maxWaitMs })`.
+pub fn wait_for_event_ack(base: &str, token: &str, event_id: &str, poll_interval_ms: u64, max_wait_ms: u64) -> Result<bool, PollError> {
+    let deadline = std::time::Instant::now() + Duration::from_millis(max_wait_ms);
+    while std::time::Instant::now() < deadline {
+        let status = fetch_server_status(base, token)?;
+        if !is_event_pending(&status, event_id) {
+            return Ok(true);
+        }
+        std::thread::sleep(Duration::from_millis(poll_interval_ms));
+    }
+    Ok(false)
+}
+
+/// Mirrors `fetchNextEvent(base, token, { totalDeadline })`.
+pub fn fetch_next_event(base: &str, token: &str, total_deadline: Option<std::time::Instant>) -> Result<Value, PollError> {
+    let client = http_client();
+    loop {
+        if let Some(deadline) = total_deadline {
+            if std::time::Instant::now() >= deadline {
+                return Ok(json!({ "type": "timeout" }));
+            }
+        }
+        let remaining_ms = total_deadline
+            .map(|d| d.saturating_duration_since(std::time::Instant::now()).as_millis() as u64)
+            .unwrap_or(PER_REQUEST_TIMEOUT_MS);
+        let slice_ms = remaining_ms.clamp(1_000, PER_REQUEST_TIMEOUT_MS);
+
+        let res = client
+            .get(format!("{base}/poll"))
+            .query(&[
+                ("token", token.to_string()),
+                ("timeout", slice_ms.to_string()),
+                ("leaseMs", DEFAULT_EVENT_LEASE_MS.to_string()),
+            ])
+            .send()
+            .map_err(|e| PollError::plain(e.to_string()))?;
+
+        if res.status().as_u16() == 401 {
+            return Err(PollError::auth_failed());
+        }
+        if !res.status().is_success() {
+            return Err(PollError::plain(format!(
+                "Poll failed: {} {}",
+                res.status().as_u16(),
+                res.status().canonical_reason().unwrap_or("")
+            )));
+        }
+
+        let next: Value = res.json().map_err(|e| PollError::plain(e.to_string()))?;
+        if next.get("type").and_then(Value::as_str) == Some("timeout") {
+            if let Some(deadline) = total_deadline {
+                if std::time::Instant::now() < deadline {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+            return Ok(next);
+        }
+        return Ok(next);
+    }
+}
+
+/// Mirrors `augmentEventWithAcceptHandling(event, base, token)`: for
+/// `accept`/`discard` events, runs `live-accept`'s logic in-process (see
+/// module doc comment) and stashes `_acceptResult`/`_completionAck` on the
+/// event object, exactly like the JS mutating `event._acceptResult` /
+/// `event._completionAck`.
+pub fn augment_event_with_accept_handling(mut event: Value, base: &str, token: &str, cwd: &Path) -> Value {
+    let event_type = event.get("type").and_then(Value::as_str).unwrap_or("").to_string();
+    if event_type != "accept" && event_type != "discard" {
+        return event;
+    }
+
+    let accept_event = AcceptEvent {
+        event_type: event_type.clone(),
+        id: event.get("id").map(|v| v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())).unwrap_or_default(),
+        variant_id: event.get("variantId").and_then(Value::as_str).map(str::to_string),
+        page_url: event.get("pageUrl").and_then(Value::as_str).map(str::to_string),
+        param_values: event.get("paramValues").and_then(Value::as_object).cloned(),
+    };
+    let script_args = build_accept_script_args(&accept_event);
+
+    let (exit_code, output) = live_accept::run(&script_args, cwd);
+    let accept_result: Value = if exit_code == 0 {
+        serde_json::from_str(output.trim()).unwrap_or(Value::Null)
+    } else {
+        json!({ "handled": false, "mode": "error", "error": output })
+    };
+
+    let completion_type = completion_type_for_accept_result(&event_type, Some(&accept_result)).to_string();
+    let reply = ParsedReply {
+        id: accept_event.id.clone(),
+        reply_type: completion_type.clone(),
+        message: accept_result.get("error").and_then(Value::as_str).map(str::to_string),
+        file: accept_result.get("file").and_then(Value::as_str).map(str::to_string),
+        data: if accept_result.get("carbonize").and_then(Value::as_bool) == Some(true) {
+            Some(json!({ "carbonize": true }))
+        } else {
+            None
+        },
+    };
+
+    let completion_ack = match post_reply(base, token, &reply) {
+        Ok(()) => completion_ack_for_accept_result(&accept_event.id, &completion_type, Some(&accept_result)),
+        Err(err) => json!({ "ok": false, "error": err.message }),
+    };
+
+    if let Value::Object(map) = &mut event {
+        map.insert("_acceptResult".to_string(), accept_result);
+        map.insert("_completionAck".to_string(), completion_ack);
+    }
+    event
+}
+
+/// Mirrors `writeCarbonizeBanner(event)`.
+pub fn write_carbonize_banner(event: &Value) {
+    if event.get("type").and_then(Value::as_str) == Some("manual_edit_apply") {
+        eprintln!("\n{}\n", manual_apply_poll_banner(event.get("id").and_then(Value::as_str)));
+    }
+    if event.get("_acceptResult").and_then(|r| r.get("carbonize")).and_then(Value::as_bool) == Some(true) {
+        let id = event.get("id").and_then(Value::as_str).unwrap_or("");
+        eprintln!(
+            "\n\u{26A0} Carbonize cleanup REQUIRED before next poll. After cleanup, run live-complete.mjs --id {id}. See reference/live.md \"Required after accept\".\n"
+        );
+    }
+}
+
+/// Mirrors `printPollEvent(event)`.
+pub fn print_poll_event(event: &Value) {
+    println!("{event}");
+}
+
+/// Mirrors `runPollOnce(base, token, { totalTimeout })`.
+pub fn run_poll_once(base: &str, token: &str, total_timeout_ms: u64, cwd: &Path) -> Result<Value, PollError> {
+    let deadline = std::time::Instant::now() + Duration::from_millis(total_timeout_ms);
+    let event = fetch_next_event(base, token, Some(deadline))?;
+    let event = augment_event_with_accept_handling(event, base, token, cwd);
+    write_carbonize_banner(&event);
+    print_poll_event(&event);
+    Ok(event)
+}
+
+/// Mirrors `runPollStream(base, token, { ackTimeoutMs, ackPollIntervalMs })`.
+/// `shouldContinue` in JS is always `() => true` at every real call site;
+/// modeled here as a plain loop that returns on `type: "exit"` or an ack
+/// timeout, exactly like the JS's only reachable exit paths.
+pub fn run_poll_stream(base: &str, token: &str, ack_timeout_ms: u64, cwd: &Path) -> Result<Option<Value>, PollError> {
+    eprintln!("[impeccable-poll] stream mode: one JSON object per line on stdout; use --reply while this process stays running");
+    let ack_poll_interval_ms = 400;
+    loop {
+        let event = fetch_next_event(base, token, None)?;
+        let event = augment_event_with_accept_handling(event, base, token, cwd);
+        write_carbonize_banner(&event);
+        print_poll_event(&event);
+
+        if event.get("type").and_then(Value::as_str) == Some("exit") {
+            return Ok(Some(event));
+        }
+
+        let event_type = event.get("type").and_then(Value::as_str);
+        if requires_agent_reply(event_type) {
+            let event_id = event.get("id").and_then(Value::as_str).unwrap_or("");
+            let acked = wait_for_event_ack(base, token, event_id, ack_poll_interval_ms, ack_timeout_ms)?;
+            if !acked {
+                return Err(PollError { code: Some("ACK_TIMEOUT"), message: format!("Timed out waiting for --reply on event {event_id}") });
+            }
+        }
+    }
+}
+
+fn handle_poll_error(err: &PollError) -> i32 {
+    match err.code {
+        Some("AUTH_FAILED") => {
+            eprintln!("{}", err.message);
+            eprintln!("Try restarting: node live-server.mjs stop && node live.mjs");
+            1
+        }
+        Some("ACK_TIMEOUT") => {
+            eprintln!("{}", err.message);
+            1
+        }
+        _ => {
+            eprintln!("Poll failed: {}", err.message);
+            1
+        }
+    }
+}
+
+/// Mirrors `pollCli()`. Prints directly to stdout/stderr (rather than
+/// returning `(exit_code, text)` like sibling single-shot CLI ports)
+/// because `--stream` mode prints one JSON line per event as they arrive,
+/// which doesn't fit a single buffered return value without breaking the
+/// "line arrives as the event arrives" contract callers of `--stream` rely
+/// on.
+pub fn run(args: &[String], cwd: &Path) -> i32 {
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        println!(
+            "Usage: impeccable poll [options]\n\nWait for a browser event from the live variant server, or reply to one.\n\nModes:\n  poll                             Block until a browser event arrives, print JSON, exit\n  poll --stream                    Keep polling; print one JSON line per event (see live.md)\n  poll --reply <id> done           Reply \"done\" to event <id> (replace or insert generate)\n  poll --reply <id> steer_done     Reply after handling a steer event (unlocks Steer bar)\n  poll --reply <id> error \"msg\"    Reply with an error message\n  poll --reply <id> done --data '<json>'\n                                   Reply with a structured JSON result (manual_edit_apply)\n\nOptions:\n  --timeout=MS        One-shot poll timeout in ms (default: 600000). Ignored in --stream mode\n  --ack-timeout=MS    Stream mode: max wait for --reply after generate/steer (default: 600000)\n  --file PATH         Attach a source file path to the reply (generate/steer flow)\n  --data JSON         Attach a JSON result object to the reply (manual_edit_apply flow). Must be valid JSON\n  --help              Show this help message\n\nHarness note:\n  Default one-shot mode is the portable contract for Claude Code, Codex, and Cursor.\n  --stream is experimental for harnesses with fast incremental stdout; do not use on Cursor."
+        );
+        return 0;
+    }
+
+    let info = match read_server_info(cwd) {
+        Ok(info) => info,
+        Err(msg) => {
+            eprintln!("{msg}");
+            return 1;
+        }
+    };
+    let base = format!("http://localhost:{}", info.port);
+
+    if args.iter().any(|a| a == "--reply") {
+        let reply = match parse_reply_args(args) {
+            Ok(Some(r)) => r,
+            Ok(None) => unreachable!("checked args.contains(\"--reply\") above"),
+            Err(err) => {
+                eprintln!("{}", err.message);
+                return 1;
+            }
+        };
+        return match post_reply(&base, &info.token, &reply) {
+            Ok(()) => 0,
+            Err(err) => {
+                eprintln!("Reply failed: {}", err.message);
+                1
+            }
+        };
+    }
+
+    let stream_mode = args.iter().any(|a| a == "--stream");
+    let ack_timeout_ms = args
+        .iter()
+        .find_map(|a| a.strip_prefix("--ack-timeout="))
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(600_000);
+
+    if stream_mode {
+        return match run_poll_stream(&base, &info.token, ack_timeout_ms, cwd) {
+            Ok(_) => 0,
+            Err(err) => handle_poll_error(&err),
+        };
+    }
+
+    let total_timeout_ms = args
+        .iter()
+        .find_map(|a| a.strip_prefix("--timeout="))
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(600_000);
+    match run_poll_once(&base, &info.token, total_timeout_ms, cwd) {
+        Ok(_) => 0,
+        Err(err) => handle_poll_error(&err),
+    }
 }
 
 #[cfg(test)]

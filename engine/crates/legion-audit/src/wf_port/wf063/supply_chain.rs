@@ -11,12 +11,9 @@
 //! gated through `sandbox_gate` — never a clean claim absent an external
 //! sandbox execution receipt.
 //!
-//! Scope of this port (mirrors the precedent documented in the sibling
-//! `wf060` chunk's `common.rs`): only `analyze(context)` — the pure lexical
-//! detection producing `UNADJUDICATED` candidate observations — is ported.
-//! The pack's `variantStrategies` (`rootCause`/`enumerate`) is coverage-
-//! report bookkeeping over the same matches `analyze()` already finds and
-//! is not ported here to keep this chunk bounded.
+//! `variant_root_cause`/`variant_enumerate` near the bottom of this file
+//! port the pack's `variantStrategies` (`rootCause`/`enumerate`), reusing
+//! the same `matches_for` rule dispatch `analyze()` uses.
 
 use regex::Regex;
 use serde_json::{json, Value};
@@ -416,4 +413,51 @@ pub fn pack_value() -> Value {
         "description": description(),
         "rules": rule_ids(),
     })
+}
+
+/// Port of `buildVariantStrategy(rule).rootCause(candidate)`: identical
+/// shape for every `supply-chain.*` rule, parameterized only by `rule.id`.
+pub fn variant_root_cause(rule_id: &str) -> Option<Value> {
+    RULES.iter().find(|r| r.id == rule_id).map(|rule| {
+        json!({
+            "class": format!("supply-chain-{}", rule.id),
+            "semanticFeatures": ["repository-controlled-configuration", rule.id],
+        })
+    })
+}
+
+/// Port of `buildVariantStrategy(rule).enumerate(context)`: re-runs the
+/// same `rule.matchesIn(context)` (here `matches_for`) `analyze()` uses.
+pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<Value> {
+    let rule = RULES.iter().find(|r| r.id == rule_id)?;
+    let matches: Vec<Value> = matches_for(rule, context)
+        .into_iter()
+        .map(|m| {
+            json!({
+                "file": m.file,
+                "line": m.line,
+                "semanticFingerprint": digest(&format!("{}{}{}", rule.id, m.file, m.snippet)),
+                "disposition": "CONFIRMED",
+            })
+        })
+        .collect();
+    Some(json!({
+        "denominator": {
+            "kind": "source-files",
+            "digest": context.denominator_digest,
+            "expected": context.files.len(),
+            "examined": context.files.len(),
+            "unexamined": [],
+        },
+        "strategies": [{
+            "id": format!("{}-search", rule.id),
+            "kind": "lexical-fallback",
+            "description": format!("Enumerate alternate configuration and package entrypoints for {}.", rule.id),
+            "queryDigest": digest(rule.id),
+            "complete": true,
+            "coverageGaps": [],
+        }],
+        "matches": matches,
+        "coverageGaps": [],
+    }))
 }

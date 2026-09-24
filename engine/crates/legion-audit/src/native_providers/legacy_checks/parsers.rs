@@ -30,7 +30,7 @@ use serde_json::Value;
 
 /// One tool's parsed result, ready for `mod.rs` to fold into
 /// `LegacyCheckOutput` via `push_finding` + `details` merge.
-pub(super) struct ParseOutcome {
+pub(crate) struct ParseOutcome {
     /// `findings_count` as the JS check would have reported it (including
     /// JS's own `count || null` quirks where the source has them).
     pub findings_count: Option<u64>,
@@ -87,7 +87,7 @@ fn zero_as_null(count: u64) -> Option<u64> {
 /// Dispatch for checks whose stdout is a single JSON value (object or
 /// array). Returns `None` for checks not covered here (native checks, or
 /// checks this pass did not reach — see `mod.rs` doc comment on the caller).
-pub(super) fn dispatch_json(check: &str, value: &Value) -> Option<ParseOutcome> {
+pub(crate) fn dispatch_json(check: &str, value: &Value) -> Option<ParseOutcome> {
     match check {
         "dead_code" => Some(knip(value)),
         "duplication" => Some(jscpd(value)),
@@ -111,7 +111,7 @@ pub(super) fn dispatch_json(check: &str, value: &Value) -> Option<ParseOutcome> 
 /// Dispatch for checks whose stdout is plain text or JSONL (i.e. the
 /// whole-buffer `serde_json::from_slice::<Value>` in `execution_from_receipt`
 /// failed, so `mod.rs` falls through to the text path).
-pub(super) fn dispatch_text(check: &str, text: &str) -> Option<ParseOutcome> {
+pub(crate) fn dispatch_text(check: &str, text: &str) -> Option<ParseOutcome> {
     match check {
         "types" => Some(tsc(text)),
         "cargo_deny" => Some(cargo_deny(text)),

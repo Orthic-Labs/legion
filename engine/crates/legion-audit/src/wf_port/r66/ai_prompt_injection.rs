@@ -7,10 +7,8 @@
 //! `UNADJUDICATED` candidate observations — is ported faithfully (same rule
 //! order, same regex-shaped triggers, same claim text, same severity hints,
 //! same `detectorMetadata` fields, same control-suppression logic).
-//! `variantStrategies` (`rootCause`/`enumerate`) is coverage-report
-//! bookkeeping over the same matches `analyze()` already finds; it is not
-//! ported here, mirroring the scope decision documented in wf060's
-//! `common.rs`.
+//! `variant_root_cause`/`variant_enumerate` below additionally port the
+//! pack's `variantStrategies` (`rootCause`/`enumerate`).
 //!
 //! Every rule requires a source+sink COMBINATION (an untrusted-origin
 //! pattern feeding a prompt/schema-construction sink); a bare mention of
@@ -239,6 +237,63 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
         }
     }
     observations
+}
+
+/// Mirrors `rules: RULES.map((rule) => ({ id: rule.id }))`.
+pub fn rule_ids() -> Vec<&'static str> {
+    RULES.iter().map(|r| r.id).collect()
+}
+
+/// Port of `variantStrategies[rule.id].rootCause(candidate)`: identical
+/// shape for every rule, parameterized by `rule.sinkKind`/`rule.sourceKind`
+/// and the candidate's `detectorMetadata.sink`.
+pub fn variant_root_cause(rule_id: &str, candidate_sink: Option<&str>) -> Option<serde_json::Value> {
+    let rule = RULES.iter().find(|r| r.id == rule_id)?;
+    Some(serde_json::json!({
+        "class": format!("{}-untrusted-content-injection", rule.sink_kind),
+        "sinkKind": rule.sink_kind,
+        "sourceKind": rule.source_kind.as_str(),
+        "missingControl": rule.control_types.first().copied(),
+        "semanticFeatures": [
+            "untrusted-content-to-model",
+            rule.source_kind.as_str(),
+            rule.sink_kind,
+            candidate_sink.unwrap_or(rule.sink_kind),
+        ],
+    }))
+}
+
+/// Port of `variantStrategies[rule.id].enumerate(context)`: never re-scans
+/// for additional matches (`matches: []` always); only reports the
+/// alternate model-context sinks the same untrusted source may also reach.
+pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<serde_json::Value> {
+    let rule = RULES.iter().find(|r| r.id == rule_id)?;
+    let alternate_sinks: Vec<&str> = ["prompt", "retrieval-context", "memory-context", "tool-schema"]
+        .into_iter()
+        .filter(|s| *s != rule.sink_kind)
+        .collect();
+    Some(serde_json::json!({
+        "denominator": {
+            "kind": "source-files",
+            "digest": context.denominator_digest,
+            "expected": context.files.len(),
+            "examined": context.files.len(),
+            "unexamined": [],
+        },
+        "strategies": [{
+            "id": format!("{}-alternate-sinks", rule.id),
+            "kind": "model-derived",
+            "description": format!(
+                "Enumerate alternate model-context sinks ({}) that the same untrusted source may also reach.",
+                alternate_sinks.join(", ")
+            ),
+            "queryDigest": digest(rule.id),
+            "complete": true,
+            "coverageGaps": [],
+        }],
+        "matches": [],
+        "coverageGaps": [],
+    }))
 }
 
 #[cfg(test)]

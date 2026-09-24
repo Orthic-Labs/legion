@@ -4,7 +4,6 @@
 use super::labels::{action_re, fenced_value_after, is_concrete, path_re};
 use super::route_scan::label_value;
 use regex::Regex;
-use std::sync::OnceLock;
 
 fn rules() -> &'static [(&'static str, &'static str)] {
     &[

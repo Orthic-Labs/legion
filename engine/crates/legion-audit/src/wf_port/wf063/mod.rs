@@ -20,6 +20,7 @@
 //! canonical contracts port rather than re-implementing it.
 
 pub mod common;
+pub mod pack_registry;
 pub mod supply_chain;
 pub mod supply_developer;
 pub mod uploads;

@@ -16,8 +16,39 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
+use super::manual_edit_deps::{LiveServerManualEditDeps, QueueCallbacks};
 use super::queue::QueueState;
 use super::server_info::remove_live_server_info;
+use crate::wf_port::w2_020::browser_script_parts::{
+    assemble_live_browser_script, read_live_browser_script_parts,
+    resolve_live_browser_script_parts, LIVE_BROWSER_SCRIPT_PARTS,
+};
+use crate::wf_port::w2_021::manual_apply::ManualApplyController;
+use crate::wf_port::w2_021::manual_edit_routes::{handle_manual_edit_route, ManualEditRequest};
+use crate::wf_port::w2_022::vocabulary::live_commands;
+
+/// Candidate locations for the skill's `scripts/` directory relative to a
+/// project root, mirroring `loadBrowserScripts()`'s own search order
+/// (`__dirname` there is always exactly this directory since the JS file
+/// lives in it; ported here as a search list since a Rust binary has no
+/// equivalent "my own directory is the scripts dir" notion).
+fn candidate_scripts_dirs(project_root: &Path) -> Vec<std::path::PathBuf> {
+    vec![
+        project_root.join("skills/designer/engine/scripts"),
+        project_root.join("node_modules/impeccable/skills/designer/engine/scripts"),
+    ]
+}
+
+/// Locates the scripts directory holding `live-browser*.js` and
+/// `detector/detect-antipatterns-browser.js`, the two static browser assets
+/// `/live.js` and `/detect.js` serve. Returns `None` if neither candidate
+/// exists (matches JS's "keep trying candidates, fall back to empty" for
+/// the detect script; for `/live.js`'s required parts, `None` here maps to
+/// the same 500 `assertLiveBrowserScriptParts` would have raised at
+/// startup).
+fn find_scripts_dir(project_root: &Path) -> Option<std::path::PathBuf> {
+    candidate_scripts_dirs(project_root).into_iter().find(|d| d.is_dir())
+}
 
 struct Request {
     method: String,
@@ -156,7 +187,15 @@ const POLL_SLEEP_STEP: Duration = Duration::from_millis(200);
 /// the agent's ack).
 const POLL_LEASE_MS: u64 = 30_000;
 
-fn handle_request(req: Request, mut stream: impl Write, token: &str, queue: &QueueState) -> bool {
+fn handle_request<'a>(
+    req: Request,
+    mut stream: impl Write,
+    token: &str,
+    queue: &QueueState,
+    project_root: &Path,
+    port: u16,
+    manual_apply_controller: &ManualApplyController<QueueCallbacks<'a>>,
+) -> bool {
     if req.method == "OPTIONS" {
         write_response(&mut stream, 204, "No Content", "text/plain", b"");
         return true;
@@ -239,24 +278,79 @@ fn handle_request(req: Request, mut stream: impl Write, token: &str, queue: &Que
             }
             true
         }
-        // Routes whose response body depends on unported sibling modules
-        // (see mod.rs doc comment for the exact per-route dependency).
-        ("GET", "/live.js") => {
+        ("GET", "/status") => {
+            let provided = req.query.get("token").map(String::as_str).unwrap_or("");
+            if provided != token {
+                write_response(&mut stream, 401, "Unauthorized", "text/plain", b"Unauthorized");
+                return true;
+            }
+            // Faithful for `pendingEvents`; the other JS `/status` fields
+            // (`connectedClients`, `agentPolling`, `activeSessions`,
+            // `manualEdits`) depend on SSE-client tracking and
+            // `live/session-store.mjs`, both unported — see `queue.rs`'s
+            // `status_summary` doc comment.
             write_json(
                 &mut stream,
-                501,
-                "Not Implemented",
-                &json!({ "error": "live.js assembly depends on unported live/browser-script-parts.mjs and live/vocabulary.mjs" }),
+                200,
+                "OK",
+                &json!({
+                    "status": "ok",
+                    "pendingEvents": queue.status_summary(),
+                }),
             );
             true
         }
-        ("GET", "/detect.js") | ("GET", "/") => {
-            write_json(
-                &mut stream,
-                501,
-                "Not Implemented",
-                &json!({ "error": "detect.js bundle depends on unported scripts/detector loader (loadBrowserScripts)" }),
+        // `/live.js` and `/detect.js` are browser assets: re-served from
+        // disk on every request (no-cache, matching JS's fresh
+        // `readFileSync` per request for `/live.js`).
+        ("GET", "/live.js") => {
+            let scripts_dir = match find_scripts_dir(project_root) {
+                Some(d) => d,
+                None => {
+                    write_response(&mut stream, 500, "Internal Server Error", "text/plain", b"scripts dir not found");
+                    return true;
+                }
+            };
+            let resolved = match resolve_live_browser_script_parts(
+                &scripts_dir.to_string_lossy(),
+                LIVE_BROWSER_SCRIPT_PARTS,
+            ) {
+                Ok(r) => r,
+                Err(e) => {
+                    write_response(&mut stream, 500, "Internal Server Error", "text/plain", e.as_bytes());
+                    return true;
+                }
+            };
+            let parts = match read_live_browser_script_parts(&resolved, |p| std::fs::read_to_string(p)) {
+                Ok(p) => p,
+                Err(e) => {
+                    let msg = format!("Error reading live browser scripts: {e}");
+                    write_response(&mut stream, 500, "Internal Server Error", "text/plain", msg.as_bytes());
+                    return true;
+                }
+            };
+            let vocab_value = Value::Array(
+                live_commands()
+                    .into_iter()
+                    .map(|c| json!({ "value": c.value, "label": c.label, "icon": c.icon }))
+                    .collect::<Vec<_>>(),
             );
+            let vocab_json = serde_json::to_string(&vocab_value).unwrap_or_else(|_| "[]".to_string());
+            let body = assemble_live_browser_script(token, port, &vocab_json, &parts);
+            write_response(&mut stream, 200, "OK", "application/javascript", body.as_bytes());
+            true
+        }
+        ("GET", "/detect.js") | ("GET", "/") => {
+            let scripts_dir = find_scripts_dir(project_root);
+            let detect_path = scripts_dir.map(|d| d.join("detector").join("detect-antipatterns-browser.js"));
+            match detect_path.and_then(|p| std::fs::read_to_string(p).ok()) {
+                Some(content) => {
+                    write_response(&mut stream, 200, "OK", "application/javascript", content.as_bytes());
+                }
+                None => {
+                    write_response(&mut stream, 404, "Not Found", "text/plain", b"Not available");
+                }
+            }
             true
         }
         ("POST", "/annotation") => {
@@ -268,13 +362,50 @@ fn handle_request(req: Request, mut stream: impl Write, token: &str, queue: &Que
             );
             true
         }
-        ("POST", "/manual-edit-stash") | ("POST", "/manual-edit-commit") | ("POST", "/manual-edit-discard") => {
-            write_json(
-                &mut stream,
-                501,
-                "Not Implemented",
-                &json!({ "error": "manual-edit routes depend on unported live/manual-edit-routes.mjs and live/manual-apply.mjs" }),
-            );
+        ("POST", "/manual-edit-stash")
+        | ("GET", "/manual-edit-stash")
+        | ("POST", "/manual-edit-commit")
+        | ("POST", "/manual-edit-repair-decision")
+        | ("POST", "/manual-edit-discard")
+        | ("POST", "/manual-edit") => {
+            // Token is checked inside `handle_manual_edit_route` itself
+            // (from the JSON body for POST routes, from the query string for
+            // the GET route), matching the JS `createManualEditRoutes`
+            // handlers exactly — no separate check needed here.
+            let body: Option<Result<Value, String>> = if req.body.is_empty() {
+                None
+            } else {
+                Some(serde_json::from_slice::<Value>(&req.body).map_err(|e| e.to_string()))
+            };
+            let manual_req = ManualEditRequest {
+                method: req.method.clone(),
+                path: req.path.clone(),
+                query: req.query.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+                body,
+            };
+            let deps = LiveServerManualEditDeps {
+                token: token.to_string(),
+                project_root: project_root.to_path_buf(),
+                controller: manual_apply_controller,
+            };
+            match handle_manual_edit_route(&deps, &manual_req) {
+                Some(resp) => {
+                    let reason = match resp.status {
+                        200 => "OK",
+                        202 => "Accepted",
+                        400 => "Bad Request",
+                        401 => "Unauthorized",
+                        404 => "Not Found",
+                        410 => "Gone",
+                        500 => "Internal Server Error",
+                        _ => "",
+                    };
+                    write_json(&mut stream, resp.status, reason, &resp.body);
+                }
+                None => {
+                    write_response(&mut stream, 404, "Not Found", "text/plain", b"Not Found");
+                }
+            }
             true
         }
         _ => {
@@ -289,7 +420,14 @@ fn handle_request(req: Request, mut stream: impl Write, token: &str, queue: &Que
 /// its own thread (JS's single-threaded event loop is emulated closely
 /// enough for this server's purposes — one client at a time in practice:
 /// the agent CLI and at most one browser tab).
-pub fn serve(listener: TcpListener, token: &str, queue: &QueueState, project_root: &Path) {
+pub fn serve<'a>(
+    listener: TcpListener,
+    token: &str,
+    queue: &QueueState,
+    project_root: &Path,
+    manual_apply_controller: &ManualApplyController<QueueCallbacks<'a>>,
+) {
+    let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
     for incoming in listener.incoming() {
         let mut stream = match incoming {
             Ok(s) => s,
@@ -299,7 +437,7 @@ pub fn serve(listener: TcpListener, token: &str, queue: &QueueState, project_roo
             Some(r) => r,
             None => continue,
         };
-        let keep_running = handle_request(req, &stream, token, queue);
+        let keep_running = handle_request(req, &stream, token, queue, project_root, port, manual_apply_controller);
         let _ = stream.flush();
         if !keep_running {
             let _ = remove_live_server_info(project_root);
@@ -335,6 +473,7 @@ mod tests {
     #[test]
     fn health_check_returns_ok_json() {
         let queue = QueueState::new();
+        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
         let req = Request {
             method: "GET".into(),
             path: "/health".into(),
@@ -342,7 +481,7 @@ mod tests {
             body: vec![],
         };
         let mut out = Vec::new();
-        let keep_running = handle_request(req, &mut out, "tok", &queue);
+        let keep_running = handle_request(req, &mut out, "tok", &queue, Path::new("."), 0, &controller);
         assert!(keep_running);
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("200 OK"));
@@ -352,6 +491,7 @@ mod tests {
     #[test]
     fn events_post_requires_matching_token() {
         let queue = QueueState::new();
+        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
         let req = Request {
             method: "POST".into(),
             path: "/events".into(),
@@ -359,7 +499,7 @@ mod tests {
             body: b"{}".to_vec(),
         };
         let mut out = Vec::new();
-        handle_request(req, &mut out, "correct", &queue);
+        handle_request(req, &mut out, "correct", &queue, Path::new("."), 0, &controller);
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("401"));
         assert_eq!(queue.len(), 0);
@@ -368,6 +508,7 @@ mod tests {
     #[test]
     fn events_post_enqueues_and_poll_get_drains() {
         let queue = QueueState::new();
+        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
         let post = Request {
             method: "POST".into(),
             path: "/events".into(),
@@ -375,7 +516,7 @@ mod tests {
             body: br#"{"id":"e1","type":"generate"}"#.to_vec(),
         };
         let mut out = Vec::new();
-        handle_request(post, &mut out, "tok", &queue);
+        handle_request(post, &mut out, "tok", &queue, Path::new("."), 0, &controller);
         assert_eq!(queue.len(), 1);
 
         let poll = Request {
@@ -385,7 +526,7 @@ mod tests {
             body: vec![],
         };
         let mut poll_out = Vec::new();
-        handle_request(poll, &mut poll_out, "tok", &queue);
+        handle_request(poll, &mut poll_out, "tok", &queue, Path::new("."), 0, &controller);
         let text = String::from_utf8(poll_out).unwrap();
         assert!(text.contains("\"id\":\"e1\""));
         // Leased (has an id) so it remains queued until acked.
@@ -395,6 +536,7 @@ mod tests {
     #[test]
     fn poll_post_acknowledges_event() {
         let queue = QueueState::new();
+        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
         queue.enqueue_event(json!({"id": "e1", "type": "generate"}));
         let entry = queue.find_available_pending_event().unwrap();
         queue.lease_event(entry.seq, 30_000);
@@ -406,15 +548,21 @@ mod tests {
             body: br#"{"id":"e1"}"#.to_vec(),
         };
         let mut out = Vec::new();
-        handle_request(ack, &mut out, "tok", &queue);
+        handle_request(ack, &mut out, "tok", &queue, Path::new("."), 0, &controller);
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("\"ok\":true"));
         assert_eq!(queue.len(), 0);
     }
 
     #[test]
-    fn unimplemented_sibling_routes_return_501_naming_dependency() {
+    fn live_js_500s_when_scripts_dir_is_missing() {
+        // `/live.js` is now a real static-asset route (packet r22r24); with
+        // no `skills/designer/engine/scripts` directory under the given
+        // project root, it fails closed with 500 rather than fabricating a
+        // script body — mirrors `assertLiveBrowserScriptParts` raising at
+        // startup when a part file is missing.
         let queue = QueueState::new();
+        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
         let req = Request {
             method: "GET".into(),
             path: "/live.js".into(),
@@ -422,15 +570,40 @@ mod tests {
             body: vec![],
         };
         let mut out = Vec::new();
-        handle_request(req, &mut out, "tok", &queue);
+        let dir = std::env::temp_dir().join(format!(
+            "legion-r24-live-js-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        handle_request(req, &mut out, "tok", &queue, &dir, 0, &controller);
+        let text = String::from_utf8(out).unwrap();
+        assert!(text.contains("500"));
+    }
+
+    #[test]
+    fn still_unimplemented_routes_return_501_naming_dependency() {
+        let queue = QueueState::new();
+        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
+        let req = Request {
+            method: "POST".into(),
+            path: "/annotation".into(),
+            query: Default::default(),
+            body: vec![],
+        };
+        let mut out = Vec::new();
+        handle_request(req, &mut out, "tok", &queue, Path::new("."), 0, &controller);
         let text = String::from_utf8(out).unwrap();
         assert!(text.contains("501"));
-        assert!(text.contains("browser-script-parts.mjs"));
+        assert!(text.contains("session-store.mjs"));
     }
 
     #[test]
     fn stop_route_requires_token_and_signals_shutdown() {
         let queue = QueueState::new();
+        let controller = ManualApplyController::new(std::path::PathBuf::from("."), QueueCallbacks { queue: &queue });
         let bad = Request {
             method: "GET".into(),
             path: "/stop".into(),
@@ -438,7 +611,7 @@ mod tests {
             body: vec![],
         };
         let mut out = Vec::new();
-        assert!(handle_request(bad, &mut out, "tok", &queue));
+        assert!(handle_request(bad, &mut out, "tok", &queue, Path::new("."), 0, &controller));
 
         let good = Request {
             method: "GET".into(),
@@ -447,7 +620,7 @@ mod tests {
             body: vec![],
         };
         let mut out2 = Vec::new();
-        assert!(!handle_request(good, &mut out2, "tok", &queue));
+        assert!(!handle_request(good, &mut out2, "tok", &queue, Path::new("."), 0, &controller));
     }
 
     #[test]

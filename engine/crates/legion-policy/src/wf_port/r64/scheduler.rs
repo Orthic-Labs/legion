@@ -195,10 +195,10 @@ pub fn schedule_providers(providers: &[Provider], options: &ScheduleOptions) -> 
         let mut locks: BTreeSet<String> = BTreeSet::new();
 
         for (id, _, res, ck) in &ready {
-            let claims: Vec<(&String, &f64)> = res.iter().collect();
+            let claims: Vec<(String, f64)> = res.iter().map(|(k, v)| (k.clone(), *v)).collect();
             let impossible = resources.as_ref().map(|caps| {
                 claims.iter().any(|(name, amount)| {
-                    **amount < 0.0 || **amount > *caps.get(*name).unwrap_or(&f64::INFINITY)
+                    *amount < 0.0 || *amount > *caps.get(name).unwrap_or(&f64::INFINITY)
                 })
             }).unwrap_or(false);
             if impossible {
@@ -217,7 +217,7 @@ pub fn schedule_providers(providers: &[Provider], options: &ScheduleOptions) -> 
             }
             let fits = resources.as_ref().map(|caps| {
                 claims.iter().all(|(name, amount)| {
-                    used.get(*name).copied().unwrap_or(0.0) + **amount <= *caps.get(*name).unwrap_or(&f64::INFINITY)
+                    used.get(name).copied().unwrap_or(0.0) + *amount <= *caps.get(name).unwrap_or(&f64::INFINITY)
                 })
             }).unwrap_or(true);
             if !fits {
@@ -228,7 +228,7 @@ pub fn schedule_providers(providers: &[Provider], options: &ScheduleOptions) -> 
                 locks.insert(key.clone());
             }
             for (name, amount) in claims {
-                *used.entry(name.clone()).or_insert(0.0) += amount;
+                *used.entry(name).or_insert(0.0) += amount;
             }
         }
 

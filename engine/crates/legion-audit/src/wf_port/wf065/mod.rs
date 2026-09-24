@@ -47,4 +47,8 @@
 pub mod audit_store;
 pub mod audit_verify;
 pub mod collect_facts;
+pub mod collect_facts_checks_a;
+pub mod collect_facts_checks_b;
+pub mod collect_facts_exec;
+pub mod collect_facts_main;
 pub mod provider_benchmarks;

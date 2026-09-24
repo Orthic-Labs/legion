@@ -465,8 +465,6 @@ pub fn topology_errors(text: &str, allow_template: bool) -> Vec<String> {
             },
         );
     }
-    let _ = &typed_data; // silence unused-field lint for min_wall_ms usage below
-
     if let Some(dt) = declared_total {
         if stage_job_sum != dt {
             errors.push(format!("JOB_TOTAL_MAX {dt} does not equal stage MAX_JOBS sum {stage_job_sum}"));
@@ -533,10 +531,7 @@ pub fn topology_errors(text: &str, allow_template: bool) -> Vec<String> {
                 if !prior_key.is_empty() && !selector_key.contains(&prior_key) {
                     errors.push(format!("stage {stage_id} selector must use upstream survivor artifact"));
                 }
-                if let (Some(p), Some(pm), Some(cm)) =
-                    (prior, prior.and_then(|p| p.max_inputs), current.max_inputs)
-                {
-                    let _ = p;
+                if let (Some(pm), Some(cm)) = (prior.and_then(|p| p.max_inputs), current.max_inputs) {
                     if cm > pm {
                         errors.push(format!("stage {stage_id} MAX_INPUTS exceeds upstream population"));
                     }

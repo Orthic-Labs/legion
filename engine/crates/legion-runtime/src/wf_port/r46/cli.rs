@@ -43,7 +43,7 @@ pub fn validate_ported_errors(text: &str, allow_template: bool, artifact_path: O
     let mut errors = ordered_heading_errors(text);
 
     if !allow_template {
-        errors.extend(managed_rust_route_errors(text, artifact_path));
+        errors.extend(managed_rust_route_errors(text, artifact_path, None));
     }
 
     errors.extend(step_errors(text, allow_template));

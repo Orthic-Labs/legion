@@ -10,10 +10,10 @@
 //! assumption when runtime/deployment evidence is absent, and never fails
 //! because it is missing.
 //!
-//! Only `analyze()` is ported (see `wf060/common.rs` module doc for why
-//! `variantStrategies` is out of scope for this chunk).
+//! `variant_root_cause`/`variant_enumerate` below port the pack's
+//! `variantStrategies` (`rootCause`/`enumerate`) for its three rule ids.
 
-use super::common::{cap_severity, digest, line_of, Context, Fact, Observation};
+use super::common::{cap_severity, line_of, Context, Fact, Observation};
 use regex::Regex;
 use serde_json::{json, Value};
 use std::sync::OnceLock;
@@ -715,4 +715,121 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
     }
 
     observations
+}
+
+/// Port of `variantStrategies['hsts.missing'|'cache.sensitive-content-cacheable'|'proxy.trust-misconfigured'].rootCause()`
+/// in `http-protocol-cache.mjs`.
+pub fn variant_root_cause(rule_id: &str) -> Option<Value> {
+    match rule_id {
+        "hsts.missing" => Some(json!({
+            "class": "missing-hsts",
+            "semanticFeatures": ["no-strict-transport-security-header"],
+        })),
+        "cache.sensitive-content-cacheable" => Some(json!({
+            "class": "sensitive-content-cacheable",
+            "semanticFeatures": ["sensitive-route-marker", "missing-cache-control-no-store"],
+        })),
+        "proxy.trust-misconfigured" => Some(json!({
+            "class": "proxy-trust-misconfigured",
+            "semanticFeatures": ["blind-trust-proxy", "unvalidated-forwarded-for"],
+        })),
+        _ => None,
+    }
+}
+
+/// Port of the same three rules' `.enumerate(context)`.
+pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<Value> {
+    let denominator = json!({
+        "kind": "source-files",
+        "digest": context.denominator_digest,
+        "expected": context.files.len(),
+        "examined": context.files.len(),
+        "unexamined": [],
+    });
+    match rule_id {
+        "hsts.missing" => {
+            let combined = context
+                .files
+                .iter()
+                .map(|f| context.read_file(f))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let source_compliant = hsts_marker().is_match(&combined);
+            let matches = if source_compliant {
+                json!([])
+            } else {
+                json!([{
+                    "file": Value::Null,
+                    "line": Value::Null,
+                    "semanticFingerprint": "sha256:hsts-missing-repository-wide",
+                    "disposition": "CONFIRMED",
+                }])
+            };
+            Some(json!({
+                "denominator": denominator,
+                "strategies": [{
+                    "id": "hsts-header-search", "kind": "lexical-fallback",
+                    "description": "Search the denominator for a Strict-Transport-Security header.",
+                    "queryDigest": "sha256:q", "complete": true, "coverageGaps": [],
+                }],
+                "matches": matches,
+                "coverageGaps": [],
+            }))
+        }
+        "cache.sensitive-content-cacheable" => {
+            let mut matches = Vec::new();
+            for file in &context.files {
+                let text = context.read_file(file);
+                if !text.is_empty() && sensitive_route_marker().is_match(text) && !cache_no_store().is_match(text) {
+                    matches.push(json!({
+                        "file": file, "line": 1,
+                        "semanticFingerprint": format!("sha256:{file}:sensitive-cacheable"),
+                        "disposition": "CONFIRMED",
+                    }));
+                }
+            }
+            Some(json!({
+                "denominator": denominator,
+                "strategies": [{
+                    "id": "sensitive-cache-search", "kind": "lexical-fallback",
+                    "description": "Enumerate every sensitive route missing Cache-Control: no-store.",
+                    "queryDigest": "sha256:q", "complete": true, "coverageGaps": [],
+                }],
+                "matches": matches,
+                "coverageGaps": [],
+            }))
+        }
+        "proxy.trust-misconfigured" => {
+            let mut matches = Vec::new();
+            for file in &context.files {
+                let text = context.read_file(file);
+                if text.is_empty() {
+                    continue;
+                }
+                let blind = trust_proxy_true().find(text);
+                let raw = forwarded_for_security_use().is_match(text)
+                    && security_decision_marker().is_match(text)
+                    && !trusted_proxy_count_marker().is_match(text);
+                if blind.is_some() || raw {
+                    let line = blind.map(|m| line_of(text, m.start())).unwrap_or(1);
+                    matches.push(json!({
+                        "file": file, "line": line,
+                        "semanticFingerprint": format!("sha256:{file}:proxy-trust"),
+                        "disposition": "CONFIRMED",
+                    }));
+                }
+            }
+            Some(json!({
+                "denominator": denominator,
+                "strategies": [{
+                    "id": "proxy-trust-search", "kind": "lexical-fallback",
+                    "description": "Enumerate every blind proxy-trust or unvalidated forwarded-header configuration.",
+                    "queryDigest": "sha256:q", "complete": true, "coverageGaps": [],
+                }],
+                "matches": matches,
+                "coverageGaps": [],
+            }))
+        }
+        _ => None,
+    }
 }

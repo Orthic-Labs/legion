@@ -35,11 +35,9 @@
 //! `detect_text`'s eight page-level content analyzers (`single-font`,
 //! `flat-type-hierarchy`, `monotonous-spacing`, `em-dash-overuse`,
 //! `marketing-buzzword`, `numbered-section-markers`, `aphoristic-cadence`,
-//! `dark-glow`) are likewise not ported in `wf_port::r08`/`wf_port::w2_012`
-//! (their module docs list them as a remaining gap) and so are not part of
-//! [`RealDetectors::detect_text`]'s composition below; only source-level
-//! regex matching, style/CSS-in-JS block extraction, and design-system
-//! source checking are wired.
+//! `dark-glow`) *are* ported, in `wf_port::w2_012::detect_text`, and are
+//! wired into both `real_detectors::detect_text` and `detect_html`'s
+//! text-content lane below.
 
 pub mod cli;
 pub mod design_system_loader;

@@ -498,7 +498,7 @@ pub fn run_batch(
         for _ in 0..pool_size.min(items.len().max(1)) {
             let results = Arc::clone(&results);
             let next_index = Arc::clone(&next_index);
-            scope.spawn(|| loop {
+            scope.spawn(move || loop {
                 let i = next_index.fetch_add(1, Ordering::Relaxed) as usize;
                 if i >= items.len() {
                     break;

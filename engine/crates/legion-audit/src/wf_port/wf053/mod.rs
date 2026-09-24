@@ -39,6 +39,7 @@
 //! comment.
 
 use std::collections::BTreeSet;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::sync::OnceLock;
@@ -1993,6 +1994,101 @@ pub struct BuildSecurityModelInput {
     pub expected_files: Option<u64>,
     pub examined_files: u64,
     pub parts: Vec<ExtractorOutput>,
+}
+
+/// Full-pipeline inputs mirroring `model-builder.mjs`'s `buildSecurityModel({ root, plan,
+/// projection, lensRegistry })` call, closing the gap noted in the module doc comment above.
+/// `model-builder.mjs`'s own `EXTRACTORS` array (re-read directly, not taken on the earlier
+/// header note's word — that note is stale) wires exactly eight extractors in this order:
+/// `extractCommon`, `extractHttp`, `extractIdentity`, `extractData`, `extractCicd`,
+/// `extractCloud`, `extractNativeWorkspace`, `extractAiAgent`. It does **not** wire
+/// `extractAutomation` — `automation.mjs` is a separate extractor this chunk also ports
+/// (the `automation` module below), but `model-builder.mjs` never imports it, so it is
+/// correctly left out of this pipeline. Every extractor here reads only the
+/// `files`/`source_text`/`manifests`/`package_manifests`/`release_files` values the caller
+/// supplies (mirroring `projection.*`), matching every source extractor's own "pure, no
+/// filesystem walk beyond the caller-supplied denominator" contract.
+pub struct FullPipelineInput<'a> {
+    pub binding: Value,
+    pub denominator_digest: String,
+    pub expected_files: Option<u64>,
+    pub files: &'a [String],
+    pub source_text: &'a HashMap<String, String>,
+    /// `projection.auditFacts.packageManifests`, raw values, for `extract_common`.
+    pub manifests: &'a [Value],
+    /// The same manifests, destructured to `{path, dependencies, scripts}`, for
+    /// `cloud::extract`.
+    pub package_manifests: &'a [crate::wf_port::wf054::PackageManifest],
+    /// `projection.auditFacts.releaseFiles`, for `cloud::extract`.
+    pub release_files: &'a std::collections::HashSet<String>,
+}
+
+fn from_wf054(o: crate::wf_port::wf054::ExtractorOutput) -> ExtractorOutput {
+    ExtractorOutput {
+        entities: o.entities,
+        relations: o.relations,
+        evidence: o.evidence,
+        initial_facts: o.initial_facts,
+        coverage_gaps: o.coverage_gaps,
+    }
+}
+
+fn from_wf055_identity(o: crate::wf_port::wf055::identity::IdentityExtraction) -> ExtractorOutput {
+    ExtractorOutput {
+        entities: o.entities,
+        relations: o.relations,
+        evidence: o.evidence,
+        initial_facts: o.initial_facts,
+        coverage_gaps: o.coverage_gaps,
+    }
+}
+
+fn from_wf055_native_workspace(o: crate::wf_port::wf055::native_workspace::NativeWorkspaceExtraction) -> ExtractorOutput {
+    ExtractorOutput {
+        entities: o.entities,
+        relations: o.relations,
+        evidence: o.evidence,
+        initial_facts: o.initial_facts,
+        coverage_gaps: o.coverage_gaps,
+    }
+}
+
+/// Runs the real, fixed 8-extractor pipeline (`common`, `http`, `identity`, `data`,
+/// `cloud`, `nativeWorkspace`, `aiAgent`, `automation`) and assembles the result via
+/// [`build_security_model`], matching `buildSecurityModel`'s `EXTRACTORS.map(...)` step
+/// exactly (same dedupe/reference-check/coverage algorithm, real extractor outputs instead
+/// of caller-supplied `parts`).
+pub fn build_security_model_full(input: FullPipelineInput<'_>) -> Result<Value, String> {
+    let identity_files: Vec<(String, String)> = input
+        .files
+        .iter()
+        .map(|f| (f.clone(), input.source_text.get(f).cloned().unwrap_or_default()))
+        .collect();
+
+    let parts = vec![
+        from_wf054(crate::wf_port::wf054::extract_common(input.files, input.manifests)),
+        from_wf054(crate::wf_port::wf054::http::extract(input.files, input.source_text)),
+        from_wf055_identity(crate::wf_port::wf055::identity::extract_identity(&identity_files)),
+        from_wf054(crate::wf_port::wf054::data::extract(input.files, input.source_text)),
+        cicd::extract(input.files, input.source_text),
+        from_wf054(crate::wf_port::wf054::cloud::extract(
+            input.files,
+            input.source_text,
+            input.package_manifests,
+            input.release_files,
+        )),
+        from_wf055_native_workspace(crate::wf_port::wf055::native_workspace::extract_native_workspace(&identity_files)),
+        ai_agent::extract(input.files, input.source_text),
+    ];
+
+    let examined_files = input.files.len() as u64;
+    build_security_model(BuildSecurityModelInput {
+        binding: input.binding,
+        denominator_digest: input.denominator_digest,
+        expected_files: input.expected_files,
+        examined_files,
+        parts,
+    })
 }
 
 /// Mirrors `buildSecurityModel`'s assembly step (dedupe → `assertReferences` → coverage →

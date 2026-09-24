@@ -8,7 +8,7 @@
 //! starting a process. Neither a tool name nor parser success is evidence.
 
 mod contracts;
-mod parsers;
+pub(crate) mod parsers;
 mod registry;
 mod resolver;
 

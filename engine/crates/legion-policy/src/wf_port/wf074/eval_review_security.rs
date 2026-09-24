@@ -171,15 +171,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn admission_001_and_006_are_blocked_not_faked() {
-        assert!(matches!(
-            execute_review_security_binding("AE-REVIEW-ADMISSION-001"),
-            ReviewSecurityResult::BlockedOnDependency { .. }
-        ));
-        assert!(matches!(
-            execute_review_security_binding("AE-REVIEW-VERDICT-SECURITY-006"),
-            ReviewSecurityResult::BlockedOnDependency { .. }
-        ));
+    fn admission_001_and_006_now_run_the_real_gate_machinery() {
+        let r001 = execute_review_security_binding("AE-REVIEW-ADMISSION-001");
+        assert!(validate_review_security_observation(&r001));
+        match &r001 {
+            ReviewSecurityResult::Observed { allowed, code, inspection_count, .. } => {
+                assert!(!allowed);
+                assert_eq!(*code, Some("ARC_EVIDENCE_INSUFFICIENT"));
+                assert_eq!(*inspection_count, 0);
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+        let r006 = execute_review_security_binding("AE-REVIEW-VERDICT-SECURITY-006");
+        assert!(validate_review_security_observation(&r006));
+        match &r006 {
+            ReviewSecurityResult::Observed { allowed, code, configured_scope, .. } => {
+                assert!(!allowed);
+                assert_eq!(*code, Some("ARC_CLAIM_PREREQUISITE_UNMET"));
+                assert!(configured_scope.is_some());
+            }
+            other => panic!("unexpected {other:?}"),
+        }
     }
 
     #[test]
@@ -222,10 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn validator_rejects_blocked_and_unknown() {
-        assert!(!validate_review_security_observation(&execute_review_security_binding(
-            "AE-REVIEW-ADMISSION-001"
-        )));
+    fn validator_rejects_unknown_case() {
         assert!(!validate_review_security_observation(&execute_review_security_binding("AE-NOPE")));
     }
 

@@ -22,13 +22,26 @@
 //! artifact/receipt validator ported from
 //! `src/lib/goalroute/scripts/validate-route.py` (`goal_route_validator.rs`).
 //!
-//! Still **NOT-STARTED**: `execution_identity_errors`,
-//! `execution_control_errors`, `decision_scope_errors`,
-//! `authority_correction_errors`, `topology_errors`, and the
-//! `validate()`/`main()` CLI dispatcher. See the packet r46b report for the
-//! precise function inventory and rationale.
+//! Packet r46c2 adds `execution_identity_errors` (`execution_identity.rs`),
+//! `execution_control_errors` (`execution_control.rs`),
+//! `decision_scope_errors` (`decision_scope.rs`),
+//! `authority_correction_errors` (`authority_correction.rs`),
+//! `topology_errors` (`topology.rs`), and [`cli::validate_ported_errors`], a
+//! partial port of `validate()` composing every check that is fully ported
+//! across r46/r46b/r46c1/r46c2.
+//!
+//! Still **NOT-STARTED**: the remainder of the `validate()`/`main()` CLI
+//! dispatcher (the `REQUIRED_LABELS` table, `BYPASS_PATTERNS`/
+//! `SECRET_PATTERNS`, the `/script` gate section, `TRUE_BLOCKER`/author-gate
+//! sections, `storage_errors`, and `main()`'s receipt/minimize-gate file
+//! I/O) — see `cli.rs`'s module doc for the precise, named gap.
 
+pub mod authority_correction;
+pub mod cli;
+pub mod decision_scope;
 pub mod dependency;
+pub mod execution_control;
+pub mod execution_identity;
 pub mod goal_route;
 pub mod goal_route_validator;
 pub mod headings;
@@ -38,8 +51,14 @@ pub mod script_gate;
 pub mod status;
 pub mod steps;
 pub mod tables;
+pub mod topology;
 
+pub use authority_correction::authority_correction_errors;
+pub use cli::validate_ported_errors;
+pub use decision_scope::decision_scope_errors;
 pub use dependency::parse_dependency_contract;
+pub use execution_control::execution_control_errors;
+pub use execution_identity::execution_identity_errors;
 pub use goal_route::goal_route_errors;
 pub use headings::{ordered_heading_errors, REQUIRED_HEADINGS};
 pub use labels::{authority_label_value, fenced_value_after, is_concrete};
@@ -48,3 +67,4 @@ pub use script_gate::script_gate_values;
 pub use status::status_errors;
 pub use steps::{step_errors, STEP_LABELS};
 pub use tables::{table_errors, table_rows, validate_table, FAILURE_CLASSES};
+pub use topology::topology_errors;

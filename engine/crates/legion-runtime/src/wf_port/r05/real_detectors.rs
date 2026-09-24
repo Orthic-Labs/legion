@@ -10,20 +10,22 @@
 //!
 //! See [`super`]'s module doc for the two capabilities genuinely not ported
 //! anywhere in this tree yet (detectHtml's per-element rule engine and the
-//! antipattern registry) and how that gap is reflected here:
-//! [`detect_text`] and [`detect_html`] only produce findings from the
-//! source-level engines that exist (`r08` regex matchers + block
-//! extraction, `w2_011` design-system source checks, `w2_013` broken-image
-//! + static typography), not the full JS output.
+//! antipattern registry) and how that gap is reflected here: [`detect_html`]
+//! produces broken-image, static typography, design-system, and
+//! text-content findings but not the ~2700-line per-element rule engine's.
+//! [`detect_text`] is the full composition: `r08` regex matchers + style/
+//! CSS-in-JS block extraction, `w2_011` design-system source checks, and
+//! `w2_012`'s eight page-level content analyzers.
 
 use std::path::Path;
 
 use super::super::r07::browser::ChromeDriver;
-use super::super::r07::detect_url::{detect_url as port_detect_url, DetectUrlOptions};
+use super::super::r07::detect_url::{detect_url as port_detect_url, DetectUrlOptions, Viewport};
 use super::super::r07::findings::AntipatternLookup;
 use super::super::r08::detect_text_matchers::{extract_css_in_js, extract_style_blocks, run_regex_matchers};
 use super::super::r08::sweep_live::{sweep_site, PageFetcher};
 use super::super::w2_011::design_system::{check_source_design_system, DesignSystem};
+use super::super::w2_012::detect_text::{run_page_level_analyzers, run_text_content_analyzers, should_run_page_analyzers};
 use super::super::w2_013::detect_html::{
     classify_img_src, find_broken_images, is_full_page, StaticStylesheet,
 };
@@ -56,13 +58,17 @@ fn dedupe(findings: Vec<CliFinding>) -> Vec<CliFinding> {
     out
 }
 
-/// Port of `detectText(content, filePath, options)`'s source-level lanes:
-/// full-content regex matchers, `<style>` block extraction (Vue/Svelte),
-/// CSS-in-JS template-literal extraction, and design-system source
-/// checking, followed by the same 2-line dedup JS applies. Does **not**
-/// include the eight page-level content analyzers (`single-font` etc.) —
-/// see [`super`]'s module doc; they aren't ported in `wf_port::r08` or
-/// `wf_port::w2_012` yet.
+/// Port of `detectText(content, filePath, options)`: full-content regex
+/// matchers, `<style>` block extraction (Vue/Svelte), CSS-in-JS
+/// template-literal extraction, and design-system source checking, then
+/// the same 2-line dedup JS applies, then (when `shouldRunPageAnalyzers`
+/// gates true) the eight page-level content analyzers appended
+/// undeduped — matching `detectText`'s own `deduped.push(...analyzer
+/// results)` after its dedup loop. Provider filtering
+/// (`filterByProviders`) is not applied: it depends on the antipattern
+/// registry's `gated` metadata, which isn't ported anywhere in this tree
+/// (see [`super`]'s module doc), so `--gpt`/`--gemini` are accepted by the
+/// CLI but don't change this function's output.
 pub fn detect_text(content: &str, file_path: &str, design_system: Option<&DesignSystem>) -> Vec<CliFinding> {
     let ext = ext_from_path(file_path);
     let lines: Vec<&str> = content.split('\n').collect();
@@ -94,7 +100,21 @@ pub fn detect_text(content: &str, file_path: &str, design_system: Option<&Design
         }
     }
 
-    dedupe(findings)
+    let mut deduped = dedupe(findings);
+
+    // Page-level analyzers (single-font, flat-type-hierarchy,
+    // monotonous-spacing, em-dash-overuse, marketing-buzzword,
+    // numbered-section-markers, aphoristic-cadence, dark-glow): JS runs
+    // these unconditionally once `shouldRunPageAnalyzers` gates true,
+    // appended after dedup (not deduped against the earlier findings, same
+    // as `detectText`'s `deduped.push(...)` after the loop).
+    if should_run_page_analyzers(is_full_page(content), file_path) {
+        for tf in run_page_level_analyzers(content) {
+            deduped.push(CliFinding::new(tf.antipattern, file_path, tf.line.unwrap_or(0), tf.detail));
+        }
+    }
+
+    deduped
 }
 
 /// Port of `detectHtml(filePath, options)`'s ported subset: broken-image
@@ -125,8 +145,27 @@ pub fn detect_html(file_path: &str, design_system: Option<&DesignSystem>) -> std
 
     if is_full_page(&html) {
         let stylesheet = StaticStylesheet::from_document(&document);
-        let generic_fonts = super::super::w2_012::detect_text::generic_fonts_for_typography();
-        let overused_fonts = super::super::w2_012::detect_text::overused_fonts_for_typography();
+        // Port of `shared/constants.mjs`'s `GENERIC_FONTS`/`OVERUSED_FONTS`
+        // sets. Neither is ported as a shared item anywhere in this tree
+        // yet (`wf_port::w2_013::detect_html::check_static_page_typography`'s
+        // own doc comment says the caller supplies them from that file), so
+        // they're inlined here verbatim from the JS source.
+        let generic_fonts: std::collections::HashSet<String> = [
+            "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "ui-serif",
+            "ui-sans-serif", "ui-monospace", "ui-rounded", "-apple-system", "blinkmacsystemfont",
+            "segoe ui", "inherit", "initial", "unset", "revert",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
+        let overused_fonts: std::collections::HashSet<String> = [
+            "inter", "roboto", "open sans", "lato", "montserrat", "arial", "helvetica",
+            "fraunces", "instrument sans", "instrument serif", "geist", "geist sans",
+            "geist mono", "mona sans", "plus jakarta sans", "space grotesk", "recoleta",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
         for raw in super::super::w2_013::detect_html::check_static_page_typography(
             &document,
             &stylesheet,
@@ -134,6 +173,14 @@ pub fn detect_html(file_path: &str, design_system: Option<&DesignSystem>) -> std
             &overused_fonts,
         ) {
             findings.push(CliFinding::new(raw.id, file_path, 0, raw.snippet));
+        }
+
+        // Text-content analyzers (em-dash overuse, marketing buzzwords,
+        // numbered section markers, aphoristic cadence) — `detectHtml`
+        // calls these directly too, so `.html` files get the same
+        // coverage as source files.
+        for tf in run_text_content_analyzers(&html, true, file_path) {
+            findings.push(CliFinding::new(tf.antipattern, file_path, tf.line.unwrap_or(0), tf.detail));
         }
     }
 
@@ -177,6 +224,55 @@ pub fn sweep(fetcher: &dyn PageFetcher, url: &str, site_type: Option<&str>) -> V
 #[allow(unused)]
 fn assert_classify(src: Option<&str>) -> Option<String> {
     classify_img_src(src)
+}
+
+/// [`super::cli::Detectors`] wired to the production engines: regex/design
+/// system/broken-image/typography detection run directly, URL scanning
+/// goes through the injected [`ChromeDriver`] + [`AntipatternLookup`], and
+/// `--site` sweeps go through the injected [`PageFetcher`]. The browser
+/// injection script (`window.impeccableDetect`, `browser_script.js`) isn't
+/// ported in this tree — the caller supplies it verbatim, same as
+/// `wf_port::r07::detect_url`'s own tests do.
+pub struct RealDetectors<'a, Drv, Reg, Fe>
+where
+    Drv: ChromeDriver,
+    Reg: AntipatternLookup,
+    Fe: PageFetcher,
+{
+    pub driver: &'a mut Drv,
+    pub registry: &'a Reg,
+    pub fetcher: &'a Fe,
+    pub browser_script: &'a str,
+}
+
+impl<'a, Drv, Reg, Fe> super::cli::Detectors for RealDetectors<'a, Drv, Reg, Fe>
+where
+    Drv: ChromeDriver,
+    Reg: AntipatternLookup,
+    Fe: PageFetcher,
+{
+    fn detect_text(&mut self, content: &str, file_path: &str, design_system: Option<&DesignSystem>) -> Vec<CliFinding> {
+        detect_text(content, file_path, design_system)
+    }
+
+    fn detect_html(&mut self, file_path: &str, design_system: Option<&DesignSystem>) -> Result<Vec<CliFinding>, String> {
+        detect_html(file_path, design_system).map_err(|e| e.to_string())
+    }
+
+    fn detect_url(&mut self, url: &str, options: &super::cli::UrlScanOptions) -> Result<Vec<CliFinding>, String> {
+        let mut opts = DetectUrlOptions {
+            providers: options.providers.clone(),
+            ..DetectUrlOptions::default()
+        };
+        if let Some((w, h)) = options.viewport {
+            opts.viewport = Viewport { width: w, height: h };
+        }
+        detect_url(self.driver, self.registry, url, self.browser_script, &opts)
+    }
+
+    fn sweep_site(&mut self, url: &str, site_type: Option<&str>) -> Vec<CliFinding> {
+        sweep(self.fetcher, url, site_type)
+    }
 }
 
 #[cfg(test)]

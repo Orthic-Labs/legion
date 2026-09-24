@@ -18,20 +18,31 @@
 //! (`/health`, `/poll` GET long-poll + POST ack, `/events` POST enqueue,
 //! OPTIONS/CORS) wired to that state machine.
 //!
-//! Genuinely out of scope (named per the MANDATORY rule, not just noted):
-//! the handful of routes whose *response bodies* are assembled by sibling
-//! `.mjs` modules that are not part of this packet and are not ported
-//! anywhere else yet — `/live.js` (`live/browser-script-parts.mjs`'s
-//! `assembleLiveBrowserScript`/`readLiveBrowserScriptParts`, plus
-//! `live/vocabulary.mjs`'s `LIVE_COMMANDS`), `/detect.js` (the detector
-//! bundle loaded by `loadBrowserScripts()` from `scripts/detector/`),
-//! `/manual-edit-stash|commit|discard` (`live/manual-edit-routes.mjs`,
-//! `live/manual-apply.mjs`), `/annotation` file staging into a session
-//! directory keyed off `live/session-store.mjs`, and Svelte-component
-//! deferred-accept cleanup (`live/svelte-component.mjs`). This server
-//! answers those routes with `501 Not Implemented` and a message naming the
-//! missing module, rather than silently dropping or faking them. See
-//! `finish-r24.md` for the itemized table.
+//! Follow-up pass (packet r22r24) closed most of the named gaps above now
+//! that the sibling modules they depended on exist elsewhere in this crate:
+//! - `/live.js` and `/detect.js` now serve real content: `/live.js` is
+//!   assembled from disk via `w2_020::browser_script_parts` +
+//!   `w2_022::vocabulary::live_commands()` on every request (matching the
+//!   JS's no-cache re-read-from-disk behavior exactly); `/detect.js` (and
+//!   `/`) serve the detector bundle straight from disk as a static browser
+//!   asset (JS: `fs.readFileSync` once at startup and echoed verbatim) —
+//!   these files ship to the *browser*, not through this Rust binary, so
+//!   "port" means "locate and stream the file", not translate its JS.
+//! - `/manual-edit-stash|commit|discard` (plus `-stash` GET and
+//!   `-repair-decision`) are wired to `w2_021::manual_edit_routes` via
+//!   `manual_edit_deps::LiveServerManualEditDeps` (a `ManualEditRoutesDeps`
+//!   + `ManualApplyCallbacks` bridge to this server's `QueueState`).
+//!
+//! Still genuinely out of scope, named exactly: `buildManualEditEvidence`
+//! (`../live-manual-edit-evidence.mjs`) and `commitManualEdits`
+//! (`../live-commit-manual-edits.mjs`), which those manual-edit routes call
+//! into — both shell an LLM copy-edit agent and are outside every packet
+//! ported so far; `/annotation` (`live/session-store.mjs`'s session
+//! directory, also unported); and Svelte-component deferred-accept cleanup
+//! on startup/shutdown (`live/svelte-component.mjs`'s stateful half, as
+//! opposed to the pure scaffolding functions r22 already ports). These
+//! answer `501 Not Implemented` naming the missing module. See
+//! `finish-r22r24.md` for the itemized table.
 
 pub mod http_server;
 pub mod manual_edit_deps;
@@ -212,16 +223,76 @@ pub fn stop_running_server(project_root: &Path) -> RunOutcome {
     }
 }
 
+/// `--background`: mirrors the JS `spawn(process.execPath, [thisFile,
+/// ...childArgs], { detached: true, stdio: 'ignore' }); child.unref();` then
+/// polling `server.json` for a `pid` different from the parent's own pid
+/// (meaning the detached child, not the parent, is now the running server),
+/// printing its connection JSON on stdout, for up to 10s.
+///
+/// This is the `std::process::Command` re-exec named as a gap in
+/// `finish-r24.md`: the previous pass deferred it because no concrete CLI
+/// binary entry point existed yet to re-exec against. That gap is closed
+/// here by re-execing `std::env::current_exe()` (this same running binary)
+/// with the child argv — no separate binary path guess needed. One
+/// difference from the JS: without `unsafe_code` (forbidden crate-wide)
+/// there is no portable way to call `setsid`/detach the child's process
+/// group from Rust's `std::process::Command`, so the child is spawned as an
+/// ordinary (non-session-leader) child process with its stdio inherited as
+/// null handles; it is not killed by this process exiting, which is the
+/// behavior `--background` callers actually depend on.
+fn run_background(args: &[String], project_root: &Path) -> RunOutcome {
+    let child_args: Vec<String> = args.iter().filter(|a| a.as_str() != "--background").cloned().collect();
+    let exe = match env::current_exe() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Failed to resolve current executable: {e}");
+            return RunOutcome::ServerExited;
+        }
+    };
+    let cwd = std::env::current_dir().unwrap_or_else(|_| project_root.to_path_buf());
+    let parent_pid = process::id();
+
+    let spawn_result = process::Command::new(&exe)
+        .args(&child_args)
+        .current_dir(&cwd)
+        .stdin(process::Stdio::null())
+        .stdout(process::Stdio::null())
+        .stderr(process::Stdio::null())
+        .spawn();
+    let child = match spawn_result {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Failed to spawn background live server: {e}");
+            return RunOutcome::ServerExited;
+        }
+    };
+    let child_pid = child.id();
+    // `child.unref()` in JS just lets the parent event loop exit without
+    // waiting on the child; dropping the `Child` handle here has the same
+    // effect (no implicit wait-on-drop in `std::process`).
+    drop(child);
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while std::time::Instant::now() < deadline {
+        if let Some((info, _path)) = read_live_server_info(project_root) {
+            if info.pid != parent_pid {
+                println!(
+                    "{}",
+                    serde_json::json!({ "pid": info.pid, "port": info.port, "token": info.token })
+                );
+                return RunOutcome::BackgroundStarted { port: info.port, pid: info.pid, ready: true };
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    eprintln!("Timed out waiting for live server to start.");
+    RunOutcome::BackgroundStarted { port: 0, pid: child_pid, ready: false }
+}
+
 /// Top-level CLI entry point, equivalent to the module-level script body
-/// (argv dispatch: `--help`/`-h`, `stop`, otherwise start). `--background`
-/// detached spawning is a named gap: it requires re-exec'ing this same CLI
-/// as a detached child process and polling `server.json` for readiness,
-/// which is subprocess orchestration this module supports (`http_server`
-/// runs synchronously) but the detach+poll wrapper itself is left for the
-/// binary/CLI wiring layer that owns `std::process::Command` construction
-/// for this crate, matching how sibling `wf_port` chunks (e.g. `r22`) defer
-/// process spawning to their CLI binary rather than duplicating it per
-/// packet.
+/// (argv dispatch: `--help`/`-h`, `stop`, `--background`, otherwise start).
+/// `--background` re-execs `std::env::current_exe()` (see
+/// [`run_background`]) rather than a separately-tracked binary path.
 pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!("{HELP_TEXT}");
@@ -230,6 +301,10 @@ pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
 
     if args.iter().any(|a| a == "stop") {
         return stop_running_server(project_root);
+    }
+
+    if args.iter().any(|a| a == "--background") {
+        return run_background(args, project_root);
     }
 
     if let Some((existing, _path)) = read_live_server_info(project_root) {
@@ -280,7 +355,17 @@ pub fn run(args: &[String], project_root: &Path) -> RunOutcome {
     println!("Stop:   node live-server.mjs stop");
 
     let queue = QueueState::new();
-    http_server::serve(listener, &token, &queue, project_root);
+    // One `ManualApplyController` for the server's whole lifetime (mirrors
+    // the JS singleton `manualApply` controller created once at module
+    // load): its in-memory pending-apply-deferred/timed-out-id state must
+    // survive across requests, so it is built here and threaded through
+    // `serve`/`handle_request` by reference rather than reconstructed per
+    // request (a per-request controller would silently drop that state
+    // between requests).
+    let callbacks = manual_edit_deps::QueueCallbacks { queue: &queue };
+    let manual_apply_controller =
+        crate::wf_port::w2_021::manual_apply::ManualApplyController::new(project_root.to_path_buf(), callbacks);
+    http_server::serve(listener, &token, &queue, project_root, &manual_apply_controller);
     let _ = remove_live_server_info(project_root);
     RunOutcome::ServerExited
 }
@@ -296,5 +381,12 @@ pub fn main_cli() -> i32 {
         RunOutcome::HelpPrinted | RunOutcome::Stopped | RunOutcome::ServerExited => 0,
         RunOutcome::StopFailedNoServer => 0,
         RunOutcome::AlreadyRunning { .. } => 1,
+        RunOutcome::BackgroundStarted { ready, .. } => {
+            if ready {
+                0
+            } else {
+                1
+            }
+        }
     }
 }

@@ -4,14 +4,12 @@
 //! detector; it never accepts a file, never writes to disk, and never
 //! certifies a finding — it only ever emits `UNADJUDICATED` candidates.
 //!
-//! Scope of this port (mirrors the precedent documented in the sibling
-//! `wf060` chunk's `common.rs`): only `analyze(context)` is ported; the
-//! pack's `variantStrategies` (`rootCause`/`enumerate`) is coverage-report
-//! bookkeeping over the same matches `analyze()` already finds and is not
-//! ported here to keep this chunk bounded.
+//! `variant_root_cause`/`variant_enumerate` near the bottom of this file
+//! port the pack's `variantStrategies` (`rootCause`/`enumerate`), reusing
+//! the same `RULES`/`exec_loop` dispatch `analyze()` uses.
 
 use regex::Regex;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::sync::OnceLock;
 
 use super::common::{digest, line_of, window_around, Context, Entity, Fact, Observation};
@@ -337,4 +335,60 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
 #[allow(dead_code)]
 pub fn rule_ids() -> Vec<&'static str> {
     RULES.iter().map(|r| r.id).collect()
+}
+
+/// Port of `buildVariantStrategy(rule).rootCause(candidate)`: identical
+/// shape for every `upload.*` rule, parameterized only by `rule.id` and the
+/// candidate's `detectorMetadata.sinkApi`.
+pub fn variant_root_cause(rule_id: &str, candidate_sink_api: Option<&str>) -> Option<Value> {
+    RULES.iter().find(|r| r.id == rule_id).map(|rule| {
+        json!({
+            "class": format!("{}-unmitigated", rule.id),
+            "semanticFeatures": ["upload-boundary", rule.id, candidate_sink_api.unwrap_or(rule.id)],
+        })
+    })
+}
+
+/// Port of `buildVariantStrategy(rule).enumerate(context)`: independently
+/// re-scans every file for `rule.pattern`, applying `rule.customSuppress`
+/// (mirrors `MITIGATED` vs `CONFIRMED` disposition) exactly as `analyze()`
+/// does, but without the downgrade/control lookup `analyze()` performs.
+pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<Value> {
+    let rule = RULES.iter().find(|r| r.id == rule_id)?;
+    let re = (rule.pattern)();
+    let mut matches = Vec::new();
+    for file in &context.files {
+        let text = context.read_file(file);
+        if text.is_empty() {
+            continue;
+        }
+        for m in exec_loop(re, text) {
+            let suppressed = rule.custom_suppress.is_some_and(|f| f(&m));
+            matches.push(json!({
+                "file": file,
+                "line": line_of(text, m.index),
+                "semanticFingerprint": digest(&format!("{}{}{}", rule.id, file, m.whole)),
+                "disposition": if suppressed { "MITIGATED" } else { "CONFIRMED" },
+            }));
+        }
+    }
+    Some(json!({
+        "denominator": {
+            "kind": "source-files",
+            "digest": context.denominator_digest,
+            "expected": context.files.len(),
+            "examined": context.files.len(),
+            "unexamined": [],
+        },
+        "strategies": [{
+            "id": format!("{}-search", rule.id),
+            "kind": "lexical-fallback",
+            "description": format!("Enumerate every {} occurrence across the denominator.", rule.id),
+            "queryDigest": digest(rule.id),
+            "complete": true,
+            "coverageGaps": [],
+        }],
+        "matches": matches,
+        "coverageGaps": [],
+    }))
 }

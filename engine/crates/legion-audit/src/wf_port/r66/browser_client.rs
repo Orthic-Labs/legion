@@ -9,11 +9,10 @@
 //! served" degrades to a capped, explicitly-flagged assumption when it is
 //! absent, and never fails because it is missing.
 //!
-//! Scope: `analyze(context)` is ported faithfully. `variantStrategies`
-//! (`rootCause`/`enumerate`, present for three of the twelve rule ids in the
-//! JS source) is coverage-report bookkeeping over the same matches
-//! `analyze()` already finds; it is not ported here, mirroring the scope
-//! decision documented in wf060's `common.rs`.
+//! Scope: `analyze(context)` is ported faithfully.
+//! `variant_root_cause`/`variant_enumerate` below port the pack's
+//! `variantStrategies` (present for three of the twelve rule ids in the JS
+//! source).
 //!
 //! Two of the JS source's regexes use JS-only lookaround
 //! (`SAMESITE_NONE_WITHOUT_SECURE`'s negative lookahead, and
@@ -593,6 +592,124 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
     }
 
     observations
+}
+
+/// Port of `variantStrategies[rule_id].rootCause()` for the three rule ids
+/// that have a `variantStrategies` entry in the JS source.
+pub fn variant_root_cause(rule_id: &str) -> Option<Value> {
+    match rule_id {
+        "csrf.state-changing-route.missing-token" => Some(json!({
+            "class": "missing-csrf-protection",
+            "semanticFeatures": ["cookie-session-auth", "state-changing-route", "no-csrf-token-check"],
+        })),
+        "cors.wildcard-origin-with-credentials" => Some(json!({
+            "class": "cors-wildcard-with-credentials",
+            "semanticFeatures": ["acao-wildcard", "acac-true"],
+        })),
+        "oauth.redirect-uri.unvalidated" => Some(json!({
+            "class": "oauth-redirect-uri-unvalidated",
+            "semanticFeatures": ["redirect-uri-from-request", "no-exact-match-allowlist"],
+        })),
+        _ => None,
+    }
+}
+
+/// Port of the same three rules' `.enumerate(context)`.
+pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<Value> {
+    let denominator = json!({
+        "kind": "source-files",
+        "digest": context.denominator_digest,
+        "expected": context.files.len(),
+        "examined": context.files.len(),
+        "unexamined": [],
+    });
+    match rule_id {
+        "csrf.state-changing-route.missing-token" => {
+            let mut matches = Vec::new();
+            for file in &context.files {
+                let text = context.read_file(file);
+                if text.is_empty() || !COOKIE_SESSION_MARKER.is_match(text) || CSRF_MARKER.is_match(text) {
+                    continue;
+                }
+                for cap in STATE_CHANGING_ROUTE.captures_iter(text) {
+                    let whole = cap.get(0).unwrap();
+                    let g1 = cap.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let g2 = cap.get(2).map(|m| m.as_str()).unwrap_or("");
+                    matches.push(json!({
+                        "file": file,
+                        "line": line_of(text, whole.start()),
+                        "semanticFingerprint": format!("sha256:{file}:{g1}:{g2}"),
+                        "disposition": "CONFIRMED",
+                    }));
+                }
+            }
+            Some(json!({
+                "denominator": denominator,
+                "strategies": [{
+                    "id": "csrf-route-search", "kind": "lexical-fallback",
+                    "description": "Enumerate every cookie-session state-changing route lacking a CSRF marker.",
+                    "queryDigest": "sha256:q", "complete": true, "coverageGaps": [],
+                }],
+                "matches": matches,
+                "coverageGaps": [],
+            }))
+        }
+        "cors.wildcard-origin-with-credentials" => {
+            let mut matches = Vec::new();
+            for file in &context.files {
+                let text = context.read_file(file);
+                if text.is_empty() {
+                    continue;
+                }
+                for m in CORS_WILDCARD_CREDENTIALS.find_iter(text) {
+                    matches.push(json!({
+                        "file": file,
+                        "line": line_of(text, m.start()),
+                        "semanticFingerprint": format!("sha256:{file}:cors-wildcard-credentials"),
+                        "disposition": "CONFIRMED",
+                    }));
+                }
+            }
+            Some(json!({
+                "denominator": denominator,
+                "strategies": [{
+                    "id": "cors-header-search", "kind": "lexical-fallback",
+                    "description": "Enumerate every wildcard-origin-plus-credentials header combination.",
+                    "queryDigest": "sha256:q", "complete": true, "coverageGaps": [],
+                }],
+                "matches": matches,
+                "coverageGaps": [],
+            }))
+        }
+        "oauth.redirect-uri.unvalidated" => {
+            let mut matches = Vec::new();
+            for file in &context.files {
+                let text = context.read_file(file);
+                if text.is_empty() || OAUTH_ALLOWLIST_MARKER.is_match(text) {
+                    continue;
+                }
+                for m in OAUTH_REDIRECT_FROM_REQUEST.find_iter(text) {
+                    matches.push(json!({
+                        "file": file,
+                        "line": line_of(text, m.start()),
+                        "semanticFingerprint": format!("sha256:{file}:oauth-redirect-uri"),
+                        "disposition": "CONFIRMED",
+                    }));
+                }
+            }
+            Some(json!({
+                "denominator": denominator,
+                "strategies": [{
+                    "id": "oauth-redirect-search", "kind": "lexical-fallback",
+                    "description": "Enumerate every request-derived OAuth redirect_uri without an allowlist.",
+                    "queryDigest": "sha256:q", "complete": true, "coverageGaps": [],
+                }],
+                "matches": matches,
+                "coverageGaps": [],
+            }))
+        }
+        _ => None,
+    }
 }
 
 #[cfg(test)]

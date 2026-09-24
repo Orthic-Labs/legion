@@ -3,17 +3,17 @@
 //!
 //! The JS module executes exactly one case (`AE-ADVERSARIAL-003`) against a
 //! live production control, `routeArchitecture` from
-//! `../architecture-router.mjs`; every other id is unconditionally
-//! PENDING. `routeArchitecture` has no Rust port anywhere in `engine/`
-//! today (checked via `git grep -l route_architecture -- 'engine/**/*.rs'`,
-//! no hits) and is not among wf074's owned files, so it cannot be ported
-//! here without either duplicating another module's future port or writing
-//! outside wf074's owned paths. See the wf074 report for the exact
-//! dependency and status of `AE-ADVERSARIAL-003`.
+//! `../architecture-router.mjs`. Packet R64 ported that module in full at
+//! [`crate::wf_port::r64::architecture_router`] (see that module's doc
+//! comment for why closing this gap belongs there). `AE-ADVERSARIAL-003`
+//! now runs the real router against the exact input the JS source builds
+//! inline, instead of reporting `BlockedOnDependency`.
 //!
 //! Everything else in the JS module — the id list, the missing-producer
 //! reasons, the unknown-id and validator paths — has no such dependency and
-//! is ported here in full.
+//! was already ported in full.
+
+use crate::wf_port::r64::architecture_router::route_architecture;
 
 pub const ADVERSARIAL_IDS: &[&str] = &[
     "AE-ADVERSARIAL-001",
@@ -43,16 +43,13 @@ fn missing_producer(id: &str) -> Option<&'static str> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AdversarialResult {
-    /// `AE-ADVERSARIAL-003` in the JS source: not portable here (see
-    /// module docs). Distinct from `Pending` so callers can distinguish
-    /// "blocked on an unported dependency" from "this case is
-    /// intentionally always PENDING" — the JS makes no such distinction
-    /// itself (both surface as `{status: 'PENDING', ...}`), so a caller
-    /// checking only `status == "PENDING"` sees identical JS-observable
-    /// behavior either way.
-    BlockedOnDependency {
+    /// Mirrors JS `observation(id, producer, consumer, value)` for
+    /// `AE-ADVERSARIAL-003` — the one case run against a live production
+    /// control (`routeArchitecture`).
+    Observed {
         id: &'static str,
-        dependency: &'static str,
+        rigor: String,
+        depth: String,
     },
     Pending {
         id: &'static str,
@@ -69,9 +66,18 @@ pub fn execute_adversarial_binding(id: &str) -> AdversarialResult {
         return AdversarialResult::UnknownCase { id: id.to_string() };
     }
     if id == "AE-ADVERSARIAL-003" {
-        return AdversarialResult::BlockedOnDependency {
+        // Mirrors JS `routeArchitecture({ flags: ['safety', 'hard_real_time'],
+        // significance: { quality_or_mission: true }, effect: {} })`.
+        let input = serde_json::json!({
+            "flags": ["safety", "hard_real_time"],
+            "significance": {"quality_or_mission": true},
+            "effect": {},
+        });
+        let route = route_architecture(&input).expect("fixed AE-ADVERSARIAL-003 input is always valid");
+        return AdversarialResult::Observed {
             id: "AE-ADVERSARIAL-003",
-            dependency: "routeArchitecture (src/lib/verification/arcane/architecture-router.mjs) has no Rust port",
+            rigor: route.rigor.to_string(),
+            depth: route.depth.to_string(),
         };
     }
     let mp = missing_producer(id);
@@ -82,15 +88,12 @@ pub fn execute_adversarial_binding(id: &str) -> AdversarialResult {
     }
 }
 
-/// Ported directly: with `AE-ADVERSARIAL-003` unavailable here, this
-/// validator can never see a non-PENDING observation for it, so it always
-/// returns `false` for status PENDING inputs, matching the JS behavior for
-/// every id this port can execute.
+/// Mirrors JS `validateAdversarialObservation(id, result)`.
 pub fn validate_adversarial_observation(result: &AdversarialResult) -> bool {
-    !matches!(
-        result,
-        AdversarialResult::Pending { .. } | AdversarialResult::BlockedOnDependency { .. } | AdversarialResult::UnknownCase { .. }
-    )
+    match result {
+        AdversarialResult::Observed { id: "AE-ADVERSARIAL-003", rigor, depth } => rigor == "critical" && depth == "D1",
+        _ => false,
+    }
 }
 
 pub fn adversarial_binding_ids() -> &'static [&'static str] {
@@ -110,9 +113,10 @@ mod tests {
     }
 
     #[test]
-    fn case_003_is_blocked_on_dependency_not_faked() {
+    fn case_003_now_runs_the_real_router_and_validates() {
         let r = execute_adversarial_binding("AE-ADVERSARIAL-003");
-        assert!(matches!(r, AdversarialResult::BlockedOnDependency { id: "AE-ADVERSARIAL-003", .. }));
+        assert!(matches!(r, AdversarialResult::Observed { id: "AE-ADVERSARIAL-003", .. }));
+        assert!(validate_adversarial_observation(&r));
     }
 
     #[test]
@@ -133,10 +137,11 @@ mod tests {
     }
 
     #[test]
-    fn validator_rejects_every_currently_producible_result() {
+    fn validator_accepts_case_003_and_rejects_every_pending_case() {
         for id in ADVERSARIAL_IDS {
             let r = execute_adversarial_binding(id);
-            assert!(!validate_adversarial_observation(&r), "{id} unexpectedly validated");
+            let expect_valid = *id == "AE-ADVERSARIAL-003";
+            assert_eq!(validate_adversarial_observation(&r), expect_valid, "{id}");
         }
     }
 

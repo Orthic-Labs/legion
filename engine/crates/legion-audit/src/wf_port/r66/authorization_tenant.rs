@@ -3,12 +3,17 @@
 //! ownership/tenant policy, privileged functions, mass assignment, tenant
 //! filters, background workers, impersonation.
 //!
-//! Scope: `analyze(context)` is ported faithfully. `variantStrategies`
-//! (`rootCause`/`enumerate`, present only for
-//! `authorization.object-write.missing-owner-check` in the JS source) is
-//! coverage-report bookkeeping over the same matches `analyze()` already
-//! finds; it is not ported here, mirroring the scope decision documented in
-//! wf060's `common.rs`.
+//! Scope: `analyze(context)` is ported faithfully.
+//! `variant_root_cause`/`variant_enumerate` below port the pack's
+//! `variantStrategies`, present only for
+//! `authorization.object-write.missing-owner-check` in the JS source.
+//! Note that the JS strategy's `enumerate` uses its own inline regexes
+//! (`/(?:update|patch|put|set|save)\s*\([^)]*(?:id|params|request)/i` and
+//! `!/owner|tenant|org_?id|authorize/`), distinct from `analyze()`'s
+//! `OBJECT_WRITE_SINK`/`OBJECT_WRITE_GUARD` (which also match a `\w*` verb
+//! suffix and additionally treat `canAccess`/`permission` as a guard) — this
+//! port preserves that exact discrepancy with its own `VARIANT_WRITE_SINK`/
+//! `VARIANT_WRITE_GUARD` regexes rather than reusing `analyze()`'s.
 //!
 //! Note: the JS source declares four rule ids in its `rules` list
 //! (`authorization.object-write.missing-owner-check`,
@@ -31,6 +36,10 @@ static PRIVILEGED_FUNCTION: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\b(?:delete|remove|grant|promote|impersonate|admin)\w*\s*\(").unwrap());
 static PRIVILEGED_FUNCTION_GUARD: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)role|permission|isAdmin|requireAdmin|authorize").unwrap());
+
+static VARIANT_WRITE_SINK: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?:update|patch|put|set|save)\s*\([^)]*(?:id|params|request)").unwrap());
+static VARIANT_WRITE_GUARD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"owner|tenant|org_?id|authorize").unwrap());
 
 pub const ID: &str = "security.authorization-tenant";
 pub const CANDIDATE_CLASS: &str = "authorization";
@@ -133,6 +142,62 @@ pub fn analyze(context: &Context) -> Vec<Observation> {
         }
     }
     observations
+}
+
+/// Port of `variantStrategies['authorization.object-write.missing-owner-check'].rootCause(candidate)`.
+pub fn variant_root_cause(
+    rule_id: &str,
+    candidate_source_kind: Option<&str>,
+    candidate_sink_kind: Option<&str>,
+) -> Option<serde_json::Value> {
+    if rule_id != "authorization.object-write.missing-owner-check" {
+        return None;
+    }
+    Some(serde_json::json!({
+        "class": "missing-object-authorization",
+        "sourceKind": candidate_source_kind.unwrap_or("request-derived-object-id"),
+        "sinkKind": candidate_sink_kind.unwrap_or("tenant-object-write"),
+        "missingControl": "principal-to-object-ownership-check",
+        "semanticFeatures": ["request-derived-object-id", "tenant-object-write", "missing-owner-or-tenant-control"],
+    }))
+}
+
+/// Port of the same rule's `.enumerate(context)`.
+pub fn variant_enumerate(context: &Context, rule_id: &str) -> Option<serde_json::Value> {
+    if rule_id != "authorization.object-write.missing-owner-check" {
+        return None;
+    }
+    let mut matches = Vec::new();
+    for file in &context.files {
+        let text = context.read_file(file);
+        if text.is_empty() {
+            continue;
+        }
+        if VARIANT_WRITE_SINK.is_match(text) && !VARIANT_WRITE_GUARD.is_match(text) {
+            matches.push(serde_json::json!({
+                "file": file,
+                "line": 1,
+                "semanticFingerprint": format!("sha256:{file}"),
+                "disposition": "CONFIRMED",
+            }));
+        }
+    }
+    Some(serde_json::json!({
+        "denominator": {
+            "kind": "source-files",
+            "digest": context.denominator_digest,
+            "expected": context.files.len(),
+            "examined": context.files.len(),
+            "unexamined": [],
+        },
+        "strategies": [{
+            "id": "write-sink-search", "kind": "lexical-fallback",
+            "description": "Enumerate every tenant-object write sink.",
+            "queryDigest": "sha256:q", "complete": true, "coverageGaps": [],
+        }],
+        "matches": matches,
+        "coverageGaps": [],
+    }))
 }
 
 #[cfg(test)]

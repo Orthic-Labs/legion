@@ -2,7 +2,7 @@
 //! `formatFindings`.
 
 use serde::Serialize;
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 /// The finding shape the CLI formats. A unifying record over the several
 /// per-engine `Finding` shapes in this tree (`wf_port::r07::findings::Finding`,
@@ -72,8 +72,7 @@ pub fn format_findings_json(findings: &[CliFinding]) -> String {
 /// `line`/`antipattern`/`snippet`/`description`, and a trailing summary.
 pub fn format_findings_text(findings: &[CliFinding]) -> String {
     let mut order: Vec<String> = Vec::new();
-    let mut grouped: Map<String, Value> = Map::new();
-    // Map<file, Vec<&CliFinding>> but keep insertion order without pulling
+    // Map<file, Vec<&CliFinding>>, but keep insertion order without pulling
     // in indexmap: track key order separately, matching JS's own
     // insertion-ordered plain-object grouping.
     let mut groups: std::collections::HashMap<String, Vec<&CliFinding>> = std::collections::HashMap::new();
@@ -83,8 +82,6 @@ pub fn format_findings_text(findings: &[CliFinding]) -> String {
         }
         groups.entry(f.file.clone()).or_default().push(f);
     }
-    let _ = &grouped; // grouped unused beyond documenting shape; drop below.
-    grouped.clear();
 
     let mut out: Vec<String> = Vec::new();
     for file in &order {
