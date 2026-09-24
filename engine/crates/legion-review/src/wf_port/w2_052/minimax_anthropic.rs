@@ -1,13 +1,15 @@
 //! Port of `src/lib/review/providers/minimax_anthropic.py`.
 //!
 //! `MiniMaxAnthropicProvider.call`/`call_with_metadata` perform a live
-//! `urllib.request` POST to `api.minimax.io/anthropic/v1/messages`. As with
-//! `gemini.rs`, this crate carries no HTTP client dependency — see that
-//! module's doc comment and the chunk report for the `Cargo.toml` patch
-//! needed to wire live transport. The Windows registry fallback in
-//! `_env_value` (`winreg.OpenKey(HKEY_CURRENT_USER, "Environment")`) is
-//! also platform I/O outside this port's scope; it is modeled here as a
-//! second `env_lookup` closure the caller may wire to that registry read.
+//! `urllib.request` POST to `api.minimax.io/anthropic/v1/messages`. That
+//! live transport is wired below through `gemini::HttpTransport` (shared
+//! with the sibling Gemini port; production impl `gemini::ReqwestTransport`,
+//! `reqwest::blocking`), so `call`/`call_with_metadata` are faithful,
+//! end-to-end ports, tested against a fake transport. The Windows registry
+//! fallback in `_env_value` (`winreg.OpenKey(HKEY_CURRENT_USER,
+//! "Environment")`) is platform-specific I/O outside this port's scope; it
+//! is modeled here as a second `env_lookup` closure the caller may wire to
+//! that registry read.
 //!
 //! What ports faithfully is: env-var key resolution across both lookups,
 //! the request-payload construction (image content blocks, `system`,
@@ -21,6 +23,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Map, Value};
 
 use super::base::{ProviderError, ProviderImage};
+use super::gemini::HttpTransport;
 
 /// Mirrors `MiniMaxAnthropicProvider.__init__`'s stored config.
 #[derive(Debug, Clone)]
@@ -225,4 +228,190 @@ pub fn classify_generic_error(config: &MiniMaxConfig, model: &str, message: &str
 /// production call sites that pre-collect relevant vars and by tests.
 pub fn env_lookup_from_map(map: &BTreeMap<String, String>) -> impl Fn(&str) -> Option<String> + '_ {
     move |name: &str| map.get(name).cloned()
+}
+
+/// Result of `call_with_metadata`: text plus stop/usage metadata, mirroring
+/// the dict Python returns.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CallMetadata {
+    pub text: String,
+    pub model: String,
+    pub stop_reason: Option<String>,
+    pub stop_sequence: Option<String>,
+    pub usage: Value,
+}
+
+/// Faithful end-to-end port of `MiniMaxAnthropicProvider.call_with_metadata`:
+/// resolves the key, builds the payload (image blocks + trailing text
+/// block, `model_extra_body` overlay), POSTs through `transport`, and
+/// extracts text + metadata — or maps the failure to the matching
+/// `ProviderError`, exactly as the Python's `except` branches do. The
+/// `min_gap_ms` pacing sleep is the caller's responsibility (see
+/// `wait_ms_before_call`); this function performs no sleep itself so it
+/// stays deterministic under test.
+#[allow(clippy::too_many_arguments)]
+pub fn call_with_metadata(
+    config: &MiniMaxConfig,
+    transport: &impl HttpTransport,
+    env_lookup: impl Fn(&str) -> Option<String>,
+    model: &str,
+    system: &str,
+    user: &str,
+    max_tokens: i64,
+    temperature: f64,
+    images: &[ProviderImage],
+) -> Result<CallMetadata, ProviderError> {
+    let key = resolve_key(config, env_lookup)?;
+    let payload = build_payload(config, model, system, user, max_tokens, temperature, images);
+    let body = serde_json::to_string(&payload).map_err(|e| {
+        ProviderError::new(format!("{}/{model}: payload encode error: {e}", config.name))
+    })?;
+    let url = format!("{}/messages", config.base_url);
+
+    let timeout_s = config.timeout_s.unwrap_or(0);
+    let post = |body: &str| -> Result<gemini::HttpResponse, String> {
+        transport.post_json_with_headers(
+            &url,
+            body,
+            timeout_s,
+            &[
+                ("x-api-key", key.as_str()),
+                ("anthropic-version", "2023-06-01"),
+                ("Accept", "application/json"),
+            ],
+        )
+    };
+
+    match post(&body) {
+        Ok(resp) if (200..300).contains(&resp.status) => {
+            let data: Value = serde_json::from_str(&resp.body).map_err(|e| {
+                ProviderError::new(format!("{}/{model}: invalid JSON response: {e}", config.name))
+            })?;
+            let content_text = content_from_response(&data);
+            require_non_empty_content(config, model, &content_text, &data)?;
+            Ok(CallMetadata {
+                text: content_text,
+                model: data
+                    .get("model")
+                    .and_then(Value::as_str)
+                    .map(str::to_string)
+                    .unwrap_or_else(|| model.to_string()),
+                stop_reason: data.get("stop_reason").and_then(Value::as_str).map(str::to_string),
+                stop_sequence: data.get("stop_sequence").and_then(Value::as_str).map(str::to_string),
+                usage: data.get("usage").cloned().unwrap_or(Value::Object(Default::default())),
+            })
+        }
+        Ok(resp) => Err(classify_http_error(config, model, resp.status, &resp.body)),
+        Err(message) => Err(classify_url_error(config, model, &message)),
+    }
+}
+
+/// Faithful port of `call`: `call_with_metadata(...)["text"]`.
+#[allow(clippy::too_many_arguments)]
+pub fn call(
+    config: &MiniMaxConfig,
+    transport: &impl HttpTransport,
+    env_lookup: impl Fn(&str) -> Option<String>,
+    model: &str,
+    system: &str,
+    user: &str,
+    max_tokens: i64,
+    temperature: f64,
+    images: &[ProviderImage],
+) -> Result<String, ProviderError> {
+    call_with_metadata(config, transport, env_lookup, model, system, user, max_tokens, temperature, images)
+        .map(|meta| meta.text)
+}
+
+use super::gemini;
+
+#[cfg(test)]
+mod call_tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    struct FakeTransport {
+        response: RefCell<Option<Result<gemini::HttpResponse, String>>>,
+    }
+
+    impl HttpTransport for FakeTransport {
+        fn post_json(&self, url: &str, body: &str, timeout_s: i64) -> Result<gemini::HttpResponse, String> {
+            self.post_json_with_headers(url, body, timeout_s, &[])
+        }
+
+        fn post_json_with_headers(
+            &self,
+            _url: &str,
+            _body: &str,
+            _timeout_s: i64,
+            _headers: &[(&str, &str)],
+        ) -> Result<gemini::HttpResponse, String> {
+            self.response.borrow_mut().take().expect("fake transport called more than once in a test")
+        }
+    }
+
+    fn env_with_key() -> impl Fn(&str) -> Option<String> {
+        |name: &str| if name == "MINIMAX_API_KEY" { Some("k".to_string()) } else { None }
+    }
+
+    #[test]
+    fn call_with_metadata_extracts_text_and_usage() {
+        let cfg = MiniMaxConfig::new("minimax");
+        let transport = FakeTransport {
+            response: RefCell::new(Some(Ok(gemini::HttpResponse {
+                status: 200,
+                body: json!({
+                    "model": "minimax-m3",
+                    "stop_reason": "end_turn",
+                    "content": [{"type": "text", "text": "hello"}],
+                    "usage": {"input_tokens": 3, "output_tokens": 2},
+                })
+                .to_string(),
+            }))),
+        };
+        let out = call_with_metadata(&cfg, &transport, env_with_key(), "minimax-m3", "sys", "user", 512, 0.2, &[]).unwrap();
+        assert_eq!(out.text, "hello");
+        assert_eq!(out.model, "minimax-m3");
+        assert_eq!(out.stop_reason.as_deref(), Some("end_turn"));
+        assert_eq!(out.usage["input_tokens"], 3);
+    }
+
+    #[test]
+    fn call_with_metadata_empty_content_errors() {
+        let cfg = MiniMaxConfig::new("minimax");
+        let transport = FakeTransport {
+            response: RefCell::new(Some(Ok(gemini::HttpResponse {
+                status: 200,
+                body: json!({"content": [], "stop_reason": "max_tokens"}).to_string(),
+            }))),
+        };
+        let err = call_with_metadata(&cfg, &transport, env_with_key(), "minimax-m3", "sys", "user", 512, 0.2, &[]).unwrap_err();
+        assert!(err.message.contains("max_tokens"));
+    }
+
+    #[test]
+    fn call_with_metadata_quota_status_is_retryable() {
+        let cfg = MiniMaxConfig::new("minimax");
+        let transport = FakeTransport {
+            response: RefCell::new(Some(Ok(gemini::HttpResponse {
+                status: 503,
+                body: "overloaded".to_string(),
+            }))),
+        };
+        let err = call_with_metadata(&cfg, &transport, env_with_key(), "minimax-m3", "sys", "user", 512, 0.2, &[]).unwrap_err();
+        assert!(err.is_quota);
+    }
+
+    #[test]
+    fn call_returns_text_only() {
+        let cfg = MiniMaxConfig::new("minimax");
+        let transport = FakeTransport {
+            response: RefCell::new(Some(Ok(gemini::HttpResponse {
+                status: 200,
+                body: json!({"content": [{"type": "text", "text": "ok"}]}).to_string(),
+            }))),
+        };
+        let out = call(&cfg, &transport, env_with_key(), "minimax-m3", "sys", "user", 512, 0.2, &[]).unwrap();
+        assert_eq!(out, "ok");
+    }
 }

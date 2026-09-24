@@ -223,6 +223,155 @@ pub fn apply_denial_circuit<R: DenialRecorder>(
     Ok(result)
 }
 
+pub const DENIAL_CIRCUIT_BOUND_FIELDS: &[&str] = &[
+    "schemaVersion",
+    "kind",
+    "sessionId",
+    "runId",
+    "taskId",
+    "controlClass",
+    "code",
+    "missingEvidenceDigest",
+    "targetDigest",
+    "fingerprint",
+    "count",
+    "issuedAt",
+];
+
+const DOMAIN: &str = "arcane-denial-circuit:v1";
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DenialCircuitError {
+    pub code: &'static str,
+    pub message: String,
+}
+
+impl std::fmt::Display for DenialCircuitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+impl std::error::Error for DenialCircuitError {}
+
+fn record_path(root: &Path, session_id: &str, run_id: &str, task_id: &str) -> PathBuf {
+    let scope = json!({ "sessionId": session_id, "runId": run_id, "taskId": task_id });
+    root.join(format!("{}.json", sha256_hex(&canonical_json(&scope))))
+}
+
+/// Port of `DenialCircuit`: an authenticated, disk-persisted `DenialRecorder`.
+/// `clock` mirrors the JS constructor's `clock = () => new Date().toISOString()`
+/// default — callers inject it for deterministic tests.
+pub struct FileDenialCircuit<'a> {
+    root: PathBuf,
+    key_ring: &'a dyn KeyRing,
+    key_id: String,
+    clock: Box<dyn FnMut() -> String + 'a>,
+}
+
+impl<'a> FileDenialCircuit<'a> {
+    pub fn new(
+        root: PathBuf,
+        key_ring: &'a dyn KeyRing,
+        key_id: &str,
+        clock: Box<dyn FnMut() -> String + 'a>,
+    ) -> Result<Self, DenialCircuitError> {
+        if key_id.is_empty() {
+            return Err(DenialCircuitError {
+                code: "ARC_AUTH_KEY_UNAVAILABLE",
+                message: "authenticated denial circuit requires root and active key".to_string(),
+            });
+        }
+        Ok(Self { root, key_ring, key_id: key_id.to_string(), clock })
+    }
+}
+
+impl<'a> DenialRecorder for FileDenialCircuit<'a> {
+    type Error = DenialCircuitError;
+
+    fn record(&mut self, record: DenialRecord) -> Result<RecordOutcome, Self::Error> {
+        if record.session_id.is_empty() || record.run_id.is_empty() || record.task_id.is_empty() {
+            return Err(DenialCircuitError { code: "ARC_SCHEMA_INVALID", message: "denial circuit requires sessionId/runId/taskId".to_string() });
+        }
+        if record.control_class.is_empty() || record.code.is_empty() {
+            return Err(DenialCircuitError { code: "ARC_SCHEMA_INVALID", message: "denial circuit requires controlClass/code".to_string() });
+        }
+        let missing_evidence_digest = {
+            let mut sorted = record.missing_evidence.clone();
+            sorted.sort();
+            digest_value(&json!(sorted))
+        };
+        let target_digest = digest_value(&record.target.clone().unwrap_or(Value::Null));
+        let fingerprint = circuit_fingerprint(
+            &record.session_id,
+            &record.run_id,
+            &record.task_id,
+            &record.control_class,
+            &record.code,
+            &missing_evidence_digest,
+            &target_digest,
+        );
+        let path = record_path(&self.root, &record.session_id, &record.run_id, &record.task_id);
+
+        let run_body = || -> Result<RecordOutcome, DenialCircuitError> {
+            let prior: Option<Value> = if path.exists() {
+                let text = std::fs::read_to_string(&path)
+                    .map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
+                let parsed: Value = serde_json::from_str(&text)
+                    .map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
+                let auth = parsed.get("authentication").cloned().unwrap_or(Value::Null);
+                let expected_binding = [
+                    ("sessionId", record.session_id.as_str()),
+                    ("runId", record.run_id.as_str()),
+                    ("taskId", record.task_id.as_str()),
+                ];
+                verify_record(&parsed, &auth, self.key_ring, DENIAL_CIRCUIT_BOUND_FIELDS, &expected_binding, Some(DOMAIN)).map_err(|d| {
+                    DenialCircuitError { code: d.code, message: d.message }
+                })?;
+                Some(parsed)
+            } else {
+                None
+            };
+
+            let count = match &prior {
+                Some(p) if p.get("fingerprint").and_then(Value::as_str) == Some(fingerprint.as_str()) => {
+                    let prior_count = p.get("count").and_then(Value::as_u64).unwrap_or(0) as u32;
+                    (prior_count + 1).min(MAX_IDENTICAL_DENIALS)
+                }
+                _ => 1,
+            };
+
+            let issued_at = (self.clock)();
+            let mut receipt = json!({
+                "schemaVersion": 1,
+                "kind": "arcane-denial-circuit-receipt",
+                "sessionId": record.session_id,
+                "runId": record.run_id,
+                "taskId": record.task_id,
+                "controlClass": record.control_class,
+                "code": record.code,
+                "missingEvidenceDigest": missing_evidence_digest,
+                "targetDigest": target_digest,
+                "fingerprint": fingerprint,
+                "count": count,
+                "issuedAt": issued_at,
+            });
+            let signed = sign_record(&receipt, self.key_ring, &self.key_id, DENIAL_CIRCUIT_BOUND_FIELDS, Some(DOMAIN))
+                .map_err(|e| DenialCircuitError { code: "ARC_AUTH_KEY_UNAVAILABLE", message: e.0 })?;
+            receipt["authentication"] = signed.to_json();
+
+            std::fs::create_dir_all(&self.root).map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
+            let tmp = self.root.join(format!(".{}.{}.tmp", std::process::id(), fingerprint));
+            std::fs::write(&tmp, format!("{}\n", serde_json::to_string(&receipt).unwrap()))
+                .map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
+            std::fs::rename(&tmp, &path).map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;
+
+            let opened = count >= MAX_IDENTICAL_DENIALS && !matches!(record.control_class.as_str(), "effect" | "security");
+            Ok(RecordOutcome { receipt: DenialReceipt { fingerprint: fingerprint.clone(), count }, opened })
+        };
+        run_body()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -336,5 +485,111 @@ mod tests {
         apply_denial_circuit(result.clone(), Some(&mut circuit), ctx()).unwrap();
         let r2 = apply_denial_circuit(result, Some(&mut circuit), ctx()).unwrap();
         assert!(!r2.termination_terminate);
+    }
+
+    struct FixedKeyRing;
+    impl KeyRing for FixedKeyRing {
+        fn get(&self, key_id: &str) -> Option<super::super::receipt_auth::KeyRingEntry<'_>> {
+            if key_id == "k1" {
+                Some(super::super::receipt_auth::KeyRingEntry { key_id: "k1", key: b"denial-circuit-test-key", revoked: false })
+            } else {
+                None
+            }
+        }
+    }
+
+    fn temp_dir(name: &str) -> PathBuf {
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("legion-denial-circuit-{}-{}-{n}", std::process::id(), name));
+        let _ = std::fs::remove_dir_all(&dir);
+        dir
+    }
+
+    fn record_for(session: &str) -> DenialRecord {
+        DenialRecord {
+            session_id: session.to_string(),
+            run_id: "r".into(),
+            task_id: "t".into(),
+            control_class: "evidence".into(),
+            code: "ARC_EVIDENCE_STALE".into(),
+            missing_evidence: vec!["deterministic".into()],
+            target: None,
+        }
+    }
+
+    #[test]
+    fn file_denial_circuit_persists_and_counts() {
+        let root = temp_dir("counts");
+        let ring = FixedKeyRing;
+        let mut clock_calls = 0u32;
+        let mut circuit = FileDenialCircuit::new(
+            root.clone(),
+            &ring,
+            "k1",
+            Box::new(move || {
+                clock_calls += 1;
+                format!("2026-01-01T00:00:0{clock_calls}.000Z")
+            }),
+        )
+        .unwrap();
+
+        let r1 = circuit.record(record_for("s1")).unwrap();
+        assert_eq!(r1.receipt.count, 1);
+        assert!(!r1.opened);
+
+        let r2 = circuit.record(record_for("s1")).unwrap();
+        assert_eq!(r2.receipt.count, 2);
+        // "evidence" control class is not in {effect, security}, so it opens
+        // once the identical denial is seen MAX_IDENTICAL_DENIALS times.
+        assert!(r2.opened);
+        assert_eq!(r1.receipt.fingerprint, r2.receipt.fingerprint);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn file_denial_circuit_different_fingerprint_resets_count() {
+        let root = temp_dir("reset");
+        let ring = FixedKeyRing;
+        let mut circuit = FileDenialCircuit::new(root.clone(), &ring, "k1", Box::new(|| "2026-01-01T00:00:00.000Z".to_string())).unwrap();
+
+        circuit.record(record_for("s1")).unwrap();
+        let mut different = record_for("s1");
+        different.code = "ARC_EVIDENCE_INSUFFICIENT".to_string();
+        let r2 = circuit.record(different).unwrap();
+        assert_eq!(r2.receipt.count, 1);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn file_denial_circuit_rejects_missing_key() {
+        let root = temp_dir("missing-key");
+        let ring = FixedKeyRing;
+        let mut circuit = FileDenialCircuit::new(root.clone(), &ring, "no-such-key", Box::new(|| "2026-01-01T00:00:00.000Z".to_string())).unwrap();
+        let err = circuit.record(record_for("s1")).unwrap_err();
+        assert_eq!(err.code, "ARC_AUTH_KEY_UNAVAILABLE");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn file_denial_circuit_detects_tampered_prior_receipt() {
+        let root = temp_dir("tamper");
+        let ring = FixedKeyRing;
+        {
+            let mut circuit = FileDenialCircuit::new(root.clone(), &ring, "k1", Box::new(|| "2026-01-01T00:00:00.000Z".to_string())).unwrap();
+            circuit.record(record_for("s1")).unwrap();
+        }
+        let path = record_path(&root, "s1", "r", "t");
+        let mut body: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        body["count"] = json!(999);
+        std::fs::write(&path, serde_json::to_string(&body).unwrap()).unwrap();
+
+        let mut circuit = FileDenialCircuit::new(root.clone(), &ring, "k1", Box::new(|| "2026-01-01T00:00:01.000Z".to_string())).unwrap();
+        let err = circuit.record(record_for("s1")).unwrap_err();
+        assert_eq!(err.code, "ARC_AUTH_FORGED");
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

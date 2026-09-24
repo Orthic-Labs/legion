@@ -19,17 +19,21 @@
 //! - multipart image/text user-message construction (image-first) —
 //!   [`build_user_content`]
 //!
-//! **Not ported (live transport, no Rust counterpart in this crate):**
-//! the actual `urllib.request.urlopen` POST to `{base_url}/chat/completions`
-//! (`_call_with_key`'s request/response I/O), the per-key `threading.Lock`
-//! + `min_gap_ms` pacing, and the key-exhaustion retry loop
-//! (`call_with_metadata`) that drives [`order_keys`] against a live call.
-//! `Cargo.lock` carries no HTTP client for this crate; see the chunk report
-//! for the dependency patch a caller would need to fill this in.
+//! **Now wired end to end:** `call_with_key`/`call_with_metadata` below
+//! perform the actual `{base_url}/chat/completions` POST (streamed or
+//! buffered, matching `_stream_for`) through the shared
+//! `gemini::HttpTransport` trait (production impl `ReqwestTransport`,
+//! `reqwest::blocking`), including the key-exhaustion retry loop that
+//! drives [`order_keys`]. The per-key `threading.Lock` + `min_gap_ms`
+//! pacing stays the caller's responsibility — same treatment as
+//! `minimax_anthropic::wait_ms_before_call` — so this module's own tests
+//! stay deterministic and network-free (fake transport).
 
 use std::collections::BTreeMap;
 
 use serde_json::Value;
+
+use super::super::w2_052::gemini::HttpTransport;
 
 pub const ROTATION_FAILOVER: &str = "failover_only";
 pub const ROTATION_ROUND_ROBIN: &str = "round_robin";
@@ -234,6 +238,177 @@ pub fn build_user_content(user: &str, images: &[ImageAttachment]) -> Value {
     Value::Array(content)
 }
 
+/// Faithful config for the parts of `OpenAICompatProvider.__init__` that
+/// `call_with_key`/`call_with_metadata` need (the rest — key locks, RR
+/// cursor — are caller-owned state, per [`order_keys`]'s doc comment).
+#[derive(Clone, Debug)]
+pub struct OpenAICompatConfig {
+    pub name: String,
+    pub base_url: String,
+    pub timeout_s: i64,
+    pub model_timeout_s: BTreeMap<String, i64>,
+    pub model_extra_body: BTreeMap<String, serde_json::Map<String, Value>>,
+    pub model_stream: BTreeMap<String, bool>,
+    pub retry_codes_as_quota: Vec<u16>,
+    pub stream: bool,
+}
+
+impl OpenAICompatConfig {
+    pub fn new(name: impl Into<String>, base_url: &str) -> Self {
+        Self {
+            name: name.into(),
+            base_url: base_url.trim_end_matches('/').to_string(),
+            timeout_s: 30,
+            model_timeout_s: BTreeMap::new(),
+            model_extra_body: BTreeMap::new(),
+            model_stream: BTreeMap::new(),
+            retry_codes_as_quota: vec![429],
+            stream: false,
+        }
+    }
+}
+
+/// Faithful port of the request/response half of `_call_with_key` (the
+/// per-key lock + `min_gap_ms` sleep at the top of the Python method is
+/// the caller's responsibility, same treatment as
+/// `minimax_anthropic::wait_ms_before_call`).
+///
+/// `images` uses `ImageAttachment` (already defined above) so callers don't
+/// need a second image type; `timeout_s` mirrors `self.timeout_s if images
+/// else self.model_timeout_s.get(model, self.timeout_s)`.
+pub fn call_with_key(
+    config: &OpenAICompatConfig,
+    transport: &impl HttpTransport,
+    key: &str,
+    model: &str,
+    system: &str,
+    user: &str,
+    max_tokens: i64,
+    images: &[ImageAttachment],
+) -> Result<StreamMetadata, ProviderError> {
+    let user_content = build_user_content(user, images);
+    let user_message = serde_json::json!({ "role": "user", "content": user_content });
+
+    let mut payload = serde_json::Map::new();
+    payload.insert("model".into(), Value::String(model.to_string()));
+    payload.insert(
+        "messages".into(),
+        Value::Array(vec![
+            serde_json::json!({ "role": "system", "content": system }),
+            user_message,
+        ]),
+    );
+    payload.insert("max_tokens".into(), serde_json::json!(max_tokens));
+    payload.insert("temperature".into(), serde_json::json!(0.2));
+    if let Some(extra) = config.model_extra_body.get(model) {
+        for (k, v) in extra {
+            payload.insert(k.clone(), v.clone());
+        }
+    }
+    let stream = stream_for(&config.model_stream, config.stream, model);
+    if stream {
+        payload.insert("stream".into(), Value::Bool(true));
+    }
+    let body = serde_json::to_string(&Value::Object(payload))
+        .map_err(|e| ProviderError { message: format!("{}/{model}: payload encode error: {e}", config.name), status: None, is_quota: false })?;
+
+    let timeout_s = if !images.is_empty() {
+        config.timeout_s
+    } else {
+        *config.model_timeout_s.get(model).unwrap_or(&config.timeout_s)
+    };
+
+    let url = format!("{}/chat/completions", config.base_url);
+    let accept = if stream { "text/event-stream" } else { "application/json" };
+    let auth = format!("Bearer {key}");
+    let resp = transport
+        .post_json_with_headers(&url, &body, timeout_s, &[("Authorization", auth.as_str()), ("Accept", accept)])
+        .map_err(|e| ProviderError { message: format!("{}/{model} URL error: {e}", config.name), status: None, is_quota: true })?;
+
+    if !(200..300).contains(&resp.status) {
+        let truncated: String = resp.body.chars().take(200).collect();
+        let is_quota = is_quota_status(resp.status as u16, &config.retry_codes_as_quota);
+        return Err(ProviderError {
+            message: format!("{}/{model} HTTP {}: {truncated}", config.name, resp.status),
+            status: Some(resp.status as u16),
+            is_quota,
+        });
+    }
+
+    let metadata = if stream {
+        let lines: Vec<&str> = resp.body.lines().collect();
+        read_sse_stream(lines)
+    } else {
+        let data: Value = serde_json::from_str(&resp.body).map_err(|e| ProviderError {
+            message: format!("{}/{model}: invalid JSON response: {e}", config.name),
+            status: None,
+            is_quota: false,
+        })?;
+        parse_nonstream_response(&data, model).ok_or_else(|| ProviderError {
+            message: format!("{}/{model}: malformed response (missing choices)", config.name),
+            status: None,
+            is_quota: false,
+        })?
+    };
+
+    if is_empty_content(if metadata.text.is_empty() { None } else { Some(metadata.text.as_str()) }) {
+        return Err(ProviderError {
+            message: format!("{}/{model} empty content (finish_reason={})", config.name, metadata.finish_reason),
+            status: None,
+            is_quota: false,
+        });
+    }
+
+    Ok(StreamMetadata {
+        text: metadata.text,
+        model: Some(metadata.model.unwrap_or_else(|| model.to_string())),
+        finish_reason: metadata.finish_reason,
+        usage: metadata.usage,
+    })
+}
+
+/// Faithful port of `call_with_metadata`'s key-exhaustion retry loop:
+/// try each `(env_name, key)` pair in `keys` (already ordered by
+/// [`order_keys`]), continuing to the next on a quota `ProviderError` and
+/// failing fast on any other error.
+pub fn call_with_metadata(
+    config: &OpenAICompatConfig,
+    transport: &impl HttpTransport,
+    keys: &[(String, String)],
+    model: &str,
+    system: &str,
+    user: &str,
+    max_tokens: i64,
+    images: &[ImageAttachment],
+) -> Result<StreamMetadata, ProviderError> {
+    if keys.is_empty() {
+        return Err(ProviderError {
+            message: format!("{}: no API keys set", config.name),
+            status: None,
+            is_quota: false,
+        });
+    }
+    let mut last_err: Option<ProviderError> = None;
+    for (_env_name, key) in keys {
+        match call_with_key(config, transport, key, model, system, user, max_tokens, images) {
+            Ok(meta) => return Ok(meta),
+            Err(e) => {
+                let is_quota = e.is_quota;
+                last_err = Some(e);
+                if is_quota {
+                    continue;
+                }
+                return Err(last_err.unwrap());
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| ProviderError {
+        message: format!("{}: all keys exhausted", config.name),
+        status: None,
+        is_quota: false,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -420,5 +595,140 @@ mod tests {
         assert_eq!(arr[0]["type"], "image_url");
         assert_eq!(arr[0]["image_url"]["url"], "data:image/png;base64,AAAA");
         assert_eq!(arr[1], serde_json::json!({"type": "text", "text": "describe this"}));
+    }
+}
+
+#[cfg(test)]
+mod call_tests {
+    use super::*;
+    use crate::wf_port::w2_052::gemini::HttpResponse;
+    use std::cell::RefCell;
+
+    struct FakeTransport {
+        responses: RefCell<Vec<Result<HttpResponse, String>>>,
+    }
+
+    impl FakeTransport {
+        fn once(resp: Result<HttpResponse, String>) -> Self {
+            Self { responses: RefCell::new(vec![resp]) }
+        }
+        fn sequence(resps: Vec<Result<HttpResponse, String>>) -> Self {
+            // reverse so `.pop()` yields them in call order
+            let mut r = resps;
+            r.reverse();
+            Self { responses: RefCell::new(r) }
+        }
+    }
+
+    impl HttpTransport for FakeTransport {
+        fn post_json(&self, url: &str, body: &str, timeout_s: i64) -> Result<HttpResponse, String> {
+            self.post_json_with_headers(url, body, timeout_s, &[])
+        }
+        fn post_json_with_headers(
+            &self,
+            _url: &str,
+            _body: &str,
+            _timeout_s: i64,
+            _headers: &[(&str, &str)],
+        ) -> Result<HttpResponse, String> {
+            self.responses.borrow_mut().pop().expect("fake transport exhausted")
+        }
+    }
+
+    fn config() -> OpenAICompatConfig {
+        OpenAICompatConfig::new("nim", "https://integrate.api.nvidia.com/v1")
+    }
+
+    #[test]
+    fn call_with_key_parses_nonstream_success() {
+        let cfg = config();
+        let transport = FakeTransport::once(Ok(HttpResponse {
+            status: 200,
+            body: serde_json::json!({
+                "model": "m1",
+                "choices": [{"message": {"content": "hi"}, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+            })
+            .to_string(),
+        }));
+        let out = call_with_key(&cfg, &transport, "k1", "m1", "sys", "user", 512, &[]).unwrap();
+        assert_eq!(out.text, "hi");
+        assert_eq!(out.model.as_deref(), Some("m1"));
+        assert_eq!(out.finish_reason, "stop");
+    }
+
+    #[test]
+    fn call_with_key_parses_stream_success() {
+        let mut cfg = config();
+        cfg.stream = true;
+        let sse_body = [
+            "data: {\"model\":\"m1\",\"choices\":[{\"delta\":{\"content\":\"hel\"}}]}",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"lo\"},\"finish_reason\":\"stop\"}]}",
+            "data: [DONE]",
+        ]
+        .join("\n");
+        let transport = FakeTransport::once(Ok(HttpResponse { status: 200, body: sse_body }));
+        let out = call_with_key(&cfg, &transport, "k1", "m1", "sys", "user", 512, &[]).unwrap();
+        assert_eq!(out.text, "hello");
+        assert_eq!(out.finish_reason, "stop");
+    }
+
+    #[test]
+    fn call_with_key_http_error_is_quota_when_configured() {
+        let cfg = config();
+        let transport = FakeTransport::once(Ok(HttpResponse { status: 429, body: "slow down".to_string() }));
+        let err = call_with_key(&cfg, &transport, "k1", "m1", "sys", "user", 512, &[]).unwrap_err();
+        assert!(err.is_quota);
+        assert_eq!(err.status, Some(429));
+    }
+
+    #[test]
+    fn call_with_key_empty_content_errors() {
+        let cfg = config();
+        let transport = FakeTransport::once(Ok(HttpResponse {
+            status: 200,
+            body: serde_json::json!({
+                "choices": [{"message": {"content": ""}, "finish_reason": "length"}],
+            })
+            .to_string(),
+        }));
+        let err = call_with_key(&cfg, &transport, "k1", "m1", "sys", "user", 512, &[]).unwrap_err();
+        assert!(err.message.contains("empty content"));
+        assert!(!err.is_quota);
+    }
+
+    #[test]
+    fn call_with_metadata_fails_over_to_second_key_on_quota() {
+        let cfg = config();
+        let transport = FakeTransport::sequence(vec![
+            Ok(HttpResponse { status: 429, body: "rate limited".to_string() }),
+            Ok(HttpResponse {
+                status: 200,
+                body: serde_json::json!({
+                    "choices": [{"message": {"content": "second key ok"}, "finish_reason": "stop"}],
+                })
+                .to_string(),
+            }),
+        ]);
+        let keys = vec![("KEY1".to_string(), "k1".to_string()), ("KEY2".to_string(), "k2".to_string())];
+        let out = call_with_metadata(&cfg, &transport, &keys, "m1", "sys", "user", 512, &[]).unwrap();
+        assert_eq!(out.text, "second key ok");
+    }
+
+    #[test]
+    fn call_with_metadata_fails_fast_on_non_quota_error() {
+        let cfg = config();
+        let transport = FakeTransport::once(Ok(HttpResponse { status: 401, body: "bad auth".to_string() }));
+        let keys = vec![("KEY1".to_string(), "k1".to_string()), ("KEY2".to_string(), "k2".to_string())];
+        let err = call_with_metadata(&cfg, &transport, &keys, "m1", "sys", "user", 512, &[]).unwrap_err();
+        assert_eq!(err.status, Some(401));
+    }
+
+    #[test]
+    fn call_with_metadata_no_keys_errors() {
+        let cfg = config();
+        let transport = FakeTransport::once(Ok(HttpResponse { status: 200, body: "{}".to_string() }));
+        let err = call_with_metadata(&cfg, &transport, &[], "m1", "sys", "user", 512, &[]).unwrap_err();
+        assert!(err.message.contains("no API keys set"));
     }
 }

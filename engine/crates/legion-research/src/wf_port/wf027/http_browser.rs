@@ -1,12 +1,13 @@
 //! Port of `src/lib/research-core/providers/http_browser.py`.
 //!
-//! Network access (`_request`) requires an HTTP client, which is not among
-//! this crate's current dependencies. The transport is isolated behind the
-//! `HttpTransport` trait below so the rest of the port (URL validation, HTML
-//! text extraction, RSS parsing, search/open/find orchestration) is unit
-//! testable with a fake transport and needs no new dependency to compile or
-//! test. `UreqTransport` is the real implementation and requires adding
-//! `ureq` to `Cargo.toml` — see the wf027 report for the exact patch.
+//! Network access (`_request`) is isolated behind the `HttpTransport` trait
+//! below so the rest of the port (URL validation, HTML text extraction, RSS
+//! parsing, search/open/find orchestration) is unit testable with a fake
+//! transport and needs no network access to compile or test.
+//! [`ReqwestTransport`] is the real implementation, backed by
+//! `reqwest`'s blocking client (an allowed new dependency for this crate,
+//! added to `Cargo.toml` as `reqwest = { workspace = true, features =
+//! ["blocking"] }`, mirroring how `legion-runtime` already depends on it).
 
 use std::io::Read;
 use std::net::IpAddr;
@@ -36,29 +37,51 @@ pub trait HttpTransport {
     fn get(&self, url: &str, accept: &str, timeout_s: u64) -> Result<HttpResponse, WfError>;
 }
 
-/// Real transport. Requires the `ureq` crate (see module docs / wf027 report).
-#[cfg(feature = "wf027_ureq")]
-pub struct UreqTransport;
+/// Real transport, backed by `reqwest`'s blocking client. Mirrors
+/// `urllib.request.urlopen(...)` with a bounded read (`MAX_BODY_BYTES + 1`,
+/// so an oversized body is detected and rejected rather than silently
+/// truncated) and the same `User-Agent`/`Accept`/`Accept-Encoding: identity`
+/// headers the Python sends.
+pub struct ReqwestTransport {
+    client: reqwest::blocking::Client,
+}
 
-#[cfg(feature = "wf027_ureq")]
-impl HttpTransport for UreqTransport {
+impl Default for ReqwestTransport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ReqwestTransport {
+    pub fn new() -> Self {
+        Self {
+            client: reqwest::blocking::Client::new(),
+        }
+    }
+}
+
+impl HttpTransport for ReqwestTransport {
     fn get(&self, url: &str, accept: &str, timeout_s: u64) -> Result<HttpResponse, WfError> {
         validate_public_url(url)?;
-        let agent = ureq::AgentBuilder::new()
-            .timeout(std::time::Duration::from_secs(timeout_s))
-            .user_agent(USER_AGENT)
-            .build();
-        let resp = agent
+        let resp = self
+            .client
             .get(url)
-            .set("Accept", accept)
-            .set("Accept-Encoding", "identity")
-            .call()
+            .timeout(std::time::Duration::from_secs(timeout_s))
+            .header("User-Agent", USER_AGENT)
+            .header("Accept", accept)
+            .header("Accept-Encoding", "identity")
+            .send()
             .map_err(|e| WfError::Provider(e.to_string()))?;
-        let final_url = resp.get_url().to_string();
-        let content_type = resp.content_type().to_string();
+        let final_url = resp.url().to_string();
+        let content_type = resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .map(|v| v.split(';').next().unwrap_or(v).trim().to_string())
+            .unwrap_or_default();
+        let mut reader = std::io::Read::take(resp, (MAX_BODY_BYTES + 1) as u64);
         let mut buf = Vec::new();
-        resp.into_reader()
-            .take((MAX_BODY_BYTES + 1) as u64)
+        reader
             .read_to_end(&mut buf)
             .map_err(|e| WfError::Io(e.to_string()))?;
         if buf.len() > MAX_BODY_BYTES {
@@ -72,6 +95,133 @@ impl HttpTransport for UreqTransport {
             content_type,
         })
     }
+}
+
+/// Port of `providers/scholarly.py`'s `_get_json`/`_get_text` and of
+/// `retraction.py`'s `_openalex`/`_crossref`, all reusing the same
+/// [`ReqwestTransport`] client (this crate has one HTTP client dependency,
+/// not one per provider). These are additive `impl`s of sibling packets'
+/// already-ported transport traits (`wf028::scholarly::ScholarlyTransport`,
+/// `wf028::retraction::RetractionTransport`) for the type this file (wf027,
+/// `http_browser.py`'s port) owns, closing the "no HTTP client crate is a
+/// workspace dependency" gap those modules' doc comments note.
+impl crate::wf_port::wf028::scholarly::ScholarlyTransport for ReqwestTransport {
+    fn get_json(
+        &self,
+        url: &str,
+        timeout_secs: u64,
+    ) -> Result<serde_json::Value, crate::wf_port::wf028::scholarly::TransportError> {
+        let resp = self
+            .client
+            .get(url)
+            .timeout(std::time::Duration::from_secs(timeout_secs))
+            .header("User-Agent", scholarly_user_agent())
+            .header("Accept", "application/json")
+            .send()
+            .map_err(|e| crate::wf_port::wf028::scholarly::TransportError(e.to_string()))?;
+        resp.json::<serde_json::Value>()
+            .map_err(|e| crate::wf_port::wf028::scholarly::TransportError(e.to_string()))
+    }
+
+    fn get_text(
+        &self,
+        url: &str,
+        timeout_secs: u64,
+    ) -> Result<(String, String), crate::wf_port::wf028::scholarly::TransportError> {
+        let resp = self
+            .client
+            .get(url)
+            .timeout(std::time::Duration::from_secs(timeout_secs))
+            .header("User-Agent", scholarly_user_agent())
+            .header("Accept", "text/html,application/xhtml+xml,text/plain")
+            .send()
+            .map_err(|e| crate::wf_port::wf028::scholarly::TransportError(e.to_string()))?;
+        let final_url = resp.url().to_string();
+        let body = resp
+            .text()
+            .map_err(|e| crate::wf_port::wf028::scholarly::TransportError(e.to_string()))?;
+        Ok((body, final_url))
+    }
+}
+
+fn scholarly_user_agent() -> String {
+    let email = std::env::var("RESEARCH_CONTACT_EMAIL").ok();
+    crate::wf_port::wf028::scholarly::user_agent(email.as_deref().filter(|s| !s.is_empty()))
+}
+
+fn retraction_user_agent() -> String {
+    match std::env::var("RESEARCH_CONTACT_EMAIL") {
+        Ok(email) if !email.is_empty() => format!("ResearchCore/2.0 (mailto:{email})"),
+        _ => "ResearchCore/2.0".to_string(),
+    }
+}
+
+impl crate::wf_port::wf028::retraction::RetractionTransport for ReqwestTransport {
+    fn openalex(
+        &self,
+        doi: &str,
+    ) -> Result<serde_json::Value, crate::wf_port::wf028::retraction::TransportError> {
+        let url = format!(
+            "https://api.openalex.org/works/{}",
+            quote_keep_colon_slash(&format!("https://doi.org/{doi}"))
+        );
+        let resp = self
+            .client
+            .get(&url)
+            .timeout(std::time::Duration::from_secs(25))
+            .header("User-Agent", retraction_user_agent())
+            .header("Accept", "application/json")
+            .send()
+            .map_err(|e| crate::wf_port::wf028::retraction::TransportError(e.to_string()))?;
+        resp.json::<serde_json::Value>()
+            .map_err(|e| crate::wf_port::wf028::retraction::TransportError(e.to_string()))
+    }
+
+    fn crossref(
+        &self,
+        doi: &str,
+    ) -> Result<serde_json::Value, crate::wf_port::wf028::retraction::TransportError> {
+        let url = format!("https://api.crossref.org/works/{}", urlencode_path(doi));
+        let resp = self
+            .client
+            .get(&url)
+            .timeout(std::time::Duration::from_secs(25))
+            .header("User-Agent", retraction_user_agent())
+            .header("Accept", "application/json")
+            .send()
+            .map_err(|e| crate::wf_port::wf028::retraction::TransportError(e.to_string()))?;
+        resp.json::<serde_json::Value>()
+            .map_err(|e| crate::wf_port::wf028::retraction::TransportError(e.to_string()))
+    }
+}
+
+/// `urllib.parse.quote(doi, safe='')`: percent-encode everything outside
+/// the small "always safe" set.
+fn urlencode_path(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
+/// `urllib.parse.quote(value, safe=':/')`: like [`urlencode_path`] but also
+/// leaves `:` and `/` unescaped (used to build the OpenAlex DOI-URL path
+/// segment, which is itself a full `https://doi.org/...` URL).
+fn quote_keep_colon_slash(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for b in s.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b':' | b'/' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
 }
 
 /// Port of `_public_url`: only http(s), only a resolvable hostname, and

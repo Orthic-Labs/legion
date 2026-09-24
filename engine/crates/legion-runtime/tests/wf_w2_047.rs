@@ -46,7 +46,13 @@ fn destructive_command_pipeline_shape() {
 
     // The host event itself still normalizes fine (a caller may want to log
     // it even though the effect is refused).
-    let raw = json!({"eventType": "PreToolUse", "workspace": "/repo"});
+    let raw = json!({
+        "eventType": "PreToolUse",
+        "workspace": "/repo",
+        "adapter": {"name": "claude-code", "version": "1.0.0"},
+        "client": {"name": "claude-code", "version": "1.0.0"},
+        "host": {"platform": "darwin", "version": "24.0.0"},
+    });
     let event = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
     assert_eq!(event["eventType"], "pre-effect");
 
@@ -83,10 +89,13 @@ fn file_write_observation_classifies_as_mutation() {
     let raw = json!({
         "eventType": "PostToolUse",
         "workspace": "/repo",
+        "adapter": {"name": "claude-code", "version": "1.0.0"},
+        "client": {"name": "claude-code", "version": "1.0.0"},
+        "host": {"platform": "darwin", "version": "24.0.0"},
         "effect": {"effectClass": "FILE_WRITE", "target": "/repo/a.txt", "operation": "write"},
         "result": {"outcome": "success", "exitCode": 0, "terminal": true, "observedDigest": null},
     });
-    let event = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "x".to_string()).unwrap();
+    let event = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
     assert_eq!(event["eventType"], "post-effect");
     assert_eq!(classify_observation(&event, None), "mutation-observation");
 }
@@ -98,10 +107,13 @@ fn failed_effect_is_failure_not_mutation() {
     let raw = json!({
         "eventType": "PostToolUse",
         "workspace": "/repo",
+        "adapter": {"name": "claude-code", "version": "1.0.0"},
+        "client": {"name": "claude-code", "version": "1.0.0"},
+        "host": {"platform": "darwin", "version": "24.0.0"},
         "effect": {"effectClass": "FILE_WRITE", "target": "/repo/a.txt", "operation": "write"},
         "result": {"outcome": "failure", "exitCode": 1, "terminal": true, "observedDigest": null},
     });
-    let event = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "x".to_string()).unwrap();
+    let event = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
     assert_eq!(classify_observation(&event, None), "failure");
 }
 

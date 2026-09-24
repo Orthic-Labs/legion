@@ -1,12 +1,12 @@
 //! Port of `src/lib/review/providers/gemini.py`.
 //!
 //! `GeminiAPIProvider.call` performs a live `urllib.request` POST to the
-//! Gemini REST API. This crate has no HTTP client dependency (see
-//! `legion-review/Cargo.toml`: no `reqwest`/`ureq`/`http` crate), and per
-//! the chunk's dependency policy a new one is not added here — see the
-//! chunk report for the exact `Cargo.toml` patch (`ureq` or `reqwest`
-//! pinned to the version already resolved for `legion-provider-sdk`'s
-//! `http_client.rs`, if any) needed to wire live transport.
+//! Gemini REST API. That live transport is now wired here through the
+//! [`HttpTransport`] trait (production impl [`ReqwestTransport`], backed by
+//! `reqwest::blocking` per the r60 packet's allowed-crate list), so `call`
+//! below is a faithful, end-to-end port rather than a documented gap.
+//! Tests exercise the pure pieces plus `call` against a fake transport —
+//! no real network access.
 //!
 //! What ports faithfully, and is exactly what the Python does around the
 //! network call, is: API-key resolution (first non-empty env var in the
@@ -149,4 +149,186 @@ pub fn classify_url_error(model: &str, message: &str) -> ProviderError {
 /// production call sites that pre-collect relevant vars and by tests.
 pub fn env_lookup_from_map(map: &BTreeMap<String, String>) -> impl Fn(&str) -> Option<String> + '_ {
     move |name: &str| map.get(name).cloned()
+}
+
+/// The result of one POST, exactly what `call` needs from the transport:
+/// an HTTP status code plus the raw response body. Mirrors what Python's
+/// `urllib.request.urlopen` (success) / `HTTPError` (failure) each expose.
+#[derive(Debug, Clone)]
+pub struct HttpResponse {
+    pub status: i32,
+    pub body: String,
+}
+
+/// Transport boundary standing in for `urllib.request.urlopen` — lets
+/// `call` be tested without touching the network, and lets production
+/// wire a real client (`ReqwestTransport`) behind the same interface.
+pub trait HttpTransport {
+    /// Returns `Ok(HttpResponse)` for both 2xx and non-2xx statuses (the
+    /// caller inspects `status`, matching how `urllib`'s `HTTPError` still
+    /// carries a readable body); `Err(String)` only for a transport-level
+    /// failure (DNS, connect, timeout — the `URLError` branch).
+    fn post_json(&self, url: &str, body: &str, timeout_s: i64) -> Result<HttpResponse, String>;
+
+    /// Same as `post_json` but with extra request headers layered on top
+    /// of `Content-Type`/`User-Agent` — needed by providers (MiniMax) that
+    /// send auth via a custom header rather than `Authorization: Bearer`.
+    /// Default impl ignores `headers` and delegates to `post_json`, which
+    /// is only correct for providers that pass an empty slice; providers
+    /// that need headers must override this (as `ReqwestTransport` does).
+    fn post_json_with_headers(
+        &self,
+        url: &str,
+        body: &str,
+        timeout_s: i64,
+        headers: &[(&str, &str)],
+    ) -> Result<HttpResponse, String> {
+        let _ = headers;
+        self.post_json(url, body, timeout_s)
+    }
+}
+
+/// Production transport: `reqwest::blocking`, one client per call (mirrors
+/// Python's per-request `urllib.request.urlopen`, which does not pool
+/// connections across calls either).
+pub struct ReqwestTransport;
+
+impl HttpTransport for ReqwestTransport {
+    fn post_json(&self, url: &str, body: &str, timeout_s: i64) -> Result<HttpResponse, String> {
+        self.post_json_with_headers(url, body, timeout_s, &[])
+    }
+
+    fn post_json_with_headers(
+        &self,
+        url: &str,
+        body: &str,
+        timeout_s: i64,
+        headers: &[(&str, &str)],
+    ) -> Result<HttpResponse, String> {
+        let mut builder = reqwest::blocking::Client::builder();
+        // `timeout_s == 0` mirrors Python's `timeout=None` (no timeout).
+        if timeout_s > 0 {
+            builder = builder.timeout(std::time::Duration::from_secs(timeout_s as u64));
+        }
+        let client = builder.build().map_err(|e| e.to_string())?;
+        let mut req = client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "jury/0.1 (https://github.com/operator)");
+        for (name, value) in headers {
+            req = req.header(*name, *value);
+        }
+        let resp = req.body(body.to_string()).send().map_err(|e| e.to_string())?;
+        let status = resp.status().as_u16() as i32;
+        let body = resp.text().map_err(|e| e.to_string())?;
+        Ok(HttpResponse { status, body })
+    }
+}
+
+/// Faithful end-to-end port of `GeminiAPIProvider.call`: resolves the key,
+/// builds the URL and payload, POSTs through `transport`, and extracts the
+/// candidate text — or maps the failure to the matching `ProviderError`
+/// exactly as the Python's `except` branches do.
+pub fn call(
+    config: &GeminiConfig,
+    transport: &impl HttpTransport,
+    env_lookup: impl Fn(&str) -> Option<String>,
+    model: &str,
+    system: &str,
+    user: &str,
+    max_tokens: i64,
+    images: &[ProviderImage],
+) -> Result<String, ProviderError> {
+    let key = resolve_key(config, env_lookup)?;
+    let url = build_request_url(config, model, &key);
+    let payload = build_payload(system, user, max_tokens, images);
+    let body = serde_json::to_string(&payload)
+        .map_err(|e| ProviderError::new(format!("gemini/{model}: payload encode error: {e}")))?;
+
+    match transport.post_json(&url, &body, config.timeout_s) {
+        Ok(resp) if (200..300).contains(&resp.status) => {
+            let data: Value = serde_json::from_str(&resp.body).map_err(|e| {
+                ProviderError::new(format!("gemini/{model}: invalid JSON response: {e}"))
+            })?;
+            extract_candidate_text(model, &data)
+        }
+        Ok(resp) => Err(classify_http_error(model, resp.status, &resp.body)),
+        Err(message) => Err(classify_url_error(model, &message)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    struct FakeTransport {
+        response: RefCell<Option<Result<HttpResponse, String>>>,
+    }
+
+    impl HttpTransport for FakeTransport {
+        fn post_json(&self, _url: &str, _body: &str, _timeout_s: i64) -> Result<HttpResponse, String> {
+            self.response
+                .borrow_mut()
+                .take()
+                .expect("fake transport called more than once in a test")
+        }
+    }
+
+    fn config() -> GeminiConfig {
+        GeminiConfig::new("gemini", "https://generativelanguage.googleapis.com/v1", vec!["GEMINI_API_KEY".to_string()], 30)
+    }
+
+    fn env_with_key() -> impl Fn(&str) -> Option<String> {
+        |name: &str| if name == "GEMINI_API_KEY" { Some("k".to_string()) } else { None }
+    }
+
+    #[test]
+    fn call_extracts_text_on_success() {
+        let cfg = config();
+        let transport = FakeTransport {
+            response: RefCell::new(Some(Ok(HttpResponse {
+                status: 200,
+                body: serde_json::json!({
+                    "candidates": [{"content": {"parts": [{"text": "hi"}]}}]
+                })
+                .to_string(),
+            }))),
+        };
+        let out = call(&cfg, &transport, env_with_key(), "gemini-2.5-flash", "sys", "user", 512, &[]).unwrap();
+        assert_eq!(out, "hi");
+    }
+
+    #[test]
+    fn call_classifies_http_error_as_quota() {
+        let cfg = config();
+        let transport = FakeTransport {
+            response: RefCell::new(Some(Ok(HttpResponse {
+                status: 429,
+                body: "rate limited".to_string(),
+            }))),
+        };
+        let err = call(&cfg, &transport, env_with_key(), "gemini-2.5-flash", "sys", "user", 512, &[]).unwrap_err();
+        assert!(err.is_quota);
+        assert_eq!(err.status, Some(429));
+    }
+
+    #[test]
+    fn call_classifies_transport_error_as_quota() {
+        let cfg = config();
+        let transport = FakeTransport {
+            response: RefCell::new(Some(Err("connection refused".to_string()))),
+        };
+        let err = call(&cfg, &transport, env_with_key(), "gemini-2.5-flash", "sys", "user", 512, &[]).unwrap_err();
+        assert!(err.is_quota);
+        assert_eq!(err.status, None);
+    }
+
+    #[test]
+    fn call_missing_key_errors_before_transport() {
+        let cfg = config();
+        let transport = FakeTransport { response: RefCell::new(None) };
+        let err = call(&cfg, &transport, |_| None, "gemini-2.5-flash", "sys", "user", 512, &[]).unwrap_err();
+        assert!(err.message.contains("no key in env"));
+    }
 }

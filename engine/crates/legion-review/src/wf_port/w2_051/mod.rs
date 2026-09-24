@@ -17,6 +17,8 @@
 
 pub mod dual_review_logic;
 pub mod engine_logic;
+pub mod engine_run;
 pub mod health_check_logic;
+pub mod health_check_run;
 pub mod jury_cli;
 pub mod ledger;

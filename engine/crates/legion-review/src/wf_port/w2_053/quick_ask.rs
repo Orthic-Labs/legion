@@ -16,15 +16,32 @@
 //!   juror name) and the `"CODEX (12.3s)"` / `"ERROR: ..."` output-block
 //!   formatting — [`sort_results`], [`format_result_block`]
 //!
-//! **Not ported (live process/config transport):** the actual
-//! `ThreadPoolExecutor`-parallel `SubprocessProvider.call` invocations
-//! (spawning `codex`/`gemini`), reading `policy.toml` for
-//! `MACHINE_MINIMAL_DIRECTIVE`, `argparse` flag parsing itself, and
-//! stdin/file input reading. A caller wiring this to a live transport reads
-//! the directive and question, calls [`with_directive`] then dispatches
-//! through the w2_053 `subprocess_cli` port (or a live subprocess client)
-//! for each juror in [`selected_jurors`], and renders results with
-//! [`sort_results`] + [`format_result_block`].
+//! **Ported (packet R61):**
+//! - [`parse_args`] — the `argparse` flag parsing (`-i/--input`, `--only`,
+//!   `--codex-model`, `--gemini-model`), including argparse's own
+//!   `choices=[...]` rejection for `--only` and its "no such option"
+//!   rejection for anything else.
+//! - [`run`] — the full `main()` orchestration: reads the question (file via
+//!   `-i`, else stdin), validates it via [`validate_question`], builds the
+//!   selected jurors' [`SubprocessProvider`]s from [`codex_command_template`]
+//!   / [`gemini_command_template`], calls each **sequentially** (stable/no
+//!   extra crates means no thread pool here; output is unaffected since
+//!   results are re-[`sort_results`]-ed by name before printing, matching
+//!   the Python's `ThreadPoolExecutor` + `as_completed` + explicit sort),
+//!   and prints each [`format_result_block`]. Errors from
+//!   [`SubprocessProvider::call`] populate `JurorOutcome::error`, matching
+//!   `call_juror`'s `except ProviderError as e: return name, "", elapsed,
+//!   str(e)`.
+//!
+//! **Not ported:** reading `policy.toml` for `MACHINE_MINIMAL_DIRECTIVE` —
+//! that file does not exist anywhere in this repository (only referenced by
+//! this one Python module), so [`run`] takes the directive as a parameter;
+//! callers load it from wherever `policy.toml` is provisioned, or pass
+//! [`FALLBACK_DIRECTIVE`] as a last resort. `pyio.ensure_utf8_stdio()` is a
+//! Windows-console-encoding workaround with no Rust equivalent needed —
+//! `println!`/`print!` always write UTF-8 regardless of console code page.
+//! Real parallelism (`ThreadPoolExecutor`) is intentionally not restored;
+//! see above for why sequential execution is observably identical.
 
 /// Port of `CODEX_CONFIG["command_template"]`.
 pub fn codex_command_template() -> Vec<String> {
@@ -149,6 +166,176 @@ pub fn format_result_block(outcome: &JurorOutcome) -> String {
     format!("{header}\n{body}")
 }
 
+// ─── R61: argv parsing + run() orchestration ──────────────────────────────
+
+use std::fs;
+use std::io::{self, Read};
+use std::time::Instant;
+
+use super::subprocess_cli::{CommandRunner, SubprocessProvider, StdCommandRunner};
+
+/// Directive to use when `policy.toml` (this repo has none) is not
+/// available to a caller; documented as a last resort, not a silent
+/// default masquerading as the real machine-minimal directive.
+pub const FALLBACK_DIRECTIVE: &str = "Respond in machine-minimal key:value format. No prose.";
+
+/// Parsed `argparse` flags, port of `ap.parse_args()`'s namespace.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QuickAskArgs {
+    pub input: Option<String>,
+    pub only: JurorSelection,
+    pub codex_model: String,
+    pub gemini_model: String,
+}
+
+impl Default for QuickAskArgs {
+    fn default() -> Self {
+        Self {
+            input: None,
+            only: JurorSelection::Both,
+            codex_model: DEFAULT_CODEX_MODEL.to_string(),
+            gemini_model: DEFAULT_GEMINI_MODEL.to_string(),
+        }
+    }
+}
+
+/// Port of the `argparse.ArgumentParser` setup: `-i/--input`, `--only`
+/// (restricted to `codex`/`gemini`/`both`), `--codex-model`,
+/// `--gemini-model`. Returns `Err(message)` for an unknown flag or an
+/// invalid `--only` choice, matching argparse's usage-error exit (this
+/// port surfaces the message instead of calling `sys.exit(2)` directly, so
+/// [`run`] controls the process exit code).
+pub fn parse_args(args: &[String]) -> Result<QuickAskArgs, String> {
+    let mut parsed = QuickAskArgs::default();
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        let mut take_value = |flag: &str| -> Result<String, String> {
+            i += 1;
+            args.get(i).cloned().ok_or_else(|| format!("argument {flag}: expected one argument"))
+        };
+        match arg.as_str() {
+            "-i" | "--input" => parsed.input = Some(take_value("-i/--input")?),
+            "--only" => {
+                let value = take_value("--only")?;
+                parsed.only = JurorSelection::parse(&value)
+                    .ok_or_else(|| format!("argument --only: invalid choice: '{value}'"))?;
+            }
+            "--codex-model" => parsed.codex_model = take_value("--codex-model")?,
+            "--gemini-model" => parsed.gemini_model = take_value("--gemini-model")?,
+            other => return Err(format!("unrecognized arguments: {other}")),
+        }
+        i += 1;
+    }
+    Ok(parsed)
+}
+
+/// Port of `call_juror(name, provider, model, prompt)`: times the call,
+/// maps a `ProviderError` to `JurorOutcome.error`, matching `except
+/// ProviderError as e: return name, "", elapsed, str(e)`.
+fn call_juror(
+    runner: &dyn CommandRunner,
+    name: &str,
+    provider: &SubprocessProvider,
+    model: &str,
+    directive: &str,
+    question: &str,
+) -> JurorOutcome {
+    let t0 = Instant::now();
+    match provider.call(runner, model, directive, question, None) {
+        Ok(out) => JurorOutcome { name: name.to_string(), output: out, elapsed_s: t0.elapsed().as_secs_f64(), error: None },
+        Err(e) => JurorOutcome {
+            name: name.to_string(),
+            output: String::new(),
+            elapsed_s: t0.elapsed().as_secs_f64(),
+            error: Some(e.message),
+        },
+    }
+}
+
+/// Port of `main()`'s question-reading step: `-i FILE` reads that file
+/// (UTF-8, matching `Path(args.input).read_text(encoding="utf-8")`), else
+/// stdin is read to completion.
+fn read_question(input: &Option<String>) -> io::Result<String> {
+    match input {
+        Some(path) => fs::read_to_string(path),
+        None => {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf)?;
+            Ok(buf)
+        }
+    }
+}
+
+/// Full port of `main()`, parameterized over the [`CommandRunner`] (spawn
+/// boundary), the machine-minimal `directive` (see module docs — no
+/// `policy.toml` exists in this repo), and `question` (already read from
+/// `-i`/stdin by the caller via [`read_question`] in [`run`], or supplied
+/// directly by a test). Returns the process exit code (`0` on success, `1`
+/// on empty input, matching `sys.exit(1)`) and writes the formatted blocks
+/// to `out`.
+pub fn run_with(
+    runner: &dyn CommandRunner,
+    args: &QuickAskArgs,
+    directive: &str,
+    question: &str,
+    out: &mut impl std::fmt::Write,
+) -> i32 {
+    if validate_question(question).is_err() {
+        eprintln!("ERROR: empty input");
+        return 1;
+    }
+
+    let jurors = selected_jurors(args.only);
+    let mut results = Vec::with_capacity(jurors.len());
+    for name in jurors {
+        let (provider, model) = match name {
+            "codex" => (
+                SubprocessProvider::new("codex", codex_command_template(), Some(JUROR_TIMEOUT_S)),
+                args.codex_model.as_str(),
+            ),
+            "gemini" => (
+                SubprocessProvider::new("gemini", gemini_command_template(), Some(JUROR_TIMEOUT_S)),
+                args.gemini_model.as_str(),
+            ),
+            _ => unreachable!("selected_jurors only returns \"codex\"/\"gemini\""),
+        };
+        results.push(call_juror(runner, name, &provider, model, directive, question));
+    }
+
+    for outcome in sort_results(results) {
+        let _ = writeln!(out, "{}", format_result_block(&outcome));
+    }
+    0
+}
+
+/// CLI entrypoint: parses `args` (excluding argv\[0\]), reads the question
+/// per [`read_question`], runs the real [`StdCommandRunner`] via
+/// [`run_with`] with [`FALLBACK_DIRECTIVE`] (a caller that has
+/// `policy.toml` available should read it and call [`run_with`] directly
+/// instead), and prints the result blocks to stdout. Returns the process
+/// exit code.
+pub fn run(args: &[String]) -> i32 {
+    let parsed = match parse_args(args) {
+        Ok(p) => p,
+        Err(msg) => {
+            eprintln!("ERROR: {msg}");
+            return 2;
+        }
+    };
+    let question = match read_question(&parsed.input) {
+        Ok(q) => q,
+        Err(e) => {
+            eprintln!("ERROR: {e}");
+            return 1;
+        }
+    };
+    let mut buf = String::new();
+    let code = run_with(&StdCommandRunner, &parsed, FALLBACK_DIRECTIVE, &question, &mut buf);
+    print!("{buf}");
+    code
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,5 +423,103 @@ mod tests {
             block,
             "\n========== GEMINI (0.5s) ==========\nERROR: boom",
         );
+    }
+
+    #[test]
+    fn parse_args_defaults_when_empty() {
+        let parsed = parse_args(&[]).unwrap();
+        assert_eq!(parsed, QuickAskArgs::default());
+    }
+
+    #[test]
+    fn parse_args_reads_all_flags() {
+        let args: Vec<String> = [
+            "-i", "q.txt", "--only", "gemini", "--codex-model", "gpt-x", "--gemini-model", "gem-y",
+        ]
+        .into_iter()
+        .map(String::from)
+        .collect();
+        let parsed = parse_args(&args).unwrap();
+        assert_eq!(parsed.input.as_deref(), Some("q.txt"));
+        assert_eq!(parsed.only, JurorSelection::Gemini);
+        assert_eq!(parsed.codex_model, "gpt-x");
+        assert_eq!(parsed.gemini_model, "gem-y");
+    }
+
+    #[test]
+    fn parse_args_rejects_invalid_only_choice() {
+        let args: Vec<String> = ["--only", "bogus"].into_iter().map(String::from).collect();
+        assert!(parse_args(&args).is_err());
+    }
+
+    #[test]
+    fn parse_args_rejects_unknown_flag() {
+        let args: Vec<String> = ["--nope".to_string()];
+        assert!(parse_args(&args).is_err());
+    }
+
+    struct FakeRunner {
+        by_argv0: std::collections::HashMap<String, Result<super::super::subprocess_cli::RunOutput, super::super::subprocess_cli::RunError>>,
+    }
+
+    impl CommandRunner for FakeRunner {
+        fn run(
+            &self,
+            cmd: &[String],
+            _stdin: Option<&str>,
+            _timeout_s: u64,
+        ) -> Result<super::super::subprocess_cli::RunOutput, super::super::subprocess_cli::RunError> {
+            let key = cmd.first().cloned().unwrap_or_default();
+            self.by_argv0
+                .get(&key)
+                .cloned()
+                .unwrap_or(Err(super::super::subprocess_cli::RunError::NotFound))
+        }
+    }
+
+    #[test]
+    fn run_with_empty_question_returns_exit_1() {
+        let runner = FakeRunner { by_argv0: Default::default() };
+        let mut out = String::new();
+        let code = run_with(&runner, &QuickAskArgs::default(), FALLBACK_DIRECTIVE, "   ", &mut out);
+        assert_eq!(code, 1);
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn run_with_both_jurors_formats_sorted_blocks() {
+        use super::super::subprocess_cli::RunOutput;
+        let mut by_argv0 = std::collections::HashMap::new();
+        by_argv0.insert(
+            "codex".to_string(),
+            Ok(RunOutput { stdout: "codex says hi".to_string(), stderr: String::new(), returncode: 0 }),
+        );
+        by_argv0.insert(
+            "gemini".to_string(),
+            Ok(RunOutput { stdout: "gemini says hi".to_string(), stderr: String::new(), returncode: 0 }),
+        );
+        let runner = FakeRunner { by_argv0 };
+        let mut out = String::new();
+        let code = run_with(&runner, &QuickAskArgs::default(), "DIRECTIVE", "what is up", &mut out);
+        assert_eq!(code, 0);
+        let codex_pos = out.find("CODEX").unwrap();
+        let gemini_pos = out.find("GEMINI").unwrap();
+        assert!(codex_pos < gemini_pos, "codex block should print before gemini (sorted by name)");
+        assert!(out.contains("codex says hi"));
+        assert!(out.contains("gemini says hi"));
+    }
+
+    #[test]
+    fn run_with_only_codex_reports_provider_error() {
+        use super::super::subprocess_cli::RunError;
+        let mut by_argv0 = std::collections::HashMap::new();
+        by_argv0.insert("codex".to_string(), Err(RunError::Timeout));
+        let runner = FakeRunner { by_argv0 };
+        let args = QuickAskArgs { only: JurorSelection::Codex, ..QuickAskArgs::default() };
+        let mut out = String::new();
+        let code = run_with(&runner, &args, "DIRECTIVE", "q", &mut out);
+        assert_eq!(code, 0);
+        assert!(out.contains("ERROR: codex/gpt-5.5 timeout after"));
+        assert!(!out.contains("GEMINI"));
     }
 }

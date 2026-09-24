@@ -11,20 +11,30 @@
 //! - `cancelProcessGroup` — generalized over `terminate`/`alive` closures
 //!   exactly as the JS takes functions.
 //!
-//! ## What is NOT ported (left `NOT-STARTED`, out of this chunk)
-//! - `WorkflowContinuityStore`: durable `node:fs` JSON-file state
-//!   (`checkpoint`/`resume`/`pause`/`applyDirection`/`replan`). Needs a
-//!   filesystem/JSON persistence layer this chunk does not own.
-//! - `createHostArchitectureState` / `consumeHostArchitectureLifecycle` /
-//!   `executionTrajectoryPayload` / the internal `proposal` builder: these
-//!   depend on `src/lib/verification/arcane/architecture-state.mjs` and
+//! ## Packet r50: `WorkflowContinuityStore` and the host architecture lifecycle
+//! - [`WorkflowContinuityStore`]: durable `node:fs` JSON-file state
+//!   (`checkpoint`/`resume`/`pause`/`applyDirection`/`replan`), ported onto
+//!   `std::fs` with the same atomic tmp-file-then-rename write and the same
+//!   `stateDigest` computed over the state minus that field.
+//! - [`create_host_architecture_state`] / [`consume_host_architecture_lifecycle`]
+//!   / [`execution_trajectory_payload`]: these depend on
+//!   `src/lib/verification/arcane/architecture-state.mjs` and
 //!   `architecture-router.mjs` plus an authenticated `ArchitectureEventStore`,
-//!   none of which are part of this chunk's five files or reachable from
-//!   `legion-runtime` today. Porting them needs those modules ported first
-//!   (see chunk report for the suggested follow-up split).
+//!   which are now reachable via `legion_policy::wf_port::wf070` (`state`,
+//!   `router`, `event_store`) — `legion-runtime` already depends on
+//!   `legion-policy`. `hostEvent`/`binding` are Rust structs ([`HostEvent`],
+//!   [`ExecutionBinding`]) rather than dynamic objects, since every field
+//!   this lifecycle reads is statically known.
 
 use super::canonical::digest_value;
-use serde_json::{Map, Value};
+use legion_policy::wf_port::wf070::canon::{digest_value as canon_digest_value, CanonVal};
+use legion_policy::wf_port::wf070::event_store::{ArchitectureEventStore, EventProposal};
+use legion_policy::wf_port::wf070::router::{route_architecture, route_to_canon, ArchitectureRouterInput};
+use legion_policy::wf_port::wf070::state::create_architecture_state;
+use serde_json::{json, Map, Value};
+use std::collections::BTreeMap;
+use std::io::Write as _;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -437,6 +447,529 @@ where
         }
     }
     fail("process group failed to quiesce")
+}
+
+fn now_millis() -> u128 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)
+}
+
+/// `encodeURIComponent`, byte-wise (matches JS's per-UTF-8-byte percent
+/// encoding of non-ASCII characters).
+fn encode_uri_component(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'!' | b'~' | b'*' | b'\'' | b'(' | b')' => {
+                out.push(byte as char);
+            }
+            _ => {
+                out.push('%');
+                out.push_str(&format!("{byte:02X}"));
+            }
+        }
+    }
+    out
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CheckpointNode {
+    pub id: String,
+    pub dependencies: Vec<String>,
+    pub state: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct WorkflowCheckpointInput {
+    pub run_id: String,
+    pub fingerprint: String,
+    pub nodes: Vec<CheckpointNode>,
+    pub completed_effects: Vec<String>,
+    pub completed_outputs: Map<String, Value>,
+}
+
+/// Port of `WorkflowContinuityStore`. `clock` mirrors the JS constructor's
+/// `clock = () => new Date().toISOString()` default; callers inject it for
+/// deterministic tests.
+pub struct WorkflowContinuityStore<'a> {
+    root: PathBuf,
+    clock: Box<dyn FnMut() -> String + 'a>,
+}
+
+impl<'a> WorkflowContinuityStore<'a> {
+    pub fn new(root: PathBuf, clock: Box<dyn FnMut() -> String + 'a>) -> Self {
+        Self { root, clock }
+    }
+
+    fn path_for(&self, run_id: &str) -> PathBuf {
+        self.root.join(format!("{}.json", encode_uri_component(run_id)))
+    }
+
+    fn read(&self, run_id: &str) -> Option<Value> {
+        let path = self.path_for(run_id);
+        if !path.exists() {
+            return None;
+        }
+        let text = std::fs::read_to_string(path).ok()?;
+        serde_json::from_str(&text).ok()
+    }
+
+    /// Writes `state` (which must have a `runId` string field), stamping a
+    /// fresh `stateDigest` over every other field. Mirrors `_write`'s
+    /// `wx`-flagged temp file plus rename.
+    fn write(&mut self, mut state: Value) -> Result<Value, ContinuityError> {
+        let run_id = state
+            .get("runId")
+            .and_then(Value::as_str)
+            .ok_or_else(|| ContinuityError("workflow continuity state requires runId".to_string()))?
+            .to_string();
+        std::fs::create_dir_all(&self.root).map_err(|e| ContinuityError(e.to_string()))?;
+        let mut without_digest = state.clone();
+        if let Value::Object(map) = &mut without_digest {
+            map.remove("stateDigest");
+        }
+        let digest = digest_value(&without_digest);
+        if let Value::Object(map) = &mut state {
+            map.insert("stateDigest".to_string(), Value::String(digest));
+        }
+        let path = self.path_for(&run_id);
+        let tmp = self.root.join(format!(".state-{}-{}.tmp", std::process::id(), now_millis()));
+        let body = serde_json::to_string(&state).map_err(|e| ContinuityError(e.to_string()))?;
+        {
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&tmp)
+                .map_err(|e| ContinuityError(e.to_string()))?;
+            file.write_all(body.as_bytes()).map_err(|e| ContinuityError(e.to_string()))?;
+        }
+        std::fs::rename(&tmp, &path).map_err(|e| ContinuityError(e.to_string()))?;
+        Ok(state)
+    }
+
+    /// Port of `checkpoint`. Node identity/order mirrors the JS `Map`
+    /// semantics: prior nodes keep their position, updated in place when a
+    /// new node shares their id; genuinely new node ids are appended.
+    pub fn checkpoint(&mut self, input: WorkflowCheckpointInput) -> Result<Value, ContinuityError> {
+        if input.run_id.is_empty() || !is_digest(&input.fingerprint) {
+            return fail("run id & fingerprint are required");
+        }
+        let prior = self.read(&input.run_id);
+        let prior_nodes: Vec<(String, Value)> = prior
+            .as_ref()
+            .and_then(|p| p.get("nodes"))
+            .and_then(Value::as_array)
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|n| n.get("id").and_then(Value::as_str).map(|id| (id.to_string(), n.clone())))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut order: Vec<String> = prior_nodes.iter().map(|(id, _)| id.clone()).collect();
+        let mut by_id: BTreeMap<String, Value> = prior_nodes.into_iter().collect();
+        for node in &input.nodes {
+            if !by_id.contains_key(&node.id) {
+                order.push(node.id.clone());
+            }
+            by_id.insert(
+                node.id.clone(),
+                json!({ "id": node.id, "dependencies": node.dependencies, "state": if node.state.is_empty() { "PENDING".to_string() } else { node.state.clone() } }),
+            );
+        }
+        let nodes: Vec<Value> = order.iter().filter_map(|id| by_id.get(id).cloned()).collect();
+
+        let prior_completed: Vec<String> = prior
+            .as_ref()
+            .and_then(|p| p.get("completedEffects"))
+            .and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .unwrap_or_default();
+        let completed_effects = sorted_unique_strings(prior_completed.into_iter().chain(input.completed_effects).collect());
+
+        let mut completed_outputs = prior
+            .as_ref()
+            .and_then(|p| p.get("completedOutputs"))
+            .and_then(Value::as_object)
+            .cloned()
+            .unwrap_or_default();
+        for (k, v) in input.completed_outputs {
+            completed_outputs.insert(k, v);
+        }
+        let pause = prior.as_ref().and_then(|p| p.get("pause")).cloned().unwrap_or(Value::Null);
+        let continuation_epoch = prior.as_ref().and_then(|p| p.get("continuationEpoch")).and_then(Value::as_i64).unwrap_or(1);
+
+        let state = json!({
+            "schemaVersion": 1,
+            "kind": "legion-workflow-continuity",
+            "runId": input.run_id,
+            "fingerprint": input.fingerprint,
+            "continuationEpoch": continuation_epoch,
+            "nodes": nodes,
+            "completedEffects": completed_effects,
+            "completedOutputs": completed_outputs,
+            "pause": pause,
+            "updatedAt": (self.clock)(),
+        });
+        self.write(state)
+    }
+
+    /// Port of `resume`.
+    pub fn resume(&self, run_id: &str, fingerprint: &str) -> Result<Value, ContinuityError> {
+        let state = self.read(run_id);
+        let matches = state.as_ref().and_then(|s| s.get("fingerprint")).and_then(Value::as_str) == Some(fingerprint);
+        let state = match state {
+            Some(s) if matches => s,
+            _ => return fail("workflow continuity fingerprint mismatch"),
+        };
+        let unfinished: Vec<Value> = state
+            .get("nodes")
+            .and_then(Value::as_array)
+            .map(|arr| {
+                arr.iter()
+                    .filter(|n| {
+                        let s = n.get("state").and_then(Value::as_str).unwrap_or("");
+                        !matches!(s, "SUCCEEDED" | "SKIPPED")
+                    })
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
+        Ok(json!({
+            "runId": run_id,
+            "continuationEpoch": state.get("continuationEpoch").cloned().unwrap_or(json!(1)),
+            "unfinished": unfinished,
+            "completedEffects": state.get("completedEffects").cloned().unwrap_or(json!([])),
+            "completedOutputs": state.get("completedOutputs").cloned().unwrap_or(json!({})),
+        }))
+    }
+
+    /// Port of `pause`.
+    pub fn pause(
+        &mut self,
+        run_id: &str,
+        decision_id: &str,
+        phase: &str,
+        choices: Vec<String>,
+        context_fingerprint: &str,
+        continuation_token: Value,
+    ) -> Result<Value, ContinuityError> {
+        let state = self.read(run_id);
+        if state.is_none() || decision_id.is_empty() || choices.is_empty() || !is_digest(context_fingerprint) {
+            return fail("named pause decision is invalid");
+        }
+        let mut state = state.unwrap();
+        let pause = json!({
+            "decisionId": decision_id,
+            "phase": phase,
+            "choices": choices,
+            "contextFingerprint": context_fingerprint,
+            "continuationToken": continuation_token,
+            "chosen": null,
+            "responseDigest": null,
+            "pausedAt": (self.clock)(),
+        });
+        if let Value::Object(map) = &mut state {
+            map.insert("pause".to_string(), pause);
+            map.insert("updatedAt".to_string(), json!((self.clock)()));
+        }
+        self.write(state)
+    }
+
+    /// Port of `applyDirection`.
+    pub fn apply_direction(&mut self, run_id: &str, decision_id: &str, choice: &str, response: &Value) -> Result<Value, ContinuityError> {
+        let mut state = self.read(run_id).ok_or_else(|| ContinuityError("operator direction does not bind current pause".to_string()))?;
+        let pause = state.get("pause").cloned().unwrap_or(Value::Null);
+        let pause_decision_id = pause.get("decisionId").and_then(Value::as_str);
+        let choices_include = pause.get("choices").and_then(Value::as_array).map(|a| a.iter().any(|c| c.as_str() == Some(choice))).unwrap_or(false);
+        if pause.is_null() || pause_decision_id != Some(decision_id) || !choices_include {
+            return fail("operator direction does not bind current pause");
+        }
+        let continuation_epoch = state.get("continuationEpoch").and_then(Value::as_i64).unwrap_or(1);
+        let mut new_pause = pause;
+        if let Value::Object(map) = &mut new_pause {
+            map.insert("chosen".to_string(), json!(choice));
+            map.insert("responseDigest".to_string(), json!(digest_value(response)));
+            map.insert("resumedAt".to_string(), json!((self.clock)()));
+        }
+        if let Value::Object(map) = &mut state {
+            map.insert("continuationEpoch".to_string(), json!(continuation_epoch + 1));
+            map.insert("pause".to_string(), new_pause);
+            map.insert("updatedAt".to_string(), json!((self.clock)()));
+        }
+        self.write(state)
+    }
+
+    /// Port of `replan`.
+    pub fn replan(&mut self, run_id: &str, failure: &Value, replacement_nodes: Vec<Value>) -> Result<Value, ContinuityError> {
+        if failure.is_null() {
+            return fail("failure & replacement nodes are required");
+        }
+        let mut state = self.read(run_id).ok_or_else(|| ContinuityError("failure & replacement nodes are required".to_string()))?;
+        let empty = vec![];
+        let prior_nodes = state.get("nodes").and_then(Value::as_array).unwrap_or(&empty).clone();
+        let completed: Vec<Value> = prior_nodes.into_iter().filter(|n| n.get("state").and_then(Value::as_str) == Some("SUCCEEDED")).collect();
+        let completed_ids: std::collections::HashSet<String> =
+            completed.iter().filter_map(|n| n.get("id").and_then(Value::as_str).map(str::to_string)).collect();
+        if replacement_nodes.iter().any(|n| n.get("id").and_then(Value::as_str).map(|id| completed_ids.contains(id)).unwrap_or(false)) {
+            return fail("replan may not replace completed nodes");
+        }
+        let mut nodes = completed;
+        for node in replacement_nodes {
+            let id = node.get("id").cloned().unwrap_or(Value::Null);
+            let dependencies = node.get("dependencies").cloned().unwrap_or(json!([]));
+            let node_state = node.get("state").and_then(Value::as_str).unwrap_or("PENDING").to_string();
+            nodes.push(json!({ "id": id, "dependencies": dependencies, "state": node_state }));
+        }
+        let continuation_epoch = state.get("continuationEpoch").and_then(Value::as_i64).unwrap_or(1);
+        let completed_outputs = state.get("completedOutputs").cloned().unwrap_or(json!({}));
+        let replan = json!({
+            "failureDigest": digest_value(failure),
+            "preservedOutputDigest": digest_value(&completed_outputs),
+            "at": (self.clock)(),
+        });
+        if let Value::Object(map) = &mut state {
+            map.insert("continuationEpoch".to_string(), json!(continuation_epoch + 1));
+            map.insert("nodes".to_string(), json!(nodes));
+            map.insert("replan".to_string(), replan);
+            map.insert("updatedAt".to_string(), json!((self.clock)()));
+        }
+        self.write(state)
+    }
+}
+
+/// Host hooks are the only production producer for this minimal lifecycle:
+/// they carry no model-authored architecture state. Mirrors `hostLineage`.
+fn host_lineage(workspace: &str, session_id: Option<&str>) -> String {
+    let value = CanonVal::obj()
+        .set("workspace", CanonVal::Str(workspace.to_string()))
+        .set("sessionId", session_id.map(|s| CanonVal::Str(s.to_string())).unwrap_or(CanonVal::Null));
+    format!("host:{}", canon_digest_value(&value))
+}
+
+/// Mirrors `hostAcceptance`.
+fn host_acceptance(workspace: &str, session_id: Option<&str>) -> CanonVal {
+    let fingerprint_input = CanonVal::obj()
+        .set("workspace", CanonVal::Str(workspace.to_string()))
+        .set("sessionId", session_id.map(|s| CanonVal::Str(s.to_string())).unwrap_or(CanonVal::Null))
+        .set("producer", CanonVal::Str("arcane-host-ingress-v1".to_string()));
+    CanonVal::obj()
+        .set("schema", CanonVal::Str("acceptance-ledger.v1".to_string()))
+        .set("ledger_version", CanonVal::Int(1))
+        .set("intent_epoch", CanonVal::Int(1))
+        .set("acceptance_fingerprint", CanonVal::Str(canon_digest_value(&fingerprint_input)))
+        .set("frozen_at", CanonVal::Str("1970-01-01T00:00:00.000Z".to_string()))
+        .set("items", CanonVal::Arr(vec![]))
+}
+
+/// Port of `createHostArchitectureState`.
+pub fn create_host_architecture_state(workspace: &str, session_id: Option<&str>) -> Result<CanonVal, ContinuityError> {
+    if workspace.is_empty() {
+        return fail("host workspace is required");
+    }
+    let budget_ref_input = CanonVal::obj()
+        .set("workspace", CanonVal::Str(workspace.to_string()))
+        .set("sessionId", session_id.map(|s| CanonVal::Str(s.to_string())).unwrap_or(CanonVal::Null));
+    let budget_ref = format!("host:{}", canon_digest_value(&budget_ref_input));
+    create_architecture_state(&host_lineage(workspace, session_id), host_acceptance(workspace, session_id), &budget_ref)
+        .map_err(|e| ContinuityError(e.to_string()))
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct HostEventExtensions {
+    pub parent_execution_id: Option<String>,
+    pub work_node_id: Option<String>,
+    pub dependency_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HostEffect {
+    pub effect_class: String,
+}
+
+/// The subset of a host hook event `consumeHostArchitectureLifecycle` and
+/// `executionTrajectoryPayload` read. `workspace` is a [`CanonVal`] (rather
+/// than the plain `&str` the `workspace` *parameter* to
+/// `consume_host_architecture_lifecycle` is) because the JS source digests
+/// `hostEvent.workspace` as an arbitrary host-supplied value distinct from
+/// the caller's own `workspace` argument.
+#[derive(Debug, Clone)]
+pub struct HostEvent {
+    pub event_type: Option<String>,
+    pub event_id: Option<String>,
+    pub session_id: Option<String>,
+    pub time: Option<String>,
+    pub workspace: CanonVal,
+    pub effect: Option<HostEffect>,
+    pub extensions: HostEventExtensions,
+}
+
+impl Default for HostEvent {
+    fn default() -> Self {
+        Self {
+            event_type: None,
+            event_id: None,
+            session_id: None,
+            time: None,
+            workspace: CanonVal::Null,
+            effect: None,
+            extensions: HostEventExtensions::default(),
+        }
+    }
+}
+
+/// Port of `executionTrajectoryPayload`.
+pub fn execution_trajectory_payload(host_event: &HostEvent, payload: CanonVal) -> CanonVal {
+    let is_stop = host_event.event_type.as_deref() == Some("stop");
+    let mut map = match payload {
+        CanonVal::Obj(m) => m,
+        other => {
+            let mut m = std::collections::BTreeMap::new();
+            m.insert("value".to_string(), other);
+            m
+        }
+    };
+    let terminal_to = map.get("to").and_then(CanonVal::as_str).map(str::to_string);
+    map.insert(
+        "parent_execution_id".to_string(),
+        host_event.extensions.parent_execution_id.clone().map(CanonVal::Str).unwrap_or(CanonVal::Null),
+    );
+    let work_node_id = host_event.extensions.work_node_id.clone().or_else(|| host_event.event_id.clone());
+    map.insert("work_node_id".to_string(), work_node_id.map(CanonVal::Str).unwrap_or(CanonVal::Null));
+    map.insert(
+        "dependency_ids".to_string(),
+        CanonVal::Arr(host_event.extensions.dependency_ids.iter().cloned().map(CanonVal::Str).collect()),
+    );
+    map.insert("submission_state".to_string(), CanonVal::Str(if is_stop { "TERMINAL" } else { "ACCEPTED" }.to_string()));
+    map.insert("submitted_at".to_string(), host_event.time.clone().map(CanonVal::Str).unwrap_or(CanonVal::Null));
+    map.insert(
+        "terminal_state".to_string(),
+        if is_stop { CanonVal::Str(terminal_to.unwrap_or_else(|| "STOPPED".to_string())) } else { CanonVal::Null },
+    );
+    CanonVal::Obj(map)
+}
+
+#[derive(Debug, Clone)]
+pub struct ExecutionBinding {
+    pub run_id: String,
+}
+
+/// Port of `consumeHostArchitectureLifecycle`. Returns `(state,
+/// state_fingerprint)` on success, mirroring the JS `{ state,
+/// state_fingerprint }` return.
+pub fn consume_host_architecture_lifecycle<'a>(
+    event_store: &mut ArchitectureEventStore<'a>,
+    host_event: &HostEvent,
+    binding: Option<&ExecutionBinding>,
+    workspace: &str,
+    stop_intent: &str,
+) -> Result<(CanonVal, String), ContinuityError> {
+    let initial_state = create_host_architecture_state(workspace, host_event.session_id.as_deref())?;
+    let objective_lineage_id = initial_state
+        .get("task")
+        .and_then(|t| t.get("objective_lineage_id"))
+        .and_then(CanonVal::as_str)
+        .ok_or_else(|| ContinuityError("host architecture state missing objective_lineage_id".to_string()))?
+        .to_string();
+
+    let events_result =
+        event_store.replay(&objective_lineage_id, &initial_state).map_err(|e| ContinuityError(e.to_string()))?;
+    let mut state = events_result.state;
+    let mut state_fingerprint = events_result.state_fingerprint;
+
+    let execution_id = binding
+        .map(|b| b.run_id.clone())
+        .unwrap_or_else(|| format!("host:{}", host_event.session_id.clone().unwrap_or_else(|| "unbound".to_string())));
+    let repository_id = format!("workspace:{}", canon_digest_value(&host_event.workspace));
+    let effect_canon = host_event
+        .effect
+        .as_ref()
+        .map(|e| CanonVal::obj().set("effectClass", CanonVal::Str(e.effect_class.clone())))
+        .unwrap_or(CanonVal::Null);
+    let input_fingerprint_input = CanonVal::obj()
+        .set("eventType", host_event.event_type.clone().map(CanonVal::Str).unwrap_or(CanonVal::Null))
+        .set("eventId", host_event.event_id.clone().map(CanonVal::Str).unwrap_or(CanonVal::Null))
+        .set("effect", effect_canon);
+    let input_fingerprint = canon_digest_value(&input_fingerprint_input);
+
+    let mut accept = |state: &mut CanonVal,
+                       state_fingerprint: &mut String,
+                       event_type: &str,
+                       payload: CanonVal,
+                       phase: &str|
+     -> Result<(), ContinuityError> {
+        let intent_epoch = state.get("intent").and_then(|i| i.get("intent_epoch")).and_then(CanonVal::as_int).unwrap_or(1);
+        let final_payload =
+            if event_type == "ROUTE_CLASSIFIED" { execution_trajectory_payload(host_event, payload) } else { payload };
+        let proposal = EventProposal {
+            objective_lineage_id: objective_lineage_id.clone(),
+            intent_epoch,
+            execution_id: execution_id.clone(),
+            repository_id: repository_id.clone(),
+            actor_role: "host".to_string(),
+            phase: phase.to_string(),
+            event_type: event_type.to_string(),
+            payload: final_payload,
+            acceptance_ids: vec![],
+            decision_ids: vec![],
+            finding_ids: vec![],
+            input_fingerprint: Some(input_fingerprint.clone()),
+            output_refs: vec![],
+            checkpoint_ref: None,
+            cost_delta: CanonVal::obj(),
+            retry_class: "none".to_string(),
+            terminal_reason: None,
+            privacy_class: "metadata".to_string(),
+        };
+        let accepted = event_store
+            .accept(&proposal, Some(state_fingerprint.as_str()))
+            .map_err(|e| ContinuityError(format!("host architecture lifecycle rejected: {}", e.code)))?;
+        *state = accepted.state;
+        *state_fingerprint = accepted.state_fingerprint;
+        Ok(())
+    };
+
+    let architecture_status = state.get("task").and_then(|t| t.get("architecture_status")).and_then(CanonVal::as_str);
+    if architecture_status == Some("UNROUTED") {
+        let router_input = ArchitectureRouterInput {
+            objective: Some("sufficient".to_string()),
+            significance: std::collections::BTreeSet::new(),
+            category: host_event.effect.as_ref().map(|e| e.effect_class.clone()),
+            semantic_risk: if host_event.effect.is_none() { Some("ambiguous".to_string()) } else { None },
+            ..Default::default()
+        };
+        let route = route_architecture(&router_input).map_err(|e| ContinuityError(e.0))?;
+        accept(&mut state, &mut state_fingerprint, "ROUTE_CLASSIFIED", route_to_canon(&route), "route")?;
+        let transition = CanonVal::obj().set("from", CanonVal::Str("UNROUTED".to_string())).set("to", CanonVal::Str("TAILORED".to_string()));
+        accept(&mut state, &mut state_fingerprint, "ARCHITECTURE_TRANSITIONED", transition, "route")?;
+    }
+
+    if host_event.event_type.as_deref() == Some("pre-effect") {
+        let episode_state = state.get("execution").and_then(|e| e.get("episode_state")).and_then(CanonVal::as_str).map(str::to_string);
+        if episode_state.as_deref() == Some("PENDING") {
+            let payload = CanonVal::obj().set("from", CanonVal::Str("PENDING".to_string())).set("to", CanonVal::Str("QUEUED".to_string()));
+            accept(&mut state, &mut state_fingerprint, "EXECUTION_EPISODE_TRANSITIONED", payload, "execute")?;
+        }
+        let episode_state = state.get("execution").and_then(|e| e.get("episode_state")).and_then(CanonVal::as_str).map(str::to_string);
+        if episode_state.as_deref() == Some("QUEUED") {
+            let payload = CanonVal::obj().set("from", CanonVal::Str("QUEUED".to_string())).set("to", CanonVal::Str("RUNNING".to_string()));
+            accept(&mut state, &mut state_fingerprint, "EXECUTION_EPISODE_TRANSITIONED", payload, "execute")?;
+        }
+    }
+
+    if host_event.event_type.as_deref() == Some("stop") {
+        if matches!(stop_intent, "PAUSE" | "REVOKE" | "SCOPE_NARROW") {
+            let intent_epoch = state.get("intent").and_then(|i| i.get("intent_epoch")).and_then(CanonVal::as_int).unwrap_or(1);
+            let payload = CanonVal::obj().set("intent_epoch", CanonVal::Int(intent_epoch + 1));
+            accept(&mut state, &mut state_fingerprint, "INTENT_EPOCH_ADVANCED", payload, "close")?;
+        } else {
+            let episode_state = state.get("execution").and_then(|e| e.get("episode_state")).and_then(CanonVal::as_str).map(str::to_string);
+            if episode_state.as_deref() == Some("RUNNING") {
+                let payload = CanonVal::obj().set("from", CanonVal::Str("RUNNING".to_string())).set("to", CanonVal::Str("SUCCEEDED".to_string()));
+                accept(&mut state, &mut state_fingerprint, "EXECUTION_EPISODE_TRANSITIONED", payload, "close")?;
+            }
+        }
+    }
+
+    Ok((state, state_fingerprint))
 }
 
 #[cfg(test)]

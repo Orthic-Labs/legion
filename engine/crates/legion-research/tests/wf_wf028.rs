@@ -15,6 +15,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use legion_research::wf_port::wf027::types::Provider as _;
 use legion_research::wf_port::wf028::receipt::finalize;
 use legion_research::wf_port::wf028::resource_guard::read_resource;
 use legion_research::wf_port::wf028::retraction::{self, RetractionTransport, TransportError as RetractionTransportError};
@@ -120,10 +121,10 @@ fn search_open_find_dispatches_scholarly_and_matches_to_dict_shapes() {
     let transport = FixtureScholarlyTransport { json_body: fixture };
 
     let resolved = search_open_find::provider("scholarly", None).unwrap();
-    assert_eq!(resolved, ProviderName::Scholarly);
-    assert!(search_open_find::is_metered_op(resolved, "search"));
-    assert!(search_open_find::is_metered_op(resolved, "open"));
-    assert!(!search_open_find::is_metered_op(resolved, "find"));
+    assert_eq!(resolved.name(), "scholarly");
+    assert!(search_open_find::is_metered_op(ProviderName::Scholarly, "search"));
+    assert!(search_open_find::is_metered_op(ProviderName::Scholarly, "open"));
+    assert!(!search_open_find::is_metered_op(ProviderName::Scholarly, "find"));
 
     let hits = scholarly::search(&transport, "devonian alloys", 10, &[], None).unwrap();
     assert_eq!(hits.len(), 1);

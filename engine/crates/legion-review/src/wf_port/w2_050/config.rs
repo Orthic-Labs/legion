@@ -100,6 +100,16 @@ pub struct Provider {
     pub parallel_safe: Option<bool>,
     #[serde(default)]
     pub disabled: Option<bool>,
+    /// r59: `flag_degraded` — providers whose verdicts should carry a
+    /// `degraded` marker (mirrors `Engine._run_juror`'s
+    /// `self.config["providers"][provider_name].get("flag_degraded", False)`).
+    #[serde(default)]
+    pub flag_degraded: Option<bool>,
+    /// r59: `max_output_tokens` — the provider's hard output-token cap
+    /// (mirrors `Engine._run_juror`'s
+    /// `.get("max_output_tokens", 8192)`; default applied by the caller).
+    #[serde(default)]
+    pub max_output_tokens: Option<i64>,
     #[serde(default)]
     pub timeout_s: Option<f64>,
     #[serde(default)]

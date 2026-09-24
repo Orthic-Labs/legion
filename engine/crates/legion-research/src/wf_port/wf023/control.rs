@@ -16,6 +16,12 @@
 //! `external_requests_used`/`external_requests_budget` lookup and
 //! persistence `decide_stop` layers on top, and re-exports the shard
 //! functions ported in `shards.rs`.
+//!
+//! [`run_cli`] ports `main(argv)`'s `argparse` dispatch (`stop`/`shard-init`/
+//! `shard-checkpoint`/`shard-resume`, including the `--input`/`--artifacts`
+//! JSON file reads), closing the r55 CLI-entrypoint gap.
+
+use std::fs;
 
 use serde_json::{json, Map, Value};
 
@@ -133,6 +139,111 @@ pub fn resume_shards(store: &impl ControlManifest, run_id: &str) -> Result<Vec<S
         json!({"shard_ids": rows.iter().map(|r| r.id.clone()).collect::<Vec<_>>()}),
     );
     Ok(rows)
+}
+
+fn shard_row_json(row: &ShardRow) -> Value {
+    json!({
+        "id": row.id,
+        "key": row.key,
+        "payload": row.payload,
+        "status": row.status,
+        "attempts": row.attempts,
+        "artifacts": row.artifacts,
+    })
+}
+
+fn shard_plan_json(plan: &ShardPlan) -> Value {
+    json!({
+        "schema_version": plan.schema_version,
+        "run_id": plan.run_id,
+        "shards": plan.shards.iter().map(shard_row_json).collect::<Vec<_>>(),
+    })
+}
+
+fn str_list_field(payload: &Value, key: &str) -> Vec<String> {
+    payload
+        .get(key)
+        .and_then(Value::as_array)
+        .map(|values| values.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+        .unwrap_or_default()
+}
+
+/// Port of `main(argv)`'s `argparse` dispatch: `stop --run-id --input`,
+/// `shard-init --run-id --input`, `shard-checkpoint --run-id --shard-id
+/// --status [--artifacts]`, `shard-resume --run-id`. `--input`/`--artifacts`
+/// name JSON files read from disk exactly as `Path(args.input).read_text()`
+/// does; the decision logic each subcommand dispatches to is already ported
+/// above and is tested there against `ControlManifest` fakes, so only the
+/// argv parsing and JSON-file loading are new here.
+pub fn run_cli(store: &impl ControlManifest, args: &[String]) -> Result<Value, String> {
+    let mut iter = args.iter();
+    let command = iter.next().ok_or("command is required (stop|shard-init|shard-checkpoint|shard-resume)")?.clone();
+
+    let mut run_id: Option<String> = None;
+    let mut input: Option<String> = None;
+    let mut shard_id_arg: Option<String> = None;
+    let mut status: Option<String> = None;
+    let mut artifacts_path: Option<String> = None;
+    while let Some(flag) = iter.next() {
+        match flag.as_str() {
+            "--run-id" => run_id = iter.next().cloned(),
+            "--input" => input = iter.next().cloned(),
+            "--shard-id" => shard_id_arg = iter.next().cloned(),
+            "--status" => status = iter.next().cloned(),
+            "--artifacts" => artifacts_path = iter.next().cloned(),
+            other => return Err(format!("unrecognized argument: {other}")),
+        }
+    }
+    let run_id = run_id.ok_or("--run-id is required")?;
+
+    match command.as_str() {
+        "stop" => {
+            let input = input.ok_or("--input is required")?;
+            let text = fs::read_to_string(&input).map_err(|e| e.to_string())?;
+            let payload: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+            let request = DecideStopRequest {
+                required_questions: str_list_field(&payload, "required_questions"),
+                answered_questions: str_list_field(&payload, "answered_questions"),
+                consecutive_no_gain: payload.get("consecutive_no_gain").and_then(Value::as_i64).unwrap_or(0),
+                blocking_gaps: str_list_field(&payload, "blocking_gaps"),
+            };
+            let decision = decide_stop(store, &run_id, request)?;
+            Ok(decision_to_json(&decision))
+        }
+        "shard-init" => {
+            let input = input.ok_or("--input is required")?;
+            let text = fs::read_to_string(&input).map_err(|e| e.to_string())?;
+            let items: Vec<Value> = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+            let work_items: Vec<WorkItem> = items
+                .iter()
+                .map(|item| WorkItem {
+                    key: item.get("key").and_then(Value::as_str).unwrap_or_default().to_string(),
+                    payload: item.get("payload").cloned().unwrap_or(Value::Null),
+                })
+                .collect();
+            let plan = init_shards(store, &run_id, &work_items)?;
+            Ok(shard_plan_json(&plan))
+        }
+        "shard-checkpoint" => {
+            let shard_id_arg = shard_id_arg.ok_or("--shard-id is required")?;
+            let status = status.ok_or("--status is required")?;
+            let artifacts = match artifacts_path {
+                Some(path) => {
+                    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+                    let value: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+                    value.as_object().cloned()
+                }
+                None => None,
+            };
+            let plan = checkpoint_shard(store, &run_id, &shard_id_arg, &status, artifacts.as_ref())?;
+            Ok(shard_plan_json(&plan))
+        }
+        "shard-resume" => {
+            let rows = resume_shards(store, &run_id)?;
+            Ok(Value::Array(rows.iter().map(shard_row_json).collect()))
+        }
+        other => Err(format!("unknown command: {other}")),
+    }
 }
 
 #[cfg(test)]
@@ -266,5 +377,88 @@ mod tests {
         )
         .unwrap();
         assert!(store.stage.borrow().is_none());
+    }
+
+    // --- run_cli --------------------------------------------------------
+
+    fn temp_json_file(contents: &Value) -> std::path::PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "legion-r55-wf023-control-{}-{}.json",
+            std::process::id(),
+            n
+        ));
+        std::fs::write(&path, serde_json::to_string(contents).unwrap()).unwrap();
+        path
+    }
+
+    #[test]
+    fn run_cli_stop_reads_input_file_and_decides() {
+        let store = MockStore { used: 2, budget: 12, ..Default::default() };
+        let input = temp_json_file(&json!({
+            "required_questions": ["price"],
+            "answered_questions": ["price"],
+            "consecutive_no_gain": 0,
+            "blocking_gaps": [],
+        }));
+        let result = run_cli(
+            &store,
+            &["stop".to_string(), "--run-id".to_string(), "run-1".to_string(), "--input".to_string(), input.to_string_lossy().into_owned()],
+        )
+        .unwrap();
+        assert_eq!(result["reason"], json!("coverage-complete"));
+        std::fs::remove_file(&input).ok();
+    }
+
+    #[test]
+    fn run_cli_shard_init_then_checkpoint_then_resume_round_trips() {
+        let store = MockStore::default();
+        let input = temp_json_file(&json!([
+            {"key": "pricing", "payload": {"query": "price"}},
+            {"key": "privacy", "payload": {"query": "privacy"}},
+        ]));
+        let plan = run_cli(
+            &store,
+            &["shard-init".to_string(), "--run-id".to_string(), "run-1".to_string(), "--input".to_string(), input.to_string_lossy().into_owned()],
+        )
+        .unwrap();
+        let first_id = plan["shards"][0]["id"].as_str().unwrap().to_string();
+        std::fs::remove_file(&input).ok();
+
+        let checkpointed = run_cli(
+            &store,
+            &[
+                "shard-checkpoint".to_string(),
+                "--run-id".to_string(),
+                "run-1".to_string(),
+                "--shard-id".to_string(),
+                first_id.clone(),
+                "--status".to_string(),
+                "done".to_string(),
+            ],
+        )
+        .unwrap();
+        assert_eq!(checkpointed["shards"][0]["status"], json!("done"));
+
+        let resumed = run_cli(&store, &["shard-resume".to_string(), "--run-id".to_string(), "run-1".to_string()]).unwrap();
+        // The first shard is done; only the second (still pending) resumes.
+        assert_eq!(resumed.as_array().unwrap().len(), 1);
+        assert_ne!(resumed[0]["id"], json!(first_id));
+    }
+
+    #[test]
+    fn run_cli_missing_command_is_an_error() {
+        let store = MockStore::default();
+        let err = run_cli(&store, &[]).unwrap_err();
+        assert!(err.contains("command is required"));
+    }
+
+    #[test]
+    fn run_cli_stop_without_input_flag_is_an_error() {
+        let store = MockStore::default();
+        let err = run_cli(&store, &["stop".to_string(), "--run-id".to_string(), "run-1".to_string()]).unwrap_err();
+        assert!(err.contains("--input is required"));
     }
 }

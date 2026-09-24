@@ -61,9 +61,10 @@ impl DecisionEnvelope {
 /// enforcementHealth, escalate})`. Returns `None` when `allowed` (JS:
 /// `return null`). `envelope_of` mirrors `createDecisionEnvelope({allowed,
 /// code, detail, enforcementHealth})` — see the module doc for why it is
-/// injected. Schema assertion against `arcane-host-runtime-output-v1`
-/// (`RuntimeSchemaSet`) is out of this chunk's budget and is not reproduced;
-/// callers that need it should assert the returned JSON shape themselves.
+/// injected here rather than built inline. This function does not itself
+/// run the `arcane-host-runtime-output-v1` schema assertion JS performs
+/// before returning — `render_host_runtime_output_checked` below is the
+/// entry point that does, using the real envelope and the real schema.
 #[allow(clippy::too_many_arguments)]
 pub fn render_host_runtime_output(
     event_type: &str,
@@ -108,8 +109,8 @@ pub fn render_host_runtime_output(
 }
 
 /// Mirrors `serializeHostRuntimeOutput(output)`: `null` -> `""`; otherwise
-/// the JSON with a trailing newline. Schema assertion is skipped for the
-/// same reason as above.
+/// the JSON with a trailing newline. Does not itself run the schema
+/// assertion — see `serialize_host_runtime_output_checked`.
 pub fn serialize_host_runtime_output(output: Option<&Json>) -> String {
     match output {
         None => String::new(),

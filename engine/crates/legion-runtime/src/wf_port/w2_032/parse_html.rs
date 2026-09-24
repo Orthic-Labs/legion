@@ -492,7 +492,7 @@ mod tests {
         assert_eq!(tw.get("twitter:card").map(|s| s.as_str()), Some("summary"));
     }
 
-    const SAMPLE_HTML: &str = r#"<!DOCTYPE html>
+    const SAMPLE_HTML: &str = r##"<!DOCTYPE html>
 <html>
 <head>
 <title>Example Page</title>
@@ -516,7 +516,7 @@ mod tests {
 <p>Some visible body text here.</p>
 <footer>Skip footer text</footer>
 </body>
-</html>"#;
+</html>"##;
 
     #[test]
     fn parse_html_extracts_full_result() {

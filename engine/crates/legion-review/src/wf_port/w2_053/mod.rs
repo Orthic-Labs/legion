@@ -7,16 +7,24 @@
 //! `test_openai_compat_streaming.py`, `test_minimax_anthropic.py` mock this
 //! boundary) and `subprocess.run` child-process calls
 //! (`subprocess_cli.py`, `quick-ask.py`, which wraps it for the `codex`/
-//! `gemini` CLIs). Per the w2_051 precedent (`jury_cli.rs`, `engine_logic.rs`),
-//! this chunk ports every deterministic, network/process-free piece of logic
-//! faithfully with unit tests carrying the same assertions as the Python
-//! test files, and documents the live-transport gap in each module's doc
-//! comment rather than reimplementing an HTTP/subprocess client (this crate
-//! has no HTTP client dependency in `Cargo.lock`; see the chunk report for
-//! the suggested patch if a caller wants that filled in later).
+//! `gemini` CLIs).
+//!
+//! As of packet r60, `openai_compat.py`'s live HTTP transport is fully
+//! wired (`openai_compat::call_with_key`/`call_with_metadata`, via the
+//! shared `w2_052::gemini::HttpTransport` trait and `reqwest::blocking`).
+//! `subprocess_cli.py`/`quick_ask.py`'s `subprocess.run` transport remains
+//! unported by r60 alone — see below for R61.
 //!
 //! Membrane/Blueprint: none of these five files reference either; nothing to
 //! drop.
+//!
+//! Packet R61 closed the subprocess-orchestration gap noted above for
+//! `subprocess_cli.py` and `quick-ask.py`: both now have a full
+//! `std::process`-backed transport (`subprocess_cli::StdCommandRunner`)
+//! behind a `CommandRunner` trait, and `quick-ask.py`'s CLI entrypoint is
+//! ported as `quick_ask::run`/`quick_ask::run_with`. `openai_compat.py`'s
+//! live HTTP transport (this packet, r60) is built on the shared
+//! `super::w2_052::gemini::HttpTransport`/`ReqwestTransport`.
 
 pub mod openai_compat;
 pub mod quick_ask;

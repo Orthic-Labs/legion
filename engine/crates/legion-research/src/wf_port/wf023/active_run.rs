@@ -10,6 +10,9 @@
 //! implementation, so it compiles and is fully tested today; when
 //! `manifest.py`'s port lands, wire a `RunManifest` impl over it (see the
 //! wf023 report) instead of duplicating manifest state here.
+//!
+//! [`run_cli`] ports `main(argv)`'s `argparse` dispatch (`activate`/`clear`/
+//! `current`) against the same trait, closing the r55 CLI-entrypoint gap.
 
 use serde_json::{json, Value};
 
@@ -342,5 +345,61 @@ mod tests {
         let mut store = MockStore::default();
         store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
         assert_eq!(current(&store), Some("run-1".to_string()));
+    }
+
+    #[test]
+    fn run_cli_activate_prints_the_pointer_and_exits_zero() {
+        let mut store = MockStore::default();
+        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        let (code, value) = run_cli(&store, &["activate".to_string(), "run-1".to_string()]);
+        assert_eq!(code, 0);
+        assert_eq!(value["run_id"], json!("run-1"));
+        assert_eq!(value["route_sha256"], json!("sha-1"));
+    }
+
+    #[test]
+    fn run_cli_activate_on_non_executable_run_exits_one() {
+        let mut store = MockStore::default();
+        store.runs.insert(
+            "run-1".into(),
+            RunRecord { run_id: "run-1".into(), status: "done".into(), route_sha256: "sha".into(), route_allows_effects: true },
+        );
+        let (code, value) = run_cli(&store, &["activate".to_string(), "run-1".to_string()]);
+        assert_eq!(code, 1);
+        assert!(value["error"].as_str().unwrap().contains("not executable"));
+    }
+
+    #[test]
+    fn run_cli_clear_reports_whether_it_cleared() {
+        let mut store = MockStore::default();
+        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        activate(&store, "run-1").unwrap();
+        let (code, value) = run_cli(&store, &["clear".to_string(), "run-1".to_string()]);
+        assert_eq!(code, 0);
+        assert_eq!(value, json!({"cleared": true}));
+    }
+
+    #[test]
+    fn run_cli_current_prints_the_selection() {
+        let mut store = MockStore::default();
+        store.runs.insert("run-1".into(), executable_run("run-1", "sha-1"));
+        let (code, value) = run_cli(&store, &["current".to_string()]);
+        assert_eq!(code, 0);
+        assert_eq!(value["run_id"], json!("run-1"));
+        assert_eq!(value["source"], json!("single"));
+    }
+
+    #[test]
+    fn run_cli_missing_subcommand_exits_two() {
+        let store = MockStore::default();
+        let (code, _) = run_cli(&store, &[]);
+        assert_eq!(code, 2);
+    }
+
+    #[test]
+    fn run_cli_activate_missing_run_id_exits_two() {
+        let store = MockStore::default();
+        let (code, _) = run_cli(&store, &["activate".to_string()]);
+        assert_eq!(code, 2);
     }
 }

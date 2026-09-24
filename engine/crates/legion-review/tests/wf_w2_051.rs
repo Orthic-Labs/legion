@@ -12,8 +12,11 @@
 use std::collections::BTreeMap;
 
 use legion_review::wf_port::w2_051::dual_review_logic::{
-    digest, finding_records, render_blocker, sum_accounting, AccountingSummaryInput, Blocker,
-    JurorVerdict,
+    contest_audit_v, contest_record_v, contests_by_target, digest, finding_records, is_adoption,
+    peer_positions_block, position_shifts_v, rebuttal_instruction, render_blocker,
+    render_cli_result_route, resolution_audit_v, resolution_record_v, strip_unsupported_adoptions,
+    sum_accounting, synthesize_combined, AccountingSummaryInput, Blocker, CliResultRoute,
+    JurorVerdict, PEER_DEBATE_INSTRUCTION, REQUIRED_CONTEST_INSTRUCTION,
 };
 use legion_review::wf_port::w2_051::engine_logic::{
     accounting, execution_units, normalized_usage, parse_juror_json, provider_prompts,
@@ -643,4 +646,257 @@ fn parse_flag_coerces_bool_int_and_string() {
     let (k, v) = parse_flag("bare_flag");
     assert_eq!(k, "bare_flag");
     assert_eq!(v, serde_json::json!(true));
+}
+
+// ---------- dual_review.py: peer-debate protocol (packet r58) ----------
+
+#[test]
+fn rebuttal_instruction_concatenates_peer_debate_and_required_contest() {
+    assert_eq!(
+        rebuttal_instruction(),
+        format!("{PEER_DEBATE_INSTRUCTION}{REQUIRED_CONTEST_INSTRUCTION}")
+    );
+}
+
+#[test]
+fn contest_record_v_requires_finding_id_rationale_and_list_evidence_refs() {
+    let ok = serde_json::json!({"text": "x", "contest": {"finding_id": "f1", "rationale": "wrong", "evidence_refs": []}});
+    assert!(contest_record_v(&ok).is_some());
+
+    let missing_id = serde_json::json!({"contest": {"finding_id": "", "rationale": "wrong"}});
+    assert!(contest_record_v(&missing_id).is_none());
+
+    let blank_rationale = serde_json::json!({"contest": {"finding_id": "f1", "rationale": "  "}});
+    assert!(contest_record_v(&blank_rationale).is_none());
+
+    let no_contest = serde_json::json!({"text": "x"});
+    assert!(contest_record_v(&no_contest).is_none());
+
+    let bad_refs = serde_json::json!({"contest": {"finding_id": "f1", "rationale": "r", "evidence_refs": "nope"}});
+    assert!(contest_record_v(&bad_refs).is_none());
+}
+
+#[test]
+fn resolution_record_v_requires_valid_choice_id_and_reason() {
+    let concede = serde_json::json!({"resolution": {"finding_id": "f1", "choice": "concede", "reason": "moved me", "evidence_refs": []}});
+    assert!(resolution_record_v(&concede).is_some());
+
+    let bad_choice = serde_json::json!({"resolution": {"finding_id": "f1", "choice": "shrug", "reason": "r"}});
+    assert!(resolution_record_v(&bad_choice).is_none());
+
+    let blank_reason = serde_json::json!({"resolution": {"finding_id": "f1", "choice": "sustain", "reason": ""}});
+    assert!(resolution_record_v(&blank_reason).is_none());
+}
+
+#[test]
+fn is_adoption_matches_exact_and_40_char_prefix_case_insensitively() {
+    let peers = vec!["The retry loop never bounds its attempts and can spin forever".to_string()];
+    assert!(is_adoption(
+        "the retry loop never bounds its attempts and can spin forever",
+        &peers
+    ));
+    // 40-char-prefix containment, embedded in a longer restated sentence.
+    assert!(is_adoption(
+        "well, the retry loop never bounds its attempts to be honest",
+        &peers
+    ));
+    assert!(!is_adoption("totally unrelated claim", &peers));
+    assert!(!is_adoption("", &peers));
+}
+
+#[test]
+fn strip_unsupported_adoptions_discards_unsupported_restatement_keeps_contest_and_supported() {
+    let advisory = serde_json::json!({
+        "jurors": [
+            {"juror_id": "seatA", "parsed_ok": true, "blockers": [
+                {"text": "The retry loop never bounds its attempts and can spin forever"}
+            ]}
+        ]
+    });
+    let mut rebuttal = serde_json::json!({
+        "jurors": [
+            {"juror_id": "seatB", "parsed_ok": true, "blockers": [
+                {"text": "The retry loop never bounds its attempts and can spin forever"},
+                {"text": "On re-read, the retry loop never bounds its attempts and can spin forever"},
+                {"text": "unrelated", "contest": {"finding_id": "f1", "rationale": "weak", "evidence_refs": []}}
+            ]}
+        ]
+    });
+    strip_unsupported_adoptions(&mut rebuttal, &advisory);
+    let juror = &rebuttal["jurors"][0];
+    let kept = juror["blockers"].as_array().unwrap();
+    assert_eq!(kept.len(), 2, "unsupported restatement dropped, supported + contest kept");
+    let discarded = juror["discarded_adoptions"].as_array().unwrap();
+    assert_eq!(discarded.len(), 1);
+}
+
+#[test]
+fn contest_audit_v_flags_herding_when_not_all_seats_contest() {
+    let rebuttal = serde_json::json!({
+        "jurors": [
+            {"juror_id": "seatA", "parsed_ok": true, "blockers": [
+                {"text": "x", "contest": {"finding_id": "f1", "rationale": "r", "evidence_refs": []}}
+            ]},
+            {"juror_id": "seatB", "parsed_ok": true, "blockers": []},
+            {"juror_id": "seatC", "parsed_ok": false, "error": "wedged"}
+        ]
+    });
+    let audit = contest_audit_v(&rebuttal);
+    assert_eq!(audit["answering_seats"], 2);
+    assert_eq!(audit["contesting_seats"], 1);
+    assert_eq!(audit["total_seats"], 3);
+    assert_eq!(audit["failed_seats"], serde_json::json!(["seatC"]));
+    assert_eq!(audit["non_contesting_seats"], serde_json::json!(["seatB"]));
+    assert_eq!(audit["herding_suspected"], true);
+    assert_eq!(audit["fully_compliant"], false);
+}
+
+#[test]
+fn contests_by_target_routes_via_finding_index_and_skips_self_contest() {
+    let rebuttal = serde_json::json!({
+        "finding_index": {"f1": {"author_seat": "seatB", "claim": "c"}},
+        "jurors": [
+            {"juror_id": "seatA", "parsed_ok": true, "blockers": [
+                {"text": "x", "contest": {"finding_id": "f1", "rationale": "weak", "evidence_refs": []}}
+            ]},
+            {"juror_id": "seatB", "parsed_ok": true, "blockers": [
+                {"text": "y", "contest": {"finding_id": "does-not-exist", "rationale": "n/a", "evidence_refs": []}}
+            ]}
+        ]
+    });
+    let routed = contests_by_target(&rebuttal);
+    assert!(routed.contains_key("seatB"));
+    assert_eq!(routed["seatB"].as_array().unwrap().len(), 1);
+    assert_eq!(routed["seatB"][0]["from"], "seatA");
+    assert!(!routed.contains_key("seatA"));
+}
+
+#[test]
+fn resolution_audit_v_counts_conceded_sustained_and_unanswered() {
+    let response = serde_json::json!({
+        "routed_contests": {
+            "seatB": [{"from": "seatA", "finding_id": "f1", "rationale": "r", "evidence_refs": []}],
+            "seatC": [{"from": "seatA", "finding_id": "f2", "rationale": "r", "evidence_refs": []}]
+        },
+        "jurors": [
+            {"juror_id": "seatB", "parsed_ok": true, "blockers": [
+                {"text": "x", "resolution": {"finding_id": "f1", "choice": "concede", "reason": "fair", "evidence_refs": []}}
+            ]},
+            {"juror_id": "seatC", "parsed_ok": true, "blockers": [
+                {"text": "y", "resolution": {"finding_id": "f2", "choice": "sustain", "reason": "see line 40", "evidence_refs": ["file.rs:40"]}}
+            ]}
+        ]
+    });
+    let audit = resolution_audit_v(&response);
+    assert_eq!(audit["conceded_count"], 1);
+    assert_eq!(audit["sustained_count"], 1);
+    assert_eq!(audit["unanswered_count"], 0);
+    assert_eq!(audit["open_contests"], 0);
+    assert_eq!(audit["all_contests_resolved"], true);
+}
+
+#[test]
+fn resolution_audit_v_unanswered_when_contested_seat_missing() {
+    let response = serde_json::json!({
+        "routed_contests": {
+            "seatB": [{"from": "seatA", "finding_id": "f1", "rationale": "r", "evidence_refs": []}]
+        },
+        "jurors": []
+    });
+    let audit = resolution_audit_v(&response);
+    assert_eq!(audit["unanswered_count"], 1);
+    assert_eq!(audit["all_contests_resolved"], false);
+}
+
+#[test]
+fn resolution_audit_v_legacy_fixture_without_router_envelope() {
+    let response = serde_json::json!({
+        "jurors": [
+            {"juror_id": "seatB", "parsed_ok": true, "blockers": [
+                {"text": "x", "resolution": {"finding_id": "f1", "choice": "concede", "reason": "fair", "evidence_refs": []}}
+            ]},
+            {"juror_id": "seatD", "parsed_ok": false, "error": "wedged"}
+        ]
+    });
+    let audit = resolution_audit_v(&response);
+    assert_eq!(audit["conceded_count"], 1);
+    assert_eq!(audit["unanswered_count"], 1);
+}
+
+#[test]
+fn position_shifts_v_reports_verdict_delta_and_score_delta() {
+    let advisory = serde_json::json!({
+        "jurors": [
+            {"juror_id": "seatA", "parsed_ok": true, "verdict": "PASS", "score": 7}
+        ]
+    });
+    let rebuttal = serde_json::json!({
+        "jurors": [
+            {"juror_id": "seatA", "parsed_ok": true, "verdict": "FAIL", "score": 4, "top_concern": "retry loop"}
+        ]
+    });
+    let shifts = position_shifts_v(&advisory, &rebuttal);
+    let shift = &shifts[0];
+    assert_eq!(shift["juror_id"], "seatA");
+    assert_eq!(shift["verdict_before"], "PASS");
+    assert_eq!(shift["verdict_after"], "FAIL");
+    assert_eq!(shift["changed"], true);
+    assert_eq!(shift["score_delta"], -3.0);
+    assert_eq!(shift["top_concern_after"], "retry loop");
+}
+
+#[test]
+fn peer_positions_block_excludes_own_seat_and_projects_stable_fields() {
+    let advisory = serde_json::json!({
+        "jurors": [
+            {"juror_id": "seatA", "blockers": ["missing null check"]},
+            {"juror_id": "seatB", "blockers": ["off-by-one in loop"]}
+        ]
+    });
+    let block = peer_positions_block(&advisory, "seatA");
+    assert!(block.contains("### Peer finding"));
+    assert!(block.contains("off-by-one in loop"));
+    assert!(!block.contains("missing null check"));
+}
+
+#[test]
+fn synthesize_combined_notes_disagreement_and_defaults_to_undecided() {
+    let council = serde_json::json!({"synthesis": {"majority_verdict": "PASS"}});
+    let jury = serde_json::json!({"synthesis": {"majority_verdict": "FAIL"}});
+    let combined = synthesize_combined(&council, &jury);
+    assert_eq!(combined["decision"], "FAIL");
+    assert_eq!(combined["council_majority"], "PASS");
+    assert_eq!(combined["jury_majority"], "FAIL");
+    let notes = combined["notes"].as_array().unwrap();
+    assert_eq!(notes.len(), 1);
+    assert!(notes[0].as_str().unwrap().contains("advisory=PASS vs verdict=FAIL"));
+
+    let empty_jury = serde_json::json!({});
+    let combined2 = synthesize_combined(&council, &empty_jury);
+    assert_eq!(combined2["decision"], "UNDECIDED");
+}
+
+#[test]
+fn render_cli_result_route_dispatches_room_notification_delivered_and_render() {
+    let notify = serde_json::json!({
+        "status": "room_active",
+        "user_notification": {"required": true, "message": "Room link: https://example.invalid/room/1"}
+    });
+    match render_cli_result_route(&notify) {
+        CliResultRoute::RoomNotificationRequired(text) => {
+            assert!(text.starts_with("MANDATORY USER NOTIFICATION\n"));
+            assert!(text.contains("Room link: https://example.invalid/room/1"));
+            assert!(text.contains("--ack-room-link-delivered"));
+        }
+        other => panic!("expected RoomNotificationRequired, got {other:?}"),
+    }
+
+    let delivered = serde_json::json!({"status": "room_active"});
+    assert_eq!(render_cli_result_route(&delivered), CliResultRoute::RoomLinkDelivered);
+
+    let normal = serde_json::json!({"jury": {"result": {"verdict": "PASS"}}});
+    match render_cli_result_route(&normal) {
+        CliResultRoute::NeedsRender(payload) => assert_eq!(payload["verdict"], "PASS"),
+        other => panic!("expected NeedsRender, got {other:?}"),
+    }
 }

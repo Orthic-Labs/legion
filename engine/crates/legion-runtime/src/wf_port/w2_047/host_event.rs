@@ -417,9 +417,32 @@ mod tests {
         })
     }
 
+    /// `adapter`/`client`/`host` are each required non-null objects in
+    /// `HOST_EVENT_SCHEMA` (JS never widens them to nullable, even though
+    /// `normalizeHostEvent` happily defaults them to `null` when absent) —
+    /// so, exactly as in JS, a raw event missing any of the three fails
+    /// `validateHostEvent` inside `normalizeHostEvent`. This fixture is the
+    /// minimal raw shape that actually produces a schema-valid candidate.
+    fn schema_valid_raw(event_type: &str) -> Json {
+        json!({
+            "eventType": event_type,
+            "workspace": "/repo",
+            "adapter": {"name": "claude-code", "version": "1.0.0"},
+            "client": {"name": "claude-code", "version": "1.0.0"},
+            "host": {"platform": "darwin", "version": "24.0.0"},
+        })
+    }
+
+    fn gen_id() -> String {
+        "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string()
+    }
+    fn gen_time() -> String {
+        "2026-01-01T00:00:00Z".to_string()
+    }
+
     #[test]
     fn normalizes_legacy_event_type() {
-        let out = normalize_host_event(&ok_raw(), None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+        let out = normalize_host_event(&schema_valid_raw("PreToolUse"), None, gen_id, gen_time).unwrap();
         assert_eq!(out["eventType"], "pre-effect");
         assert_eq!(out["kind"], "arcane-host-event");
         assert_eq!(out["schemaVersion"], 1);
@@ -428,33 +451,58 @@ mod tests {
 
     #[test]
     fn passes_through_already_canonical_event_type() {
-        let raw = json!({"eventType": "pre-effect", "workspace": "/repo"});
-        let out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+        let out = normalize_host_event(&schema_valid_raw("pre-effect"), None, gen_id, gen_time).unwrap();
         assert_eq!(out["eventType"], "pre-effect");
     }
 
     #[test]
     fn rejects_unknown_event_type() {
         let raw = json!({"eventType": "NotARealEvent", "workspace": "/repo"});
-        let err = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap_err();
+        let err = normalize_host_event(&raw, None, gen_id, gen_time).unwrap_err();
         assert!(err.issues.iter().any(|s| s.contains("eventType")), "{:?}", err.issues);
     }
 
     #[test]
     fn rejects_empty_workspace() {
         let raw = json!({"eventType": "pre-effect", "workspace": ""});
-        let err = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap_err();
+        let err = normalize_host_event(&raw, None, gen_id, gen_time).unwrap_err();
         assert!(err.issues.iter().any(|s| s.contains("workspace")), "{:?}", err.issues);
     }
 
     #[test]
+    fn rejects_missing_adapter_client_host_like_js_does() {
+        // JS: `adapter: raw?.adapter ?? adapter ?? null` / `client: raw?.client ?? null`
+        // / `host: raw?.host ?? null`, but the schema types all three as
+        // required, non-nullable objects — so an otherwise-complete raw
+        // event without them still fails `validateHostEvent`.
+        let err = normalize_host_event(&ok_raw(), None, gen_id, gen_time).unwrap_err();
+        assert!(err.issues.iter().any(|s| s.contains("adapter")), "{:?}", err.issues);
+        assert!(err.issues.iter().any(|s| s.contains("client")), "{:?}", err.issues);
+        assert!(err.issues.iter().any(|s| s.contains("host") && !s.contains("hostEnforcement")), "{:?}", err.issues);
+    }
+
+    #[test]
+    fn adapter_fallback_param_used_when_raw_omits_it() {
+        let raw = json!({
+            "eventType": "Stop",
+            "workspace": "/repo",
+            "client": {"name": "c", "version": "1"},
+            "host": {"platform": "darwin", "version": "1"},
+        });
+        let adapter = json!({"name": "fallback-adapter", "version": "9"});
+        let out = normalize_host_event(&raw, Some(&adapter), gen_id, gen_time).unwrap();
+        assert_eq!(out["adapter"], adapter);
+    }
+
+    #[test]
     fn extensions_carried_only_when_present() {
-        let raw = json!({"eventType": "Stop", "workspace": "/repo"});
-        let out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+        let raw = schema_valid_raw("Stop");
+        let out = normalize_host_event(&raw, None, gen_id, gen_time).unwrap();
         assert!(out.get("extensions").is_none());
 
-        let raw2 = json!({"eventType": "Stop", "workspace": "/repo", "extensions": {"a": 1}});
-        let out2 = normalize_host_event(&raw2, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+        let mut raw2 = schema_valid_raw("Stop");
+        raw2["extensions"] = json!({"a": 1});
+        let out2 = normalize_host_event(&raw2, None, gen_id, gen_time).unwrap();
         assert_eq!(out2["extensions"], json!({"a": 1}));
     }
 
@@ -467,20 +515,27 @@ mod tests {
 
     #[test]
     fn validate_host_event_accepts_normalized_candidate() {
-        let raw = json!({"eventType": "Stop", "workspace": "/repo"});
-        let out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+        let out = normalize_host_event(&schema_valid_raw("Stop"), None, gen_id, gen_time).unwrap();
         let (valid, issues) = validate_host_event(&out);
         assert!(valid, "{:?}", issues);
     }
 
     #[test]
     fn validate_host_event_rejects_unknown_field() {
-        let raw = json!({"eventType": "Stop", "workspace": "/repo"});
-        let mut out = normalize_host_event(&raw, None, || "hev_01ARZ3NDEKTSV4RRFFQ69G5FAV".to_string(), || "2026-01-01T00:00:00Z".to_string()).unwrap();
+        let mut out = normalize_host_event(&schema_valid_raw("Stop"), None, gen_id, gen_time).unwrap();
         out["notAField"] = json!(true);
         let (valid, issues) = validate_host_event(&out);
         assert!(!valid);
         assert!(issues.iter().any(|s| s.contains("notAField")), "{:?}", issues);
+    }
+
+    #[test]
+    fn bound_fields_are_a_subset_of_the_schema_properties() {
+        let schema = host_event_schema();
+        let props = schema["properties"].as_object().unwrap();
+        for field in HOST_EVENT_BOUND_FIELDS {
+            assert!(props.contains_key(*field), "{field} missing from HOST_EVENT_SCHEMA properties");
+        }
     }
 
     #[test]

@@ -17,7 +17,7 @@ pub mod support;
 pub mod types;
 
 pub use command_bridge::CommandBridgeProvider;
-pub use http_browser::{HttpBrowserProvider, HttpResponse, HttpTransport};
+pub use http_browser::{HttpBrowserProvider, HttpResponse, HttpTransport, ReqwestTransport};
 pub use local_corpus::LocalCorpusProvider;
 pub use notebooklm::NotebookLmAdapter;
 pub use support::WfError;

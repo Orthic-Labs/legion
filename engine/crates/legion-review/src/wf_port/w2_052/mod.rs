@@ -1,9 +1,10 @@
 //! Chunk w2_052: port of `src/lib/review/{packet.py,providers/}`.
 //!
-//! See each submodule's doc comment for what ported faithfully vs. what
-//! stayed on the Python side (live HTTP transport — no client dependency
-//! is added in this chunk; see the chunk report for the `Cargo.toml`
-//! patch needed to wire it).
+//! As of packet r60, `gemini.py` and `minimax_anthropic.py`'s live HTTP
+//! transport is fully wired here (`gemini::call`,
+//! `minimax_anthropic::call_with_metadata`, via `gemini::HttpTransport` /
+//! `reqwest::blocking`) — see each submodule's doc comment for exactly
+//! what ports faithfully.
 
 pub mod base;
 pub mod gemini;

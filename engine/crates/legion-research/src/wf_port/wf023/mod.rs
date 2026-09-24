@@ -25,13 +25,14 @@ pub mod control;
 pub mod shards;
 
 pub use active_run::{
-    activate, clear, current, executable_runs, selection, PointerValue, RunManifest, RunRecord,
-    Selection,
+    activate, clear, current, executable_runs, run_cli as active_run_cli, selection, PointerValue,
+    RunManifest, RunRecord, Selection,
 };
 pub use citecheck::{check as citecheck_check, CitePair, CiteCheckResult, SentenceRow};
 pub use contradictions::{derive as contradictions_derive, Consensus, Contradiction, DeriveResult};
 pub use control::{
-    checkpoint_shard, decide_stop, init_shards, resume_shards, ControlManifest, DecideStopRequest,
+    checkpoint_shard, decide_stop, init_shards, resume_shards, run_cli as control_run_cli,
+    ControlManifest, DecideStopRequest,
 };
 pub use shards::{
     checkpoint as shard_checkpoint, merge_jsonl, plan as shard_plan, resumable as shard_resumable,

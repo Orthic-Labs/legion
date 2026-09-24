@@ -18,10 +18,13 @@
 //!
 //! Network transport for `scholarly.py` (Crossref) and `retraction.py`
 //! (OpenAlex, Crossref) is injected via `ScholarlyTransport` /
-//! `RetractionTransport` rather than performed directly: no HTTP client
-//! crate (`reqwest`, `ureq`, ...) is a workspace dependency of
-//! `legion-research`, and this packet is read-only on `Cargo.toml`. The
-//! dependency patch a real transport needs is in `wf028.md`.
+//! `RetractionTransport` rather than performed directly, keeping this
+//! packet's own tests network-free. The real transport for both traits is
+//! `wf027::ReqwestTransport` (added by packet r56, which also added the
+//! `reqwest` dependency to this crate's `Cargo.toml`); see that type's
+//! `ScholarlyTransport`/`RetractionTransport` `impl`s in
+//! `wf027::http_browser`. `search_open_find::provider()` wires it in by
+//! default for the `scholarly` case.
 
 pub mod receipt;
 pub mod resource_guard;
