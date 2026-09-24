@@ -98,7 +98,7 @@ fn server_serves_health_events_and_poll_over_real_tcp() {
 
     // A route that genuinely still has no implementation (its dependency,
     // `live/session-store.mjs`, is unported) still answers 501 naming it.
-    let not_implemented = http_get(port, "/annotation");
+    let not_implemented = http_post(port, "/annotation", "{}");
     assert!(not_implemented.contains("501"));
     assert!(not_implemented.contains("session-store.mjs"));
 

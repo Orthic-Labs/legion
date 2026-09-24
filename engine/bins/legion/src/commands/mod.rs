@@ -28,6 +28,7 @@ pub mod report;
 pub mod rules;
 pub mod run;
 pub mod schedule;
+pub mod script;
 pub mod setup;
 pub mod skills;
 pub mod state;

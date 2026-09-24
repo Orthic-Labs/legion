@@ -5,18 +5,20 @@
 //! same way the Python `goal_route_errors()` dynamically loads and calls
 //! this sibling module.
 //!
-//! **Known gap** (documented, not silently dropped): the Python
-//! `validator_sha256()` hashes `Path(__file__).read_bytes()` — the bytes of
-//! `validate-route.py` itself — and `validate_receipt()` compares a
-//! receipt's `validator_sha256` field against that. There is no
-//! `__file__` equivalent for a compiled-in Rust module, so
-//! [`validator_sha256`] instead hashes the *legacy Python script's* bytes,
-//! located relative to the repository root (`src/lib/goalroute/scripts/validate-route.py`).
-//! This reproduces the check exactly as long as that legacy file exists
-//! unmodified beside the Rust port (per the port brief, legacy files are
-//! not deleted by this packet); if the legacy file is later removed, this
-//! check will start failing every receipt and needs a replacement digest
-//! source at that time.
+//! **Resolved gap**: the Python `validator_sha256()` hashes
+//! `Path(__file__).read_bytes()` — the bytes of `validate-route.py` itself
+//! — and `validate_receipt()` compares a receipt's `validator_sha256`
+//! field against that. There is no `__file__` equivalent for a compiled-in
+//! Rust module, and hashing the sibling legacy Python script's bytes (the
+//! prior approach here) ties every future receipt to a file the port brief
+//! says will eventually be deleted. [`validator_sha256`] instead hashes
+//! this Rust validator's own identity string
+//! (`"legion-goal-route-validator:" + VALIDATOR_VERSION`), i.e. this
+//! module's own compiled-in version — bump [`VALIDATOR_VERSION`]
+//! whenever this validator's behaviour changes, exactly as the Python
+//! digest changed whenever `validate-route.py`'s bytes changed. This is a
+//! deliberate identity change (old receipts' `validator_sha256` no longer
+//! matches), not a bug.
 //!
 //! **Known gap 2**: Python's `uuid.UUID(run_id)` accepts many input forms
 //! (hyphenated, bare 32-hex, braced, `urn:uuid:` prefixed, mixed case).
@@ -24,7 +26,7 @@
 //! (case-insensitive), which is what every existing GoalRoute artifact in
 //! this repository uses; the other forms are PORTED-PARTIAL.
 
-use crate::wf_port::w2_045::path_utils::{canonical_locator, repository_root};
+use crate::wf_port::w2_045::path_utils::canonical_locator;
 use regex::Regex;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -34,8 +36,6 @@ use std::sync::OnceLock;
 pub const SCHEMA: &str = "goal-route.v2";
 pub const RECEIPT_SCHEMA: &str = "goal-route.receipt.v2";
 pub const VALIDATOR_VERSION: &str = "2.1.0";
-
-const LEGACY_VALIDATOR_RELATIVE_PATH: &str = "src/lib/goalroute/scripts/validate-route.py";
 
 fn sha256_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
@@ -79,12 +79,16 @@ pub fn sha256_bytes(data: &[u8]) -> String {
     hex::encode(Sha256::digest(data))
 }
 
-/// Port of `validator_sha256()`. See the module gap note above.
-pub fn validator_sha256(artifact: &Path) -> std::io::Result<String> {
-    let root = repository_root(artifact).unwrap_or_else(|| artifact.to_path_buf());
-    let script_path = root.join(LEGACY_VALIDATOR_RELATIVE_PATH);
-    let bytes = std::fs::read(&script_path)?;
-    Ok(sha256_bytes(&bytes))
+/// Port of `validator_sha256()`. Hashes this Rust validator's own
+/// identity (crate name + [`VALIDATOR_VERSION`]) rather than the legacy
+/// Python script's bytes — see the module doc's "Resolved gap" note.
+/// `artifact` is accepted for call-site parity with the Python signature
+/// (and every other sibling `validator_sha256`-style helper in this
+/// crate) but is not used to compute the digest.
+pub fn validator_sha256(_artifact: &Path) -> std::io::Result<String> {
+    Ok(sha256_bytes(
+        format!("legion-goal-route-validator:{VALIDATOR_VERSION}").as_bytes(),
+    ))
 }
 
 /// Port of `concrete()` with the default `minimum=12`.
@@ -887,9 +891,10 @@ pub fn validate_route(data: &Value) -> Vec<String> {
 }
 
 /// Port of `validate_receipt()`. `route_path` is the resolved path used to
-/// compute `route_path`'s canonical locator (and, via
-/// [`validator_sha256`], to find the repository root for the legacy
-/// validator script); `raw` is the exact bytes read from `route_path`.
+/// compute its canonical locator; `raw` is the exact bytes read from
+/// `route_path`. `route_path` is accepted by [`validator_sha256`] for
+/// signature parity but no longer drives the digest — see that function's
+/// doc.
 pub fn validate_receipt(route_path: &Path, receipt_path: &Path, raw: &[u8]) -> Vec<String> {
     let receipt_text = match std::fs::read_to_string(receipt_path) {
         Ok(text) => text,

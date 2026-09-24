@@ -24,14 +24,18 @@
 //! `detectHtml`'s full per-element rule engine (`rules/checks.mjs`, ~2700
 //! lines: border/color/glow/motion/icon-tile/italic-serif/hero-eyebrow/
 //! quality/oversized-h1/clipped-overflow/gpt-border-shadow checks driven by
-//! a static CSS cascade + computed-style resolver) and the detector
-//! antipattern registry (`registry/antipatterns.mjs`, the `name`/
-//! `description`/`severity`/`gated` metadata table `finding()` looks ids up
-//! in) are not ported anywhere in this tree yet. [`cli::Detectors`] takes
-//! HTML/URL scanning as injected callbacks for exactly this reason: this
-//! packet wires the CLI faithfully around whatever detector implementation
-//! is supplied, without depending on those two still-unported pieces to
-//! compile or to have a concrete production implementation today.
+//! a static CSS cascade + computed-style resolver) is not ported anywhere
+//! in this tree yet. [`cli::Detectors`] takes HTML/URL scanning as injected
+//! callbacks for exactly this reason: this packet wires the CLI faithfully
+//! around whatever detector implementation is supplied, without depending
+//! on that still-unported piece to compile or to have a concrete
+//! production implementation today.
+//!
+//! The detector antipattern registry (`registry/antipatterns.mjs`, the
+//! `name`/`description`/`severity`/`gated` metadata table `finding()` looks
+//! ids up in) *is* now ported (`wf_port::w2_014::antipatterns`), with
+//! `wf_port::r07::RegistryLookup` as the concrete `AntipatternLookup` to
+//! inject into [`real_detectors::RealDetectors`] (packet `ap`).
 //! `detect_text`'s eight page-level content analyzers (`single-font`,
 //! `flat-type-hierarchy`, `monotonous-spacing`, `em-dash-overuse`,
 //! `marketing-buzzword`, `numbered-section-markers`, `aphoristic-cadence`,

@@ -113,9 +113,10 @@ fn every_adr_canon_clarify_case_passes_its_own_validator() {
 }
 
 // ---------------------------------------------------------------------
-// eval-adversarial.mjs — one case ported, eight blocked on
-// routeArchitecture (no Rust port yet). These tests assert the honest
-// blocked/pending split rather than fabricated pass/fail behavior.
+// eval-adversarial.mjs — one case ported (AE-ADVERSARIAL-003, backed by
+// the Rust `route_architecture`), eight pending on other ingress. These
+// tests assert the honest observed/pending split rather than fabricated
+// pass/fail behavior.
 // ---------------------------------------------------------------------
 
 #[test]
@@ -126,9 +127,10 @@ fn adversarial_id_list_matches_js_source() {
 }
 
 #[test]
-fn adversarial_003_blocked_and_every_other_pending() {
+fn adversarial_003_observed_and_every_other_pending() {
     let r003 = execute_adversarial_binding("AE-ADVERSARIAL-003");
-    assert!(matches!(r003, AdversarialResult::BlockedOnDependency { .. }));
+    assert!(matches!(r003, AdversarialResult::Observed { .. }));
+    assert!(validate_adversarial_observation(&r003));
     for id in adversarial_binding_ids() {
         if *id == "AE-ADVERSARIAL-003" {
             continue;

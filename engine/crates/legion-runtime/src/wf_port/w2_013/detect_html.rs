@@ -445,6 +445,80 @@ pub fn check_static_page_typography(
     findings
 }
 
+// ─── Packet r10r11: STATIC_ELEMENT_RULES + page-check block ───────────────
+//
+// The rest of `detectHtml`'s pipeline: the twelve `STATIC_ELEMENT_RULES`
+// entries and the five `checks.mjs` page-level checks the `isFullPage`
+// branch runs, now that `wf_port::r09` supplies the real static DOM +
+// cascade (`StaticDocument`/`ComputedStyle`) those need, and
+// `wf_port::r11::static_adapters` supplies the checkElement*/checkPage*
+// glue over it. Uses `wf_port::r09`'s DOM, not this file's own
+// `StaticStylesheet` above (that one is scoped to the two properties
+// `checkStaticPageTypography` needs; these rules read many more).
+
+use crate::l6_designer_checks::pure_checks::Finding;
+use crate::wf_port::r09::StaticDocument;
+use crate::wf_port::r11::static_adapters as sa;
+
+/// Port of `STATIC_ELEMENT_RULES`, run over an already-built
+/// `wf_port::r09::StaticDocument` (the caller builds it via
+/// `collect_static_css_text` + `build_static_style_map`, same as
+/// `detectHtml` does with `collectStaticCssText`/`buildStaticStyleMap`).
+pub fn static_element_findings(doc: &StaticDocument) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    let all_selector = scraper::Selector::parse("*").expect("static selector");
+    for el in doc.html.select(&all_selector) {
+        let tag = el.value().name().to_ascii_lowercase();
+        let style = doc.get_style(&el);
+
+        let radius = sa::resolve_border_radius_px_for(&style);
+        findings.extend(sa::check_element_borders(&tag, &style, Some(radius)));
+        findings.extend(sa::check_element_colors(el, doc, &style, &tag));
+        let parent_bg = sa::resolve_background(el.parent().and_then(scraper::ElementRef::wrap).unwrap_or(el), doc);
+        findings.extend(sa::check_element_glow(&tag, &style, parent_bg));
+        findings.extend(sa::check_element_motion(&tag, &style));
+        if matches!(tag.as_str(), "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
+            findings.extend(sa::check_element_icon_tile(el, doc, &tag));
+        }
+        if matches!(tag.as_str(), "h1" | "h2") {
+            findings.extend(sa::check_element_italic_serif(el, &style, &tag));
+        }
+        if tag == "h1" {
+            findings.extend(sa::check_element_hero_eyebrow(el, doc, &style, &tag));
+            findings.extend(sa::check_element_oversized_h1(el, doc, &tag));
+        }
+        if tag == "img" {
+            if let Some(snippet) = classify_img_src(el.value().attr("src")) {
+                findings.push(Finding { id: BROKEN_IMAGE_ANTIPATTERN_ID, snippet });
+            }
+        }
+        findings.extend(sa::check_element_quality(el, doc, &style, &tag));
+        findings.extend(sa::check_element_clipped_overflow(el, doc, &style));
+        findings.extend(sa::check_element_gpt_border_shadow(&style));
+    }
+    findings
+}
+
+/// Port of the `isFullPage(html)` page-check block's five `checks.mjs`
+/// calls (`checkStaticPageTypography` is ported separately above, and
+/// `checkHtmlPatterns` filters out `bounce-easing`/`layout-transition`
+/// exactly as `detectHtml` does — those two ids are also reachable via the
+/// element-level `motion-rules` rule, so the page pass suppresses the
+/// duplicate).
+pub fn page_findings(doc: &StaticDocument, html: &str) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    findings.extend(sa::check_repeated_section_kickers_from_doc(doc));
+    findings.extend(sa::check_page_layout(doc));
+    findings.extend(sa::check_cream_palette(doc));
+    findings.extend(sa::check_page_quality_from_doc(doc));
+    findings.extend(
+        crate::wf_port::r11::html_patterns::check_html_patterns(html)
+            .into_iter()
+            .filter(|f| f.id != "bounce-easing" && f.id != "layout-transition"),
+    );
+    findings
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

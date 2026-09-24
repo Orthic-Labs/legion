@@ -15,6 +15,11 @@
 //! empty); `legion-provider-sdk::registry` is a related but differently-
 //! shaped native registry — see the gap note on [`registry`].
 //!
+//! [`provider_registry`] additionally ports `src/registry/provider-registry.mjs`
+//! (a distinct file from `registry.mjs` above, despite the similar name):
+//! the live `providers.json` (schemaVersion 2) selection/validation/
+//! coverage pipeline. See its module doc for exact scope.
+//!
 //! Two files (`runtime-module.mjs`, and the `runtime-script`/
 //! `security-pack` branch of `provider-executor.mjs`) center on Node's
 //! dynamic `import()` of an arbitrary JS module at a sealed path. Rust has
@@ -26,6 +31,7 @@
 
 pub mod external_process;
 pub mod provider_executor;
+pub mod provider_registry;
 pub mod registry;
 pub mod runtime_module;
 pub mod tool_identity;

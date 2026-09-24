@@ -46,7 +46,7 @@ impl ChromeSession {
         let _ = tab.add_event_listener(Arc::new(move |event: &headless_chrome::protocol::cdp::types::Event| {
             match event {
                 headless_chrome::protocol::cdp::types::Event::RuntimeConsoleAPICalled(ev) => {
-                    let level = format!("{:?}", ev.params.call_type).to_lowercase();
+                    let level = format!("{:?}", ev.params.Type).to_lowercase();
                     if level == "error" || level == "warning" {
                         let text = ev
                             .params
@@ -186,8 +186,8 @@ impl BrowserSession for ChromeSession {
         // is left as a no-op with the gap documented, rather than guessed.
         self.tab
             .call_method(headless_chrome::protocol::cdp::Emulation::SetDeviceMetricsOverride {
-                width: conditions.width as u64,
-                height: conditions.height as u64,
+                width: conditions.width as u32,
+                height: conditions.height as u32,
                 device_scale_factor: conditions.dpr,
                 mobile: conditions.mobile,
                 scale: None,
@@ -199,11 +199,12 @@ impl BrowserSession for ChromeSession {
                 screen_orientation: None,
                 viewport: None,
                 display_feature: None,
+                device_posture: None,
             })
             .map_err(|e| e.to_string())?;
         if let Some(rate) = conditions.cpu {
             self.tab
-                .call_method(headless_chrome::protocol::cdp::Emulation::SetCpuThrottlingRate { rate })
+                .call_method(headless_chrome::protocol::cdp::Emulation::SetCPUThrottlingRate { rate })
                 .map_err(|e| e.to_string())?;
         }
         Ok(())

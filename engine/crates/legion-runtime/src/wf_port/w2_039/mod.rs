@@ -50,15 +50,23 @@
 //!   engine/` — no hits at port time). The `blueprint-packet` default stage
 //!   is dropped per the Membrane/Blueprint retirement.
 
-//! - `src/lib/core/finalize-run.mjs` — **PORTED-PARTIAL**, unchanged by
-//!   packet r44. `exitCodeForReport` is already native
-//!   (`legion_runtime::p5_core::exit_taxonomy::exit_code_for_report`, see
-//!   w2_040). `finalizeRun({plan, facts, results, policy}, host)` itself
-//!   stays **NOT-STARTED**: besides field renaming its only statement is
-//!   `await import('../../../tools/audit/audit-finalize.mjs')` then
-//!   `finalizeAudit(...)` — a 272-line audit-domain module at
-//!   `tools/audit/audit-finalize.mjs`, outside `src/lib/**` entirely and
-//!   not in this packet.
+//! - `src/lib/core/finalize-run.mjs` — **PORTED** in full (packet r44b),
+//!   see [`finalize_run`]. `exitCodeForReport` was already native
+//!   (`legion_runtime::p5_core::exit_taxonomy::exit_code_for_report`); the
+//!   r44b [`finalize_run::exit_code_for_report`] is a thin JSON-report
+//!   adapter onto that same function, not a second implementation.
+//!   `finalizeRun({plan, facts, results, policy}, host)` is now ported,
+//!   including its one real dependency `tools/audit/audit-finalize.mjs`'s
+//!   `finalizeAudit` (272 lines, ported in full as
+//!   [`finalize_run::finalize_audit`] — every helper:
+//!   `requiredLenses`/`ranLenses`/`candidateGeneratorIds`/
+//!   `isCandidateGenerator`/`providerFindings`/`redactedSecretCarrier`/
+//!   `orphanSecurityVerdicts`/`securityFindings`/`nonSecurityGaps`/
+//!   `canonicalCounts`). Not ported: `reportToSarif`
+//!   (`scripts/report-to-sarif.mjs`) and `audit-finalize.mjs`'s CLI
+//!   `main()` (argv/file I/O) — out of this packet's file list and host
+//!   I/O respectively; a CLI caller reads the three JSON inputs and calls
+//!   `finalize_audit` itself.
 //! - `src/lib/core/index.mjs` — **PORTED-PARTIAL** (packet r44), see
 //!   [`core_index`]. `writeRunManifest` is ported in full: it only needed
 //!   this chunk's own `digest()` (`binding.rs`) plus the already-written
@@ -73,5 +81,6 @@ pub mod binding;
 pub mod build_plan;
 pub mod core_index;
 pub mod execute_plan;
+pub mod finalize_run;
 pub mod judgment;
 pub mod run_ledger;

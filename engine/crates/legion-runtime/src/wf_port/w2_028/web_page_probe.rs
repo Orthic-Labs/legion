@@ -510,6 +510,7 @@ impl PageBrowser for ChromePageBrowser {
             .map_err(|e| BrowserError::Other(e.to_string()))?;
         self.tab
             .wait_until_navigated()
+            .map(|_| ())
             .map_err(|_| BrowserError::Timeout)
     }
 

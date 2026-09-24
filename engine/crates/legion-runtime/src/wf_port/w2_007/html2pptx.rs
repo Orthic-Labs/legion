@@ -1211,6 +1211,22 @@ pub fn write_pptx_from_slide_data(
     slide_data: &RawSlideData,
     image_source: &mut dyn ImageSource,
 ) -> Result<(), String> {
+    write_pptx_from_slides(
+        out_path,
+        layout_width_in,
+        layout_height_in,
+        std::slice::from_ref(slide_data),
+        image_source,
+    )
+}
+
+/// One slide's XML part, its `.rels` part, and any media bytes it needs,
+/// built the same way [`write_pptx_from_slide_data`] builds its single
+/// slide — factored out so [`write_pptx_from_slides`] can build several.
+fn build_slide_parts(
+    slide_data: &RawSlideData,
+    image_source: &mut dyn ImageSource,
+) -> Result<(String, String, Vec<(String, Vec<u8>)>), String> {
     let mut builder = SlideBuilder {
         shapes_xml: String::new(),
         next_id: 1,
@@ -1225,9 +1241,6 @@ pub fn write_pptx_from_slide_data(
     for el in &slide_data.elements {
         add_element(&mut builder, el)?;
     }
-
-    let cx = emu(layout_width_in);
-    let cy = emu(layout_height_in);
 
     let slide_xml = format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n\
@@ -1259,6 +1272,60 @@ pub fn write_pptx_from_slide_data(
     }
     slide_rels.push_str("</Relationships>");
 
+    let media: Vec<(String, Vec<u8>)> = bg_media.into_iter().chain(builder.media.into_iter()).collect();
+    Ok((slide_xml, slide_rels, media))
+}
+
+/// Multi-slide port of `html2pptx`'s output half plus the caller's
+/// `pres.writeFile()`: builds one `.pptx` (a zip of OOXML parts) with one
+/// `ppt/slides/slideN.xml` per entry in `slides`, in order, sharing one
+/// layout/master/theme. This is what `wf_port::r00::export_deck_pptx::run`
+/// needs, since its `pres` accumulates one `RawSlideData` per input HTML
+/// file — `write_pptx_from_slide_data` above only ever wrote one slide.
+/// Media filenames are de-duplicated and disambiguated per slide to avoid
+/// collisions when multiple slides reference same-named local images.
+pub fn write_pptx_from_slides(
+    out_path: &std::path::Path,
+    layout_width_in: f64,
+    layout_height_in: f64,
+    slides: &[RawSlideData],
+    image_source: &mut dyn ImageSource,
+) -> Result<(), String> {
+    if slides.is_empty() {
+        return Err("write_pptx_from_slides: no slides".to_string());
+    }
+
+    let cx = emu(layout_width_in);
+    let cy = emu(layout_height_in);
+
+    let mut slide_id_list = String::new();
+    let mut presentation_rels = String::from(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n\
+         <Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\
+         <Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster\" Target=\"slideMasters/slideMaster1.xml\"/>",
+    );
+    let mut content_type_overrides = String::new();
+    let mut slide_parts: Vec<(String, String, Vec<(String, Vec<u8>)>)> = Vec::new();
+
+    for (i, slide_data) in slides.iter().enumerate() {
+        let n = i + 1;
+        let rid = n + 1; // rId1 is the slide master, so slides start at rId2
+        slide_id_list.push_str(&format!("<p:sldId id=\"{}\" r:id=\"rId{rid}\"/>", 256 + i));
+        presentation_rels.push_str(&format!(
+            "<Relationship Id=\"rId{rid}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide\" Target=\"slides/slide{n}.xml\"/>"
+        ));
+        content_type_overrides.push_str(&format!(
+            "<Override PartName=\"/ppt/slides/slide{n}.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slide+xml\"/>"
+        ));
+        let parts = build_slide_parts(slide_data, image_source)?;
+        slide_parts.push(parts);
+    }
+    let theme_rid = slides.len() + 2;
+    presentation_rels.push_str(&format!(
+        "<Relationship Id=\"rId{theme_rid}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme\" Target=\"theme/theme1.xml\"/>"
+    ));
+    presentation_rels.push_str("</Relationships>");
+
     let file = std::fs::File::create(out_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipWriter::new(file);
     let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
@@ -1268,10 +1335,10 @@ pub fn write_pptx_from_slide_data(
         std::io::Write::write_all(zip, content).map_err(|e| e.to_string())
     };
 
-    write_part(&mut zip, "[Content_Types].xml", CONTENT_TYPES_XML.as_bytes())?;
+    write_part(&mut zip, "[Content_Types].xml", multi_content_types_xml(&content_type_overrides).as_bytes())?;
     write_part(&mut zip, "_rels/.rels", PACKAGE_RELS_XML.as_bytes())?;
     write_part(&mut zip, "docProps/core.xml", CORE_PROPS_XML.as_bytes())?;
-    write_part(&mut zip, "docProps/app.xml", APP_PROPS_XML.as_bytes())?;
+    write_part(&mut zip, "docProps/app.xml", multi_app_props_xml(slides.len()).as_bytes())?;
     write_part(
         &mut zip,
         "ppt/presentation.xml",
@@ -1281,44 +1348,71 @@ pub fn write_pptx_from_slide_data(
              xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" \
              xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\">\
              <p:sldMasterIdLst><p:sldMasterId id=\"2147483648\" r:id=\"rId1\"/></p:sldMasterIdLst>\
-             <p:sldIdLst><p:sldId id=\"256\" r:id=\"rId2\"/></p:sldIdLst>\
+             <p:sldIdLst>{slide_id_list}</p:sldIdLst>\
              <p:sldSz cx=\"{cx}\" cy=\"{cy}\"/><p:notesSz cx=\"6858000\" cy=\"9144000\"/></p:presentation>"
         )
         .as_bytes(),
     )?;
-    write_part(&mut zip, "ppt/_rels/presentation.xml.rels", PRESENTATION_RELS_XML.as_bytes())?;
+    write_part(&mut zip, "ppt/_rels/presentation.xml.rels", presentation_rels.as_bytes())?;
     write_part(&mut zip, "ppt/theme/theme1.xml", THEME_XML.as_bytes())?;
     write_part(&mut zip, "ppt/slideMasters/slideMaster1.xml", SLIDE_MASTER_XML.as_bytes())?;
     write_part(&mut zip, "ppt/slideMasters/_rels/slideMaster1.xml.rels", SLIDE_MASTER_RELS_XML.as_bytes())?;
     write_part(&mut zip, "ppt/slideLayouts/slideLayout1.xml", SLIDE_LAYOUT_XML.as_bytes())?;
     write_part(&mut zip, "ppt/slideLayouts/_rels/slideLayout1.xml.rels", SLIDE_LAYOUT_RELS_XML.as_bytes())?;
-    write_part(&mut zip, "ppt/slides/slide1.xml", slide_xml.as_bytes())?;
-    write_part(&mut zip, "ppt/slides/_rels/slide1.xml.rels", slide_rels.as_bytes())?;
 
-    for (filename, bytes) in bg_media.into_iter().chain(builder.media.into_iter()) {
-        write_part(&mut zip, &format!("ppt/media/{filename}"), &bytes)?;
+    for (i, (slide_xml, mut slide_rels, media)) in slide_parts.into_iter().enumerate() {
+        let n = i + 1;
+        write_part(&mut zip, &format!("ppt/slides/slide{n}.xml"), slide_xml.as_bytes())?;
+        for (filename, bytes) in media {
+            // Prefix with the slide index to avoid cross-slide filename
+            // collisions (each slide's `build_slide_parts` numbers its own
+            // media starting from the same counters), and rewrite the
+            // `.rels` part's `../media/<filename>` target to match, so the
+            // relationship still resolves to the renamed part.
+            let prefixed = format!("s{n}_{filename}");
+            slide_rels = slide_rels.replace(
+                &format!("../media/{filename}"),
+                &format!("../media/{prefixed}"),
+            );
+            write_part(&mut zip, &format!("ppt/media/{prefixed}"), &bytes)?;
+        }
+        write_part(&mut zip, &format!("ppt/slides/_rels/slide{n}.xml.rels"), slide_rels.as_bytes())?;
     }
 
     zip.finish().map_err(|e| e.to_string())?;
     Ok(())
 }
 
-const CONTENT_TYPES_XML: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-<Default Extension="xml" ContentType="application/xml"/>
-<Default Extension="png" ContentType="image/png"/>
-<Default Extension="jpg" ContentType="image/jpeg"/>
-<Default Extension="jpeg" ContentType="image/jpeg"/>
-<Default Extension="gif" ContentType="image/gif"/>
-<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
-<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
-<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
-<Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>
-<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
-<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
-<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
-</Types>"#;
+fn multi_content_types_xml(slide_overrides: &str) -> String {
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n\
+         <Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">\
+         <Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>\
+         <Default Extension=\"xml\" ContentType=\"application/xml\"/>\
+         <Default Extension=\"png\" ContentType=\"image/png\"/>\
+         <Default Extension=\"jpg\" ContentType=\"image/jpeg\"/>\
+         <Default Extension=\"jpeg\" ContentType=\"image/jpeg\"/>\
+         <Default Extension=\"gif\" ContentType=\"image/gif\"/>\
+         <Override PartName=\"/ppt/presentation.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml\"/>\
+         <Override PartName=\"/ppt/slideMasters/slideMaster1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml\"/>\
+         <Override PartName=\"/ppt/slideLayouts/slideLayout1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml\"/>\
+         {slide_overrides}\
+         <Override PartName=\"/ppt/theme/theme1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.theme+xml\"/>\
+         <Override PartName=\"/docProps/core.xml\" ContentType=\"application/vnd.openxmlformats-package.core-properties+xml\"/>\
+         <Override PartName=\"/docProps/app.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.extended-properties+xml\"/>\
+         </Types>"
+    )
+}
+
+fn multi_app_props_xml(slide_count: usize) -> String {
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n\
+         <Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\">\
+         <Application>legion-runtime html2pptx</Application>\
+         <Slides>{slide_count}</Slides>\
+         </Properties>"
+    )
+}
 
 const PACKAGE_RELS_XML: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -1332,19 +1426,6 @@ const CORE_PROPS_XML: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone=
 <dc:title>html2pptx</dc:title>
 <dc:creator>legion html2pptx (Rust port)</dc:creator>
 </cp:coreProperties>"#;
-
-const APP_PROPS_XML: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
-<Application>legion-runtime html2pptx</Application>
-<Slides>1</Slides>
-</Properties>"#;
-
-const PRESENTATION_RELS_XML: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
-<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
-<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
-</Relationships>"#;
 
 const THEME_XML: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="html2pptx">

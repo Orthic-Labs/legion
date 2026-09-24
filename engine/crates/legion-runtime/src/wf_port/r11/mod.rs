@@ -7,14 +7,27 @@
 //! `checkGlow` (checks.mjs lines ~26-51, ~65-158, ~179-219, ~308-363,
 //! ~372-440).
 //!
-//! Still NOT ported (unchanged from `l6_designer_checks`'s own report):
-//! `checkHtmlPatterns` (needs an HTML parser — none pinned in this
-//! workspace) and everything DOM-shaped (`*DOM`, `*FromStyle` taking a live
-//! computed-style object, `resolveBackground`/`resolveGradientStops`/
-//! `buildCustomPropMap`/`resolveVarRefs`, `checkQuality`, `checkTypography`,
-//! `checkLayout`, page-level `check*FromDoc`/`checkPage*`). Those all
-//! require a DOM/HTML foundation that does not exist in this Rust
-//! workspace; none is added here per the port brief (no unpinned deps).
+//! Packet r10r11 closes the rest of `checks.mjs` in two sibling submodules,
+//! now that `wf_port::r09` supplies a real static DOM + CSS cascade
+//! (`scraper`-backed) to drive it over: [`html_patterns`] ports
+//! `checkHtmlPatterns` (pure regex/string, no DOM needed), and
+//! [`static_adapters`] ports the `checkElement*`/`checkPage*`/
+//! `check*FromDoc` glue (`resolveBackground`/`resolveGradientStops`,
+//! `checkElementBorders`/`Colors`/`IconTile`/`ItalicSerif`/`HeroEyebrow`/
+//! `Motion`/`Glow`/`OversizedH1`/`ClippedOverflow`/`GptBorderShadow`,
+//! `checkQuality` with `rect: null` — the exact static-engine call shape —
+//! `checkPageLayout`, `checkCreamPalette`, `checkPageQualityFromDoc`,
+//! `checkRepeatedSectionKickersFromDoc`) that `detect-html.mjs`'s
+//! `STATIC_ELEMENT_RULES` and page-check block actually call.
+//!
+//! Still not ported, named precisely in [`static_adapters`]'s own doc
+//! comment: the live-browser-globals `checkTypography()`/`checkLayout()`
+//! (not the same functions as the ported `checkPageLayout(doc, win)` —
+//! these read the ambient `document`/`getComputedStyle`, never called by
+//! `detectHtml`) and every `checkElement*DOM` sibling (real
+//! `getBoundingClientRect`), which belong to the separate live/visual
+//! detector engine, not the static-HTML one this packet's two target files
+//! are part of.
 //!
 //! Findings reuse `l6_designer_checks::pure_checks::Finding` (same
 //! `{ id, snippet }` shape as the JS detector) so callers get one finding
@@ -628,6 +641,13 @@ pub fn check_glow(box_shadow: Option<&str>, effective_bg: Option<Rgba>) -> Vec<F
 
     vec![]
 }
+
+// Packet r10r11: closes the gap this module's own doc comment named
+// ("everything DOM-shaped" / `checkHtmlPatterns`) by adding the remaining
+// pieces of `checks.mjs` as sibling submodules driven over
+// `wf_port::r09`'s static DOM + cascade.
+pub mod html_patterns;
+pub mod static_adapters;
 
 #[cfg(test)]
 mod tests {

@@ -8,20 +8,25 @@
 //! [`ChromeDriver`] + [`AntipatternLookup`] generically for exactly this
 //! reason).
 //!
-//! See [`super`]'s module doc for the two capabilities genuinely not ported
-//! anywhere in this tree yet (detectHtml's per-element rule engine and the
-//! antipattern registry) and how that gap is reflected here: [`detect_html`]
+//! The antipattern registry (`registry/antipatterns.mjs`) is ported at
+//! `wf_port::w2_014::antipatterns`, with `wf_port::r07::RegistryLookup` as
+//! the production [`AntipatternLookup`]; [`RealDetectors`] carries a
+//! `providers` field so `detect_text`/`detect_html`'s `filterByProviders`
+//! step and `detect_url`'s equivalent both run against it. The one
+//! capability genuinely not ported anywhere in this tree is `detectHtml`'s
+//! ~2700-line per-element rule engine (`rules/checks.mjs`): [`detect_html`]
 //! produces broken-image, static typography, design-system, and
-//! text-content findings but not the ~2700-line per-element rule engine's.
-//! [`detect_text`] is the full composition: `r08` regex matchers + style/
-//! CSS-in-JS block extraction, `w2_011` design-system source checks, and
-//! `w2_012`'s eight page-level content analyzers.
+//! text-content findings but not that rule engine's. [`detect_text`] is the
+//! full composition: `r08` regex matchers + style/CSS-in-JS block
+//! extraction, `w2_011` design-system source checks, and `w2_012`'s eight
+//! page-level content analyzers.
 
 use std::path::Path;
 
 use super::super::r07::browser::ChromeDriver;
 use super::super::r07::detect_url::{detect_url as port_detect_url, DetectUrlOptions, Viewport};
 use super::super::r07::findings::AntipatternLookup;
+use std::collections::HashSet;
 use super::super::r08::detect_text_matchers::{extract_css_in_js, extract_style_blocks, run_regex_matchers};
 use super::super::r08::sweep_live::{sweep_site, PageFetcher};
 use super::super::w2_011::design_system::{check_source_design_system, DesignSystem};
@@ -64,11 +69,12 @@ fn dedupe(findings: Vec<CliFinding>) -> Vec<CliFinding> {
 /// the same 2-line dedup JS applies, then (when `shouldRunPageAnalyzers`
 /// gates true) the eight page-level content analyzers appended
 /// undeduped — matching `detectText`'s own `deduped.push(...analyzer
-/// results)` after its dedup loop. Provider filtering
-/// (`filterByProviders`) is not applied: it depends on the antipattern
-/// registry's `gated` metadata, which isn't ported anywhere in this tree
-/// (see [`super`]'s module doc), so `--gpt`/`--gemini` are accepted by the
-/// CLI but don't change this function's output.
+/// results)` after its dedup loop. This function itself does not apply
+/// `filterByProviders` (it takes no registry/providers) — that gating is
+/// applied by [`RealDetectors::detect_text`], the `Detectors::detect_text`
+/// impl, via [`filter_cli_findings_by_providers`], now that the antipattern
+/// registry is ported (`wf_port::w2_014::antipatterns`,
+/// `wf_port::r07::RegistryLookup`).
 pub fn detect_text(content: &str, file_path: &str, design_system: Option<&DesignSystem>) -> Vec<CliFinding> {
     let ext = ext_from_path(file_path);
     let lines: Vec<&str> = content.split('\n').collect();
@@ -213,6 +219,35 @@ pub fn detect_url(
         .collect())
 }
 
+/// Port of `filterByProviders(findings, providers)` (`registry/antipatterns.mjs`)
+/// applied to [`CliFinding`]s, mirroring the final step of both
+/// `detectText` (`detect-text.mjs`) and `detectHtml` (`detect-html.mjs`):
+/// both call `filterByProviders(deduped/findings, options.providers)`
+/// before returning. Kept local (rather than reusing
+/// `r07::findings::filter_by_providers`, which operates on `r07::Finding`)
+/// since `CliFinding` is this crate's own output shape; the gating logic
+/// (registry lookup + `GATED_PROVIDERS` short-circuit) is identical.
+fn filter_cli_findings_by_providers(
+    registry: &impl AntipatternLookup,
+    findings: Vec<CliFinding>,
+    providers: &[String],
+) -> Vec<CliFinding> {
+    if !registry.has_gated_providers() {
+        return findings;
+    }
+    let enabled: HashSet<&str> = providers.iter().map(String::as_str).collect();
+    findings
+        .into_iter()
+        .filter(|f| match registry.get(&f.antipattern) {
+            None => true,
+            Some(rule) => match rule.gated {
+                None => true,
+                Some(gate) => enabled.contains(gate.as_str()),
+            },
+        })
+        .collect()
+}
+
 /// Thin wrapper over `wf_port::r08::sweep_live::sweep_site`.
 pub fn sweep(fetcher: &dyn PageFetcher, url: &str, site_type: Option<&str>) -> Vec<CliFinding> {
     sweep_site(fetcher, url, site_type)
@@ -243,6 +278,12 @@ where
     pub registry: &'a Reg,
     pub fetcher: &'a Fe,
     pub browser_script: &'a str,
+    /// CLI-wide `--gpt`/`--gemini` providers, applied by `detect_text`/
+    /// `detect_html` (via [`filter_cli_findings_by_providers`]) the same
+    /// way `options.providers` gates every call in one `main.mjs`
+    /// invocation; `detect_url` gets its own copy per-call through
+    /// `UrlScanOptions`, matching `detectUrl`'s own `options.providers`.
+    pub providers: &'a [String],
 }
 
 impl<'a, Drv, Reg, Fe> super::cli::Detectors for RealDetectors<'a, Drv, Reg, Fe>
@@ -252,11 +293,13 @@ where
     Fe: PageFetcher,
 {
     fn detect_text(&mut self, content: &str, file_path: &str, design_system: Option<&DesignSystem>) -> Vec<CliFinding> {
-        detect_text(content, file_path, design_system)
+        let findings = detect_text(content, file_path, design_system);
+        filter_cli_findings_by_providers(self.registry, findings, self.providers)
     }
 
     fn detect_html(&mut self, file_path: &str, design_system: Option<&DesignSystem>) -> Result<Vec<CliFinding>, String> {
-        detect_html(file_path, design_system).map_err(|e| e.to_string())
+        let findings = detect_html(file_path, design_system).map_err(|e| e.to_string())?;
+        Ok(filter_cli_findings_by_providers(self.registry, findings, self.providers))
     }
 
     fn detect_url(&mut self, url: &str, options: &super::cli::UrlScanOptions) -> Result<Vec<CliFinding>, String> {

@@ -421,12 +421,11 @@ impl BrowserDriver for ChromeBrowserDriver {
     fn open(&mut self, file_url: &str, viewport: Viewport) -> Result<(), String> {
         let _ = self.headless;
         let tab = self.browser.new_tab().map_err(|e| e.to_string())?;
-        let _ = tab.set_bounds(headless_chrome::types::Bounds {
+        let _ = tab.set_bounds(headless_chrome::types::Bounds::Normal {
             left: Some(0),
             top: Some(0),
-            width: Some(viewport.width),
-            height: Some(viewport.height),
-            window_state: None,
+            width: Some(viewport.width as f64),
+            height: Some(viewport.height as f64),
         });
 
         let console = self.console.clone();
@@ -434,7 +433,7 @@ impl BrowserDriver for ChromeBrowserDriver {
         let _ = tab.add_event_listener(std::sync::Arc::new(move |event: &headless_chrome::protocol::cdp::types::Event| {
             match event {
                 headless_chrome::protocol::cdp::types::Event::RuntimeConsoleAPICalled(ev) => {
-                    let level = format!("{:?}", ev.params.r#type).to_lowercase();
+                    let level = format!("{:?}", ev.params.Type).to_lowercase();
                     if level == "error" || level == "warning" {
                         let text = ev
                             .params

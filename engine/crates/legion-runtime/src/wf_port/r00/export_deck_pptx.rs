@@ -1,19 +1,28 @@
 //! Port of `skills/designer/engine/huashu/scripts/export_deck_pptx.mjs`.
 //!
-//! **PORTED-PARTIAL.** This module faithfully ports the orchestration layer
-//! — arg parsing, slide-file discovery/sort, per-file conversion loop with
-//! its `[i/n] file ✓/✗` log lines, error aggregation, the "all slides
-//! failed -> don't write, exit 1" rule, and the final summary line — behind
-//! a [`SlideConverter`] trait. It does **not** port the conversion itself:
-//! the original delegates every slide to `html2pptx.js` (a ~1178-line
-//! HTML-DOM -> `pptxgenjs` element translator, per the prior `q_q0` full
-//! audit), and this packet's brief does not add a pptx-writing crate — only
-//! `reqwest`, `scraper`, `headless_chrome`, `image`. Without either
-//! `html2pptx.js`'s own port or a pptx-writing crate, there is no faithful
-//! Rust production [`SlideConverter`] to provide here; only a fake exists,
-//! used in this module's tests.
+//! **PORTED.** This module ports the orchestration layer — arg parsing,
+//! slide-file discovery/sort, per-file conversion loop with its
+//! `[i/n] file ✓/✗` log lines, error aggregation, and the "all slides
+//! failed -> don't write, exit 1" rule — behind a [`SlideConverter`] trait,
+//! and wires it to a real production converter: [`RealSlideConverter`]
+//! drives `wf_port::w2_007::html2pptx::{run_html2pptx, HeadlessChromeDriver}`
+//! per slide (the Rust replacement for the original's `html2pptx.js` /
+//! Playwright element translator) and [`write_deck`] hands the accumulated
+//! `Vec<RawSlideData>` to `wf_port::w2_007::html2pptx::write_pptx_from_slides`
+//! (the `zip`-crate `pptxgenjs` replacement) to produce the final `.pptx`,
+//! mirroring `pres.writeFile()`. Slide size is `LAYOUT_WIDE`
+//! (13.333in x 7.5in / 960pt x 540pt), matching the `.mjs`'s
+//! `pres.layout = 'LAYOUT_WIDE'`.
 
 use std::path::{Path, PathBuf};
+
+use crate::wf_port::w2_007::html2pptx::{
+    run_html2pptx, FsImageSource, HeadlessChromeDriver, RawSlideData, write_pptx_from_slides,
+};
+
+/// `LAYOUT_WIDE`: 13.333in x 7.5in, matching the `.mjs`'s `pres.layout`.
+pub const LAYOUT_WIDE_WIDTH_IN: f64 = 13.333;
+pub const LAYOUT_WIDE_HEIGHT_IN: f64 = 7.5;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Args {
@@ -148,6 +157,98 @@ pub fn run<P>(
         log,
         errors,
     })
+}
+
+// ---------------------------------------------------------------------------
+// Production wiring — real filesystem, real browser-backed converter, real
+// pptx writer. Standing in for the `.mjs`'s `main()` body once
+// `parseArgs()`/`readdir` have run.
+// ---------------------------------------------------------------------------
+
+/// Real [`FileSystem`]: `std::fs::read_dir`, the Rust equivalent of
+/// `fs.readdir(slidesDir)`.
+pub struct StdFileSystem;
+
+impl FileSystem for StdFileSystem {
+    fn read_dir_names(&self, path: &Path) -> std::io::Result<Vec<String>> {
+        let mut names = Vec::new();
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            if let Some(name) = entry.file_name().to_str() {
+                names.push(name.to_string());
+            }
+        }
+        Ok(names)
+    }
+}
+
+/// Real [`SlideConverter`]: runs `run_html2pptx` (DOM walk + validation,
+/// against a real `HeadlessChromeDriver` tab) for each slide file and
+/// appends its `RawSlideData` to the shared `pres` accumulator — the Rust
+/// equivalent of `await html2pptx(fullPath, pres)` mutating the shared
+/// `pptxgenjs` presentation in place.
+pub struct RealSlideConverter<'a> {
+    driver: &'a mut HeadlessChromeDriver,
+    cwd: PathBuf,
+}
+
+impl<'a> RealSlideConverter<'a> {
+    pub fn new(driver: &'a mut HeadlessChromeDriver, cwd: PathBuf) -> Self {
+        Self { driver, cwd }
+    }
+}
+
+impl<'a> SlideConverter<Vec<RawSlideData>> for RealSlideConverter<'a> {
+    fn convert(&mut self, slide_path: &Path, pres: &mut Vec<RawSlideData>) -> Result<(), String> {
+        let html_file = slide_path.to_string_lossy().to_string();
+        let outcome = run_html2pptx(
+            self.driver,
+            &html_file,
+            &self.cwd,
+            Some(LAYOUT_WIDE_WIDTH_IN),
+            Some(LAYOUT_WIDE_HEIGHT_IN),
+        )?;
+        pres.push(outcome.slide_data);
+        Ok(())
+    }
+}
+
+/// Writes the accumulated per-slide `RawSlideData` to `out` as one
+/// multi-slide `.pptx`, the Rust equivalent of `pres.writeFile({ fileName
+/// })` at the end of `main()`.
+pub fn write_deck(out: &Path, slides: &[RawSlideData]) -> Result<(), String> {
+    let mut images = FsImageSource;
+    write_pptx_from_slides(out, LAYOUT_WIDE_WIDTH_IN, LAYOUT_WIDE_HEIGHT_IN, slides, &mut images)
+}
+
+/// Full production entry point: launches a real headless Chrome tab,
+/// discovers and converts every slide, and (when at least one slide
+/// converted) writes the final `.pptx` to `args.out`. Mirrors `main()`
+/// end to end, including its log lines via [`RunOutcome`]/[`RunError`].
+pub fn run_production(args: &Args) -> Result<RunOutcome, RunError> {
+    let fs = StdFileSystem;
+    let mut driver = HeadlessChromeDriver::launch()
+        .map_err(|e| RunError::AllSlidesFailed {
+            errors: vec![FileError {
+                file: String::new(),
+                error: format!("failed to launch headless chrome: {e}"),
+            }],
+        })?;
+    // `slides` is resolved relative to the current directory the same way
+    // `path.resolve(slides)` is in the `.mjs`; `run_html2pptx`'s own
+    // `resolve_html_file` re-resolves each per-file `full_path` against
+    // this same `cwd`.
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let mut converter = RealSlideConverter::new(&mut driver, cwd);
+    let mut pres: Vec<RawSlideData> = Vec::new();
+    let outcome = run(&fs, &mut converter, &mut pres, args)?;
+    write_deck(&args.out, &pres).map_err(|e| RunError::AllSlidesFailed {
+        errors: vec![FileError {
+            file: args.out.to_string_lossy().to_string(),
+            error: e,
+        }],
+    })?;
+    Ok(outcome)
 }
 
 #[cfg(test)]

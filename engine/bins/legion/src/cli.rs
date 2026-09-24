@@ -108,6 +108,8 @@ enum Command {
     Review(commands::review::ReviewArgs),
     /// Install, check, or purge the installed Legion product.
     Setup(commands::setup::SetupArgs),
+    /// Dispatch to the Rust port of a `skills/**/scripts/**` CLI (`--list` to enumerate).
+    Script(commands::script::ScriptArgs),
 }
 #[derive(Clone, Debug, clap::Args)]
 struct M1ConfigArgs {
@@ -1542,12 +1544,16 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         Command::Authority(args) => commands::authority::run(args),
         Command::State(args) => commands::state::run(args),
         Command::Minimize(args) => commands::minimize::run(args),
+        Command::Script(args) => commands::script::run(args),
     };
     result
 }
 fn finish(result: CommandResult) -> i32 {
     match result {
         Ok(mut value) => {
+            if let Some(code) = value.get("__exit_code").and_then(Value::as_i64) {
+                return code as i32;
+            }
             if let Some(raw) = value.get("__raw").and_then(Value::as_str) {
                 print!("{raw}");
                 return 0;

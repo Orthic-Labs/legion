@@ -244,6 +244,21 @@ mod tests {
         fn capture(&mut self, _out: &str) -> Result<String, String> {
             Ok(self.capture_path.clone())
         }
+        fn apply_conditions(&mut self, _conditions: &super::session_client::Conditions) -> Result<(), String> {
+            Ok(())
+        }
+        fn navigate(&mut self, _url: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn load_session(&mut self, _data: &super::session_client::SessionData) -> Result<(), String> {
+            Ok(())
+        }
+        fn save_session(&mut self) -> Result<super::session_client::SessionData, String> {
+            Ok(super::session_client::SessionData { cookies: Value::Array(vec![]), local_storage: Value::Object(Default::default()) })
+        }
+        fn take_console_errors(&mut self) -> Vec<String> {
+            Vec::new()
+        }
     }
 
     #[test]
@@ -254,7 +269,7 @@ mod tests {
 
     #[test]
     fn parse_actions_parses_click() {
-        let actions = parse_actions(r#"[{"type":"click","selector":"#go"}]"#).unwrap();
+        let actions = parse_actions(r##"[{"type":"click","selector":"#go"}]"##).unwrap();
         assert_eq!(actions.len(), 1);
         assert!(matches!(&actions[0], Action::Click { selector } if selector == "#go"));
     }

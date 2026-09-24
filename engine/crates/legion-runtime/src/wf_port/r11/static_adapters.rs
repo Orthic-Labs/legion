@@ -281,6 +281,14 @@ pub fn resolve_border_radius_px(style: &crate::wf_port::r09::ComputedStyle, widt
     parse_radius_to_px(Some(&raw), Some(width_px)).unwrap_or(0.0)
 }
 
+/// Convenience wrapper matching the exact call site in
+/// `STATIC_ELEMENT_RULES`'s `border-rules` entry:
+/// `resolveBorderRadiusPx(el, style, parseFloat(style.width) || 0, window)`.
+pub fn resolve_border_radius_px_for(style: &crate::wf_port::r09::ComputedStyle) -> f64 {
+    let width_px = leading_number(&style.get_property_value("width")).unwrap_or(0.0);
+    resolve_border_radius_px(style, width_px)
+}
+
 // ─── checkElementBorders (checks.mjs ~1718-1743) ───────────────────────────
 
 pub fn check_element_borders(

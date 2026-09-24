@@ -291,6 +291,130 @@ pub async fn fetch(
     (got, log)
 }
 
+// ---------------------------------------------------------------------------
+// CLI wrapper — port of `main()`.
+// ---------------------------------------------------------------------------
+
+/// Parsed `argparse` result: `--query` (`nargs="+"`, required), `--out`
+/// (required), `--count` (default 2), `--width` (default 1600).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Args {
+    pub query: Vec<String>,
+    pub out: PathBuf,
+    pub count: u32,
+    pub width: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseArgsError {
+    /// `--query` is `required`, `nargs="+"` (at least one value).
+    MissingQuery,
+    /// `--out` is `required`.
+    MissingOut,
+}
+
+/// Port of the `argparse.ArgumentParser` setup in `main()`. Accepts
+/// `--query` as one or more space-separated values up to the next `--flag`
+/// (mirroring `nargs="+"`), and `--count`/`--width` as `int` with the same
+/// defaults (`2`, `1600`) the Python declares.
+pub fn parse_args(argv: &[String]) -> Result<Args, ParseArgsError> {
+    let mut query: Vec<String> = Vec::new();
+    let mut out: Option<String> = None;
+    let mut count: u32 = 2;
+    let mut width: u32 = 1600;
+
+    let mut i = 0;
+    while i < argv.len() {
+        match argv[i].as_str() {
+            "--query" => {
+                i += 1;
+                while i < argv.len() && !argv[i].starts_with("--") {
+                    query.push(argv[i].clone());
+                    i += 1;
+                }
+            }
+            "--out" => {
+                out = argv.get(i + 1).cloned();
+                i += 2;
+            }
+            "--count" => {
+                if let Some(v) = argv.get(i + 1).and_then(|s| s.parse().ok()) {
+                    count = v;
+                }
+                i += 2;
+            }
+            "--width" => {
+                if let Some(v) = argv.get(i + 1).and_then(|s| s.parse().ok()) {
+                    width = v;
+                }
+                i += 2;
+            }
+            _ => i += 1,
+        }
+    }
+
+    if query.is_empty() {
+        return Err(ParseArgsError::MissingQuery);
+    }
+    let out = out.ok_or(ParseArgsError::MissingOut)?;
+
+    Ok(Args {
+        query,
+        out: PathBuf::from(out),
+        count,
+        width,
+    })
+}
+
+/// One line of `main()`'s tail summary/warning/failure output, after all
+/// queries have run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SummaryLogLine {
+    /// `f"\n=== 共下载 {n} 张到 {out} ==="`.
+    Downloaded { count: usize, out: String },
+    /// The fixed honesty-check reminder line, printed unconditionally.
+    HonestyReminder,
+    /// `"❌ 全部失败 → ..."` (stderr), printed only when nothing downloaded.
+    AllFailed,
+}
+
+/// `main()`: create `out`, run `fetch()` for every `--query`, print the
+/// summary, and report whether the process should exit 1 (`allgot` empty).
+/// `ensure_dir` mirrors `os.makedirs(a.out, exist_ok=True)`.
+pub async fn run(
+    client: &dyn CommonsClient,
+    write_file: &dyn Fn(&Path, &[u8]) -> std::io::Result<()>,
+    ensure_dir: &dyn Fn(&Path) -> std::io::Result<()>,
+    args: &Args,
+) -> (Vec<PathBuf>, Vec<FetchLogLine>, Vec<SummaryLogLine>, i32) {
+    let _ = ensure_dir(&args.out);
+
+    let mut all_got = Vec::new();
+    let mut all_log = Vec::new();
+    for q in &args.query {
+        let (got, log) = fetch(client, write_file, q, &args.out, args.count, args.width).await;
+        all_got.extend(got);
+        all_log.extend(log);
+    }
+
+    let mut summary = vec![
+        SummaryLogLine::Downloaded {
+            count: all_got.len(),
+            out: args.out.to_string_lossy().to_string(),
+        },
+        SummaryLogLine::HonestyReminder,
+    ];
+
+    let exit_code = if all_got.is_empty() {
+        summary.push(SummaryLogLine::AllFailed);
+        1
+    } else {
+        0
+    };
+
+    (all_got, all_log, summary, exit_code)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -453,5 +577,87 @@ mod tests {
         assert!(got.is_empty());
         assert_eq!(log.len(), 1);
         assert!(matches!(log[0], FetchLogLine::FailSearch { .. }));
+    }
+
+    #[test]
+    fn parse_args_requires_query_and_out() {
+        let argv: Vec<String> = ["--out", "dir"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(parse_args(&argv), Err(ParseArgsError::MissingQuery));
+
+        let argv: Vec<String> = ["--query", "a", "b"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(parse_args(&argv), Err(ParseArgsError::MissingOut));
+    }
+
+    #[test]
+    fn parse_args_collects_multi_value_query_and_defaults() {
+        let argv: Vec<String> = ["--query", "Petronas Towers", "Langkawi beach", "--out", "img"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let args = parse_args(&argv).unwrap();
+        assert_eq!(args.query, vec!["Petronas Towers".to_string(), "Langkawi beach".to_string()]);
+        assert_eq!(args.out, PathBuf::from("img"));
+        assert_eq!(args.count, 2);
+        assert_eq!(args.width, 1600);
+    }
+
+    #[test]
+    fn parse_args_overrides_count_and_width() {
+        let argv: Vec<String> = ["--query", "x", "--out", "o", "--count", "3", "--width", "800"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        let args = parse_args(&argv).unwrap();
+        assert_eq!(args.count, 3);
+        assert_eq!(args.width, 800);
+    }
+
+    #[tokio::test]
+    async fn run_reports_exit_1_and_all_failed_when_nothing_downloads() {
+        let client = FakeClient {
+            search_result: Err("boom".to_string()),
+            downloads: Mutex::new(HashMap::new()),
+        };
+        let write = |_: &Path, _: &[u8]| Ok(());
+        let ensure_dir = |_: &Path| Ok(());
+        let args = Args {
+            query: vec!["x".to_string()],
+            out: PathBuf::from("/out"),
+            count: 2,
+            width: 1600,
+        };
+        let (got, _log, summary, exit_code) = run(&client, &write, &ensure_dir, &args).await;
+        assert!(got.is_empty());
+        assert_eq!(exit_code, 1);
+        assert!(matches!(summary.last(), Some(SummaryLogLine::AllFailed)));
+    }
+
+    #[tokio::test]
+    async fn run_aggregates_across_multiple_queries() {
+        let body = json!({
+            "query": {"pages": {"1": {"title": "File:X.jpg", "imageinfo": [{
+                "thumburl": "https://x/x.jpg",
+                "descriptionurl": "https://commons/x",
+                "extmetadata": {"LicenseShortName": {"value": "PD"}, "Artist": {"value": "A"}}
+            }]}}}
+        });
+        let mut downloads = HashMap::new();
+        downloads.insert("https://x/x.jpg".to_string(), Ok(vec![1, 2, 3]));
+        let client = FakeClient {
+            search_result: Ok(body),
+            downloads: Mutex::new(downloads),
+        };
+        let write = |_: &Path, _: &[u8]| Ok(());
+        let ensure_dir = |_: &Path| Ok(());
+        let args = Args {
+            query: vec!["a".to_string(), "b".to_string()],
+            out: PathBuf::from("/out"),
+            count: 1,
+            width: 1600,
+        };
+        let (got, _log, summary, exit_code) = run(&client, &write, &ensure_dir, &args).await;
+        assert_eq!(got.len(), 2);
+        assert_eq!(exit_code, 0);
+        assert!(matches!(summary[0], SummaryLogLine::Downloaded { count: 2, .. }));
     }
 }

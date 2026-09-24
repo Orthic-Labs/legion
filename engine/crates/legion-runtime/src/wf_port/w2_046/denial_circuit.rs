@@ -312,7 +312,7 @@ impl<'a> DenialRecorder for FileDenialCircuit<'a> {
         );
         let path = record_path(&self.root, &record.session_id, &record.run_id, &record.task_id);
 
-        let run_body = || -> Result<RecordOutcome, DenialCircuitError> {
+        let mut run_body = || -> Result<RecordOutcome, DenialCircuitError> {
             let prior: Option<Value> = if path.exists() {
                 let text = std::fs::read_to_string(&path)
                     .map_err(|e| DenialCircuitError { code: "ARC_STORE_CORRUPT", message: e.to_string() })?;

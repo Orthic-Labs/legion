@@ -61,6 +61,7 @@ pub mod browser;
 pub mod detect_url;
 pub mod findings;
 pub mod real;
+pub mod registry;
 
 pub use browser::{find_browser_executable, ChromeDriver, EnvLookup, FsLookup, Platform};
 pub use detect_url::{
@@ -69,3 +70,4 @@ pub use detect_url::{
 };
 pub use findings::{finding, filter_by_providers, AntipatternLookup, AntipatternRule, Finding};
 pub use real::RealChromeDriver;
+pub use registry::RegistryLookup;

@@ -542,9 +542,9 @@ pub fn evaluate_host_stop(input: EvaluateHostStopInput<'_>) -> Json {
     });
 
     if let (Some(t), Json::Object(cert_map)) = (&terminal, &mut certification) {
+        let allowed = cert_map.get("allowed").and_then(Json::as_bool).unwrap_or(false);
         let detail = cert_map.entry("detail").or_insert_with(|| Json::Object(Default::default()));
         if let Json::Object(detail_map) = detail {
-            let allowed = cert_map.get("allowed").and_then(Json::as_bool).unwrap_or(false);
             detail_map.insert("termination".into(), Json::String(t.termination_allowed.to_string()));
             detail_map.insert("certification".into(), Json::String(if allowed { "certified".into() } else { "rejected".into() }));
             detail_map.insert("disposition".into(), Json::String(t.disposition.to_string()));

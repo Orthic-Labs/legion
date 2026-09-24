@@ -1,5 +1,29 @@
 //! Faithful port of `src/lib/contracts/arcane/authority-invocation-proof.mjs`.
 //!
+//! **Superseded — do not add new callers here.** Packet r44 found this file
+//! duplicates `legion_arcane::authority_invocation::AuthorityInvocationProofIssuer`,
+//! a second, independent, complete port of the same `.mjs` source (its own
+//! `issue`/`verify`/`find_by_digest`, its own `KeyRing`/`LedgerStore`
+//! traits). Production code (`engine/bins/legion/src/commands/contract.rs`)
+//! uses `legion_arcane::receipt_auth`/the `legion-arcane` crate for its
+//! authority-proof needs, not this module, and r44b's `git grep` for
+//! callers of either `AuthorityInvocationProofIssuer` type found none
+//! outside each type's own crate — so there is no live caller to
+//! redirect. `legion_arcane::authority_invocation` is the canonical copy
+//! going forward: it also carries a correctness fix (the 5-minute
+//! `expiresAt` window, which this file's `issue()` never had — see the
+//! `legion-arcane` module docs) and matches the codebase's "one entry
+//! point per behaviour" rule. This module could not be turned into a thin
+//! re-export of `legion_arcane`'s types without a `legion-arcane`
+//! dependency edit to `legion-policy/Cargo.toml` plus a rewrite: this
+//! chunk's `KeyRing`/`LedgerStore`/`ArcCode`/`ArcaneError`/`Decision`
+//! types are wf067-local and shared with the rest of the wf067 chunk
+//! (`canonical.rs`, `errors.rs`), so they are not interchangeable with
+//! `legion-arcane`'s equivalents without touching those siblings too —
+//! left as a follow-up. Any new caller should use
+//! `legion_arcane::AuthorityInvocationProofIssuer` instead of the types
+//! below.
+//!
 //! An authority invocation proof lets a non-Alchemist role (today: Oracle's
 //! `completion-claim`) attach a signed, single-use, time-boxed credential to
 //! one host event, so a downstream consumer can verify the claim came from

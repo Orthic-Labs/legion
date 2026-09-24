@@ -30,11 +30,14 @@
 //! partial port of `validate()` composing every check that is fully ported
 //! across r46/r46b/r46c1/r46c2.
 //!
-//! Still **NOT-STARTED**: the remainder of the `validate()`/`main()` CLI
-//! dispatcher (the `REQUIRED_LABELS` table, `BYPASS_PATTERNS`/
-//! `SECRET_PATTERNS`, the `/script` gate section, `TRUE_BLOCKER`/author-gate
-//! sections, `storage_errors`, and `main()`'s receipt/minimize-gate file
-//! I/O) — see `cli.rs`'s module doc for the precise, named gap.
+//! Packet r46d completes the CLI dispatcher: `REQUIRED_LABELS`
+//! (`required_labels.rs`), `BYPASS_PATTERNS`/`SECRET_PATTERNS`
+//! (`patterns.rs`), the `/script` gate YES/NO branch, the `## 10.
+//! TRUE_BLOCKER Conditions` and `## 11. Dispatcher Author Gate` section
+//! checks, `storage_errors` (`storage.rs`), and the full `validate()`/
+//! `main()` CLI (`cli::validate_full_errors`, `cli::run`). See `cli.rs`'s
+//! module doc for the one remaining named gap (the dynamic
+//! `minimize_gate.py` load, replaced by the [`cli::MinimizeGate`] trait).
 
 pub mod authority_correction;
 pub mod cli;
@@ -46,15 +49,18 @@ pub mod goal_route;
 pub mod goal_route_validator;
 pub mod headings;
 pub mod labels;
+pub mod patterns;
+pub mod required_labels;
 pub mod route_scan;
 pub mod script_gate;
 pub mod status;
 pub mod steps;
+pub mod storage;
 pub mod tables;
 pub mod topology;
 
 pub use authority_correction::authority_correction_errors;
-pub use cli::validate_ported_errors;
+pub use cli::{validate_full_errors, validate_ported_errors, MinimizeGate, NoMinimizeGate, RunOptions, RunOutcome};
 pub use decision_scope::decision_scope_errors;
 pub use dependency::parse_dependency_contract;
 pub use execution_control::execution_control_errors;
@@ -62,9 +68,12 @@ pub use execution_identity::execution_identity_errors;
 pub use goal_route::goal_route_errors;
 pub use headings::{ordered_heading_errors, REQUIRED_HEADINGS};
 pub use labels::{authority_label_value, fenced_value_after, is_concrete};
+pub use patterns::{bypass_pattern_errors, secret_pattern_errors};
+pub use required_labels::{required_label_errors, REQUIRED_LABELS};
 pub use route_scan::{label_value, managed_rust_route_errors};
 pub use script_gate::script_gate_values;
 pub use status::status_errors;
 pub use steps::{step_errors, STEP_LABELS};
+pub use storage::storage_errors;
 pub use tables::{table_errors, table_rows, validate_table, FAILURE_CLASSES};
 pub use topology::topology_errors;

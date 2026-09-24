@@ -13,6 +13,7 @@ use super::args::{self, Args};
 use super::browser::{self, FsProbe};
 use super::profiles::{self, DirEntry, ProfileDir};
 use super::ports::{self, HttpAttempt, HttpProbe, PortProbe};
+use super::session_client::BrowserSession;
 
 /// `abs(path)` (qa.mjs lines 206-208): resolve relative to `root` unless already absolute.
 pub fn abs(root: &str, path: &str) -> PathBuf {
