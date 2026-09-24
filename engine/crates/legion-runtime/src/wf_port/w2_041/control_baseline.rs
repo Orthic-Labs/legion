@@ -104,6 +104,287 @@ pub fn control_baseline_stage(
     })
 }
 
+// ---------------------------------------------------------------------------
+// Live wiring (packet r45): closes the gap documented above by supplying
+// real `compile_baseline` (`w2_038::baseline::compile_baseline`) and
+// `evidence_capabilities`/`capability_impacts`
+// (`p5_core::controls_evidence`) implementations to [`control_baseline_stage`]
+// instead of injected test closures. Those two live on
+// `p5_core::controls_support::Value` / typed `CapabilityReceipt` structs
+// rather than this module's `serde_json::Value`, so a small bidirectional
+// JSON bridge is added here (owned by this file; no shared-file edits).
+mod live {
+    use super::super::super::w2_038::baseline::compile_baseline;
+    use crate::p5_core::controls_evidence::{
+        capability_impacts, evidence_capabilities, BaselineControlRef, CapabilityReceipt,
+    };
+    use crate::p5_core::controls_support::Value as CVal;
+    use serde_json::{Map, Value as JVal};
+    use std::collections::BTreeMap;
+
+    /// `serde_json::Value` -> `controls_support::Value`.
+    pub fn json_to_cv(value: &JVal) -> CVal {
+        match value {
+            JVal::Null => CVal::Null,
+            JVal::Bool(b) => CVal::Bool(*b),
+            JVal::Number(n) => CVal::Number(n.as_f64().unwrap_or(0.0)),
+            JVal::String(s) => CVal::String(s.clone()),
+            JVal::Array(items) => CVal::Array(items.iter().map(json_to_cv).collect()),
+            JVal::Object(map) => {
+                CVal::Object(map.iter().map(|(k, v)| (k.clone(), json_to_cv(v))).collect())
+            }
+        }
+    }
+
+    /// `controls_support::Value` -> `serde_json::Value`.
+    pub fn cv_to_json(value: &CVal) -> JVal {
+        match value {
+            CVal::Null => JVal::Null,
+            CVal::Bool(b) => JVal::Bool(*b),
+            CVal::Number(n) => serde_json::Number::from_f64(*n)
+                .map(JVal::Number)
+                .unwrap_or(JVal::Null),
+            CVal::String(s) => JVal::String(s.clone()),
+            CVal::Array(items) => JVal::Array(items.iter().map(cv_to_json).collect()),
+            CVal::Object(map) => {
+                let mut out = Map::with_capacity(map.len());
+                for (k, v) in map {
+                    out.insert(k.clone(), cv_to_json(v));
+                }
+                JVal::Object(out)
+            }
+        }
+    }
+
+    fn cv_get<'a>(value: &'a CVal, key: &str) -> Option<&'a CVal> {
+        match value {
+            CVal::Object(map) => map.get(key),
+            _ => None,
+        }
+    }
+
+    fn cv_str_list(value: Option<&CVal>) -> Vec<String> {
+        match value {
+            Some(CVal::Array(items)) => items
+                .iter()
+                .filter_map(|v| match v {
+                    CVal::String(s) => Some(s.clone()),
+                    _ => None,
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Extracts `BaselineControlRef`s from a compiled baseline's `controls`
+    /// array, mirroring the fields `capabilityImpacts` reads in JS
+    /// (`id`, `targetIds`, `claimLevels`, `evidence`,
+    /// `missingEvidenceEffect`).
+    pub(crate) fn controls_from_baseline(baseline: &CVal) -> Vec<BaselineControlRef> {
+        match cv_get(baseline, "controls") {
+            Some(CVal::Array(items)) => items
+                .iter()
+                .map(|c| BaselineControlRef {
+                    id: match cv_get(c, "id") {
+                        Some(CVal::String(s)) => s.clone(),
+                        _ => String::new(),
+                    },
+                    target_ids: cv_str_list(cv_get(c, "targetIds")),
+                    claim_levels: cv_str_list(cv_get(c, "claimLevels")),
+                    evidence: cv_str_list(cv_get(c, "evidence")),
+                    // JS: `control.missingEvidenceEffect ?? 'unproven'`.
+                    missing_evidence_effect: match cv_get(c, "missingEvidenceEffect") {
+                        Some(CVal::String(s)) => s.clone(),
+                        _ => "unproven".to_string(),
+                    },
+                })
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Builds `host.capabilities` (`BTreeMap<String, CapabilityReceipt>`)
+    /// from a JSON `host` object shaped like the JS runtime host: each key
+    /// under `host.capabilities` maps to `{active, receiptBinding,
+    /// artifactDigest, environment, limitations, observedAtMs, expiresAtMs,
+    /// receiptValue}`.
+    pub(crate) fn capabilities_from_host(host: &JVal) -> BTreeMap<String, CapabilityReceipt> {
+        let mut out = BTreeMap::new();
+        let Some(caps) = host.get("capabilities").and_then(JVal::as_object) else {
+            return out;
+        };
+        for (key, entry) in caps {
+            let receipt = CapabilityReceipt {
+                active: entry.get("active").and_then(JVal::as_bool).unwrap_or(false),
+                receipt_binding: entry.get("receiptBinding").map(json_to_cv),
+                artifact_digest: entry
+                    .get("artifactDigest")
+                    .and_then(JVal::as_str)
+                    .map(str::to_string),
+                environment: entry
+                    .get("environment")
+                    .and_then(JVal::as_str)
+                    .map(str::to_string),
+                limitations: entry.get("limitations").and_then(JVal::as_array).map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(str::to_string))
+                        .collect()
+                }),
+                observed_at_ms: entry.get("observedAtMs").and_then(JVal::as_i64),
+                expires_at_ms: entry.get("expiresAtMs").and_then(JVal::as_i64),
+                receipt_value: entry.get("receiptValue").map(json_to_cv),
+            };
+            out.insert(key.clone(), receipt);
+        }
+        out
+    }
+
+    /// Port of `controlBaselineStage.run(options, host)` wired to the real
+    /// `compileBaseline`/`evidenceCapabilities`/`capabilityImpacts`
+    /// dependencies (instead of the injected test closures
+    /// `control_baseline_stage` takes). Mirrors
+    /// `compileBaseline({packs, portfolio, components, stacks, contract,
+    /// binding})` throwing (as an unhandled rejection) on packs validation
+    /// failure (duplicate pack id, missing dependency, dependency cycle):
+    /// `control_baseline_stage`'s `compile_baseline` closure parameter is
+    /// infallible (`impl FnOnce() -> Value`, matching its pre-existing
+    /// signature), so that failure surfaces here as a panic, mirroring the
+    /// JS throw propagating out of the stage.
+    ///
+    /// `now_ms`/`host_binding` stand in for `host.clock.now()` /
+    /// `host.binding`, matching `evidence_capabilities`'s existing calling
+    /// convention.
+    #[allow(clippy::too_many_arguments)]
+    pub fn control_baseline_stage_live(
+        topology: Option<&JVal>,
+        packs: &[JVal],
+        portfolio: &JVal,
+        components: &JVal,
+        stacks: &[JVal],
+        contract: &JVal,
+        binding: Option<&JVal>,
+        host: &JVal,
+        now_ms: Option<i64>,
+    ) -> JVal {
+        let packs_cv: Vec<CVal> = packs.iter().map(json_to_cv).collect();
+        let portfolio_cv = json_to_cv(portfolio);
+        let components_cv = json_to_cv(components);
+        let stacks_cv: Vec<CVal> = stacks.iter().map(json_to_cv).collect();
+        let contract_cv = json_to_cv(contract);
+        let binding_cv = binding.map(json_to_cv);
+        let host_binding_cv = host.get("binding").map(json_to_cv);
+        let capabilities = capabilities_from_host(host);
+
+        super::control_baseline_stage(
+            topology,
+            packs.len(),
+            move || {
+                let baseline_cv = compile_baseline(
+                    &packs_cv,
+                    &portfolio_cv,
+                    &components_cv,
+                    &stacks_cv,
+                    &contract_cv,
+                    binding_cv.as_ref(),
+                )
+                .expect("compileBaseline: pack validation failure (duplicate/missing/cyclic)");
+                cv_to_json(&baseline_cv)
+            },
+            move |baseline_json| {
+                let baseline_cv = json_to_cv(baseline_json);
+                let controls = controls_from_baseline(&baseline_cv);
+                let capability_statuses =
+                    evidence_capabilities(&capabilities, now_ms, host_binding_cv.as_ref());
+                capability_impacts(&controls, &capability_statuses)
+                    .into_iter()
+                    .map(|impact| {
+                        serde_json::json!({
+                            "controlId": impact.control_id,
+                            "targetIds": impact.target_ids,
+                            "claimLevels": impact.claim_levels,
+                            "evidence": impact.evidence,
+                            "effect": impact.effect,
+                        })
+                    })
+                    .collect()
+            },
+        )
+    }
+
+    /// Standalone `compileBaseline` + `evidenceCapabilities` +
+    /// `capabilityImpacts` wiring, for callers (e.g. `r45::inspect_product`)
+    /// that need the baseline/capabilities/claim-impact triple directly
+    /// rather than through the `controlBaselineStage.run` decision wrapper.
+    /// Returns `(baseline, capabilities, claim_impact)` as
+    /// `serde_json::Value`s, matching `inspectProduct`'s
+    /// `baseline`/`capabilities`/`claimImpact` locals.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compile_baseline_and_impacts_json(
+        packs: &[JVal],
+        portfolio: &JVal,
+        components: &JVal,
+        stacks: &[JVal],
+        contract: &JVal,
+        binding: Option<&JVal>,
+        host: &JVal,
+        now_ms: Option<i64>,
+    ) -> Result<(JVal, JVal, JVal), String> {
+        let packs_cv: Vec<CVal> = packs.iter().map(json_to_cv).collect();
+        let portfolio_cv = json_to_cv(portfolio);
+        let components_cv = json_to_cv(components);
+        let stacks_cv: Vec<CVal> = stacks.iter().map(json_to_cv).collect();
+        let contract_cv = json_to_cv(contract);
+        let binding_cv = binding.map(json_to_cv);
+        let host_binding_cv = host.get("binding").map(json_to_cv);
+        let capabilities_map = capabilities_from_host(host);
+
+        let baseline_cv = compile_baseline(
+            &packs_cv,
+            &portfolio_cv,
+            &components_cv,
+            &stacks_cv,
+            &contract_cv,
+            binding_cv.as_ref(),
+        )?;
+        let baseline_json = cv_to_json(&baseline_cv);
+
+        let controls = controls_from_baseline(&baseline_cv);
+        let capability_statuses = evidence_capabilities(&capabilities_map, now_ms, host_binding_cv.as_ref());
+        let capabilities_json = JVal::Array(
+            capability_statuses
+                .iter()
+                .map(|status| {
+                    serde_json::json!({
+                        "id": status.id,
+                        "available": status.available,
+                        "owner": status.owner,
+                        "receipt": status.receipt.as_ref().map(cv_to_json).unwrap_or(JVal::Null),
+                        "reason": status.reason,
+                    })
+                })
+                .collect(),
+        );
+        let claim_impact_json = JVal::Array(
+            capability_impacts(&controls, &capability_statuses)
+                .into_iter()
+                .map(|impact| {
+                    serde_json::json!({
+                        "controlId": impact.control_id,
+                        "targetIds": impact.target_ids,
+                        "claimLevels": impact.claim_levels,
+                        "evidence": impact.evidence,
+                        "effect": impact.effect,
+                    })
+                })
+                .collect(),
+        );
+
+        Ok((baseline_json, capabilities_json, claim_impact_json))
+    }
+}
+
+pub use live::{compile_baseline_and_impacts_json, control_baseline_stage_live, cv_to_json, json_to_cv};
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,5 +475,95 @@ mod tests {
         let inspection = json!({"k": "inspection"});
         let resolved = resolve_topology(None, Some(&inspection)).unwrap();
         assert_eq!(resolved, &json!({"k": "inspection"}));
+    }
+
+    mod live_wiring {
+        use super::super::live::control_baseline_stage_live;
+
+        fn control(id: &str) -> Value {
+            json!({"id": id, "selector": {"op": "always"}, "providers": []})
+        }
+
+        fn pack(id: &str, controls: Vec<Value>) -> Value {
+            json!({"id": id, "dependencies": [], "controls": controls})
+        }
+
+        fn portfolio() -> Value {
+            json!({"targets": [{"id": "t1"}]})
+        }
+
+        fn components() -> Value {
+            json!({"components": []})
+        }
+
+        #[test]
+        fn live_compiles_real_baseline_and_reports_evidence_gap_when_host_has_no_capabilities() {
+            let topology = json!({"k": "topology"});
+            let packs = vec![pack("p1", vec![control("c1")])];
+            let host = json!({"capabilities": {}});
+            let result = control_baseline_stage_live(
+                Some(&topology),
+                &packs,
+                &portfolio(),
+                &components(),
+                &[],
+                &json!({}),
+                None,
+                &host,
+                Some(1_000),
+            );
+            // c1 has no `evidence` requirements in this fixture, so with a
+            // nonzero denominator and zero capability impacts the stage
+            // passes; the important assertion is that the real
+            // compileBaseline ran (denominator == 1, not a stubbed value).
+            let baseline = &result["artifact"]["baseline"];
+            assert_eq!(baseline["denominator"], json!(["c1"]));
+            assert_eq!(result["complete"], json!(true));
+            assert_eq!(result["status"], json!("pass"));
+        }
+
+        #[test]
+        fn live_reports_impact_for_unmet_evidence_requirement() {
+            let topology = json!({"k": "topology"});
+            let mut ctl = control("c1");
+            ctl["evidence"] = json!(["repository"]);
+            let packs = vec![pack("p1", vec![ctl])];
+            let host = json!({"capabilities": {}});
+            let result = control_baseline_stage_live(
+                Some(&topology),
+                &packs,
+                &portfolio(),
+                &components(),
+                &[],
+                &json!({}),
+                None,
+                &host,
+                Some(1_000),
+            );
+            assert_eq!(result["status"], json!("unproven"));
+            assert_eq!(result["detail"], json!("evidence-capability-gap"));
+            let impacts = result["artifact"]["impacts"].as_array().unwrap();
+            assert_eq!(impacts.len(), 1);
+            assert_eq!(impacts[0]["controlId"], json!("c1"));
+            assert_eq!(impacts[0]["evidence"], json!("repository"));
+        }
+
+        #[test]
+        fn live_short_circuits_on_missing_topology_without_compiling() {
+            let host = json!({"capabilities": {}});
+            let result = control_baseline_stage_live(
+                None,
+                &[],
+                &portfolio(),
+                &components(),
+                &[],
+                &json!({}),
+                None,
+                &host,
+                None,
+            );
+            assert_eq!(result["status"], json!("missing"));
+            assert_eq!(result["detail"], json!("product-topology-required"));
+        }
     }
 }

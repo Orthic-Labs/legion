@@ -162,6 +162,8 @@ pub enum TtsError {
     MissingVoiceId,
     #[error("HTTP {status}: {body}")]
     HttpStatus { status: u16, body: String },
+    #[error("{0}")]
+    Network(String),
     #[error("response body is not valid JSON: {0}")]
     InvalidJson(String),
     #[error("API 返回错误 code={code} msg={message}")]
@@ -213,15 +215,23 @@ pub fn resolve_request(
 }
 
 /// Builds the outbound JSON body, mirroring the `body` object literal in
-/// `tts()` field-for-field.
+/// `tts()` field-for-field. `speed_ratio` is built via
+/// [`serde_json::Number::from_f64`] rather than the `json!` macro's direct
+/// float substitution: a non-finite `speed` (e.g. an unparseable `--speed`
+/// flag, mirrored as `f64::NAN`) would make `json!`'s `serde_json::to_value`
+/// path panic, whereas `JSON.stringify(NaN)` in the legacy script silently
+/// serializes to `null` — this keeps that same non-panicking behavior.
 pub fn build_body(req: &ResolvedRequest) -> Value {
+    let speed_ratio = serde_json::Number::from_f64(req.speed)
+        .map(Value::Number)
+        .unwrap_or(Value::Null);
     json!({
         "app": { "cluster": req.cluster },
         "user": { "uid": "huashu-design" },
         "audio": {
             "voice_type": req.voice_id,
             "encoding": req.encoding,
-            "speed_ratio": req.speed,
+            "speed_ratio": speed_ratio,
         },
         "request": {
             "reqid": req.reqid,
@@ -344,10 +354,7 @@ pub fn tts(
     let body = build_body(&req);
     let (status, body_text) = http
         .post_json(&req.endpoint, &req.api_key, &body)
-        .map_err(|e| TtsError::HttpStatus {
-            status: 0,
-            body: e,
-        })?;
+        .map_err(TtsError::Network)?;
     if !(200..300).contains(&status) {
         return Err(TtsError::HttpStatus {
             status,

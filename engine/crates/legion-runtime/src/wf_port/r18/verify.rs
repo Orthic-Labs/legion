@@ -52,6 +52,30 @@ impl SourceStore for InMemorySourceStore {
     }
 }
 
+/// Real-filesystem [`SourceStore`], for production callers (the CLI entry
+/// point). Mirrors `fs.readFileSync(path.resolve(cwd, relativeFile),
+/// 'utf-8').split('\n')`, returning `None` on any read failure exactly like
+/// the JS `try { ... } catch { return ... }` guards this trait abstracts.
+#[derive(Debug, Clone)]
+pub struct FsSourceStore {
+    pub cwd: std::path::PathBuf,
+}
+
+impl FsSourceStore {
+    pub fn new(cwd: impl Into<std::path::PathBuf>) -> Self {
+        Self { cwd: cwd.into() }
+    }
+}
+
+impl SourceStore for FsSourceStore {
+    fn read_lines(&self, relative_file: &str) -> Option<Vec<String>> {
+        let absolute = self.cwd.join(relative_file);
+        std::fs::read_to_string(absolute)
+            .ok()
+            .map(|c| c.split('\n').map(str::to_string).collect())
+    }
+}
+
 /// Port of:
 /// ```js
 /// function normalizeProjectSourcePath(cwd, file, opts = {}) {

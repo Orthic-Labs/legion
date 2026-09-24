@@ -23,12 +23,14 @@
 //!   - `insert_ui`: fully ported, including `findInsertAnchorInDom` (behind
 //!     a `DomQuery` trait so it stays testable without a live `Document`;
 //!     see packet r28).
-//!   - `manual_apply`: the module's `createManualApplyController` is a
-//!     stateful controller wired to the live server's pending-event queue,
-//!     deferred-promise map, and `recordManualEditActivity`/`enqueueEvent`
-//!     callbacks supplied by `live.mjs` (outside this chunk). Only its pure
-//!     helper functions (chunk splitting/merging, compaction, summarizing)
-//!     are ported; the queue-driving orchestration is frontier.
+//!   - `manual_apply`: packet r29 closed this gap. `createManualApplyController`
+//!     is now ported as `manual_apply::ManualApplyController`, generic over
+//!     an injected `ManualApplyCallbacks` impl matching the JS constructor's
+//!     `enqueueEvent`/`acknowledgePendingEvent`/`flushPendingPolls`/
+//!     `recordManualEditActivity` callbacks (still owned by `live.mjs`,
+//!     outside this chunk — only their call sites are ported). All of the
+//!     module's file I/O (evidence files, apply-transaction file, snapshot
+//!     rollback) and pure batch-shaping/validation helpers are ported too.
 //!   - `manual_edit_routes`: fully ported (packet r30), including
 //!     `createManualEditRoutes`'s full route dispatch for all five routes
 //!     (`handle_manual_edit_route`). Its own injected dependencies

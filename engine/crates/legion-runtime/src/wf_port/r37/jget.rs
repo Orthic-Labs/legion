@@ -81,6 +81,23 @@ pub fn pct0(fraction: f64) -> String {
     format!("{:.0}%", fraction * 100.0)
 }
 
+/// Python truthiness for a `dict.get(key)` result: `None` (key absent),
+/// `{}`, `[]`, `""`, `0`, `0.0`, and `false` are all falsy; everything else
+/// (including a non-empty object/array, any non-zero number, `true`) is truthy.
+/// Used where the source does `if data.get("x"):` / `if a or b:` rather than
+/// an explicit presence check.
+pub fn truthy(v: Option<&Value>) -> bool {
+    match v {
+        None => false,
+        Some(Value::Null) => false,
+        Some(Value::Bool(b)) => *b,
+        Some(Value::Number(n)) => n.as_f64().map(|f| f != 0.0).unwrap_or(true),
+        Some(Value::String(s)) => !s.is_empty(),
+        Some(Value::Array(a)) => !a.is_empty(),
+        Some(Value::Object(o)) => !o.is_empty(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

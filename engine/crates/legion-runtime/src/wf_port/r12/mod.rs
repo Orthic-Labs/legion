@@ -626,6 +626,327 @@ impl AdminFs for RealFs {
     }
 }
 
+// ---------------------------------------------------------------------
+// Hook manifest install/repair (`repairHookManifests` and its helpers)
+// ---------------------------------------------------------------------
+
+/// Mirrors `IMPECCABLE_HOOK_COMMAND_MARKERS`.
+const IMPECCABLE_HOOK_COMMAND_MARKERS: [&str; 5] = [
+    "skills/designer/engine/scripts/hook-probe.mjs",
+    "skills/designer/engine/scripts/hook.mjs",
+    "skills/designer/engine/scripts/hook-before-edit.mjs",
+    "skills/designer/engine/scripts/hook-after-edit.mjs",
+    "skills/designer/engine/scripts/hook-stop.mjs",
+];
+
+const MANIFEST_TIMEOUT_SECONDS: i64 = 5;
+const MANIFEST_STATUS_MESSAGE: &str = "Checking UI changes";
+
+struct ManifestTarget {
+    provider: &'static str,
+    skill_rel: &'static str,
+    dest_rel: &'static str,
+    shared_dest_rel: Option<&'static str>,
+    manifest: fn() -> Value,
+}
+
+fn claude_manifest() -> Value {
+    serde_json::json!({
+        "description": "Impeccable design detector: runs after Edit/Write/MultiEdit on UI files and surfaces findings as system reminders.",
+        "hooks": {
+            "PostToolUse": [
+                {
+                    "matcher": "Edit|Write|MultiEdit",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/skills/designer/engine/scripts/hook.mjs\"",
+                            "timeout": MANIFEST_TIMEOUT_SECONDS,
+                            "statusMessage": MANIFEST_STATUS_MESSAGE,
+                        }
+                    ],
+                }
+            ],
+        },
+    })
+}
+
+fn agents_manifest() -> Value {
+    serde_json::json!({
+        "description": "Impeccable design detector: runs after Edit/Write/apply_patch on UI files and surfaces findings as system reminders.",
+        "hooks": {
+            "PostToolUse": [
+                {
+                    "matcher": "Edit|Write|apply_patch",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "node \"$(git rev-parse --show-toplevel)/.agents/skills/designer/engine/scripts/hook.mjs\"",
+                            "timeout": MANIFEST_TIMEOUT_SECONDS,
+                            "statusMessage": MANIFEST_STATUS_MESSAGE,
+                        }
+                    ],
+                }
+            ],
+        },
+    })
+}
+
+fn cursor_manifest() -> Value {
+    serde_json::json!({
+        "version": 1,
+        "hooks": {
+            "preToolUse": [
+                {
+                    "command": "node \".cursor/skills/designer/engine/scripts/hook-before-edit.mjs\"",
+                    "timeout": MANIFEST_TIMEOUT_SECONDS,
+                }
+            ],
+        },
+    })
+}
+
+fn github_manifest() -> Value {
+    serde_json::json!({
+        "version": 1,
+        "hooks": {
+            "postToolUse": [
+                {
+                    "type": "command",
+                    "matcher": "edit|create|apply_patch",
+                    "bash": "node \"$(git rev-parse --show-toplevel)/.github/skills/designer/engine/scripts/hook.mjs\"",
+                    "timeoutSec": MANIFEST_TIMEOUT_SECONDS,
+                }
+            ],
+        },
+    })
+}
+
+fn hook_manifest_targets() -> Vec<ManifestTarget> {
+    vec![
+        ManifestTarget {
+            provider: ".claude",
+            skill_rel: ".claude/skills/designer",
+            dest_rel: ".claude/settings.local.json",
+            shared_dest_rel: Some(".claude/settings.json"),
+            manifest: claude_manifest,
+        },
+        ManifestTarget {
+            provider: ".agents",
+            skill_rel: ".agents/skills/designer",
+            dest_rel: ".codex/hooks.json",
+            shared_dest_rel: None,
+            manifest: agents_manifest,
+        },
+        ManifestTarget {
+            provider: ".cursor",
+            skill_rel: ".cursor/skills/designer",
+            dest_rel: ".cursor/hooks.json",
+            shared_dest_rel: None,
+            manifest: cursor_manifest,
+        },
+        ManifestTarget {
+            provider: ".github",
+            skill_rel: ".github/skills/designer",
+            dest_rel: ".github/hooks/designer.json",
+            shared_dest_rel: None,
+            manifest: github_manifest,
+        },
+    ]
+}
+
+/// Mirrors `valueHasImpeccableHookMarker(value)`.
+fn value_has_impeccable_hook_marker(value: &Value) -> bool {
+    match value {
+        Value::String(s) => IMPECCABLE_HOOK_COMMAND_MARKERS.iter().any(|m| s.contains(m)),
+        Value::Array(arr) => arr.iter().any(value_has_impeccable_hook_marker),
+        Value::Object(obj) => obj.values().any(value_has_impeccable_hook_marker),
+        _ => false,
+    }
+}
+
+/// Mirrors `fileHasImpeccableHookMarker(filePath)`.
+fn file_has_impeccable_hook_marker(fs_: &dyn AdminFs, path: &Path) -> bool {
+    if !fs_.exists(path) {
+        return false;
+    }
+    let Some(text) = fs_.read_to_string(path) else { return false };
+    let Ok(parsed) = serde_json::from_str::<Value>(&text) else { return false };
+    let Some(obj) = parsed.as_object() else { return false };
+    match obj.get("hooks") {
+        Some(hooks) if hooks.is_object() => value_has_impeccable_hook_marker(hooks),
+        _ => false,
+    }
+}
+
+/// Mirrors `stripImpeccableHookEntry(entry)`.
+fn strip_impeccable_hook_entry(entry: &Value) -> Option<Value> {
+    let Some(obj) = entry.as_object() else { return Some(entry.clone()) };
+
+    let has_marker = obj.get("command").map(value_has_impeccable_hook_marker).unwrap_or(false)
+        || obj.get("args").map(value_has_impeccable_hook_marker).unwrap_or(false)
+        || obj.get("bash").map(value_has_impeccable_hook_marker).unwrap_or(false)
+        || obj.get("powershell").map(value_has_impeccable_hook_marker).unwrap_or(false);
+    if has_marker {
+        return None;
+    }
+
+    let Some(hooks_arr) = obj.get("hooks").and_then(Value::as_array) else {
+        return Some(entry.clone());
+    };
+    let stripped: Vec<Value> = hooks_arr.iter().filter_map(strip_impeccable_hook_entry).collect();
+    if stripped.is_empty() && hooks_arr.iter().any(value_has_impeccable_hook_marker) {
+        return None;
+    }
+    let mut next = obj.clone();
+    next.insert("hooks".into(), Value::Array(stripped));
+    Some(Value::Object(next))
+}
+
+/// Mirrors `stripImpeccableHookEntries(entries)`.
+fn strip_impeccable_hook_entries(entries: Option<&Value>) -> Vec<Value> {
+    let Some(arr) = entries.and_then(Value::as_array) else { return Vec::new() };
+    arr.iter().filter_map(strip_impeccable_hook_entry).collect()
+}
+
+/// Mirrors `mergeHookManifests(existing, fresh)`.
+fn merge_hook_manifests(existing: &Value, fresh: &Value) -> Value {
+    let existing_obj = existing.as_object().cloned().unwrap_or_default();
+    let fresh_obj = fresh.as_object().cloned().unwrap_or_default();
+    let existing_hooks = existing_obj.get("hooks").and_then(Value::as_object).cloned().unwrap_or_default();
+    let fresh_hooks = fresh_obj.get("hooks").and_then(Value::as_object).cloned().unwrap_or_default();
+
+    let mut merged = existing_obj;
+    merged.remove("hooks");
+    if let Some(v) = fresh_obj.get("version") {
+        merged.insert("version".into(), v.clone());
+    }
+    if let Some(v) = fresh_obj.get("description") {
+        merged.insert("description".into(), v.clone());
+    }
+
+    let mut event_names: Vec<String> = existing_hooks.keys().cloned().collect();
+    for k in fresh_hooks.keys() {
+        if !event_names.contains(k) {
+            event_names.push(k.clone());
+        }
+    }
+
+    let mut hooks_out = Map::new();
+    for event in event_names {
+        let preserved = strip_impeccable_hook_entries(existing_hooks.get(&event));
+        let added: Vec<Value> = fresh_hooks.get(&event).and_then(Value::as_array).cloned().unwrap_or_default();
+        let mut merged_entries = preserved;
+        merged_entries.extend(added);
+        if !merged_entries.is_empty() {
+            hooks_out.insert(event, Value::Array(merged_entries));
+        }
+    }
+    merged.insert("hooks".into(), Value::Object(hooks_out));
+    Value::Object(merged)
+}
+
+/// Mirrors `pruneImpeccableHookFromManifest(manifestPath)`. Returns
+/// whether the manifest was found to carry the marker (matching the JS
+/// boolean return), independent of whether the write/remove that follows
+/// succeeds.
+fn prune_impeccable_hook_from_manifest(fs_: &mut dyn AdminFs, path: &Path) -> bool {
+    if !file_has_impeccable_hook_marker(fs_, path) {
+        return false;
+    }
+    let Some(text) = fs_.read_to_string(path) else { return false };
+    let Ok(parsed) = serde_json::from_str::<Value>(&text) else { return false };
+    let Some(obj) = parsed.as_object() else { return false };
+
+    let existing_hooks = obj.get("hooks").and_then(Value::as_object).cloned().unwrap_or_default();
+    let mut cleaned_hooks = Map::new();
+    for (event, entries) in existing_hooks.iter() {
+        let kept = strip_impeccable_hook_entries(Some(entries));
+        if !kept.is_empty() {
+            cleaned_hooks.insert(event.clone(), Value::Array(kept));
+        }
+    }
+
+    let mut next = obj.clone();
+    if !cleaned_hooks.is_empty() {
+        next.insert("hooks".into(), Value::Object(cleaned_hooks));
+    } else {
+        next.remove("hooks");
+        next.remove("description");
+        next.remove("version");
+    }
+
+    if next.is_empty() {
+        let _ = fs_.remove_file(path);
+    } else {
+        let serialized = format!("{}\n", serde_json::to_string_pretty(&Value::Object(next)).unwrap_or_default());
+        let _ = fs_.write(path, &serialized);
+    }
+    true
+}
+
+/// Result of [`repair_hook_manifests`], mirroring `repairHookManifests`'s
+/// `{ written, already, backups }` return.
+#[derive(Debug, Clone, Default)]
+pub struct RepairHookManifestsResult {
+    pub written: Vec<String>,
+    pub already: Vec<String>,
+    pub backups: Vec<PathBuf>,
+}
+
+/// Mirrors `repairHookManifests(cwd)`: for each provider whose skill
+/// folder is installed, either prunes a stale Impeccable hook entry from
+/// that provider's shared/committed manifest (when present) or installs
+/// (merging with any existing manifest, backing up an unparseable one)
+/// the provider's own hook manifest.
+pub fn repair_hook_manifests(fs_: &mut dyn AdminFs, cwd: &Path) -> RepairHookManifestsResult {
+    let mut result = RepairHookManifestsResult::default();
+    for target in hook_manifest_targets() {
+        let skill_path = cwd.join(target.skill_rel);
+        if !fs_.exists(&skill_path) {
+            continue;
+        }
+        let dest = cwd.join(target.dest_rel);
+        let shared_dest = target.shared_dest_rel.map(|rel| cwd.join(rel));
+
+        if let Some(shared) = &shared_dest {
+            if file_has_impeccable_hook_marker(fs_, shared) {
+                prune_impeccable_hook_from_manifest(fs_, &dest);
+                result.already.push(target.provider.to_string());
+                continue;
+            }
+        }
+
+        let fresh = (target.manifest)();
+        let mut next = fresh.clone();
+        if fs_.exists(&dest) {
+            match fs_.read_to_string(&dest) {
+                Some(existing_text) => match serde_json::from_str::<Value>(&existing_text) {
+                    Ok(existing) => next = merge_hook_manifests(&existing, &fresh),
+                    Err(_) => {
+                        let backup = PathBuf::from(format!("{}.bak", dest.display()));
+                        if fs_.write(&backup, &existing_text).is_ok() {
+                            result.backups.push(backup);
+                        }
+                    }
+                },
+                None => {}
+            }
+        }
+
+        let serialized = format!("{}\n", serde_json::to_string_pretty(&next).unwrap_or_default());
+        let current = fs_.read_to_string(&dest);
+        if current.as_deref() == Some(serialized.as_str()) {
+            result.already.push(target.provider.to_string());
+            continue;
+        }
+        if fs_.write(&dest, &serialized).is_ok() {
+            result.written.push(target.provider.to_string());
+        }
+    }
+    result
+}
+
 fn read_raw_config_file(fs_: &dyn AdminFs, path: &Path) -> Option<Map<String, Value>> {
     let raw = fs_.read_to_string(path)?;
     serde_json::from_str::<Value>(&raw).ok()?.as_object().cloned()
@@ -805,13 +1126,8 @@ pub struct SetEnabledResult {
     pub message: String,
 }
 
-/// `setEnabled(cwd, value)`. Manifest repair (`repairHookManifests`) is out
-/// of scope for this packet (it touches per-provider hook manifest files
-/// under `.claude/`, `.agents/`, `.cursor/`, `.github/` and is independent
-/// glue logic); when `value` is `true` this reports "No installed provider
-/// skill folders found to repair." unconditionally, matching the JS
-/// behavior on a project with none of those directories present. See
-/// `finish-r12.md`.
+/// `setEnabled(cwd, value)`, including the `repairHookManifests` call JS
+/// makes when enabling the hook.
 pub fn set_enabled(fs_: &mut dyn AdminFs, cwd: &Path, value: bool) -> io::Result<SetEnabledResult> {
     let existing = read_raw_hook_config(fs_, cwd, false);
     let mut cfg = merge_hook_config(existing.as_ref());
@@ -836,11 +1152,36 @@ pub fn set_enabled(fs_: &mut dyn AdminFs, cwd: &Path, value: bool) -> io::Result
     let local_target = write_hook_config(fs_, cwd, &local_patch, true)?;
     let local_target_rel = local_target.strip_prefix(cwd).map(|p| p.display().to_string()).unwrap_or_else(|_| local_target.display().to_string());
 
-    let parts = vec![
+    let repaired = repair_hook_manifests(fs_, cwd);
+    let mut parts = vec![
         format!("Design hook enabled for this project (wrote {}).", target_rel),
         format!("Recorded local hook consent in {}.", local_target_rel),
-        "No installed provider skill folders found to repair.".to_string(),
     ];
+    if !repaired.written.is_empty() {
+        parts.push(format!(
+            "Installed or repaired hook manifests for: {}.",
+            repaired.written.join(", ")
+        ));
+    } else if !repaired.already.is_empty() {
+        parts.push(format!(
+            "Hook manifests already installed for: {}.",
+            repaired.already.join(", ")
+        ));
+    } else {
+        parts.push("No installed provider skill folders found to repair.".to_string());
+    }
+    if !repaired.backups.is_empty() {
+        let backups_rel: Vec<String> = repaired
+            .backups
+            .iter()
+            .map(|p| {
+                p.strip_prefix(cwd)
+                    .map(|r| r.display().to_string())
+                    .unwrap_or_else(|_| p.display().to_string())
+            })
+            .collect();
+        parts.push(format!("Backed up malformed manifest(s): {}.", backups_rel.join(", ")));
+    }
     Ok(SetEnabledResult { message: parts.join(" ") })
 }
 
@@ -1298,5 +1639,132 @@ mod tests {
         let merged = merge_ignore_value_entries(&existing, &incoming);
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].reason.as_deref(), Some("new"));
+    }
+
+    // -------------------------------------------------------------
+    // `repairHookManifests` and its helpers
+    // -------------------------------------------------------------
+
+    #[test]
+    fn repair_hook_manifests_installs_fresh_when_skill_folder_present() {
+        let mut fs_ = FakeFs::default();
+        fs_.files.insert(cwd().join(".claude/skills/designer"), String::new());
+        let result = repair_hook_manifests(&mut fs_, &cwd());
+        assert_eq!(result.written, vec![".claude".to_string()]);
+        assert!(result.already.is_empty());
+        assert!(result.backups.is_empty());
+        let written = fs_.read_to_string(&cwd().join(".claude/settings.local.json")).unwrap();
+        assert!(written.contains("hook.mjs"));
+        assert!(written.contains("\"PostToolUse\""));
+    }
+
+    #[test]
+    fn repair_hook_manifests_skips_providers_without_skill_folder() {
+        let mut fs_ = FakeFs::default();
+        let result = repair_hook_manifests(&mut fs_, &cwd());
+        assert!(result.written.is_empty());
+        assert!(result.already.is_empty());
+    }
+
+    #[test]
+    fn repair_hook_manifests_reports_already_when_content_unchanged() {
+        let mut fs_ = FakeFs::default();
+        fs_.files.insert(cwd().join(".claude/skills/designer"), String::new());
+        let first = repair_hook_manifests(&mut fs_, &cwd());
+        assert_eq!(first.written, vec![".claude".to_string()]);
+        let second = repair_hook_manifests(&mut fs_, &cwd());
+        assert!(second.written.is_empty());
+        assert_eq!(second.already, vec![".claude".to_string()]);
+    }
+
+    #[test]
+    fn repair_hook_manifests_preserves_unrelated_hooks_when_merging() {
+        let mut fs_ = FakeFs::default();
+        fs_.files.insert(cwd().join(".cursor/skills/designer"), String::new());
+        let existing = serde_json::json!({
+            "hooks": {
+                "preToolUse": [
+                    { "command": "node other-tool.mjs", "timeout": 3 }
+                ]
+            }
+        });
+        fs_.files.insert(
+            cwd().join(".cursor/hooks.json"),
+            format!("{}\n", serde_json::to_string_pretty(&existing).unwrap()),
+        );
+        let result = repair_hook_manifests(&mut fs_, &cwd());
+        assert_eq!(result.written, vec![".cursor".to_string()]);
+        let written = fs_.read_to_string(&cwd().join(".cursor/hooks.json")).unwrap();
+        assert!(written.contains("other-tool.mjs"));
+        assert!(written.contains("hook-before-edit.mjs"));
+    }
+
+    #[test]
+    fn repair_hook_manifests_backs_up_malformed_existing_manifest() {
+        let mut fs_ = FakeFs::default();
+        fs_.files.insert(cwd().join(".cursor/skills/designer"), String::new());
+        fs_.files.insert(cwd().join(".cursor/hooks.json"), "{ not json".to_string());
+        let result = repair_hook_manifests(&mut fs_, &cwd());
+        assert_eq!(result.written, vec![".cursor".to_string()]);
+        assert_eq!(result.backups, vec![cwd().join(".cursor/hooks.json.bak")]);
+        let backup = fs_.read_to_string(&cwd().join(".cursor/hooks.json.bak")).unwrap();
+        assert_eq!(backup, "{ not json");
+    }
+
+    #[test]
+    fn repair_hook_manifests_prunes_when_shared_manifest_already_carries_marker() {
+        let mut fs_ = FakeFs::default();
+        fs_.files.insert(cwd().join(".claude/skills/designer"), String::new());
+        let shared = serde_json::json!({
+            "hooks": {
+                "PostToolUse": [
+                    {
+                        "matcher": "Edit|Write|MultiEdit",
+                        "hooks": [
+                            { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/skills/designer/engine/scripts/hook.mjs\"" }
+                        ],
+                    }
+                ]
+            }
+        });
+        fs_.files.insert(cwd().join(".claude/settings.json"), shared.to_string());
+        let local = serde_json::json!({
+            "hooks": {
+                "PostToolUse": [
+                    {
+                        "matcher": "Edit|Write|MultiEdit",
+                        "hooks": [
+                            { "type": "command", "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/skills/designer/engine/scripts/hook.mjs\"" },
+                            { "type": "command", "command": "node other.mjs" }
+                        ],
+                    }
+                ]
+            }
+        });
+        fs_.files.insert(cwd().join(".claude/settings.local.json"), local.to_string());
+
+        let result = repair_hook_manifests(&mut fs_, &cwd());
+        assert_eq!(result.already, vec![".claude".to_string()]);
+        assert!(result.written.is_empty());
+        let pruned = fs_.read_to_string(&cwd().join(".claude/settings.local.json")).unwrap();
+        assert!(!pruned.contains("hook.mjs"));
+        assert!(pruned.contains("other.mjs"));
+    }
+
+    #[test]
+    fn set_enabled_on_reports_installed_manifests_when_skill_folder_present() {
+        let mut fs_ = FakeFs::default();
+        fs_.files.insert(cwd().join(".claude/skills/designer"), String::new());
+        let outcome = run_cli(&mut fs_, &cwd(), &["on".to_string()], None);
+        assert_eq!(outcome.exit_code, 0);
+        assert!(outcome.stdout.contains("Installed or repaired hook manifests for: .claude"));
+    }
+
+    #[test]
+    fn value_has_impeccable_hook_marker_matches_nested_strings() {
+        let value = serde_json::json!({ "hooks": [{ "command": "node skills/designer/engine/scripts/hook.mjs" }] });
+        assert!(value_has_impeccable_hook_marker(&value));
+        let clean = serde_json::json!({ "hooks": [{ "command": "node other.mjs" }] });
+        assert!(!value_has_impeccable_hook_marker(&clean));
     }
 }

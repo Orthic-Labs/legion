@@ -3,20 +3,32 @@
 //! Source files and disposition:
 //!
 //! - `src/lib/core/binding.mjs` — **PORTED** in full, see [`binding`].
-//! - `src/lib/core/execute-plan.mjs` — **PORTED-PARTIAL**: the pure
-//!   `RunLedger` class is ported in full, see [`run_ledger`].
-//!   `RuntimeAdmission` from the same file is **ALREADY-NATIVE-VERIFIED**
-//!   (`legion_runtime::engine::RuntimeAdmission`, exported from crate root).
-//!   `executePlan`/`asReceipt`/`skippedReceipt` are **NOT-STARTED**: they
-//!   depend on `./execution-receipt.mjs`, `./scheduler.mjs`,
-//!   `../providers/provider-executor.mjs` and `../providers/sdk/result.mjs`,
-//!   none of which are in this chunk or owned by it.
-//! - `src/lib/core/adjudicate-run.mjs` — **PORTED-PARTIAL**:
-//!   `validateJudgmentReceipt` and the `mode==='disabled'||!reviewerAvailable`
-//!   branch of `adjudicateSubjects` are ported in full, see [`judgment`].
-//!   `prepareAdjudication` and the reviewer-enabled branch are
-//!   **NOT-STARTED** (need `./judgment-packets.mjs` and
-//!   `./reviewer-policy.mjs`, not in this chunk).
+//! - `src/lib/core/execute-plan.mjs` — **PORTED** in full (packet r44), see
+//!   [`execute_plan`]. The pure `RunLedger` class was already ported, see
+//!   [`run_ledger`]; `scheduleProviders`/`providerDependencies` are
+//!   already native at `crate::p5_core::core_scheduler`;
+//!   `executionReceipt`/`blocked` are already native at
+//!   `crate::wf_port::w2_040::execution_receipt`. Packet r44 ports the
+//!   remaining `normalizeProvider`/`denominator`/`asReceipt`/`executePlan`/
+//!   `skippedReceipt` plus `normalizeProviderResult`
+//!   (`src/lib/providers/sdk/result.mjs`, a pure dependency of `asReceipt`
+//!   with no further dependency of its own). The one seam modeled as a
+//!   trait rather than ported line-for-line: `executePlannedProvider`
+//!   (`src/lib/providers/provider-executor.mjs`) dynamically imports
+//!   provider modules and spawns external processes via
+//!   `../host/sandbox-policy.mjs`/`./sdk/contracts.mjs`/
+//!   `../qualification/schema-validator.mjs`, none in this packet — see
+//!   [`execute_plan::ProviderExecutor`].
+//! - `src/lib/core/adjudicate-run.mjs` — **PORTED** in full (packet r44),
+//!   see [`judgment`]. `validateJudgmentReceipt` and the
+//!   `mode==='disabled'||!reviewerAvailable` branch were already ported.
+//!   Packet r44 adds `prepareAdjudication` and the reviewer-enabled branch
+//!   of `adjudicateSubjects`, plus their two whole-file dependencies
+//!   `buildJudgmentPacket` (`src/lib/core/judgment-packets.mjs`, one
+//!   function) and `reviewerPolicy` (`src/lib/core/reviewer-policy.mjs`,
+//!   one function) — both ported alongside since neither has any further
+//!   dependency. The host `review(...)` call is modeled as
+//!   [`judgment::Reviewer`].
 //! - `src/lib/core/audit.mjs` — **DROP**. Its only job is to orchestrate
 //!   `host.membrane?.context?.(...)`, `inspectProduct`, `buildSealedPlan`,
 //!   `executePlan`, `reconcileRun`, `adjudicateSubjects`, `finalizeRun` and
@@ -27,17 +39,39 @@
 //!   `finalize-run.mjs`, `repository-binding.mjs`, `run-store.mjs`) lives
 //!   outside this chunk. Nothing here is portable in isolation; see the
 //!   w2_039 report for what a future chunk needs before this can move.
-//! - `src/lib/core/build-plan.mjs` — **NOT-STARTED**. `buildSealedPlan`'s
-//!   `DEFAULT_STAGES` wires in `productTopologyStage`
-//!   (`./plan-stages/product-topology.mjs`), `controlBaselineStage`
-//!   (`./plan-stages/control-baseline.mjs`) and `PLANNING_STAGE_IDS`
-//!   (`./plan-stages/registry.mjs`), and its first default stage is
-//!   `blueprint-packet` — a Membrane/Blueprint artifact this port is
-//!   dropping. None of the `plan-stages/*` modules are in this chunk. See
-//!   the report for the claim-ranking/stage-loop algorithm this file uses,
-//!   which is small and generic and can be ported once its stage modules
-//!   land.
+//! - `src/lib/core/build-plan.mjs` — **PORTED-PARTIAL** (packet r44), see
+//!   [`build_plan`]. The claim-ranking table, `requiredForClaim`, and the
+//!   entire `buildSealedPlan` stage-loop/gap/digest algorithm are ported in
+//!   full, generic over a [`build_plan::PlanStage`] trait. `DEFAULT_STAGES`'s
+//!   concrete bodies (`productTopologyStage` → `inspectProduct`,
+//!   `controlBaselineStage` → `controls/baseline` + `controls/evidence`)
+//!   remain **NOT-STARTED**: neither dependency tree is in this packet or
+//!   owned by it (`git grep -l "buildPortfolio\|extractComponents\|compileBaseline"
+//!   engine/` — no hits at port time). The `blueprint-packet` default stage
+//!   is dropped per the Membrane/Blueprint retirement.
+
+//! - `src/lib/core/finalize-run.mjs` — **PORTED-PARTIAL**, unchanged by
+//!   packet r44. `exitCodeForReport` is already native
+//!   (`legion_runtime::p5_core::exit_taxonomy::exit_code_for_report`, see
+//!   w2_040). `finalizeRun({plan, facts, results, policy}, host)` itself
+//!   stays **NOT-STARTED**: besides field renaming its only statement is
+//!   `await import('../../../tools/audit/audit-finalize.mjs')` then
+//!   `finalizeAudit(...)` — a 272-line audit-domain module at
+//!   `tools/audit/audit-finalize.mjs`, outside `src/lib/**` entirely and
+//!   not in this packet.
+//! - `src/lib/core/index.mjs` — **PORTED-PARTIAL** (packet r44), see
+//!   [`core_index`]. `writeRunManifest` is ported in full: it only needed
+//!   this chunk's own `digest()` (`binding.rs`) plus the already-written
+//!   `store.records()` data, taken as plain input so no `RunArtifactStore`
+//!   trait needed inventing. The nine re-exports and the `buildPlan`/
+//!   `verifyRun` wrappers remain **NOT-STARTED**: every one of them depends
+//!   on `../../../tools/audit/audit-plan.mjs`,
+//!   `../registry/provider-registry.mjs`, `./verify-run.mjs` and/or
+//!   `../artifacts/run-store.mjs`, none in this packet.
 
 pub mod binding;
+pub mod build_plan;
+pub mod core_index;
+pub mod execute_plan;
 pub mod judgment;
 pub mod run_ledger;

@@ -7,11 +7,10 @@
 //! ported from `render_gap.mjs`. No gap found against the current `render_gap.mjs` source.
 //!
 //! Every script here is CLI-plus-filesystem-state tooling (JSON/CSV snapshot files, an
-//! interventions store, a repo-structure closure gate). Consistent with the existing
-//! `wf_port`/`p9_skills` convention (see `render_gap.rs`), each submodule ports the pure,
-//! deterministic logic — parsing/normalization, state transitions, diffing, hashing,
-//! arithmetic, validation — and leaves file IO, `argparse` CLI wiring, and `os.environ`
-//! reads to a host wrapper that supplies already-loaded data to these functions.
+//! interventions store, a repo-structure closure gate). All four are fully ported
+//! (packets `r42`/`r43`), including filesystem IO, `os.environ` reads, and the
+//! `argparse` CLI surface: `rank_tracker::run`, `search_ops::run_cli`,
+//! `seo_closure::run`/`seo_closure::check`, and `seo_project::run`.
 
 pub mod rank_tracker;
 pub mod search_ops;

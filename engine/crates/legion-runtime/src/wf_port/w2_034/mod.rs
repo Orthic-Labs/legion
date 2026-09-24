@@ -3,11 +3,10 @@
 //!
 //! Every script in this chunk is either a live-network crawler/API client
 //! (`site_audit.py`, `youtube_search.py`) or a pure data transform
-//! (`source_freshness.py`, `templated_metadata.py`). In every case, the pure,
-//! independently testable core is ported faithfully; the network IO (HTTP fetches, the
-//! YouTube Data API client, file reads) stays with a host wrapper that fetches/reads and
-//! hands the resulting already-parsed data to these functions. See each submodule's doc
-//! comment for exactly what was ported vs. left to the host.
+//! (`source_freshness.py`, `templated_metadata.py`). `site_audit.py` is fully ported
+//! (packet `r43`), including the HTTP crawl driver (`site_audit::audit`, behind the
+//! `site_audit::Fetcher` trait) and the `main()` CLI (`site_audit::run`). See each
+//! submodule's doc comment for exactly what was ported vs. left to the host.
 
 pub mod date_math;
 pub mod site_audit;

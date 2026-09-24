@@ -14,8 +14,8 @@ use serde_json::Value;
 
 use legion_runtime::wf_port::w2_034::date_math::Date;
 use legion_runtime::wf_port::w2_034::site_audit::{
-    build_report, discover_sitemaps, extract_sitemap_locs, is_asset_url, is_sitemap_index,
-    normalize, parse, BrokenLink, FetchedPage, PageSignals,
+    audit, build_report, discover_sitemaps, extract_sitemap_locs, is_asset_url, is_sitemap_index,
+    normalize, parse, run, urljoin, BrokenLink, Fetcher, FetchedPage, GetResponse, PageSignals,
 };
 use legion_runtime::wf_port::w2_034::source_freshness::{assess, exit_code};
 use legion_runtime::wf_port::w2_034::templated_metadata::{analyze, rows_from_payload};
@@ -134,6 +134,56 @@ fn site_audit_build_report_flags_expected_issues_end_to_end() {
     );
     assert!(report.severity.errors.contains(&"broken_internal_links"));
     assert!(report.severity.warnings.contains(&"thin_content"));
+}
+
+struct FakeFetcher {
+    routes: HashMap<String, (i32, String)>,
+}
+
+impl Fetcher for FakeFetcher {
+    fn get(&self, url: &str) -> GetResponse {
+        match self.routes.get(url) {
+            Some((status, body)) => GetResponse {
+                status: *status,
+                final_url: url.to_string(),
+                body: body.clone(),
+                headers: HashMap::new(),
+            },
+            None => GetResponse { status: 404, final_url: url.to_string(), body: String::new(), headers: HashMap::new() },
+        }
+    }
+    fn status_only(&self, url: &str) -> (i32, Option<String>) {
+        (self.routes.get(url).map(|(s, _)| *s).unwrap_or(404), None)
+    }
+}
+
+/// Exercises the production `audit()`/`run()` CLI entry points end to end (not just the
+/// pure `build_report` helper), per the "assert on the production entry point" rule.
+#[test]
+fn site_audit_run_crawls_via_fetcher_and_reports_errors() {
+    let mut routes = HashMap::new();
+    routes.insert("https://example.com/robots.txt".to_string(), (404, String::new()));
+    routes.insert("https://example.com/sitemap.xml".to_string(), (404, String::new()));
+    routes.insert(
+        "https://example.com/".to_string(),
+        (200, "<html><body>no title, no meta, nothing here</body></html>".to_string()),
+    );
+    let fetcher = FakeFetcher { routes };
+
+    let report = audit(&fetcher, "https://example.com", 5);
+    assert_eq!(report.crawled, 1);
+    assert!(report.report.issues.contains_key("missing_title"));
+    assert!(report.report.severity.errors.contains(&"missing_title"));
+
+    let args: Vec<String> = ["--url", "https://example.com", "--summary"].iter().map(|s| s.to_string()).collect();
+    assert_eq!(run(&fetcher, &args), 1);
+    assert_eq!(run(&fetcher, &[]), 2);
+}
+
+#[test]
+fn site_audit_urljoin_resolves_relative_links() {
+    assert_eq!(urljoin("https://example.com/a/b", "../c"), "https://example.com/c");
+    assert_eq!(urljoin("https://example.com/a/", "/root"), "https://example.com/root");
 }
 
 // ---------------------------------------------------------------------------

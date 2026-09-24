@@ -31,12 +31,21 @@
 //!   process. There is no meaningful Rust port of "invoke an external AI
 //!   agent and stream its stdout"; this stays the documented frontier.
 
+pub mod commit_cli;
+pub mod rollback;
 pub mod verify;
 
+pub use commit_cli::{commit_manual_edits, run_cli, CommitOptions};
+pub use rollback::{
+    changed_files_since_snapshot, collect_apply_owned_files, collect_rollback_files,
+    normalize_relative_file, normalize_rollback_path, rollback_changed_files,
+    snapshot_rollback_files, unreported_changed_files, ChangedFile, RollbackResult,
+    RollbackSnapshot, SnapshotEntry,
+};
 pub use verify::{
     coupled_object_key_failures_for_op_ref, locator_targets_in_file, normalize_project_source_path,
     object_key_candidates_for_op, object_key_match_still_uses_original,
     sibling_candidates_for_entry, source_hint_window_failure, verification_failures_for_entries,
     verification_targets_for_op, verify_applied_entry, verify_entries_after_repair,
-    InMemorySourceStore, SourceStore,
+    FsSourceStore, InMemorySourceStore, SourceStore,
 };

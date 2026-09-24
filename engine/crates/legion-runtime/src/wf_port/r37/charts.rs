@@ -440,14 +440,6 @@ fn xml_escape(s: &str) -> String {
         .replace('>', "&gt;")
 }
 
-// `rating_color` is re-exported for callers that want a per-metric color
-// (Python's chart functions don't use it directly today, but `sections.rs`
-// does; keep the `use` above from going unused across cfg(test) builds).
-#[allow(dead_code)]
-fn _uses_rating_color(r: &str) -> &'static str {
-    rating_color(r)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

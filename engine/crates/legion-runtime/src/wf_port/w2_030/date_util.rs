@@ -45,6 +45,19 @@ pub fn days_before(now: (i64, i64, i64), n: i64) -> String {
     format_ymd(y2, m2, d2)
 }
 
+/// Real entry point (packet r38): today's (y, m, d) in UTC, for the `datetime.now()` call
+/// `gsc_query.py`/`gsc_query_v2.py`'s `main()` makes when computing default date ranges (the
+/// scripts use naive local time; UTC is used here since no timezone crate is a dependency of this
+/// crate, and a same-day boundary discrepancy does not affect which dates get requested from the
+/// GSC API by more than a day at the UTC/local boundary).
+pub fn civil_now() -> (i64, i64, i64) {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    civil_from_days((secs / 86_400) as i64)
+}
+
 /// Port of the shared `end`/`start` default-date-range computation used by `gsc_query.py`'s
 /// `main()` and `gsc_query_v2.py`'s `main()`: `end = end_date or now-3d`, `start = start_date or
 /// now-days`.

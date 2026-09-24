@@ -85,6 +85,16 @@ fn generated_path_re() -> Regex {
     .expect("GENERATED_PATH regex must compile")
 }
 
+/// Mirrors `SENSITIVE_PATH.test(filePath)`.
+pub fn is_sensitive_path(file_path: &str) -> bool {
+    sensitive_path_re().is_match(file_path)
+}
+
+/// Mirrors `GENERATED_PATH.test(filePath)`.
+pub fn is_generated_path(file_path: &str) -> bool {
+    generated_path_re().is_match(file_path)
+}
+
 /// Mirrors `TRUTHY` regex used by `truthy()` and `depthIsSet()`.
 pub fn truthy(value: Option<&str>) -> bool {
     match value {
@@ -178,6 +188,37 @@ pub fn get_cache_path(cwd: &Path) -> PathBuf {
 
 pub fn get_pending_path(cwd: &Path) -> PathBuf {
     cwd.join(".impeccable").join("hook.pending.json")
+}
+
+/// Mirrors `envProjectDir(fallback)`: `$CURSOR_PROJECT_DIR` if set and
+/// non-empty, else `fallback`.
+fn env_project_dir(env: &HashMap<String, String>, fallback: &str) -> String {
+    match env.get("CURSOR_PROJECT_DIR") {
+        Some(v) if !v.is_empty() => v.clone(),
+        _ => fallback.to_string(),
+    }
+}
+
+/// Mirrors `resolveProjectCwd(event, fallback = process.cwd())`: prefer
+/// `event.cwd`, then the first `event.workspace_roots` entry, then
+/// `$CURSOR_PROJECT_DIR`, then `fallback`.
+pub fn resolve_project_cwd(event: &Value, env: &HashMap<String, String>, fallback: &str) -> String {
+    if let Some(cwd) = event.get("cwd").and_then(|v| v.as_str()) {
+        if !cwd.is_empty() {
+            return cwd.to_string();
+        }
+    }
+    if let Some(root) = event
+        .get("workspace_roots")
+        .and_then(|v| v.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|v| v.as_str())
+    {
+        if !root.is_empty() {
+            return root.to_string();
+        }
+    }
+    env_project_dir(env, fallback)
 }
 
 fn safe_read_json(path: &Path) -> Option<Value> {
@@ -359,6 +400,11 @@ pub struct FileEntry {
     pub edit_count: u32,
     #[serde(default)]
     pub findings: Vec<String>,
+    /// Mirrors `fileEntry.cursorDenials`: a map from finding-signature key
+    /// (`bumpCursorDenial`'s `findingSignature`) to repeat-denial count,
+    /// used only by `hook-before-edit.mjs`'s Cursor preToolUse gate.
+    #[serde(rename = "cursorDenials", default, skip_serializing_if = "HashMap::is_empty")]
+    pub cursor_denials: HashMap<String, u32>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -1542,10 +1588,10 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
             last_skip = "file-missing".to_string();
             continue;
         };
-        let findings = if (ext == ".html" || ext == ".htm") {
-            deps.detector.detect_html(file_path)
+        let findings = if ext == ".html" || ext == ".htm" {
+            deps.detector.detect_html(file_path, &scan_options)
         } else {
-            deps.detector.detect_text(&content, file_path)
+            deps.detector.detect_text(&content, file_path, &scan_options)
         };
 
         let ignore_rules_set: HashSet<String> = config.ignore_rules.iter().cloned().collect();
@@ -1582,7 +1628,7 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
         let first = &fresh_groups[0];
         let text = append_design_system_note(
             render_grouped_template(&fresh_groups, &config, &project_cwd),
-            false,
+            md_newer_than_json,
         );
         let all_findings: usize = fresh_groups.iter().map(|g| g.findings.len()).sum();
         audit["file"] = Value::String(first.file_path.clone());
@@ -1603,7 +1649,7 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
 
     if let Some((file_path, known)) = &pending_winner {
         if should_emit_ack_for_file(file_path) {
-            let text = append_design_system_note(render_pending_ack(file_path, known, &project_cwd), false);
+            let text = append_design_system_note(render_pending_ack(file_path, known, &project_cwd), md_newer_than_json);
             audit["file"] = Value::String(file_path.clone());
             audit["emitted"] = Value::Bool(true);
             audit["kind"] = Value::String("pending".to_string());
@@ -1631,7 +1677,7 @@ pub fn run_hook(deps: RunHookDeps<'_>) -> HookResult {
 
     if let Some(file_path) = &clean_winner {
         if should_emit_ack_for_file(file_path) {
-            let text = append_design_system_note(render_clean_ack(file_path, &project_cwd), false);
+            let text = append_design_system_note(render_clean_ack(file_path, &project_cwd), md_newer_than_json);
             audit["file"] = Value::String(file_path.clone());
             audit["emitted"] = Value::Bool(true);
             audit["kind"] = Value::String("clean".to_string());
@@ -1663,11 +1709,32 @@ mod tests {
     }
 
     impl Detector for FakeDetector {
-        fn detect_text(&self, _content: &str, _file_path: &str) -> Vec<Finding> {
+        fn detect_text(&self, _content: &str, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
             self.text_findings.clone()
         }
-        fn detect_html(&self, _file_path: &str) -> Vec<Finding> {
+        fn detect_html(&self, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
             self.html_findings.clone()
+        }
+    }
+
+    struct DesignSystemFakeDetector {
+        text_findings: Vec<Finding>,
+        design_system: Option<DesignSystemInfo>,
+        seen_design_system: std::cell::RefCell<Vec<bool>>,
+    }
+
+    impl Detector for DesignSystemFakeDetector {
+        fn detect_text(&self, _content: &str, _file_path: &str, scan_options: &ScanOptions) -> Vec<Finding> {
+            self.seen_design_system
+                .borrow_mut()
+                .push(scan_options.design_system.is_some());
+            self.text_findings.clone()
+        }
+        fn detect_html(&self, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
+            Vec::new()
+        }
+        fn load_design_system_for_cwd(&self, _project_cwd: &Path) -> Option<DesignSystemInfo> {
+            self.design_system.clone()
         }
     }
 
@@ -1797,6 +1864,54 @@ mod tests {
         assert!(result.audit.get("emitted").and_then(|v| v.as_bool()).unwrap_or(false));
         assert!(get_cache_path(&dir).exists());
         cleanup(&dir);
+    }
+
+    #[test]
+    fn run_hook_threads_design_system_options_into_detector_and_note() {
+        let dir = tempdir();
+        let file = dir.join("App.tsx");
+        fs::write(&file, "export default function App() {}\n").unwrap();
+        let detector = DesignSystemFakeDetector {
+            text_findings: vec![Finding {
+                antipattern: "side-tab".to_string(),
+                line: 3,
+                name: Some("Side tab".to_string()),
+                description: Some("Uses a side tab pattern.".to_string()),
+                ..Default::default()
+            }],
+            design_system: Some(DesignSystemInfo { md_newer_than_json: true }),
+            seen_design_system: std::cell::RefCell::new(Vec::new()),
+        };
+        let stdin = serde_json::json!({
+            "tool_name": "Write",
+            "tool_input": { "file_path": file.to_string_lossy() },
+            "cwd": dir.to_string_lossy(),
+            "session_id": "sess-ds",
+        })
+        .to_string();
+        let result = run_hook(RunHookDeps {
+            stdin_json: &stdin,
+            env: HashMap::new(),
+            cwd: dir.clone(),
+            detector: &detector,
+        });
+        assert_eq!(result.exit_code, 0);
+        assert!(result.stdout.contains("DESIGN.md is newer than .impeccable/design.json"));
+        assert_eq!(*detector.seen_design_system.borrow(), vec![true]);
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn design_system_options_returns_default_when_disabled_in_config() {
+        let mut config = Config::default();
+        config.design_system.enabled = false;
+        let detector = DesignSystemFakeDetector {
+            text_findings: vec![],
+            design_system: Some(DesignSystemInfo { md_newer_than_json: true }),
+            seen_design_system: std::cell::RefCell::new(Vec::new()),
+        };
+        let opts = design_system_options(&config, &detector, Path::new("/proj"));
+        assert!(opts.design_system.is_none());
     }
 
     #[test]

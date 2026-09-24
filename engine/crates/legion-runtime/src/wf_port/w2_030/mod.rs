@@ -46,29 +46,48 @@
 //!
 //! ## What is NOT ported, and why
 //!
-//! - The live Google API calls themselves: `google_auth.py`'s `get_service_account_credentials`,
-//!   `get_oauth_credentials`, `run_oauth_flow` (opens a browser + a local `http.server` on
-//!   `localhost:8085` to catch the OAuth redirect), `_refresh_oauth_token`, `build_service`;
-//!   `gsc_query.py`/`gsc_query_v2.py`'s `service()`/`_query()` (Search Console `searchanalytics`/
-//!   `sites`/`sitemaps` HTTP calls); `gsc_inspect.py`'s `_build_inspection_service()` and the
-//!   `urlInspection().index().inspect()` call. These require an HTTP client, OAuth token
-//!   exchange, and a local callback server — none of which exist as dependencies of
-//!   `legion-runtime` today, and porting them as unreachable dead code with no caller would
-//!   violate the same "no second implementation with nothing driving it" principle documented in
-//!   `wf_port::w2_004`. A future caller that wires up real Google API access should build on top
-//!   of the deterministic pieces ported here.
+//! - Packet r36 closed the `google_auth.py` half of this gap: `run_oauth_flow` (browser open +
+//!   local `http.server`-equivalent TCP listener on `localhost:8085` catching the OAuth
+//!   redirect), `_refresh_oauth_token`, `_exchange_code`, `_load_oauth_token`/`_save_oauth_token`,
+//!   and real-filesystem resolution of service-account/OAuth-token state are all now ported in
+//!   [`google_auth`] (network calls behind [`google_auth::TokenHttpClient`], browser launch
+//!   behind [`google_auth::BrowserOpener`], both fakeable in tests), along with the full CLI
+//!   dispatch (`google_auth::run`). What remains unported in `google_auth.py` is
+//!   `get_service_account_credentials`/`get_oauth_credentials`/`build_service`'s construction of
+//!   a live `googleapiclient` service object — those are owned entirely by the python
+//!   `google-auth`/`google-api-python-client` libraries and the shipped script performs no JWT
+//!   signing itself at that point, so there is nothing script-side left to port; a future caller
+//!   that wants to actually call a Google API with service-account credentials would need to add
+//!   `jsonwebtoken` for RS256 JWT-bearer signing.
+//! - Packet r38 closed the `gsc_inspect.py`/`gsc_query.py`/`gsc_query_v2.py` half of this gap:
+//!   the live GSC URL Inspection call ([`gsc_inspect::inspect_url_with`]/
+//!   [`gsc_inspect::batch_inspect_with`], over [`gsc_inspect::InspectionTransport`]), the live
+//!   Search Analytics call ([`gsc_query_v2::query_with`], over
+//!   [`gsc_query_v2::SearchAnalyticsTransport`]), and the live `sites`/`sitemaps` calls
+//!   ([`gsc_query::list_sites_with`]/[`gsc_query::list_sitemaps_with`], over
+//!   [`gsc_query::SitesTransport`]) are all now ported, each backed for real by a
+//!   `reqwest`-based transport and fakeable in tests. Bearer-token resolution
+//!   ([`gsc_query_v2::resolve_bearer_token`]) wires the OAuth-token-file/refresh path through
+//!   `google_auth`'s already-ported [`google_auth::TokenHttpClient`]/[`google_auth::OauthClient`]
+//!   machinery. Each of the three scripts' `main()` is ported as a `run(args, out, err) -> i32`
+//!   entry point ([`gsc_inspect::run`], [`gsc_query::run`], [`gsc_query_v2::run`]), with
+//!   `gsc_query::run`'s `query` command delegating to `gsc_query_v2::query_with` exactly as the
+//!   python original delegates to `gsc_query_v2.query()`.
+//! - What remains unported, in all three: the service-account credential fallback
+//!   (`get_service_account_credentials`/`build_service`'s live path in `google_auth.py`, which
+//!   these scripts reach via `get_oauth_credentials()`'s "no OAuth token -> fall back to service
+//!   account" branch). That needs an RSA-SHA256 JWT signed with the service account's private
+//!   key, and no crate providing RSA signing is in this port's allowed dependency list (`reqwest`,
+//!   `scraper`, `headless_chrome`, `image`) — the one genuinely-impossible piece; see the module
+//!   header of [`gsc_query_v2`] for the full note. The OAuth-token path (the common case once
+//!   `google_auth --auth` has been run once) is fully live.
 //! - `google_report.py` (2461 lines): NOT started under this chunk's budget. It is a large report
 //!   generator that formats/aggregates the same live GSC/PSI/CrUX/GA4/Indexing API responses this
-//!   chunk's other four files fetch; a faithful port belongs in its own follow-up chunk once
-//!   `gsc_query_v2`/`gsc_inspect`'s live-fetch layer (the gap above) exists for it to consume, so
-//!   its pure formatting/aggregation logic isn't ported speculatively against an unported input
-//!   shape. Flagged explicitly in the report rather than silently dropped.
-//! - `gsc_query.py`'s `list_sites()`/`list_sitemaps()` and its `query` subcommand's delegation to
-//!   `gsc_query_v2.query()`: these are thin wrappers with no logic beyond the live API call
-//!   itself (already covered by the gap above) and response reshaping identical in kind to what
-//!   [`gsc_query_v2::normalize_result`] already demonstrates is portable; not duplicated here.
+//!   chunk's other four files fetch; a faithful port belongs in its own follow-up chunk. Flagged
+//!   explicitly in the report rather than silently dropped.
 
 pub mod date_util;
 pub mod google_auth;
 pub mod gsc_inspect;
+pub mod gsc_query;
 pub mod gsc_query_v2;

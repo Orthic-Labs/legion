@@ -29,15 +29,14 @@ pub struct ServerInfo {
 /// still reachable/valid, matching the JS `err.code !== 'ESRCH'` check.
 #[cfg(unix)]
 pub fn is_live_server_pid_reachable(pid: u32) -> bool {
-    // SAFETY: `kill(pid, 0)` performs no action beyond existence/permission
-    // checking; it does not dereference the pid as a pointer or otherwise
-    // touch memory owned by that process.
-    let result = unsafe { libc::kill(pid as libc::pid_t, 0) };
-    if result == 0 {
-        return true;
-    }
-    let errno = io::Error::last_os_error().raw_os_error().unwrap_or(0);
-    errno != libc::ESRCH
+    // `kill -0` checks existence/permission without signalling; the crate
+    // forbids unsafe code, so this goes through the system utility.
+    std::process::Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
 }
 
 #[cfg(not(unix))]

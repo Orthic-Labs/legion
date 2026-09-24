@@ -221,7 +221,7 @@ fn layout_prop_found_re() -> &'static Regex {
 
 fn broken_img_empty_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| rei(r#"<img\b[^>]*?\bsrc\s*=\s*(?:""|''|"\s+"|'\s+'|"#"|'#')"#))
+    RE.get_or_init(|| rei(r##"<img\b[^>]*?\bsrc\s*=\s*(?:""|''|"\s+"|'\s+'|"#"|'#')"##))
 }
 fn broken_img_none_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();

@@ -69,5 +69,5 @@ pub mod r12;
 pub mod r13;
 pub mod r14;
 pub mod r18;
-pub mod r24;
-pub mod r32;
+pub mod r37;
+pub mod r45;

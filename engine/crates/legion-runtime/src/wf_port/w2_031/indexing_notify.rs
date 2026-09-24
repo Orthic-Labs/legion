@@ -221,3 +221,329 @@ pub fn batch_notify_with<C: IndexingClient>(
 
     (results, summary, quota_warning, stop_error)
 }
+
+// ---------------------------------------------------------------------
+// Real client (r39): `_build_indexing_service()` + the
+// `service.urlNotifications().publish/getMetadata(...)` calls, backed by
+// `reqwest::blocking` with an already-minted OAuth bearer token.
+// ---------------------------------------------------------------------
+
+const PUBLISH_URL: &str = "https://indexing.googleapis.com/v3/urlNotifications:publish";
+const METADATA_URL: &str = "https://indexing.googleapis.com/v3/urlNotifications/metadata";
+
+/// Real implementation of [`IndexingClient`]: a blocking `reqwest` client
+/// carrying an already-minted OAuth bearer token (see module docs — token
+/// minting is `google_auth.py`'s job, not this one's). Error strings are
+/// formatted to include the HTTP status code so [`categorize_publish_error`]
+/// / [`categorize_metadata_error`]'s substring matching on `"403"`/`"429"`/
+/// `"400"`/`"404"` — which mirrors Python's `str(e)` checks on the
+/// exception `googleapiclient.errors.HttpError` raises — keeps working
+/// the same way.
+pub struct ReqwestIndexingClient {
+    pub bearer_token: String,
+    pub http: reqwest::blocking::Client,
+}
+
+impl ReqwestIndexingClient {
+    pub fn new(bearer_token: String) -> Self {
+        Self {
+            bearer_token,
+            http: reqwest::blocking::Client::new(),
+        }
+    }
+}
+
+impl IndexingClient for ReqwestIndexingClient {
+    fn publish(&self, body: &Value) -> Result<Value, String> {
+        let resp = self
+            .http
+            .post(PUBLISH_URL)
+            .bearer_auth(&self.bearer_token)
+            .json(body)
+            .send()
+            .map_err(|e| e.to_string())?;
+        let status = resp.status().as_u16();
+        let text = resp.text().unwrap_or_default();
+        if status >= 400 {
+            return Err(format!("{status} {text}"));
+        }
+        serde_json::from_str::<Value>(&text).map_err(|e| format!("invalid Indexing API JSON response: {e}"))
+    }
+
+    fn get_metadata(&self, url: &str) -> Result<Value, String> {
+        let resp = self
+            .http
+            .get(METADATA_URL)
+            .bearer_auth(&self.bearer_token)
+            .query(&[("url", url)])
+            .send()
+            .map_err(|e| e.to_string())?;
+        let status = resp.status().as_u16();
+        let text = resp.text().unwrap_or_default();
+        if status >= 400 {
+            return Err(format!("{status} {text}"));
+        }
+        serde_json::from_str::<Value>(&text).map_err(|e| format!("invalid Indexing API JSON response: {e}"))
+    }
+}
+
+/// `get_notification_metadata(url)`, generalized over an [`IndexingClient`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MetadataResult {
+    pub url: String,
+    pub latest_update: Option<Value>,
+    pub latest_remove: Option<Value>,
+    pub error: Option<String>,
+}
+
+/// `get_notification_metadata(url)` in Python.
+pub fn get_notification_metadata_with<C: IndexingClient>(client: &C, url: &str) -> MetadataResult {
+    match client.get_metadata(url) {
+        Ok(response) => {
+            let update = response.get("latestUpdate").filter(|v| !v.is_null()).cloned();
+            let remove = response.get("latestRemove").filter(|v| !v.is_null()).cloned();
+            MetadataResult {
+                url: url.to_string(),
+                latest_update: update.map(|u| {
+                    json!({
+                        "url": u.get("url").cloned().unwrap_or(Value::Null),
+                        "type": u.get("type").cloned().unwrap_or(Value::Null),
+                        "notify_time": u.get("notifyTime").cloned().unwrap_or(Value::Null),
+                    })
+                }),
+                latest_remove: remove.map(|r| {
+                    json!({
+                        "url": r.get("url").cloned().unwrap_or(Value::Null),
+                        "type": r.get("type").cloned().unwrap_or(Value::Null),
+                        "notify_time": r.get("notifyTime").cloned().unwrap_or(Value::Null),
+                    })
+                }),
+                error: None,
+            }
+        }
+        Err(e) => MetadataResult {
+            url: url.to_string(),
+            latest_update: None,
+            latest_remove: None,
+            error: Some(categorize_metadata_error(&e)),
+        },
+    }
+}
+
+// ---------------------------------------------------------------------
+// CLI (r39): `main()` in `indexing_notify.py`.
+// `[url] [--action ACTION] [--batch FILE] [--status URL] [--delay N] [--json]`
+// ---------------------------------------------------------------------
+
+/// Outcome of a CLI run: exit code plus stdout/stderr text, mirroring
+/// `main()`'s `print(...)`/`sys.exit(...)` calls without actually calling
+/// `std::process::exit`.
+pub struct CliOutcome {
+    pub exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+/// Reads `--batch FILE` the way Python's `open(args.batch, "r")` would:
+/// any I/O error is surfaced to the caller, who reports it as a CLI
+/// failure (`sys.exit(1)`, matching `except IOError as e`).
+pub trait BatchFileReader {
+    fn read_to_string(&self, path: &str) -> Result<String, String>;
+}
+
+struct ParsedArgs {
+    url: Option<String>,
+    action: NotifyAction,
+    batch: Option<String>,
+    status: Option<String>,
+    json: bool,
+}
+
+fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
+    let mut out = ParsedArgs {
+        url: None,
+        action: NotifyAction::UrlUpdated,
+        batch: None,
+        status: None,
+        json: false,
+    };
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--action" | "-a" => {
+                i += 1;
+                let v = args.get(i).ok_or("argument --action/-a: expected one argument")?;
+                out.action = NotifyAction::parse(v)
+                    .ok_or_else(|| format!("argument --action/-a: invalid choice: '{v}'"))?;
+            }
+            "--batch" | "-b" => {
+                i += 1;
+                out.batch = Some(args.get(i).ok_or("argument --batch/-b: expected one argument")?.clone());
+            }
+            "--status" => {
+                i += 1;
+                out.status = Some(args.get(i).ok_or("argument --status: expected one argument")?.clone());
+            }
+            "--delay" => {
+                i += 1;
+                args.get(i).ok_or("argument --delay: expected one argument")?;
+                // Delay is accepted for CLI compatibility but not used:
+                // `time.sleep(delay)` pacing is left to callers (see
+                // `batch_notify_with`'s doc comment).
+            }
+            "--json" | "-j" => out.json = true,
+            other if !other.starts_with('-') && out.url.is_none() && out.status.is_none() => {
+                out.url = Some(other.to_string());
+            }
+            other => return Err(format!("unrecognized arguments: {other}")),
+        }
+        i += 1;
+    }
+    Ok(out)
+}
+
+/// `main()`, generalized over an [`IndexingClient`] and a
+/// [`BatchFileReader`] (for `--batch FILE`).
+pub fn run<C: IndexingClient, F: BatchFileReader>(args: &[String], client: &C, files: &F) -> CliOutcome {
+    let parsed = match parse_args(args) {
+        Ok(p) => p,
+        Err(e) => {
+            return CliOutcome {
+                exit_code: 2,
+                stdout: String::new(),
+                stderr: e,
+            }
+        }
+    };
+
+    if let Some(status_url) = &parsed.status {
+        let result = get_notification_metadata_with(client, status_url);
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        if parsed.json {
+            stdout.push_str(&serde_json::to_string_pretty(&metadata_result_json(&result)).unwrap_or_default());
+            stdout.push('\n');
+        } else {
+            if let Some(e) = &result.error {
+                stderr.push_str(&format!("Error: {e}\n"));
+            }
+            stdout.push_str(&format!("=== Notification Status: {status_url} ===\n"));
+            if let Some(u) = &result.latest_update {
+                stdout.push_str(&format!(
+                    "  Latest Update: {} ({})\n",
+                    u.get("notify_time").and_then(Value::as_str).unwrap_or(""),
+                    u.get("type").and_then(Value::as_str).unwrap_or("")
+                ));
+            }
+            if let Some(r) = &result.latest_remove {
+                stdout.push_str(&format!(
+                    "  Latest Remove: {} ({})\n",
+                    r.get("notify_time").and_then(Value::as_str).unwrap_or(""),
+                    r.get("type").and_then(Value::as_str).unwrap_or("")
+                ));
+            }
+            if result.latest_update.is_none() && result.latest_remove.is_none() && result.error.is_none() {
+                stdout.push_str("  No notifications found.\n");
+            }
+        }
+        return CliOutcome { exit_code: 0, stdout, stderr };
+    }
+
+    if let Some(batch_path) = &parsed.batch {
+        let contents = match files.read_to_string(batch_path) {
+            Ok(c) => c,
+            Err(e) => {
+                return CliOutcome {
+                    exit_code: 1,
+                    stdout: String::new(),
+                    stderr: format!("Error reading batch file: {e}"),
+                }
+            }
+        };
+        let urls: Vec<String> = contents.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_string).collect();
+        let (results, summary, quota_warning, stop_error) = batch_notify_with(client, &urls, parsed.action);
+        let remaining = estimated_remaining_quota(summary.success);
+
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        if let Some(e) = &stop_error {
+            stderr.push_str(&format!("Error: {e}\n"));
+        }
+        if parsed.json {
+            let json_result = json!({
+                "action": parsed.action.as_str(),
+                "total": urls.len(),
+                "results": results.iter().map(notify_result_json).collect::<Vec<_>>(),
+                "summary": {"success": summary.success, "error": summary.error},
+                "quota_warning": quota_warning,
+                "error": stop_error,
+                "estimated_remaining_quota": remaining,
+            });
+            stdout.push_str(&serde_json::to_string_pretty(&json_result).unwrap_or_default());
+            stdout.push('\n');
+        } else {
+            stdout.push_str("=== Batch Indexing Notification ===\n");
+            stdout.push_str(&format!("Action: {}\n", parsed.action.as_str()));
+            stdout.push_str(&format!(
+                "Total: {} | Success: {} | Errors: {}\n",
+                urls.len(),
+                summary.success,
+                summary.error
+            ));
+            stdout.push_str(&format!("Estimated remaining daily quota: {remaining}\n"));
+            if let Some(w) = &quota_warning {
+                stdout.push_str(&format!("Warning: {w}\n"));
+            }
+        }
+        return CliOutcome { exit_code: 0, stdout, stderr };
+    }
+
+    if let Some(url) = &parsed.url {
+        let result = notify_url_with(client, url, parsed.action);
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        if let Some(e) = &result.error {
+            stderr.push_str(&format!("Error: {e}\n"));
+        }
+        if parsed.json {
+            stdout.push_str(&serde_json::to_string_pretty(&notify_result_json(&result)).unwrap_or_default());
+            stdout.push('\n');
+        } else if let Some(t) = &result.notify_time {
+            stdout.push_str(&format!("Notified: {} ({}) at {}\n", result.url, result.action.as_str(), t));
+        } else if result.error.is_none() {
+            stdout.push_str(&format!("Notification sent for: {} ({})\n", result.url, result.action.as_str()));
+        }
+        return CliOutcome { exit_code: 0, stdout, stderr };
+    }
+
+    // `parser.print_help(); sys.exit(1)` when none of url/batch/status given.
+    CliOutcome {
+        exit_code: 1,
+        stdout: "usage: indexing_notify.py [-h] [--action {URL_UPDATED,URL_DELETED}] \
+[--batch BATCH] [--status STATUS] [--delay DELAY] [--json] [url]\n"
+            .to_string(),
+        stderr: String::new(),
+    }
+}
+
+/// `result` dict shape for a single notification, as printed by
+/// `json.dumps(result, indent=2)`.
+pub fn notify_result_json(result: &NotifyResult) -> Value {
+    json!({
+        "url": result.url,
+        "action": result.action.as_str(),
+        "notify_time": result.notify_time,
+        "error": result.error,
+    })
+}
+
+/// `result` dict shape for `--status`, as printed by
+/// `json.dumps(result, indent=2)`.
+pub fn metadata_result_json(result: &MetadataResult) -> Value {
+    json!({
+        "url": result.url,
+        "latest_update": result.latest_update,
+        "latest_remove": result.latest_remove,
+        "error": result.error,
+    })
+}

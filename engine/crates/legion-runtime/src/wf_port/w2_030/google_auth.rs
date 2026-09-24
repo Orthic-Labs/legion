@@ -1,15 +1,29 @@
-//! Faithful port of the deterministic, provider-I/O-free logic in
-//! `skills/seo/scripts/google_auth.py`.
+//! Faithful port of `skills/seo/scripts/google_auth.py`, packet r36.
 //!
 //! Ported: the `SCOPES` / `SERVICE_AUTH` / `SERVICE_NAMES` tables, `OAUTH_SCOPES` /
 //! `OAUTH_REDIRECT_URI`, `load_config`'s file+env merge (`merge_config` is the pure core,
-//! `load_config` is the real-filesystem/env entry point), `validate_url`, and the branching
-//! logic of `detect_tier` / `check_credentials` (abstracted over an already-resolved
-//! [`CredentialState`] instead of re-implementing Google OAuth/service-account I/O — see the
-//! module-level gap note in `wf_port::w2_030::mod`).
+//! `load_config` is the real-filesystem/env entry point), `validate_url`, the branching logic of
+//! `detect_tier` / `check_credentials`, real-filesystem resolution of service-account and
+//! OAuth-token state ([`resolve_service_account`], [`resolve_oauth_token_state`],
+//! [`resolve_credential_state`]), the full OAuth browser flow (`run_oauth_flow` ->
+//! [`run_oauth_flow`], its local-redirect HTTP listener, auth-URL construction, code exchange,
+//! and token refresh — network calls go through [`TokenHttpClient`], the local browser launch
+//! through [`BrowserOpener`], both fakeable in tests), and the CLI dispatch in `main()` (see
+//! [`run`]).
+//!
+//! Documented frontier: `build_service()` / `get_oauth_credentials()`'s construction of a live
+//! `googleapiclient` service object, and `get_service_account_credentials()`'s JWT-signing
+//! `service_account.Credentials` object. Both are owned entirely by the python `google-auth` /
+//! `google-api-python-client` libraries — the shipped script itself performs no JWT signing or
+//! HTTP call at that point, only the file-existence/field checks ported in
+//! [`resolve_service_account`]. There is no Rust equivalent to port since nothing here signs a
+//! JWT; if a future packet needs to actually call a Google API with service-account credentials,
+//! that would need `jsonwebtoken` (not yet a dependency) for the RS256 JWT-bearer assertion.
 
 use std::collections::BTreeMap;
+use std::io::{Read, Write};
 use std::net::IpAddr;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 

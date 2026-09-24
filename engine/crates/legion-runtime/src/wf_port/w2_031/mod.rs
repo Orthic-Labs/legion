@@ -2,13 +2,15 @@
 //! nlp_analyze,page_engine}.py` (chunk w2_031).
 //!
 //! `page_engine` is a full, faithful port (pure logic, no network, no
-//! external client). The other four scripts are third-party API wrappers
-//! (IndexNow, Google Indexing API, Google Ads API, Google Cloud Natural
-//! Language API); each is ported as its pure request-shaping /
-//! response-classification / bookkeeping core, behind a small client trait
-//! the caller implements with a real HTTP/OAuth transport. See the w2_031
-//! report for what a full network port would need added to `Cargo.toml`
-//! (this crate has no HTTP client or OAuth dependency today).
+//! external client). `indexnow` and `indexing_notify` (packet r39) are
+//! full ports including the real HTTP transport (`reqwest::blocking`) and
+//! the `main()` CLI, behind a client trait so tests use fakes instead of
+//! the network. `keyword_planner` and `nlp_analyze` (Google Ads API,
+//! Google Cloud Natural Language API; packet r40) are likewise full ports:
+//! real `reqwest`-backed clients (`keyword_planner::ReqwestAdsClient`,
+//! `nlp_analyze::ReqwestNlpTransport`) plus each script's `main()` CLI as
+//! `run()`, behind a client/transport trait so tests use fakes instead of
+//! the network.
 
 pub mod indexing_notify;
 pub mod indexnow;

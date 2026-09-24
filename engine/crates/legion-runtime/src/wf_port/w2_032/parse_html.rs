@@ -142,6 +142,273 @@ where
     out
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ImageInfo {
+    pub src: String,
+    pub alt: Option<String>,
+    pub width: Option<String>,
+    pub height: Option<String>,
+    pub loading: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct LinkInfo {
+    pub href: String,
+    pub text: String,
+    pub rel: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Default)]
+pub struct Links {
+    pub internal: Vec<LinkInfo>,
+    pub external: Vec<LinkInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct HreflangEntry {
+    pub lang: String,
+    pub href: Option<String>,
+}
+
+/// Full port of `parse_html(html, base_url)`: the whole `result` dict.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ParseResult {
+    pub title: Option<String>,
+    pub meta_description: Option<String>,
+    pub meta_robots: Option<String>,
+    pub canonical: Option<String>,
+    pub h1: Vec<String>,
+    pub h2: Vec<String>,
+    pub h3: Vec<String>,
+    pub images: Vec<ImageInfo>,
+    pub links: Links,
+    pub schema: Vec<Value>,
+    pub open_graph: BTreeMap<String, String>,
+    pub twitter_card: BTreeMap<String, String>,
+    pub word_count: usize,
+    pub hreflang: Vec<HreflangEntry>,
+}
+
+fn text_of(el: scraper::ElementRef) -> String {
+    el.text().collect::<Vec<_>>().join("").trim().to_string()
+}
+
+fn attr(el: &scraper::ElementRef, name: &str) -> Option<String> {
+    el.value().attr(name).map(|s| s.to_string())
+}
+
+/// Full port of `parse_html(html, base_url)`.
+pub fn parse_html(html: &str, base_url: Option<&str>) -> ParseResult {
+    let doc = Html::parse_document(html);
+
+    let sel = |s: &str| Selector::parse(s).unwrap();
+
+    // `soup.find("title")` returns `None` only when there is no `<title>` tag at all;
+    // an empty/whitespace-only title still yields `Some("")` via `get_text(strip=True)`.
+    let title = doc.select(&sel("title")).next().map(text_of);
+
+    let mut meta_description = None;
+    let mut meta_robots = None;
+    let mut open_graph = BTreeMap::new();
+    let mut twitter_card = BTreeMap::new();
+    for meta in doc.select(&sel("meta")) {
+        let name = attr(&meta, "name").unwrap_or_default().to_lowercase();
+        let property = attr(&meta, "property").unwrap_or_default().to_lowercase();
+        let content = attr(&meta, "content").unwrap_or_default();
+        if name == "description" {
+            meta_description = Some(content.clone());
+        } else if name == "robots" {
+            meta_robots = Some(content.clone());
+        }
+        if property.starts_with("og:") {
+            open_graph.insert(property.clone(), content.clone());
+        }
+        if name.starts_with("twitter:") {
+            twitter_card.insert(name.clone(), content.clone());
+        }
+    }
+
+    let mut canonical = None;
+    let mut hreflang = Vec::new();
+    for link in doc.select(&sel("link")) {
+        let rel = attr(&link, "rel").unwrap_or_default();
+        let rel_tokens: Vec<&str> = rel.split_whitespace().collect();
+        if rel_tokens.contains(&"canonical") && canonical.is_none() {
+            canonical = attr(&link, "href");
+        }
+        if rel_tokens.contains(&"alternate") {
+            if let Some(hl) = attr(&link, "hreflang") {
+                hreflang.push(HreflangEntry {
+                    lang: hl,
+                    href: attr(&link, "href"),
+                });
+            }
+        }
+    }
+
+    let mut h1 = Vec::new();
+    let mut h2 = Vec::new();
+    let mut h3 = Vec::new();
+    for (tag, out) in [("h1", &mut h1), ("h2", &mut h2), ("h3", &mut h3)] {
+        for heading in doc.select(&sel(tag)) {
+            let text = text_of(heading);
+            if !text.is_empty() {
+                out.push(text);
+            }
+        }
+    }
+
+    let mut images = Vec::new();
+    for img in doc.select(&sel("img")) {
+        let mut src = attr(&img, "src").unwrap_or_default();
+        if let Some(base) = base_url {
+            if !src.is_empty() {
+                src = resolve_href(base, &src);
+            }
+        }
+        images.push(ImageInfo {
+            src,
+            alt: attr(&img, "alt"),
+            width: attr(&img, "width"),
+            height: attr(&img, "height"),
+            loading: attr(&img, "loading"),
+        });
+    }
+
+    let mut links = Links::default();
+    if let Some(base) = base_url {
+        for a in doc.select(&sel("a")) {
+            let href = match attr(&a, "href") {
+                Some(h) if !h.is_empty() => h,
+                _ => continue,
+            };
+            let Some((full_url, class)) = classify_link(base, &href) else {
+                continue;
+            };
+            let mut text = text_of(a);
+            if text.len() > 100 {
+                text = text.chars().take(100).collect();
+            }
+            let rel = attr(&a, "rel")
+                .map(|r| r.split_whitespace().map(|s| s.to_string()).collect())
+                .unwrap_or_default();
+            let info = LinkInfo {
+                href: full_url,
+                text,
+                rel,
+            };
+            match class {
+                LinkClass::Internal => links.internal.push(info),
+                LinkClass::External => links.external.push(info),
+            }
+        }
+    }
+
+    let schema_bodies: Vec<String> = doc
+        .select(&sel(r#"script[type="application/ld+json"]"#))
+        .map(|s| s.text().collect::<Vec<_>>().join(""))
+        .collect();
+    let schema = parse_json_ld(schema_bodies.iter().map(|s| s.as_str()));
+
+    // Word count: visible text with script/style/nav/footer/header excluded, matching
+    // the Python's `element.decompose()` loop before `soup.get_text()`.
+    let strip = sel("script, style, nav, footer, header");
+    let strip_set: std::collections::HashSet<_> = doc.select(&strip).map(|e| e.id()).collect();
+    // `Html::parse_document` always synthesizes an `<html>` root (html5ever's tree
+    // construction), so this always finds one, even for fragment input.
+    let mut text_parts = Vec::new();
+    if let Some(root) = doc.select(&sel("html")).next() {
+        for node in root.descendants() {
+            if let Some(el) = scraper::ElementRef::wrap(node) {
+                if strip_set.contains(&el.id()) {
+                    continue;
+                }
+            }
+            if let Some(t) = node.value().as_text() {
+                let parent_stripped = node
+                    .parent()
+                    .and_then(scraper::ElementRef::wrap)
+                    .map(|p| strip_set.contains(&p.id()))
+                    .unwrap_or(false);
+                if !parent_stripped {
+                    text_parts.push(t.to_string());
+                }
+            }
+        }
+    }
+    let text = text_parts.join(" ");
+    let word_count = word_count(&text);
+
+    ParseResult {
+        title,
+        meta_description,
+        meta_robots,
+        canonical,
+        h1,
+        h2,
+        h3,
+        images,
+        links,
+        schema,
+        open_graph,
+        twitter_card,
+        word_count,
+        hreflang,
+    }
+}
+
+/// Port of `main()`: reads HTML from `file` (or `--url`-relative stdin when `file` is
+/// `None`), parses it, and returns `(exit_code, stdout, stderr)` so a thin `fn main`
+/// can print/exit without this function doing process-global IO itself. Mirrors the
+/// `os.path.realpath` + `os.path.isfile` file-not-found check exactly.
+pub fn run(file: Option<&str>, base_url: Option<&str>, json_output: bool) -> (i32, String, String) {
+    let html = match file {
+        Some(path) => {
+            let real_path = std::fs::canonicalize(path).unwrap_or_else(|_| Path::new(path).to_path_buf());
+            if !real_path.is_file() {
+                return (1, String::new(), format!("Error: File not found: {path}\n"));
+            }
+            match std::fs::read_to_string(&real_path) {
+                Ok(s) => s,
+                Err(e) => return (1, String::new(), format!("Error: {e}\n")),
+            }
+        }
+        None => {
+            let mut buf = String::new();
+            if std::io::stdin().read_to_string(&mut buf).is_err() {
+                return (1, String::new(), "Error: failed to read stdin\n".to_string());
+            }
+            buf
+        }
+    };
+
+    let result = parse_html(&html, base_url);
+
+    if json_output {
+        let stdout = serde_json::to_string_pretty(&result).unwrap_or_default();
+        return (0, stdout, String::new());
+    }
+
+    let mut out = String::new();
+    out.push_str(&format!("Title: {}\n", result.title.as_deref().unwrap_or("None")));
+    out.push_str(&format!(
+        "Meta Description: {}\n",
+        result.meta_description.as_deref().unwrap_or("None")
+    ));
+    out.push_str(&format!(
+        "Canonical: {}\n",
+        result.canonical.as_deref().unwrap_or("None")
+    ));
+    out.push_str(&format!("H1 Tags: {}\n", result.h1.len()));
+    out.push_str(&format!("H2 Tags: {}\n", result.h2.len()));
+    out.push_str(&format!("Images: {}\n", result.images.len()));
+    out.push_str(&format!("Internal Links: {}\n", result.links.internal.len()));
+    out.push_str(&format!("External Links: {}\n", result.links.external.len()));
+    out.push_str(&format!("Schema Blocks: {}\n", result.schema.len()));
+    out.push_str(&format!("Word Count: {}\n", result.word_count));
+    (0, out, String::new())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,5 +490,81 @@ mod tests {
         let tw = extract_twitter_card(names);
         assert_eq!(tw.len(), 1);
         assert_eq!(tw.get("twitter:card").map(|s| s.as_str()), Some("summary"));
+    }
+
+    const SAMPLE_HTML: &str = r#"<!DOCTYPE html>
+<html>
+<head>
+<title>Example Page</title>
+<meta name="description" content="An example page for tests">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="/canonical-page">
+<link rel="alternate" hreflang="fr" href="/fr/">
+<meta property="og:title" content="OG Title">
+<meta name="twitter:card" content="summary">
+<script type="application/ld+json">{"@type": "Organization", "name": "Acme"}</script>
+<script type="application/ld+json">not json</script>
+</head>
+<body>
+<nav>Skip this nav text</nav>
+<h1>Main Heading</h1>
+<h2>Sub Heading</h2>
+<img src="/img/a.png" alt="A" width="10" height="20" loading="lazy">
+<a href="/internal">Internal link</a>
+<a href="https://other.example/x">External link</a>
+<a href="#top">Skip fragment</a>
+<p>Some visible body text here.</p>
+<footer>Skip footer text</footer>
+</body>
+</html>"#;
+
+    #[test]
+    fn parse_html_extracts_full_result() {
+        let result = parse_html(SAMPLE_HTML, Some("https://example.com/page"));
+        assert_eq!(result.title.as_deref(), Some("Example Page"));
+        assert_eq!(
+            result.meta_description.as_deref(),
+            Some("An example page for tests")
+        );
+        assert_eq!(result.meta_robots.as_deref(), Some("index,follow"));
+        assert_eq!(
+            result.canonical.as_deref(),
+            Some("https://example.com/canonical-page")
+        );
+        assert_eq!(result.hreflang.len(), 1);
+        assert_eq!(result.hreflang[0].lang, "fr");
+        assert_eq!(result.h1, vec!["Main Heading".to_string()]);
+        assert_eq!(result.h2, vec!["Sub Heading".to_string()]);
+        assert_eq!(result.images.len(), 1);
+        assert_eq!(result.images[0].src, "https://example.com/img/a.png");
+        assert_eq!(result.images[0].alt.as_deref(), Some("A"));
+        assert_eq!(result.links.internal.len(), 1);
+        assert_eq!(result.links.internal[0].href, "https://example.com/internal");
+        assert_eq!(result.links.external.len(), 1);
+        assert_eq!(result.links.external[0].href, "https://other.example/x");
+        assert_eq!(result.schema.len(), 1);
+        assert_eq!(result.open_graph.get("og:title").map(|s| s.as_str()), Some("OG Title"));
+        assert_eq!(
+            result.twitter_card.get("twitter:card").map(|s| s.as_str()),
+            Some("summary")
+        );
+        // Visible text excludes nav/footer, matching the Python's `element.decompose()`.
+        assert!(result.word_count > 0);
+        assert!(result.word_count < 20);
+    }
+
+    #[test]
+    fn parse_html_without_base_url_skips_links() {
+        let result = parse_html(SAMPLE_HTML, None);
+        assert!(result.links.internal.is_empty());
+        assert!(result.links.external.is_empty());
+    }
+
+    #[test]
+    fn run_missing_file_matches_python_error() {
+        let (code, stdout, stderr) = run(Some("/nonexistent/path/for/r42/test.html"), None, false);
+        assert_eq!(code, 1);
+        assert!(stdout.is_empty());
+        assert!(stderr.contains("File not found"));
     }
 }

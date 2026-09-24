@@ -938,6 +938,26 @@ pub fn build_svelte_component_css_authoring(count: usize) -> SvelteComponentCssA
 pub const SVELTE_RUNTIME_FILE: &str = "node_modules/.impeccable-live/__runtime.js";
 
 /// Port of `componentSessionDir`.
+/// Port of `shouldUseSvelteComponentInjection(filePath)`. `env` mirrors
+/// `process.env`; a truthy-looking `IMPECCABLE_LIVE_SVELTE_COMPONENT` of
+/// `"0"`/`"false"`/`"no"` (case-insensitive) disables the branch entirely.
+pub fn should_use_svelte_component_injection(
+    file_path: &str,
+    env: &std::collections::HashMap<String, String>,
+) -> bool {
+    let flag = env
+        .get("IMPECCABLE_LIVE_SVELTE_COMPONENT")
+        .map(String::as_str)
+        .unwrap_or("");
+    if matches!(flag.to_lowercase().as_str(), "0" | "false" | "no") {
+        return false;
+    }
+    Path::new(file_path)
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase() == "svelte")
+        .unwrap_or(false)
+}
+
 pub fn component_session_dir(id: &str, cwd: &Path) -> PathBuf {
     cwd.join(SVELTE_COMPONENT_ROOT).join(id)
 }

@@ -1,4 +1,4 @@
-//! Partial port of `src/lib/guard/compat/policy/policy.mjs`.
+//! Full port of `src/lib/guard/compat/policy/policy.mjs` (closed by packet r49).
 //!
 //! S02 — the policy plane. Arcane's single source of allow/deny. Ported
 //! here: the deterministic decision surface built on a parsed policy
@@ -10,24 +10,24 @@
 //! [`fail_closed_engine`]. `EFFECT_CLASS_RECONCILIATION` (a static report,
 //! not logic) is ported verbatim as [`effect_class_reconciliation`].
 //!
-//! NOT ported in this pass (see the wf007 report for the full breakdown and
-//! why each is out of budget for this chunk):
-//!   - `loadPolicy`/`validatePolicyBundle`: JS validates the bundle against
-//!     a JSON-Schema file (`policy-bundle-v1.schema.json`) via
-//!     `qualification/schema-validator.mjs`. This port takes an already
-//!     -parsed, already-validated [`PolicyBundle`] built by the caller
-//!     instead of reading+validating JSON from disk, so the "malformed
-//!     bundle fails closed" property is the caller's responsibility here,
-//!     not this module's, until a schema-validation port lands.
-//!   - `policyDuplicationAudit`/`capabilityIssuanceAudit`: source-text
-//!     conformance scans over other modules' file contents — meta-linters,
-//!     not runtime policy logic, and out of this chunk's five-file scope.
-//!   - `pathMatches` (imported from `guard/compat/effects/preeffect-gate.mjs`
-//!     in the JS source, not one of this chunk's five files): a small glob
-//!     matcher is reimplemented locally in [`path_matches`] rather than
-//!     depending on an unowned, unported sibling.
+//! Packet r49 closed the remaining gap: [`validate_policy_bundle`] (JSON-Schema
+//! validation of a raw bundle, reusing `wf068::schema::validate_schema` against
+//! the embedded `policy-bundle-v1.schema.json`), [`load_policy`] (read +
+//! parse + validate + digest a bundle from disk, matching JS `loadPolicy`
+//! error-for-error), [`policy_duplication_audit`] and
+//! [`capability_issuance_audit`] (the two source-text conformance scans,
+//! ported faithfully as `regex` scans over file contents — no network, no
+//! process spawn, so no trait/fake indirection is needed for them).
+//! `pathMatches` (imported from `guard/compat/effects/preeffect-gate.mjs`
+//! in the JS source, not one of this chunk's five files) is reimplemented
+//! locally in [`path_matches`] rather than depending on an unowned,
+//! unported sibling.
 
+use crate::wf_port::wf068::schema::validate_schema;
+use regex::Regex;
+use serde_json::Value as JsonValue;
 use std::collections::BTreeMap;
+use std::path::Path;
 
 /// One rule for one effect class, matching the JS bundle's
 /// `effectRules[]` entry shape (the fields this port's logic reads).
@@ -425,6 +425,193 @@ pub fn effect_class_reconciliation() -> Vec<EffectClassDisposition> {
         EffectClassDisposition { effect_class: "PUBLISH", disposition: "keep", broker_surface: "release/upload operations; denied by default" },
         EffectClassDisposition { effect_class: "EXTERNAL_SIDE_EFFECT", disposition: "keep-with-caveat", broker_surface: "denied by default; must NOT be the fallback bucket for unclassified operations" },
     ]
+}
+
+// ---------------------------------------------------------------------------
+// r49: schema validation, disk loading, and the two conformance audits.
+// ---------------------------------------------------------------------------
+
+const POLICY_BUNDLE_SCHEMA_TEXT: &str = include_str!("schemas_r49/policy-bundle-v1.schema.json");
+
+fn policy_bundle_schema() -> &'static JsonValue {
+    use std::sync::OnceLock;
+    static SCHEMA: OnceLock<JsonValue> = OnceLock::new();
+    SCHEMA.get_or_init(|| serde_json::from_str(POLICY_BUNDLE_SCHEMA_TEXT).expect("embedded policy-bundle-v1.schema.json must parse"))
+}
+
+/// Mirrors JS `validatePolicyBundle(bundle)`: structural validation of a raw
+/// (already-parsed-from-JSON) bundle against the frozen schema.
+pub fn validate_policy_bundle(bundle: &JsonValue) -> (bool, Vec<String>) {
+    let issues = validate_schema(policy_bundle_schema(), bundle);
+    (issues.is_empty(), issues)
+}
+
+/// Canonical JSON text for an arbitrary `serde_json::Value`, matching JS
+/// `canonicalJson`: object keys sorted, no insignificant whitespace. Unlike
+/// `canon::canonical_json` (fixed small record shapes with `&'static str`
+/// keys), this walks whatever a parsed policy bundle actually contains.
+pub fn canonical_json_value(value: &JsonValue) -> String {
+    match value {
+        JsonValue::Null => "null".to_string(),
+        JsonValue::Bool(b) => if *b { "true".to_string() } else { "false".to_string() },
+        JsonValue::Number(n) => n.to_string(),
+        JsonValue::String(s) => serde_json::to_string(s).expect("string always encodes"),
+        JsonValue::Array(items) => {
+            let parts: Vec<String> = items.iter().map(canonical_json_value).collect();
+            format!("[{}]", parts.join(","))
+        }
+        JsonValue::Object(map) => {
+            let mut keys: Vec<&String> = map.keys().collect();
+            keys.sort();
+            let parts: Vec<String> = keys
+                .into_iter()
+                .map(|k| format!("{}:{}", serde_json::to_string(k).expect("key always encodes"), canonical_json_value(&map[k])))
+                .collect();
+            format!("{{{}}}", parts.join(","))
+        }
+    }
+}
+
+/// Digest of the canonical serialization of an arbitrary bundle value.
+/// Mirrors JS `digestValue` applied to a parsed policy bundle.
+pub fn digest_value_json(value: &JsonValue) -> String {
+    crate::wf_port::wf007::canon::digest(&canonical_json_value(value))
+}
+
+#[derive(Debug, Clone)]
+pub struct LoadedPolicy {
+    pub bundle: JsonValue,
+    pub policy_id: String,
+    pub version: i64,
+    pub digest: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PolicyLoadError {
+    pub code: &'static str,
+    pub message: String,
+    pub path: String,
+    pub issues: Vec<String>,
+}
+
+/// Mirrors JS `loadPolicy({ path })`: read the bundle off disk, parse it,
+/// validate it against the frozen schema, and digest the canonical form.
+/// Every failure mode fails closed with the same `ARC_POLICY_*` code JS
+/// throws, never a partially-understood bundle.
+pub fn load_policy(bundle_path: &Path) -> Result<LoadedPolicy, PolicyLoadError> {
+    let raw = std::fs::read_to_string(bundle_path).map_err(|err| PolicyLoadError {
+        code: "ARC_POLICY_UNAVAILABLE",
+        message: format!("policy bundle unreadable: {}", bundle_path.display()),
+        path: bundle_path.display().to_string(),
+        issues: vec![err.to_string()],
+    })?;
+    let bundle: JsonValue = serde_json::from_str(&raw).map_err(|err| PolicyLoadError {
+        code: "ARC_POLICY_MALFORMED",
+        message: format!("policy bundle is not valid JSON: {}", bundle_path.display()),
+        path: bundle_path.display().to_string(),
+        issues: vec![err.to_string()],
+    })?;
+    let (valid, issues) = validate_policy_bundle(&bundle);
+    if !valid {
+        return Err(PolicyLoadError {
+            code: "ARC_POLICY_MALFORMED",
+            message: format!("policy bundle failed validation: {}", bundle_path.display()),
+            path: bundle_path.display().to_string(),
+            issues,
+        });
+    }
+    let policy_id = bundle.get("policyId").and_then(JsonValue::as_str).unwrap_or_default().to_string();
+    let version = bundle.get("version").and_then(JsonValue::as_i64).unwrap_or_default();
+    let digest = digest_value_json(&bundle);
+    Ok(LoadedPolicy { bundle, policy_id, version, digest })
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuditViolation {
+    pub file: String,
+    pub pattern: String,
+    pub why: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AuditResult {
+    pub scanned: Vec<String>,
+    pub violations: Vec<AuditViolation>,
+}
+
+/// Faithful port of the JS `policyDuplicationAudit` regex table. `files` are
+/// file paths; contents are read by this function (I/O, but plain
+/// `std::fs::read_to_string` over caller-supplied paths — no network, no
+/// process spawn — so no trait indirection is warranted, matching how the
+/// JS original works directly against the filesystem).
+pub fn policy_duplication_audit(files: &[&Path]) -> AuditResult {
+    let forbidden: [(&str, &'static str); 6] = [
+        (r"\ballowed\s*:\s*true\b", "mints an allow decision outside the policy engine"),
+        (r"\beffectRules\b", "reads the policy rule table directly"),
+        (r"\bwaiverAuthority\b", "reimplements waiver authority"),
+        (r"\bclaimLevels\b", "reimplements claim-level policy"),
+        (r"\blockedDomains\b", "reimplements locked-domain policy"),
+        (r"ENFORCEMENT_RANK\s*=", "re-declares the enforcement ordering instead of importing it"),
+    ];
+    let compiled: Vec<(Regex, &'static str)> = forbidden.iter().map(|(p, why)| (Regex::new(p).expect("static pattern"), *why)).collect();
+
+    let mut result = AuditResult::default();
+    for file in files {
+        let Ok(src) = std::fs::read_to_string(file) else { continue };
+        let file_str = file.display().to_string();
+        result.scanned.push(file_str.clone());
+        for (re, why) in &compiled {
+            if re.is_match(&src) {
+                result.violations.push(AuditViolation { file: file_str.clone(), pattern: re.as_str().to_string(), why });
+            }
+        }
+    }
+    result
+}
+
+/// Faithful port of the JS `capabilityIssuanceAudit`: only
+/// `preeffect-gate.mjs`/`receipt-store.mjs` (by basename) may call
+/// `.issue(...)`; a const-bound `AuthorityInvocationProofIssuer` receiver is
+/// exempt everywhere (unrelated `.issue()` API on that type).
+pub fn capability_issuance_audit(files: &[&Path]) -> AuditResult {
+    let allowed_basenames = ["preeffect-gate.mjs", "receipt-store.mjs"];
+    let issue_call = Regex::new(r"\.issue\(").expect("static pattern");
+    let receiver_of_issue = Regex::new(r"\b([A-Za-z_$][\w$]*)\.issue\(").expect("static pattern");
+    let proof_issuer_binding = Regex::new(r"\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*new\s+AuthorityInvocationProofIssuer\s*\(").expect("static pattern");
+
+    let mut result = AuditResult::default();
+    for file in files {
+        let Ok(src) = std::fs::read_to_string(file) else { continue };
+        let file_str = file.display().to_string();
+        result.scanned.push(file_str.clone());
+
+        let basename = file.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+        if allowed_basenames.contains(&basename) {
+            continue;
+        }
+
+        let proof_issuers: std::collections::HashSet<String> =
+            proof_issuer_binding.captures_iter(&src).map(|c| c[1].to_string()).collect();
+
+        let unexempted = src.lines().any(|line| {
+            if !issue_call.is_match(line) {
+                return false;
+            }
+            match receiver_of_issue.captures(line) {
+                Some(cap) => !proof_issuers.contains(&cap[1]),
+                None => true,
+            }
+        });
+
+        if unexempted {
+            result.violations.push(AuditViolation {
+                file: file_str,
+                pattern: issue_call.as_str().to_string(),
+                why: "mints a capability outside lib/preeffect-gate.mjs and lib/receipt-store.mjs",
+            });
+        }
+    }
+    result
 }
 
 #[cfg(test)]

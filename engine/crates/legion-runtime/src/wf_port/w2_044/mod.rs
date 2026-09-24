@@ -24,14 +24,21 @@
 //!
 //! `validate-tasklist.py` is a thin compatibility CLI that shells out to
 //! `validate-dispatch.py` with `--packet-type`/`--receipt-mode` flags and
-//! forwards its stdout/stderr/exit code. Its *decision* surface — "delegate
-//! structural validation to the authority packet checks; on success write a
-//! `<stem>.receipt.json` sidecar; on failure return a non-zero code and
-//! leave no receipt" — is ported in [`tasklist`]. The full `validate()` CLI
-//! (line ~3098 of `validate-dispatch.py`) that tasklist delegates to also
-//! covers Markdown dispatch documents (`storage_errors`, heading/table/
-//! goal-route/topology checks) and `--receipt-mode verify` semantics; those
-//! are **not ported** — see the follow-up list below.
+//! forwards its stdout/stderr/exit code; it is **fully ported** (packet
+//! r47) as [`tasklist::run_cli`], which reproduces that subprocess/argv
+//! contract itself (including `--receipt-mode verify` and `--packet-type
+//! worker`) rather than reimplementing `validate-dispatch.py`'s own
+//! decision logic — the latter is what remains partially ported below.
+//! [`tasklist::validate_and_write_receipt`] additionally ports the
+//! *decision* surface for the default `--packet-type authority
+//! --receipt-mode write` path (delegate structural validation to the
+//! authority packet checks; on success write a `<stem>.receipt.json`
+//! sidecar; on failure return a non-zero code and leave no receipt), which
+//! is what `test_validate_tasklist.py`'s fixture exercises. The full
+//! `validate()` CLI (line ~3098 of `validate-dispatch.py`) that the real
+//! `validate-dispatch.py` subprocess runs also covers Markdown dispatch
+//! documents (`storage_errors`, heading/table/goal-route/topology checks);
+//! that decision logic is **not ported** — see the follow-up list below.
 //!
 //! `test_enforce_cheap_review_routing.py` is ported in full as
 //! `tests/wf_w2_044.rs::enforce_cheap_review_routing_tests` (all three

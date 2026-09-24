@@ -560,3 +560,223 @@ fn nlp_analyze_build_result_from_response_end_to_end() {
     assert_eq!(result.moderation[0].name, "Profanity");
     assert!(result.error.is_none());
 }
+
+// ---------------------------------------------------------------------
+// keyword_planner.py — packet r40 (real client + CLI, tested via fakes)
+// ---------------------------------------------------------------------
+
+struct FakeAdsClient {
+    ideas: Result<Vec<keyword_planner::KeywordIdea>, keyword_planner::AdsError>,
+}
+
+impl keyword_planner::AdsClient for FakeAdsClient {
+    fn generate_keyword_ideas(
+        &self,
+        _customer_id: &str,
+        _seed_keywords: &[String],
+        _language_id: &str,
+        _location_id: &str,
+    ) -> Result<Vec<keyword_planner::KeywordIdea>, keyword_planner::AdsError> {
+        self.ideas.clone()
+    }
+
+    fn generate_keyword_volumes(
+        &self,
+        _customer_id: &str,
+        _keywords: &[String],
+        _language_id: &str,
+        _location_id: &str,
+    ) -> Result<Vec<keyword_planner::KeywordIdea>, keyword_planner::AdsError> {
+        self.ideas.clone()
+    }
+}
+
+#[test]
+fn keyword_planner_run_ideas_json_success() {
+    let client = FakeAdsClient { ideas: Ok(vec![idea("seo tools", Some(1000)), idea("seo audit", Some(2000))]) };
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let code = keyword_planner::run(
+        &["ideas".to_string(), "seo tools,seo audit".to_string(), "--json".to_string()],
+        &client,
+        "1234567890",
+        &mut stdout,
+        &mut stderr,
+    );
+    assert_eq!(code, 0);
+    let out: serde_json::Value = serde_json::from_slice(&stdout).unwrap();
+    assert_eq!(out["ideas"][0]["keyword"], "seo audit");
+    assert_eq!(out["ideas"][1]["keyword"], "seo tools");
+    assert!(out["error"].is_null());
+}
+
+#[test]
+fn keyword_planner_run_volume_error_text_mode_exits_1() {
+    let client = FakeAdsClient { ideas: Err(keyword_planner::AdsError::Other("boom".to_string())) };
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let code = keyword_planner::run(
+        &["volume".to_string(), "seo tools".to_string()],
+        &client,
+        "1234567890",
+        &mut stdout,
+        &mut stderr,
+    );
+    assert_eq!(code, 1);
+    assert!(String::from_utf8(stderr).unwrap().contains("Keyword volume error: boom"));
+}
+
+#[test]
+fn keyword_planner_run_rejects_unknown_command() {
+    let client = FakeAdsClient { ideas: Ok(vec![]) };
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let code = keyword_planner::run(
+        &["bogus".to_string(), "seo tools".to_string()],
+        &client,
+        "1234567890",
+        &mut stdout,
+        &mut stderr,
+    );
+    assert_eq!(code, 2);
+}
+
+#[test]
+fn keyword_planner_load_ads_config_reads_isolated_home() {
+    let dir = std::env::temp_dir().join(format!(
+        "hr-legion-r40-ads-{}-{}",
+        std::process::id(),
+        next_seq()
+    ));
+    let cfg_dir = dir.join(".config/claude-seo");
+    std::fs::create_dir_all(&cfg_dir).unwrap();
+    std::fs::write(
+        cfg_dir.join("google-api.json"),
+        r#"{"ads_developer_token": "dev-tok", "ads_customer_id": "123-456-7890"}"#,
+    )
+    .unwrap();
+
+    let prior = std::env::var("HOME").ok();
+    std::env::set_var("HOME", &dir);
+    let cfg = keyword_planner::load_ads_config();
+    match prior {
+        Some(h) => std::env::set_var("HOME", h),
+        None => std::env::remove_var("HOME"),
+    }
+
+    assert_eq!(cfg.developer_token.as_deref(), Some("dev-tok"));
+    assert_eq!(cfg.customer_id.as_deref(), Some("123-456-7890"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+fn next_seq() -> u64 {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    SEQ.fetch_add(1, Ordering::Relaxed)
+}
+
+// ---------------------------------------------------------------------
+// nlp_analyze.py — packet r40 (real transport + CLI, tested via fakes)
+// ---------------------------------------------------------------------
+
+struct FakeNlpTransport {
+    post: Result<(u16, serde_json::Value), String>,
+    html: Result<String, String>,
+}
+
+impl nlp_analyze::NlpTransport for FakeNlpTransport {
+    fn post_annotate(&self, _key: &str, _body: &serde_json::Value) -> Result<(u16, serde_json::Value), String> {
+        self.post.clone()
+    }
+
+    fn get_html(&self, _url: &str) -> Result<String, String> {
+        self.html.clone()
+    }
+}
+
+#[test]
+fn nlp_analyze_text_with_no_api_key_errors() {
+    let transport = FakeNlpTransport { post: Ok((200, json!({}))), html: Ok(String::new()) };
+    let result = nlp_analyze::analyze_text_with(&transport, "hello world", &[], None, "en");
+    assert_eq!(
+        result.error.as_deref(),
+        Some("No API key. Set GOOGLE_API_KEY or add 'api_key' to config.")
+    );
+}
+
+#[test]
+fn nlp_analyze_text_with_success() {
+    let body = json!({
+        "entities": [{"name": "Acme", "type": "ORGANIZATION", "salience": 0.5}],
+        "documentSentiment": {"score": 0.1, "magnitude": 0.2},
+    });
+    let transport = FakeNlpTransport { post: Ok((200, body)), html: Ok(String::new()) };
+    let result = nlp_analyze::analyze_text_with(&transport, "hello world", &[], Some("key123"), "en");
+    assert!(result.error.is_none());
+    assert_eq!(result.entities[0].name, "Acme");
+    assert_eq!(result.sentiment.unwrap().tone, "neutral");
+}
+
+#[test]
+fn nlp_analyze_text_with_403_maps_access_denied() {
+    let transport = FakeNlpTransport { post: Ok((403, json!({}))), html: Ok(String::new()) };
+    let result = nlp_analyze::analyze_text_with(&transport, "hello world", &[], Some("key123"), "en");
+    assert!(result.error.unwrap().contains("Cloud Natural Language API access denied"));
+}
+
+#[test]
+fn nlp_analyze_url_with_rejects_invalid_url() {
+    let transport = FakeNlpTransport { post: Ok((200, json!({}))), html: Ok(String::new()) };
+    let result = nlp_analyze::analyze_url_with(&transport, "http://localhost/x", &[], Some("key123"));
+    assert!(result.error.unwrap().contains("Invalid URL"));
+}
+
+#[test]
+fn nlp_analyze_url_with_end_to_end() {
+    let html = "<html><body><script>bad()</script><nav>Nav</nav><p>Real content here that is long enough to pass the fifty character floor.</p></body></html>";
+    let body = json!({"entities": [], "documentSentiment": {}});
+    let transport = FakeNlpTransport { post: Ok((200, body)), html: Ok(html.to_string()) };
+    let result = nlp_analyze::analyze_url_with(&transport, "https://example.com/page", &[], Some("key123"));
+    assert!(result.error.is_none());
+    assert_eq!(result.source_url.as_deref(), Some("https://example.com/page"));
+    assert!(result.extracted_text_length.unwrap() > 0);
+}
+
+#[test]
+fn nlp_analyze_extract_text_scraper_strips_dropped_tags() {
+    let html = "<html><body><script>bad()</script><style>.x{}</style><nav>Nav</nav>\
+<header>Head</header><footer>Foot</footer><p>Keep this text</p></body></html>";
+    let text = nlp_analyze::extract_text_scraper(html);
+    assert!(text.contains("Keep this text"));
+    assert!(!text.contains("bad()"));
+    assert!(!text.contains("Nav"));
+    assert!(!text.contains("Head"));
+    assert!(!text.contains("Foot"));
+}
+
+#[test]
+fn nlp_analyze_run_json_mode_text() {
+    let body = json!({"entities": [], "documentSentiment": {}});
+    let transport = FakeNlpTransport { post: Ok((200, body)), html: Ok(String::new()) };
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let code = nlp_analyze::run(
+        &["--text".to_string(), "hello world".to_string(), "--api-key".to_string(), "k".to_string(), "--json".to_string()],
+        &transport,
+        &mut stdout,
+        &mut stderr,
+    );
+    assert_eq!(code, 0);
+    let out: serde_json::Value = serde_json::from_slice(&stdout).unwrap();
+    assert_eq!(out["text_length"], 11);
+}
+
+#[test]
+fn nlp_analyze_run_requires_text_or_url() {
+    let transport = FakeNlpTransport { post: Ok((200, json!({}))), html: Ok(String::new()) };
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let code = nlp_analyze::run(&[], &transport, &mut stdout, &mut stderr);
+    assert_eq!(code, 1);
+    assert!(String::from_utf8(stderr).unwrap().contains("Provide --text or --url"));
+}

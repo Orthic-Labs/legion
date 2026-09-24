@@ -6,10 +6,14 @@ use legion_runtime::wf_port::w2_033::search_ops::{
     brief, deploy, outcome, start, verify, Deployment, Evaluation, Intervention, Outcome,
     SearchOpsState, SCHEMA_VERSION,
 };
-use legion_runtime::wf_port::w2_033::seo_closure::{headings, validate_phases, PhaseRange};
-use legion_runtime::wf_port::w2_033::seo_project::{cache_key, env_state, preflight, PlannedCall};
+use legion_runtime::wf_port::w2_033::seo_closure::{check, headings, run as seo_closure_run, validate_phases, PhaseRange};
+use legion_runtime::wf_port::w2_033::seo_project::{
+    cache_get, cache_key, cache_put, doctor, env_state, load_site, preflight, run as seo_project_run,
+    setup_project, PlannedCall,
+};
 use serde_json::json;
 use std::collections::BTreeSet;
+use std::path::PathBuf;
 
 #[test]
 fn rank_tracker_normalize_and_compare_round_trip() {
@@ -138,4 +142,54 @@ fn seo_project_cache_key_and_preflight_and_env_state() {
 
     assert_eq!(env_state(&[Some("x")]), "present");
     assert_eq!(env_state(&[None]), "absent");
+}
+
+fn unique_temp_dir(label: &str) -> PathBuf {
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("legion-wf-w2033-{label}-{}-{n}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// Exercises `seo_project`'s production filesystem/CLI entry points end to end (not
+/// just the pure `cache_key`/`preflight`/`env_state` helpers).
+#[test]
+fn seo_project_setup_doctor_cache_and_cli_round_trip() {
+    let root = unique_temp_dir("project");
+    let project = setup_project(&root, "example.com", "US", "en", None, None, None, None, None)
+        .expect("setup_project");
+    assert_eq!(project["domain"], json!("example.com"));
+    assert_eq!(load_site(&root).unwrap()["domain"], json!("example.com"));
+
+    let report = doctor(&root);
+    assert_eq!(report["checks"]["project_state"], json!("present"));
+
+    let key = cache_key("google_api", "serp", "example.com", "", "", "", "");
+    cache_put(&root, &key, &json!({"v": 1})).expect("cache_put");
+    assert_eq!(cache_get(&root, &key).unwrap()["value"], json!({"v": 1}));
+
+    let args: Vec<String> = [
+        "cache-key", "--provider", "google_api", "--capability", "serp", "--target", "example.com",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    assert_eq!(seo_project_run(&args), 0);
+}
+
+/// Exercises `seo_closure`'s production repo-tree-walking `check()` end to end (not
+/// just the pure `headings`/`validate_phases` helpers).
+#[test]
+fn seo_closure_check_walks_missing_root_and_reports_fail() {
+    let root = unique_temp_dir("closure");
+    let result = check(&root);
+    assert_eq!(result.status, "fail");
+    assert!(!result.errors.is_empty());
+
+    let args: Vec<String> = vec!["--json".to_string()];
+    // `run` resolves `SEO_ROOT` from the process cwd; it must not panic regardless of
+    // whether `<cwd>/skills/seo` exists there, and must return a valid exit status.
+    let code = seo_closure_run(&args);
+    assert!(code == 0 || code == 1);
 }

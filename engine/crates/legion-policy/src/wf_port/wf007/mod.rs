@@ -7,10 +7,9 @@
 //!     ALREADY-NATIVE-VERIFIED by `engine/crates/legion-arcane/src/key_ring.rs`
 //!     (out of this crate's ownership, no file added here).
 //!   - `src/lib/guard/compat/host/provision-keys.mjs`     -> [`provision_keys`]
-//!   - `src/lib/guard/compat/policy/policy.mjs`           -> [`policy`] (partial —
-//!     see module doc and the wf007 report for the untranslated remainder:
-//!     JSON-Schema bundle validation, disk loading, and the two source-text
-//!     conformance audits).
+//!   - `src/lib/guard/compat/policy/policy.mjs`           -> [`policy`] (closed
+//!     by packet r49: JSON-Schema bundle validation, disk loading, and the
+//!     two source-text conformance audits are ported — see the module doc).
 //!
 //! `src/lib/cognitive/arcane/user-intent.mjs` (needed by `user_approval`'s
 //! transcript admission check) is ported here too, as [`user_intent`], since

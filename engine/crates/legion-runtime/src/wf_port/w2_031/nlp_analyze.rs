@@ -409,42 +409,38 @@ impl NlpTransport for ReqwestNlpTransport {
 pub fn extract_text_scraper(html: &str) -> String {
     use scraper::{Html, Selector};
 
-    let document = Html::parse_document(html);
-    let drop = Selector::parse("script, style, nav, footer, header").unwrap();
-    let drop_ids: std::collections::HashSet<_> =
-        document.select(&drop).map(|el| el.id()).collect();
+    const DROPPED_TAGS: &[&str] = &["script", "style", "nav", "footer", "header"];
 
-    let body_sel = Selector::parse("body").unwrap_or_else(|_| Selector::parse("*").unwrap());
-    let root = document
-        .select(&body_sel)
-        .next()
-        .unwrap_or_else(|| document.root_element());
+    let document = Html::parse_document(html);
+    let text_sel = Selector::parse("*").unwrap();
 
     let mut words: Vec<String> = Vec::new();
-    collect_text(root, &drop_ids, &mut words);
+    for el in document.select(&text_sel) {
+        // Only take text from leaf-ish elements' direct text nodes, and
+        // skip anything inside a dropped tag (checked via ancestors, since
+        // `scraper`'s `Html::parse_document` always wraps content in
+        // `html`/`body`, so `ancestors()` reliably reaches the dropped
+        // tag for nested text). Matches `soup.decompose()` on those tags.
+        let in_dropped = el
+            .ancestors()
+            .filter_map(scraper::ElementRef::wrap)
+            .any(|a| DROPPED_TAGS.contains(&a.value().name()));
+        if in_dropped || DROPPED_TAGS.contains(&el.value().name()) {
+            continue;
+        }
+        for child in el.children() {
+            if let Some(text) = child.value().as_text() {
+                let t = text.trim();
+                if !t.is_empty() {
+                    words.push(t.to_string());
+                }
+            }
+        }
+    }
+
     let joined = words.join(" ");
     let ws_re = regex::Regex::new(r"\s+").unwrap();
     ws_re.replace_all(&joined, " ").trim().to_string()
-}
-
-fn collect_text(
-    node: scraper::ElementRef<'_>,
-    drop_ids: &std::collections::HashSet<ego_tree::NodeId>,
-    out: &mut Vec<String>,
-) {
-    if drop_ids.contains(&node.id()) {
-        return;
-    }
-    for child in node.children() {
-        if let Some(text) = child.value().as_text() {
-            let t = text.trim();
-            if !t.is_empty() {
-                out.push(t.to_string());
-            }
-        } else if let Some(el) = scraper::ElementRef::wrap(child) {
-            collect_text(el, drop_ids, out);
-        }
-    }
 }
 
 /// `analyze_text(text, features, api_key, language)`, generalized over a

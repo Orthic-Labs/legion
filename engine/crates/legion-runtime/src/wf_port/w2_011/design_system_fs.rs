@@ -370,7 +370,7 @@ mod tests {
         fs.put("/repo/DESIGN.md", "---\n---\n", 1.0);
         fs.put(
             "/repo/DESIGN.json",
-            r#"{"extensions":{"colorMeta":{"brand":{"canonical":"#112233"}},"roundedMeta":{"full":"999px"}}}"#,
+            r##"{"extensions":{"colorMeta":{"brand":{"canonical":"#112233"}},"roundedMeta":{"full":"999px"}}}"##,
             1.0,
         );
         let ds = load_design_system_for_cwd(&fs, "/repo").unwrap();

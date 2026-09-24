@@ -7,16 +7,11 @@
 //!   classification).
 //! - `question_inventory`: fully ported (pure AEO question-inventory
 //!   build from GSC rows plus supplied extras).
-//! - `pagespeed_check`: the live PSI/CrUX HTTP round trips are not ported
-//!   (no HTTP client dependency in this crate); CWV thresholds/rating, URL
-//!   validation, the CrUX origin-vs-URL decision, and the full response-JSON
-//!   parsing for both PSI and CrUX are ported in full — see the module doc.
-//! - `parse_html`: BeautifulSoup-based DOM tag-finding is not ported (no
-//!   HTML/DOM parsing dependency in this crate); every pure
-//!   post-extraction transform (word count, link resolution/
-//!   classification, JSON-LD parsing, Open Graph/Twitter Card filtering)
-//!   is ported in full — see the module doc for the dependency this would
-//!   need to close the remaining gap.
+//! - `pagespeed_check`: fully ported, including the live PSI/CrUX HTTP
+//!   round trips and the CLI entry point, both behind a `PsiClient` trait
+//!   so tests never hit the network (packet r41) — see the module doc.
+//! - `parse_html`: fully ported (packet `r42`), including the DOM
+//!   tag-finding via `scraper` and the CLI entrypoint (`parse_html::run`).
 
 pub mod pagespeed_check;
 pub mod parse_html;

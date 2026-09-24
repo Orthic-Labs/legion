@@ -9,19 +9,30 @@
 //! behind the [`FileReader`] trait so tests can supply fakes instead of
 //! touching the filesystem.
 //!
-//! NOT ported in this chunk (same gap noted by the w2_015 and Q1 packet
-//! reports): the orchestration in `main()` that calls into `hook-lib.mjs`'s
-//! `readConfig`/`readCache`/`persistCache`/`loadDetector`/`renderTemplate`/
-//! `appendDesignSystemNote`/`designSystemOptions`/`writeAuditLog`/
-//! `resolveProjectCwd` and the `SENSITIVE_PATH`/`GENERATED_PATH`/
-//! `ALLOWED_EXTS` constants. Those all live in `hook-lib.mjs`'s config- and
-//! detector-loading half, which is still NOT-PORTED per `full-Q1.md` (it
-//! depends on the also-unported `lib/impeccable-config.mjs`). This module
-//! ports everything in `hook-before-edit.mjs` that does not require that
-//! config/detector plumbing: it is the piece a future `impeccable-config.mjs`
-//! port can be wired up against without redoing this parsing logic.
+//! [`run`] (packet R13R14) wires the pure helpers above into `main()`'s
+//! full orchestration: `readConfig`/`readCache`/`persistCache`/
+//! `renderTemplate`/`appendDesignSystemNote`/`designSystemOptions`/
+//! `writeAuditLog`/`resolveProjectCwd` and the `SENSITIVE_PATH`/
+//! `GENERATED_PATH`/`ALLOWED_EXTS` constants all now live in
+//! `wf_port::r14` (that packet's own `impeccable-config.mjs`-derived
+//! config/cache plumbing) and are threaded through here exactly as the JS
+//! `main()` does. The one remaining seam is `loadDetector()`'s dynamic
+//! `import()` of `detect-antipatterns.mjs`, which [`RunDeps::detector`]
+//! takes as an injected [`r14::Detector`](crate::wf_port::r14::Detector)
+//! implementation (production wiring is an integration concern for
+//! whichever packet builds the `legion-hook` binary).
 
 use std::collections::HashMap;
+use std::path::Path;
+
+use serde_json::Value;
+
+use crate::wf_port::r14::{
+    allowed_exts, append_design_system_note, design_system_options, is_generated_path,
+    is_sensitive_path, persist_cache, read_cache, read_config, render_template,
+    resolve_project_cwd, truthy, write_audit_log, Cache, Detector, ScanOptions,
+};
+use crate::wf_port::w2_015::{filter_findings, matches_any_glob, Finding, EDIT_COUNT_THRESHOLD};
 
 /// Abstracts `fs.statSync`/`fs.readFileSync` so `readExistingProjectFile` can
 /// be tested without touching disk. The real implementation should mirror
@@ -640,6 +651,423 @@ pub fn shell_copied_file_content(
     reader.read_to_string(&source_path).unwrap_or_default()
 }
 
+// ---------------------------------------------------------------------
+// `main()` orchestration: threads the pure helpers above through
+// `hook-lib.mjs`'s config/cache/detector/template plumbing (`readConfig`,
+// `readCache`/`persistCache`, `loadDetector` (as an injected [`Detector`]),
+// `renderTemplate`, `appendDesignSystemNote`, `designSystemOptions`,
+// `writeAuditLog`, `resolveProjectCwd`) exactly as `hook-before-edit.mjs`'s
+// `main()` does. This was the gap noted by the r13/w2_015/Q1 packet
+// reports; `wf_port::r14` now ports all of that plumbing, closing it.
+// ---------------------------------------------------------------------
+
+/// Outcome of running the Cursor preToolUse gate, mirroring the JSON object
+/// `hook-before-edit.mjs`'s `done(payload)` writes to stdout: either
+/// `{ permission: 'allow', ... }` or `{ permission: 'deny', user_message,
+/// agent_message }`. `audit` is the entry `writeAuditLog` would have
+/// received (already written as a side effect of [`run`]).
+#[derive(Debug, Clone)]
+pub struct GateOutcome {
+    pub permission: &'static str,
+    pub user_message: Option<String>,
+    pub agent_message: Option<String>,
+    pub audit: Value,
+}
+
+/// Dependencies for [`run`], mirroring the globals `main()` reaches for:
+/// `process.env`, `process.cwd()`, filesystem access (via [`FileReader`]),
+/// and the dynamically-imported detector module (via [`Detector`]; `None`
+/// mirrors `loadDetector()` resolving to `null`/an object without
+/// `detectText`).
+pub struct RunDeps<'a> {
+    pub stdin_json: &'a str,
+    pub env: &'a HashMap<String, String>,
+    pub cwd_fallback: &'a str,
+    pub reader: &'a dyn FileReader,
+    pub detector: Option<&'a dyn Detector>,
+    /// `event.session_id`/`event.conversation_id` and `event.tool_name` are
+    /// read out of `stdin_json` directly; this only supplies a wall-clock
+    /// timestamp source for cache bookkeeping parity with `Date.now()`.
+    pub now_millis: fn() -> i64,
+}
+
+fn value_str<'a>(event: &'a Value, key: &str) -> Option<&'a str> {
+    event.get(key).and_then(|v| v.as_str()).filter(|s| !s.is_empty())
+}
+
+fn tool_input_from_value(input: &Value) -> ToolInput {
+    let str_field = |k: &str| input.get(k).and_then(|v| v.as_str()).map(String::from);
+    let edits = input.get("edits").and_then(|v| v.as_array()).map(|arr| {
+        arr.iter()
+            .map(|e| EditFragment {
+                old_string: e
+                    .get("old_string")
+                    .or_else(|| e.get("oldString"))
+                    .or_else(|| e.get("old_str"))
+                    .or_else(|| e.get("target"))
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                new_string: e
+                    .get("new_string")
+                    .or_else(|| e.get("newString"))
+                    .or_else(|| e.get("new_str"))
+                    .or_else(|| e.get("replacement"))
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+            })
+            .collect()
+    });
+    let args_command = input
+        .get("args")
+        .and_then(|v| v.get("command"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    ToolInput {
+        file_path: str_field("file_path"),
+        path: str_field("path"),
+        target_file: str_field("target_file"),
+        content: str_field("content"),
+        stream_content: str_field("streamContent"),
+        text: str_field("text"),
+        command: str_field("command"),
+        args_command,
+        old_string: str_field("old_string")
+            .or_else(|| str_field("oldString"))
+            .or_else(|| str_field("old_str"))
+            .or_else(|| str_field("target")),
+        new_string: str_field("new_string")
+            .or_else(|| str_field("newString"))
+            .or_else(|| str_field("new_str"))
+            .or_else(|| str_field("replacement")),
+        edits,
+    }
+}
+
+fn tool_event_from_value(event: &Value) -> ToolEvent {
+    let empty = serde_json::json!({});
+    let input = event.get("tool_input").filter(|v| v.is_object()).unwrap_or(&empty);
+    ToolEvent {
+        tool_input: tool_input_from_value(input),
+        event_file_path: event.get("file_path").and_then(|v| v.as_str()).map(String::from),
+    }
+}
+
+/// Mirrors `cursorBlockMessage(findings, filePath, config, cwd)`: the
+/// `renderTemplate` header rewritten to make explicit that the write is
+/// being blocked, truncated to 4000 chars.
+fn cursor_block_message(findings: &[Finding], file_path: &str, config: &crate::wf_port::r14::Config, cwd: &Path) -> String {
+    let rendered = render_template(findings, file_path, config, cwd);
+    let blocked = rendered.replace(
+        "[impeccable@1] Design hook findings requiring review",
+        "[impeccable@1] Impeccable design hook blocked this write before it landed. Design hook findings requiring review",
+    );
+    if blocked.chars().count() > 4000 {
+        let truncated: String = blocked.chars().take(3984).collect();
+        format!("{truncated}\n...(truncated)")
+    } else {
+        blocked
+    }
+}
+
+/// Mirrors `findingSignature(findings)`.
+fn finding_signature(findings: &[Finding]) -> String {
+    let mut parts: Vec<String> = findings
+        .iter()
+        .map(|f| format!("{}:{}", f.antipattern, f.line))
+        .collect();
+    parts.sort();
+    parts.join("|")
+}
+
+struct CursorDenial {
+    key: String,
+    count: u32,
+}
+
+/// Mirrors `bumpCursorDenial(cache, sessionId, filePath, findings)`,
+/// operating on the shared `hook-lib.mjs` cache shape (r14's [`Cache`]),
+/// including the `session.files[filePath].cursorDenials` map that only
+/// `hook-before-edit.mjs` populates.
+fn bump_cursor_denial(
+    cache: &mut Cache,
+    session_id: &str,
+    file_path: &str,
+    findings: &[Finding],
+    now_millis: i64,
+) -> CursorDenial {
+    let session = cache.sessions.entry(session_id.to_string()).or_default();
+    session.updated_at = now_millis;
+    let file_entry = session.files.entry(file_path.to_string()).or_default();
+    let key = finding_signature(findings);
+    let count = file_entry.cursor_denials.entry(key.clone()).or_insert(0);
+    *count += 1;
+    CursorDenial { key, count: *count }
+}
+
+fn is_readable_predicate(path: &str, _cwd: &str) -> bool {
+    !is_sensitive_path(path) && !is_generated_path(path)
+}
+
+/// Mirrors `hook-before-edit.mjs`'s `main()`: the full Cursor preToolUse
+/// write-gate orchestration, threading the pure helpers in this module
+/// through `hook-lib.mjs`'s config/cache/detector/template plumbing ported
+/// in `wf_port::r14`. Never panics on malformed input (matching the JS
+/// "always allow on error" contract), except that a detector panic is
+/// caught and converted into an `allow` with an `error: 'detector-threw'`
+/// audit entry, mirroring the JS `try { detectText() } catch { }`.
+pub fn run(deps: RunDeps<'_>) -> GateOutcome {
+    let now = (deps.now_millis)();
+
+    let allow = |extra: Value, cwd: &str| -> GateOutcome {
+        let mut audit = serde_json::json!({ "ts": iso8601_from_millis(now), "event": "preToolUse" });
+        if let (Some(a), Some(e)) = (audit.as_object_mut(), extra.as_object()) {
+            for (k, v) in e {
+                a.insert(k.clone(), v.clone());
+            }
+        }
+        write_audit_log(deps.env, &audit, Path::new(cwd), None);
+        GateOutcome {
+            permission: "allow",
+            user_message: None,
+            agent_message: None,
+            audit,
+        }
+    };
+
+    let allow_with_message = |extra: Value, cwd: &str, user_message: String, agent_message: String| -> GateOutcome {
+        let mut outcome = allow(extra, cwd);
+        outcome.user_message = Some(user_message);
+        outcome.agent_message = Some(agent_message);
+        outcome
+    };
+
+    let deny = |message: String, extra: Value, cwd: &str| -> GateOutcome {
+        let mut audit = serde_json::json!({
+            "ts": iso8601_from_millis(now),
+            "event": "preToolUse",
+            "blocked": true,
+        });
+        if let (Some(a), Some(e)) = (audit.as_object_mut(), extra.as_object()) {
+            for (k, v) in e {
+                a.insert(k.clone(), v.clone());
+            }
+        }
+        write_audit_log(deps.env, &audit, Path::new(cwd), None);
+        GateOutcome {
+            permission: "deny",
+            user_message: Some(message.clone()),
+            agent_message: Some(message),
+            audit,
+        }
+    };
+
+    if truthy(deps.env.get("IMPECCABLE_HOOK_DISABLED").map(|s| s.as_str())) {
+        return allow(serde_json::json!({ "skipped": "env-disabled" }), deps.cwd_fallback);
+    }
+
+    let event: Value = match serde_json::from_str(deps.stdin_json) {
+        Ok(v) => v,
+        Err(_) => return allow(serde_json::json!({ "skipped": "stdin-malformed" }), deps.cwd_fallback),
+    };
+    if !event.is_object() {
+        return allow(serde_json::json!({ "skipped": "stdin-empty" }), deps.cwd_fallback);
+    }
+
+    let cwd = resolve_project_cwd(&event, deps.env, deps.cwd_fallback);
+    let tool_event = tool_event_from_value(&event);
+    let file_path = proposed_file_path(&tool_event, &cwd);
+    let tool_name = value_str(&event, "tool_name").map(String::from);
+
+    let base_audit = |extra: Value| -> Value {
+        let mut audit = serde_json::json!({
+            "harness": "cursor",
+            "cwd": cwd,
+            "tool": tool_name,
+            "file": if file_path.is_empty() { Value::Null } else { Value::String(file_path.clone()) },
+        });
+        if let (Some(a), Some(e)) = (audit.as_object_mut(), extra.as_object()) {
+            for (k, v) in e {
+                a.insert(k.clone(), v.clone());
+            }
+        }
+        audit
+    };
+
+    if file_path.is_empty() {
+        return allow(base_audit(serde_json::json!({ "skipped": "no-file-path" })), &cwd);
+    }
+    if !is_inside_project(&file_path, &cwd) {
+        return allow(base_audit(serde_json::json!({ "skipped": "outside-project" })), &cwd);
+    }
+    if is_sensitive_path(&file_path) {
+        return allow(base_audit(serde_json::json!({ "skipped": "sensitive" })), &cwd);
+    }
+    if is_generated_path(&file_path) {
+        return allow(base_audit(serde_json::json!({ "skipped": "generated" })), &cwd);
+    }
+
+    let ext = Path::new(&file_path)
+        .extension()
+        .map(|e| format!(".{}", e.to_string_lossy().to_ascii_lowercase()))
+        .unwrap_or_default();
+    if !allowed_exts().contains(&ext.as_str()) {
+        return allow(base_audit(serde_json::json!({ "skipped": "extension", "ext": ext })), &cwd);
+    }
+
+    let edit_projection = projected_edit_content(
+        &tool_event.tool_input,
+        &file_path,
+        &cwd,
+        deps.reader,
+        is_readable_predicate,
+    );
+    let command = tool_event
+        .tool_input
+        .command
+        .clone()
+        .or_else(|| tool_event.tool_input.args_command.clone())
+        .unwrap_or_default();
+    let shell_fallback = {
+        let python = shell_python_write_content(&command);
+        if !python.is_empty() {
+            Some(python)
+        } else {
+            let heredoc = shell_heredoc_content(&command);
+            if !heredoc.is_empty() {
+                Some(heredoc)
+            } else {
+                let copied =
+                    shell_copied_file_content(&command, &cwd, deps.reader, is_readable_predicate);
+                if !copied.is_empty() {
+                    Some(copied)
+                } else {
+                    None
+                }
+            }
+        }
+    };
+    let content_result = proposed_content(&tool_event.tool_input, edit_projection, shell_fallback);
+    let content = match &content_result {
+        ProposedContent::Skipped(reason) => {
+            return allow(base_audit(serde_json::json!({ "skipped": *reason, "ext": ext })), &cwd);
+        }
+        ProposedContent::Content(text) => text.clone(),
+    };
+    if content.is_empty() {
+        return allow(base_audit(serde_json::json!({ "skipped": "no-proposed-content", "ext": ext })), &cwd);
+    }
+
+    let config = read_config(Path::new(&cwd));
+    if !config.enabled {
+        return allow(base_audit(serde_json::json!({ "skipped": "config-disabled", "ext": ext })), &cwd);
+    }
+
+    let rel = relative_path(&file_path, &cwd);
+    if matches_any_glob(&rel, &config.ignore_files) || matches_any_glob(&file_path, &config.ignore_files) {
+        return allow(
+            base_audit(serde_json::json!({ "skipped": "config-ignore-file", "ext": ext })),
+            &cwd,
+        );
+    }
+
+    let Some(detector) = deps.detector else {
+        return allow(base_audit(serde_json::json!({ "skipped": "detector-missing", "ext": ext })), &cwd);
+    };
+    let scan_options: ScanOptions = design_system_options(&config, detector, Path::new(&cwd));
+
+    let findings = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        detector.detect_text(&content, &file_path, &scan_options)
+    })) {
+        Ok(f) => f,
+        Err(_) => {
+            return allow(base_audit(serde_json::json!({ "error": "detector-threw", "ext": ext })), &cwd);
+        }
+    };
+
+    let ignore_rules_set: std::collections::HashSet<String> = config.ignore_rules.iter().cloned().collect();
+    let filtered = filter_findings(&findings, &ignore_rules_set, &config.ignore_values);
+    if filtered.is_empty() {
+        return allow(
+            base_audit(serde_json::json!({
+                "findings": findings.len(),
+                "blockedFindings": 0,
+                "ext": ext,
+            })),
+            &cwd,
+        );
+    }
+
+    let message = append_design_system_note(
+        cursor_block_message(&filtered, &file_path, &config, Path::new(&cwd)),
+        scan_options.design_system.is_some(),
+    );
+
+    let session_id = value_str(&event, "session_id")
+        .or_else(|| value_str(&event, "conversation_id"))
+        .unwrap_or("unknown")
+        .to_string();
+    let mut cache = read_cache(Path::new(&cwd));
+    let denial = bump_cursor_denial(&mut cache, &session_id, &file_path, &filtered, now);
+    persist_cache(Path::new(&cwd), cache);
+
+    if denial.count > EDIT_COUNT_THRESHOLD {
+        let warning = format!(
+            "{message}\n\nThis is the {}th repeated denial for the same file and finding signature, so Impeccable is allowing this write to avoid a loop. Reconsider the issue immediately after the tool runs.",
+            denial.count
+        );
+        return allow_with_message(
+            base_audit(serde_json::json!({
+                "findings": findings.len(),
+                "blockedFindings": filtered.len(),
+                "cursorDenialKey": denial.key,
+                "cursorDenialCount": denial.count,
+                "downgraded": true,
+                "chars": warning.chars().count(),
+                "ext": ext,
+            })),
+            &cwd,
+            warning.clone(),
+            warning,
+        );
+    }
+
+    deny(
+        message.clone(),
+        base_audit(serde_json::json!({
+            "findings": findings.len(),
+            "blockedFindings": filtered.len(),
+            "cursorDenialKey": denial.key,
+            "cursorDenialCount": denial.count,
+            "chars": message.chars().count(),
+            "ext": ext,
+        })),
+        &cwd,
+    )
+}
+
+/// Minimal millis-since-epoch -> ISO-8601 formatter, matching
+/// `new Date(now()).toISOString()`'s output shape closely enough for audit
+/// logs (this crate has no chrono dependency in scope for this packet).
+fn iso8601_from_millis(millis: i64) -> String {
+    let secs = millis.div_euclid(1000);
+    let ms = millis.rem_euclid(1000);
+    let days = secs.div_euclid(86_400);
+    let sod = secs.rem_euclid(86_400);
+    let (h, mi, s) = (sod / 3600, (sod % 3600) / 60, sod % 60);
+    // Civil-from-days (Howard Hinnant's algorithm), 1970-01-01 epoch.
+    let z = days + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{ms:03}Z")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -986,5 +1414,192 @@ p.write_text('x')""#
             shell_copied_file_content("cp .env dst.txt", "/proj", &reader, |_, _| false),
             ""
         );
+    }
+
+    // -------------------------------------------------------------
+    // `run()` orchestration
+    // -------------------------------------------------------------
+
+    struct FakeDetector {
+        findings: Vec<Finding>,
+    }
+
+    impl Detector for FakeDetector {
+        fn detect_text(&self, _content: &str, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
+            self.findings.clone()
+        }
+        fn detect_html(&self, _file_path: &str, _scan_options: &ScanOptions) -> Vec<Finding> {
+            Vec::new()
+        }
+    }
+
+    fn tempdir() -> std::path::PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!(
+            "legion-r13-{}-{}",
+            std::process::id(),
+            n
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn cleanup(dir: &std::path::Path) {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn zero_millis() -> i64 {
+        0
+    }
+
+    #[test]
+    fn run_denies_write_with_findings() {
+        let dir = tempdir();
+        let cwd = dir.to_string_lossy().to_string();
+        let detector = FakeDetector {
+            findings: vec![Finding {
+                antipattern: "side-tab".to_string(),
+                line: 3,
+                name: Some("Side tab".to_string()),
+                description: Some("Uses a side tab pattern.".to_string()),
+                ..Default::default()
+            }],
+        };
+        let stdin = serde_json::json!({
+            "tool_name": "Write",
+            "cwd": cwd,
+            "session_id": "sess-1",
+            "tool_input": {
+                "file_path": "App.tsx",
+                "content": "export default function App() {}\n",
+            },
+        })
+        .to_string();
+        let env = HashMap::new();
+        let reader = FakeFileReader::new();
+        let outcome = run(RunDeps {
+            stdin_json: &stdin,
+            env: &env,
+            cwd_fallback: &cwd,
+            reader: &reader,
+            detector: Some(&detector),
+            now_millis: zero_millis,
+        });
+        assert_eq!(outcome.permission, "deny");
+        let message = outcome.user_message.expect("deny carries a message");
+        assert!(message.contains("Impeccable design hook blocked this write"));
+        assert!(message.contains("side-tab"));
+        assert_eq!(
+            outcome.audit.get("cursorDenialCount").and_then(|v| v.as_u64()),
+            Some(1)
+        );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn run_allows_when_detector_finds_nothing() {
+        let dir = tempdir();
+        let cwd = dir.to_string_lossy().to_string();
+        let detector = FakeDetector { findings: vec![] };
+        let stdin = serde_json::json!({
+            "tool_name": "Write",
+            "cwd": cwd,
+            "session_id": "sess-1",
+            "tool_input": {
+                "file_path": "App.tsx",
+                "content": "export default function App() {}\n",
+            },
+        })
+        .to_string();
+        let env = HashMap::new();
+        let reader = FakeFileReader::new();
+        let outcome = run(RunDeps {
+            stdin_json: &stdin,
+            env: &env,
+            cwd_fallback: &cwd,
+            reader: &reader,
+            detector: Some(&detector),
+            now_millis: zero_millis,
+        });
+        assert_eq!(outcome.permission, "allow");
+        assert_eq!(
+            outcome.audit.get("blockedFindings").and_then(|v| v.as_u64()),
+            Some(0)
+        );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn run_allows_when_env_disabled() {
+        let dir = tempdir();
+        let cwd = dir.to_string_lossy().to_string();
+        let detector = FakeDetector { findings: vec![] };
+        let mut env = HashMap::new();
+        env.insert("IMPECCABLE_HOOK_DISABLED".to_string(), "1".to_string());
+        let reader = FakeFileReader::new();
+        let outcome = run(RunDeps {
+            stdin_json: "{}",
+            env: &env,
+            cwd_fallback: &cwd,
+            reader: &reader,
+            detector: Some(&detector),
+            now_millis: zero_millis,
+        });
+        assert_eq!(outcome.permission, "allow");
+        assert_eq!(
+            outcome.audit.get("skipped").and_then(|v| v.as_str()),
+            Some("env-disabled")
+        );
+        cleanup(&dir);
+    }
+
+    #[test]
+    fn run_downgrades_to_allow_after_repeated_cursor_denials() {
+        let dir = tempdir();
+        let cwd = dir.to_string_lossy().to_string();
+        let detector = FakeDetector {
+            findings: vec![Finding {
+                antipattern: "side-tab".to_string(),
+                line: 3,
+                ..Default::default()
+            }],
+        };
+        let env = HashMap::new();
+        let reader = FakeFileReader::new();
+        let stdin = serde_json::json!({
+            "tool_name": "Write",
+            "cwd": cwd,
+            "session_id": "sess-loop",
+            "tool_input": {
+                "file_path": "App.tsx",
+                "content": "export default function App() {}\n",
+            },
+        })
+        .to_string();
+
+        let mut last = None;
+        for _ in 0..(EDIT_COUNT_THRESHOLD + 1) {
+            last = Some(run(RunDeps {
+                stdin_json: &stdin,
+                env: &env,
+                cwd_fallback: &cwd,
+                reader: &reader,
+                detector: Some(&detector),
+                now_millis: zero_millis,
+            }));
+        }
+        let outcome = last.unwrap();
+        assert_eq!(outcome.permission, "allow");
+        assert_eq!(
+            outcome.audit.get("downgraded").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+        assert!(outcome
+            .user_message
+            .unwrap()
+            .contains("Impeccable is allowing this write to avoid a loop"));
+        cleanup(&dir);
     }
 }
