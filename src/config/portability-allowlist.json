@@ -205,6 +205,13 @@
       },
       "class": "pending-plan",
       "reason": "workspace-spanning pending plan names the operator workspace roots it repairs"
+    },
+    {
+      "path": "engine/xtask/src/portable_core.rs",
+      "patterns": ["developer-home", "developer-username"],
+      "occurrences": {"developer-home": 1, "developer-username": 2},
+      "class": "detector-pattern",
+      "reason": "portable-core release gate names the developer-local paths it rejects in shipped payloads"
     }
   ]
 }

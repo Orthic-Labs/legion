@@ -26,9 +26,7 @@ const FIXTURE_FILES: &[&str] = &[
     "MANIFEST.package.json",
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
-    "src/lib/roster/index.mjs",
     "engine/bins/legion/src/commands/doctor.rs",
-    "src/lib/contracts/arcane/authority-binding-store.mjs",
 ];
 
 /// Port of `namingFixture()`: builds a temp copy of the fixed set of real

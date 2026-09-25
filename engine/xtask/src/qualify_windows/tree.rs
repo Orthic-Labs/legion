@@ -128,10 +128,30 @@ pub fn extract_with_native_windows_tar(archive_path: &Path, destination: &Path) 
 pub fn is_same_or_inside(root: &Path, candidate: &Path, allow_equal: bool, platform: &str) -> bool {
     let root = crate::windows_release_support::canonical_path(root);
     // Mirror resolve() without requiring existence for the candidate side too.
-    let candidate = if candidate.exists() {
-        crate::windows_release_support::canonical_path(candidate)
-    } else {
-        candidate.to_path_buf()
+    // A candidate that does not exist yet is resolved through its nearest
+    // existing ancestor, so both sides share one spelling (macOS /var is
+    // /private/var once canonicalized).
+    let candidate = {
+        let mut existing = candidate.to_path_buf();
+        let mut tail: Vec<std::ffi::OsString> = Vec::new();
+        while !existing.exists() {
+            match (existing.file_name().map(|n| n.to_os_string()), existing.parent()) {
+                (Some(name), Some(parent)) => {
+                    tail.push(name);
+                    existing = parent.to_path_buf();
+                }
+                _ => break,
+            }
+        }
+        let mut resolved = if existing.exists() {
+            crate::windows_release_support::canonical_path(&existing)
+        } else {
+            existing
+        };
+        for name in tail.into_iter().rev() {
+            resolved.push(name);
+        }
+        resolved
     };
     let rel = match candidate.strip_prefix(&root) {
         Ok(rel) => rel,

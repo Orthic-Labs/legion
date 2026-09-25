@@ -32,7 +32,7 @@
         {
           "id": "channel-projection",
           "requirement": "one bootstrap object key across contract, policy and channels; stable HTTPS URL projects onto it; shared downloads bucket; no retired GitHub Pages path present",
-          "evidence": "scripts/check-distribution-contract.mjs"
+          "evidence": "engine/bins/legion-dev/src/checks/distribution_contract.rs"
         },
         {
           "id": "generated-state-clean",
@@ -54,7 +54,7 @@
         {
           "id": "no-developer-local-values",
           "requirement": "no unclassified developer workspace, home or username value in tracked source",
-          "evidence": "scripts/check-portability.mjs"
+          "evidence": "engine/bins/legion-dev/src/checks/portability.rs"
         }
       ]
     },
