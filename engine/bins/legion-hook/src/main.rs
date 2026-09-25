@@ -1569,25 +1569,26 @@ fn is_destructive_command(payload: &Value) -> bool {
 }
 
 fn resolve_source_revision(payload: &Map<String, Value>) -> Option<String> {
-    // The payload cwd may sit outside any checkout (e.g. a session scratchpad
-    // under the OS temp root), which previously denied every effect for the
-    // rest of the session. The hook process itself is spawned from the project
-    // directory, so fall back to it before giving up.
-    let mut workspaces: Vec<PathBuf> = Vec::new();
+    // A scratch workspace has no Git HEAD. Record that fact with a stable,
+    // path-bound identity so ordinary effects still reach Guard policy.
+    // Never borrow a revision from the hook process when the host supplied a
+    // different cwd: that would misattribute the effect to another checkout.
     if let Some(value) = first_string(payload, &["cwd", "workspace"]) {
         // Git Bash reports POSIX-style drive paths (`/d/Claude/legion`) that
         // Windows path resolution cannot follow; translate them back.
-        if let Some(windows) = windows_path_from_posix_drive(&value) {
-            workspaces.push(windows);
-        }
-        workspaces.push(PathBuf::from(value));
+        let workspace =
+            windows_path_from_posix_drive(&value).unwrap_or_else(|| PathBuf::from(value));
+        return source_revision_for_workspace(&workspace);
     }
-    if let Ok(current) = std::env::current_dir() {
-        workspaces.push(current);
-    }
-    workspaces
-        .into_iter()
-        .find_map(|workspace| revision_for_workspace(&workspace))
+    source_revision_for_workspace(&std::env::current_dir().ok()?)
+}
+
+fn source_revision_for_workspace(workspace: &Path) -> Option<String> {
+    revision_for_workspace(workspace).or_else(|| {
+        legion_contracts::canonical_digest(&workspace.to_string_lossy().as_ref())
+            .ok()
+            .map(|digest| format!("unversioned-workspace:{digest}"))
+    })
 }
 
 fn windows_path_from_posix_drive(value: &str) -> Option<PathBuf> {
@@ -2759,6 +2760,28 @@ mod tests {
             "a tool call from a subdirectory must still resolve the checkout revision"
         );
         fs::remove_dir_all(&root).expect("remove test repository");
+    }
+
+    #[test]
+    fn source_revision_identifies_a_scratch_workspace_without_borrowing_hook_cwd() {
+        let scratch = std::env::temp_dir().join(format!(
+            "legion-hook-scratch-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("clock after epoch")
+                .as_nanos()
+        ));
+        fs::create_dir_all(&scratch).expect("create scratch workspace");
+        let payload = json!({"cwd": scratch.to_string_lossy()});
+        let revision = resolve_source_revision(payload.as_object().expect("payload object"))
+            .expect("scratch workspace has a source identity");
+        assert!(revision.starts_with("unversioned-workspace:sha256:"));
+        assert_eq!(
+            source_revision_for_workspace(&scratch).as_deref(),
+            Some(revision.as_str())
+        );
+        fs::remove_dir_all(&scratch).expect("remove scratch workspace");
     }
 
     #[test]
