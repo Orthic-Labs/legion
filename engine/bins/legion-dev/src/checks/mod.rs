@@ -1,6 +1,14 @@
 pub mod authority_parity;
+pub mod blueprint_config;
+pub mod canonical_names;
+pub mod dependency_closure;
+pub mod distribution_contract;
+pub mod native_cli_surface;
+pub mod packed_import_closure;
 pub mod portability;
+pub mod publication_policy;
 pub mod publication_surface;
+pub mod release_obligations;
 pub mod version_parity;
 
 use std::fs;

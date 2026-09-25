@@ -20,12 +20,14 @@ pub enum ContractError {
 
 pub mod agent;
 pub mod canonical;
+pub mod enums;
 pub mod host;
 pub mod id;
 pub mod l2_port;
 pub mod plan;
 pub mod policy;
 pub mod provider;
+pub mod provider_result;
 pub mod receipt;
 pub mod report;
 pub mod task;

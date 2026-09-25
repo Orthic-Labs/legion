@@ -14,3 +14,10 @@ serde.workspace = true
 serde_json.workspace = true
 regex.workspace = true
 walkdir.workspace = true
+sha2.workspace = true
+hex.workspace = true
+tar.workspace = true
+flate2.workspace = true
+brotli.workspace = true
+legion-contracts = { path = "../../crates/legion-contracts" }
+legion-audit = { path = "../../crates/legion-audit" }

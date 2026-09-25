@@ -1,0 +1,16 @@
+pub mod catalogs;
+pub mod codex_skill_sidecars;
+pub mod host_adapters;
+pub mod host_projection;
+pub mod manifest;
+pub mod native_cli_inventory;
+pub mod native_cli_installed_parity;
+pub mod native_cli_rust_characterization;
+pub mod plugin_dev;
+pub mod provider_result_cli;
+pub mod refresh_local_skill_manifests;
+pub mod report_to_sarif;
+pub mod roster;
+pub mod schemas;
+pub mod skill_catalog;
+pub mod verify_plugin_parity;
