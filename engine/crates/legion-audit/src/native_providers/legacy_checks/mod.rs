@@ -1240,9 +1240,6 @@ fn read_denominator(input: &LegacyCheckInput) -> (Vec<(InventoryEntry, String)>,
             if metadata.len() > MAX_FILE_BYTES {
                 return Err("source-file-byte-limit".into());
             }
-            if total.saturating_add(metadata.len()) > MAX_TOTAL_BYTES {
-                return Err("source-total-byte-limit".into());
-            }
             let mut bytes = Vec::new();
             file.take(MAX_FILE_BYTES + 1)
                 .read_to_end(&mut bytes)
@@ -1250,17 +1247,21 @@ fn read_denominator(input: &LegacyCheckInput) -> (Vec<(InventoryEntry, String)>,
             if bytes.len() as u64 > MAX_FILE_BYTES {
                 return Err("source-file-byte-limit".into());
             }
-            total = total.saturating_add(bytes.len() as u64);
-            if total > MAX_TOTAL_BYTES {
-                return Err("source-total-byte-limit".into());
-            }
             if let Some(expected) = &entry.digest {
                 let actual = format!("sha256:{}", hex::encode(Sha256::digest(&bytes)));
                 if *expected != actual {
                     return Err("source-digest-drift".into());
                 }
             }
-            String::from_utf8(bytes).map_err(|_| "source-invalid-utf8".into())
+            // Only text counts toward the source budget: binary assets
+            // (images, fonts, models) are rejected here anyway, and letting
+            // them consume the budget first starved real source files.
+            let text = String::from_utf8(bytes).map_err(|_| String::from("source-invalid-utf8"))?;
+            total = total.saturating_add(text.len() as u64);
+            if total > MAX_TOTAL_BYTES {
+                return Err("source-total-byte-limit".into());
+            }
+            Ok(text)
         })();
         match read {
             Ok(text) => files.push((entry.clone(), text)),

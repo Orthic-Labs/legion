@@ -1,6 +1,6 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "legion",
-  "version": "0.3.17",
+  "version": "0.3.18",
   "description": "Portable declarative Legion integration for supported Agent Plugins clients."
 }
