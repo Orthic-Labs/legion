@@ -50,6 +50,7 @@ pub fn normalize_architecture(value: &str) -> Option<String> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Identity {
     pub platform: String,
     pub architecture: String,

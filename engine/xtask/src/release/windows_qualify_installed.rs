@@ -277,10 +277,10 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
     let workspace_opts = CommandOptions { cwd: Some(workspace.to_path_buf()), env: Some(environment.clone()) };
     let install_root_opts = CommandOptions { cwd: Some(install_root.clone()), env: Some(environment.clone()) };
 
-    let mut stages: Vec<Value> = vec![];
-    let mut current_stage = "setup".to_string();
-    let mut step = |stage: &str, run: &mut dyn FnMut() -> ReleaseResult<StepOutcome>| -> ReleaseResult<StepOutcome> {
-        current_stage = stage.to_string();
+    let stages: std::cell::RefCell<Vec<Value>> = std::cell::RefCell::new(vec![]);
+    let current_stage = std::cell::RefCell::new("setup".to_string());
+    let step = |stage: &str, run: &mut dyn FnMut() -> ReleaseResult<StepOutcome>| -> ReleaseResult<StepOutcome> {
+        *current_stage.borrow_mut() = stage.to_string();
         let result = run()?;
         let mut entry = json!({ "stage": stage });
         if let (Some(obj), Some(ev_obj)) = (entry.as_object_mut(), result.evidence.as_object()) {
@@ -288,7 +288,7 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
                 obj.insert(k.clone(), v.clone());
             }
         }
-        stages.push(entry);
+        stages.borrow_mut().push(entry);
         Ok(result)
     };
 
@@ -367,7 +367,7 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
         }
 
         let evidence_path = output.join("qualification.json");
-        let commands_stage = |name: &str| -> Value { stages.iter().find(|s| s.get("stage").and_then(Value::as_str) == Some(name)).cloned().unwrap_or(Value::Null) };
+        let commands_stage = |name: &str| -> Value { stages.borrow().iter().find(|s| s.get("stage").and_then(Value::as_str) == Some(name)).cloned().unwrap_or(Value::Null) };
         let evidence = json!({
             "schemaVersion": 1, "kind": "legion-windows-installed-installer-qualification", "status": "qualified",
             "product": "legion", "version": version, "sourceRevision": revision,
@@ -412,9 +412,9 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
             let failure = json!({
                 "schemaVersion": 1, "kind": "legion-windows-installed-installer-qualification-failure", "status": "failed",
                 "product": "legion", "version": version, "sourceRevision": revision,
-                "failedStage": current_stage, "error": err,
+                "failedStage": current_stage.borrow().clone(), "error": err,
                 "setup": setup_summary,
-                "completedStages": stages,
+                "completedStages": stages.borrow().clone(),
                 "installRoot": install_root,
                 "installTree": inventory(&install_root, 0),
                 "activationEvents": text_tail(&activation_events, 32768),
