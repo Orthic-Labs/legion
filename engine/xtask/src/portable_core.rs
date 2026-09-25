@@ -299,7 +299,9 @@ pub fn validate_resource_closure(output_dir: &Path, public_files: Option<&HashSe
         Some(pf) => pf.clone(),
         None => enumerated_files.iter().cloned().collect(),
     };
-    let root = output_dir.canonicalize().unwrap_or_else(|_| output_dir.to_path_buf());
+    // Lexical on both sides: canonicalize() adds a \\?\ prefix on Windows
+    // that the lexically joined targets never carry.
+    let root = normalize_path(output_dir);
     for file in enumerated_files.iter().filter(|name| name.to_lowercase().ends_with(".md")) {
         let file_path: PathBuf = output_dir.join(file.split('/').collect::<PathBuf>());
         let Ok(text) = fs::read_to_string(&file_path) else { continue };
