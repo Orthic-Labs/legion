@@ -220,10 +220,12 @@ pub fn report(root: &Path, stable: bool) -> Report {
         }
     }
 
-    let library = fs::read_to_string(root.join("src/lib/version.mjs")).unwrap_or_default();
-    if !library.contains("../../release/version.json") {
+    let library =
+        fs::read_to_string(root.join("engine/crates/legion-runtime/src/wf_port/u03/version.rs"))
+            .unwrap_or_default();
+    if !library.contains("release/version.json") {
         issues.push(Issue {
-            path: "src/lib/version.mjs".to_string(),
+            path: "engine/crates/legion-runtime/src/wf_port/u03/version.rs".to_string(),
             reason: "library version does not consume canonical release version record"
                 .to_string(),
         });

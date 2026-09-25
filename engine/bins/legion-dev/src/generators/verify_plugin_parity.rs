@@ -9,7 +9,7 @@ use std::path::Path;
 const SURFACE_FILE: &str = "src/registry/plugin-surface.json";
 const DISTRIBUTION_CONTRACT: &str = "release/distribution-contract.json";
 const CHANNELS_FILE: &str = "packaging/channels.json";
-const ACTIVATION_PREFLIGHT: &str = "node scripts/verify-plugin-parity.mjs --check";
+const ACTIVATION_PREFLIGHT: &str = "cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity --check";
 
 fn read_json(path: &Path) -> Result<Value, String> {
     let text = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -340,7 +340,7 @@ pub fn run_opts(root: &Path, check: bool, structural_only: bool) -> bool {
         let current = match current {
             Some(c) => c,
             None => {
-                eprintln!("missing {SURFACE_FILE}; run: node scripts/verify-plugin-parity.mjs");
+                eprintln!("missing {SURFACE_FILE}; run: cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity");
                 return false;
             }
         };
@@ -355,7 +355,7 @@ pub fn run_opts(root: &Path, check: bool, structural_only: bool) -> bool {
             return false;
         }
         if current != record {
-            eprintln!("{SURFACE_FILE} is stale; run: node scripts/verify-plugin-parity.mjs");
+            eprintln!("{SURFACE_FILE} is stale; run: cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity");
             return false;
         }
         let counts = &record["counts"];

@@ -292,19 +292,26 @@ pub struct AtomicReplaceResult {
 /// Mirrors `atomicReplaceProduct`. `inject_failure` runs after the backup
 /// rename (if any) but before the incoming stage is renamed into place,
 /// matching the JS test's `{ phase: "after-backup" }` injection point.
+///
+/// Returns `Err` only when the JS would throw: the replacement failed AND
+/// the subsequent rollback-to-original-state also failed
+/// ("product replacement failed and rollback failed: ..."). Every other
+/// failure (including an ordinary, successfully-rolled-back replacement
+/// failure) is reported through `Ok(AtomicReplaceResult { success: false,
+/// .. })`, exactly as the JS function returns a plain object for those.
 pub fn atomic_replace_product(
     source: &Path,
     product_root: &Path,
     work_root: &Path,
     inject_failure: Option<&dyn Fn() -> Result<(), String>>,
-) -> AtomicReplaceResult {
+) -> Result<AtomicReplaceResult, String> {
     let parent = product_root.parent().unwrap_or(Path::new("."));
     if let Err(error) = (|| -> Result<(), String> {
         assert_inside(work_root, product_root, "product root", "posix")?;
         assert_inside(work_root, parent, "product parent", "posix")?;
         Ok(())
     })() {
-        return AtomicReplaceResult {
+        return Ok(AtomicReplaceResult {
             success: false,
             backup_moved: false,
             committed: false,
@@ -312,10 +319,10 @@ pub fn atomic_replace_product(
             error: Some(error),
             stage: PathBuf::new(),
             backup: PathBuf::new(),
-        };
+        });
     }
     if fs::create_dir_all(parent).is_err() {
-        return AtomicReplaceResult {
+        return Ok(AtomicReplaceResult {
             success: false,
             backup_moved: false,
             committed: false,
@@ -323,7 +330,7 @@ pub fn atomic_replace_product(
             error: Some(format!("cannot create {}", parent.display())),
             stage: PathBuf::new(),
             backup: PathBuf::new(),
-        };
+        });
     }
     let suffix = format!("{}-{}", std::process::id(), next_run_sequence());
     let stage = parent.join(format!(".legion-incoming-{suffix}"));
@@ -352,7 +359,7 @@ pub fn atomic_replace_product(
     })();
 
     match attempt {
-        Ok(()) => AtomicReplaceResult {
+        Ok(()) => Ok(AtomicReplaceResult {
             success: true,
             backup_moved,
             committed: true,
@@ -360,7 +367,7 @@ pub fn atomic_replace_product(
             error: None,
             stage,
             backup,
-        },
+        }),
         Err(error) => {
             let restore = (|| -> Result<(), String> {
                 if committed && product_root.exists() {
@@ -375,20 +382,13 @@ pub fn atomic_replace_product(
                 Ok(())
             })();
             if let Err(restore_error) = restore {
-                // Mirrors the JS throwing when rollback itself fails; callers
-                // of this helper treat that as a hard error via the Result
-                // wrapper one level up (qualify_windows_release propagates it).
-                return AtomicReplaceResult {
-                    success: false,
-                    backup_moved,
-                    committed,
-                    rolled_back: false,
-                    error: Some(format!("product replacement failed and rollback failed: {error}; {restore_error}")),
-                    stage,
-                    backup,
-                };
+                // Mirrors the JS throwing when rollback itself fails: this is
+                // a hard error, not a gate failure, so it propagates as `Err`
+                // and aborts qualification (see `qualify_windows_release`,
+                // which uses `?` on every `atomic_replace_product` call).
+                return Err(format!("product replacement failed and rollback failed: {error}; {restore_error}"));
             }
-            AtomicReplaceResult {
+            Ok(AtomicReplaceResult {
                 success: false,
                 backup_moved,
                 committed,
@@ -396,7 +396,7 @@ pub fn atomic_replace_product(
                 error: Some(error),
                 stage,
                 backup,
-            }
+            })
         }
     }
 }

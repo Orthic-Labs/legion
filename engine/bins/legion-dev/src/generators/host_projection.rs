@@ -291,7 +291,7 @@ pub fn run(root: &Path, check: bool) -> bool {
         let current_support = fs::read_to_string(&support_target).unwrap_or_default();
         if current != rendered || current_support != support {
             eprintln!(
-                "host projection drift: {OUT} or {SUPPORT_OUT} does not match canonical sources.\nRun: node scripts/generate-host-projection.mjs"
+                "host projection drift: {OUT} or {SUPPORT_OUT} does not match canonical sources.\nRun: cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection"
             );
             return false;
         }

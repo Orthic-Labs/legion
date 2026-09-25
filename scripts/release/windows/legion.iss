@@ -1,4 +1,4 @@
-; Rendered only by finalize-installer.mjs.  Keep payload roots explicit: a
+; Rendered only by xtask (release::windows_finalize_installer).  Keep payload roots explicit: a
 ; Windows installer must never package a checkout, build output, or symlink.
 #define ProductVersion "@@VERSION@@"
 #define SourceRoot "@@SOURCE_ROOT@@"

@@ -215,7 +215,7 @@ pub fn run(root: &Path, check: bool) -> bool {
         }
         if !drift.is_empty() {
             eprintln!(
-                "skill catalog drift: {} do not match their canonical sources.\nRun: node scripts/generate-skill-catalog.mjs",
+                "skill catalog drift: {} do not match their canonical sources.\nRun: cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog",
                 drift.join(", ")
             );
             return false;

@@ -38,7 +38,7 @@ pub fn check_publication_channel(channel: Option<&str>, root: &Path) -> Outcome 
             return Outcome {
                 status: "error",
                 exit_code: 4,
-                message: "usage: check-publication-policy.mjs --channel <name>".to_string(),
+                message: "usage: legion-dev check-publication-policy --channel <name>".to_string(),
             }
         }
     };

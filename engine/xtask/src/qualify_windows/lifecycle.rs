@@ -262,9 +262,16 @@ pub struct QualifyWindowsOptions {
 /// Mirrors `qualifyWindowsRelease`. Returns the receipt JSON with
 /// `receiptPath` merged in, exactly as the JS function's return value.
 pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, String> {
-    let platform = options.platform.unwrap_or_else(|| std::env::consts::OS.to_string());
+    // Recorded before the defaults are applied: any override means a simulated run.
+    let platform_overridden = options.platform.is_some() || options.runner_architecture.is_some();
+    // Node's `process.platform` / `process.arch` spellings, which the JS compared against.
+    let platform = options.platform.unwrap_or_else(|| {
+        match std::env::consts::OS { "windows" => "win32", "macos" => "darwin", other => other }.to_string()
+    });
     let platform = if platform == "macos" { "darwin".to_string() } else { platform };
-    let runner_architecture = options.runner_architecture.unwrap_or_else(|| std::env::consts::ARCH.to_string());
+    let runner_architecture = options.runner_architecture.unwrap_or_else(|| {
+        match std::env::consts::ARCH { "x86_64" => "x64", "aarch64" => "arm64", other => other }.to_string()
+    });
     let allow_downgrade = options.allow_downgrade;
     let host_path = std::env::var("PATH").unwrap_or_default();
 
@@ -282,8 +289,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
     let simulated = options.archive_extractor.is_some()
         || options.command_runner.is_some()
         || codex_executable_input.is_some()
-        || options.platform.is_some()
-        || options.runner_architecture.is_some();
+        || platform_overridden;
 
     if platform != "win32" {
         return Err(format!("Windows qualification requires a Windows host; observed {platform}"));
@@ -401,7 +407,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
         super::proofs::invocation_record(command, args, outcome)
     };
 
-    let install_current = atomic_replace_product(&current_root, &product_root, &run_root, None);
+    let install_current = atomic_replace_product(&current_root, &product_root, &run_root, None)?;
     let installed_launcher = stable_paths.executable.clone();
     if has_forbidden_binding_segment(&installed_launcher.to_string_lossy())
         || !paths_equal(Some(&installed_launcher.to_string_lossy()), Some(&product_root.join(WindowsInstallContract::EXECUTABLE_PATH).to_string_lossy()))
@@ -571,7 +577,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                 );
                 gates.insert("rollback".to_string(), unproven_gate("rollback", "rollback is unproven when downgrade was not explicitly allowed"));
             } else {
-                let seed_prior = atomic_replace_product(&prior_root, &product_root, &run_root, None);
+                let seed_prior = atomic_replace_product(&prior_root, &product_root, &run_root, None)?;
                 let pointer_written = seed_prior.success && write_pointer(&previous_pointer, &prior_root_path)?;
                 let seeded_prior_release = CurrentRelease { release_version: &prior_info.release_version, runtime_sha256: &prior_info.runtime_sha256 };
                 let computed_prior_health = if seed_prior.success {
@@ -604,7 +610,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                         current_health: prior_health.as_ref(),
                     }),
                 )?;
-                let update_attempt = atomic_replace_product(&current_root, &product_root, &run_root, None);
+                let update_attempt = atomic_replace_product(&current_root, &product_root, &run_root, None)?;
                 let updated_identity = if update_attempt.success { release_metadata(&product_root, &normalized_architecture, "updated product").ok() } else { None };
                 let update_health = if update_attempt.success {
                     Some(setup_health(
@@ -696,7 +702,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     },
                 );
 
-                let seed_prior_for_rollback = atomic_replace_product(&prior_root, &product_root, &run_root, None);
+                let seed_prior_for_rollback = atomic_replace_product(&prior_root, &product_root, &run_root, None)?;
                 let injected = std::cell::Cell::new(false);
                 let inject_failure = |phase_after_backup: bool| -> Result<(), String> {
                     if phase_after_backup {
@@ -706,7 +712,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                 };
                 let _ = &injected;
                 let rollback_inject: Box<dyn Fn() -> Result<(), String>> = Box::new(move || inject_failure(true));
-                let rollback_attempt = atomic_replace_product(&current_root, &product_root, &run_root, Some(rollback_inject.as_ref()));
+                let rollback_attempt = atomic_replace_product(&current_root, &product_root, &run_root, Some(rollback_inject.as_ref()))?;
                 let restored_prior = if product_root.exists() { Some(tree_digest(&product_root)?) } else { None };
                 if rollback_attempt.rolled_back {
                     rollback_health = Some(setup_health(
@@ -794,7 +800,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
                     },
                 );
 
-                let restored_current = atomic_replace_product(&current_root, &product_root, &run_root, None);
+                let restored_current = atomic_replace_product(&current_root, &product_root, &run_root, None)?;
                 if restored_current.success {
                     final_health = Some(setup_health(
                         &run_command,

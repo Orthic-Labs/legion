@@ -35,13 +35,6 @@
   "engines": {
     "node": ">=22.13"
   },
-  "exports": {
-    ".": "./src/lib/index.mjs",
-    "./contracts": "./src/lib/contracts/index.mjs",
-    "./provider-sdk": "./src/lib/providers/sdk/index.mjs",
-    "./schemas/*": "./src/schemas/*",
-    "./auto-jury": "./src/lib/auto-jury.mjs"
-  },
   "files": [
     ".claude-plugin/",
     ".codex-plugin/",
@@ -56,24 +49,9 @@
     "src/roster/",
     "src/packages/contracts/",
     "src/lib/",
-    "src/providers/",
     "src/registry/",
     "src/schemas/",
     "skills/",
-    "scripts/self-test.mjs",
-    "scripts/generate-schemas.mjs",
-    "scripts/normalize-provider-result.mjs",
-    "scripts/check-publication-policy.mjs",
-    "scripts/check-publication-surface.mjs",
-    "scripts/check-packed-import-closure.mjs",
-    "scripts/check-distribution-contract.mjs",
-    "scripts/check-portability.mjs",
-    "scripts/check-version-parity.mjs",
-    "scripts/check-canonical-names.mjs",
-    "scripts/check-dependency-closure.mjs",
-    "scripts/generate-codex-skill-sidecars.mjs",
-    "scripts/lib/",
-    "scripts/report-to-sarif.mjs",
     "references/",
     "release/version.json",
     "release/distribution-contract.json",
@@ -125,7 +103,6 @@
     "@rightkit/hooks": "0.1.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.13",
     "@rightkit/ax": "0.2.4",
     "@rightkit/git": "0.2.24",
     "@rightkit/release": "0.2.105"

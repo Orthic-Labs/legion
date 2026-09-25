@@ -40,25 +40,6 @@
       "reason": "legacy-token classification source"
     },
     {
-      "path": "src/lib/naming/check.mjs",
-      "tokens": [
-        "nemesis",
-        "forge",
-        "seer",
-        "sentinel",
-        "sorcerer"
-      ],
-      "occurrences": {
-        "nemesis": 3,
-        "forge": 1,
-        "seer": 5,
-        "sentinel": 1,
-        "sorcerer": 1
-      },
-      "class": "R2",
-      "reason": "legacy-token detector and exact prohibited path checks"
-    },
-    {
       "pathPrefix": "src/lib/dispatch-validator/",
       "tokens": [
         "seer"
@@ -748,6 +729,25 @@
       },
       "class": "R2",
       "reason": "seer cited documenting the legacy oracle/seer packetType alias this module ports, not renamed"
+    },
+    {
+      "path": "engine/bins/legion-dev/src/checks/canonical_names.rs",
+      "tokens": [
+        "nemesis",
+        "forge",
+        "seer",
+        "sentinel",
+        "sorcerer"
+      ],
+      "occurrences": {
+        "nemesis": 4,
+        "forge": 2,
+        "seer": 6,
+        "sentinel": 2,
+        "sorcerer": 2
+      },
+      "class": "R2",
+      "reason": "legacy-token detector and exact prohibited path checks"
     }
   ]
 }

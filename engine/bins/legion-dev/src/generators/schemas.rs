@@ -213,7 +213,7 @@ pub fn run(root: &Path, check: bool) -> bool {
         if committed != generated {
             if check {
                 eprintln!(
-                    "SCHEMA DRIFT: {rel} is not up to date with the code-owned enums; run node scripts/generate-schemas.mjs"
+                    "SCHEMA DRIFT: {rel} is not up to date with the code-owned enums; run: pnpm schemas:check"
                 );
                 failed = true;
             } else {

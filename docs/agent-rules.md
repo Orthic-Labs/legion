@@ -28,5 +28,5 @@ Legion provides shared routing, execution, and independent semantic validation a
 
 ## Verification
 - Run focused doctrine and routing tests after role changes.
-- Refresh `skills/manifests/*.json` with `node scripts/refresh-local-skill-manifests.mjs <bundle>...`
+- Refresh `skills/manifests/*.json` with `cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests <bundle>...`
   after editing any packaged skill file, so digests and consumers stay truthful.

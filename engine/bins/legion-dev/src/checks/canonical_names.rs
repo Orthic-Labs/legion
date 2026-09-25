@@ -1,14 +1,12 @@
-// Port of `scripts/check-canonical-names.mjs` + `src/lib/naming/check.mjs` +
-// `src/lib/naming/registry.mjs`. Scans every tracked file for legacy
-// (`seer`/`nemesis`/`forge`/`sentinel`/`sorcerer`) tokens, plus a set of
-// semantic invariants (authority sets, README/package.json/plugin-manifest
-// content), against `src/config/naming-registry.json` and
-// `src/config/naming-legacy-allowlist.json`.
+// Native Rust canonical-names check (no Node/JS counterpart remains). Scans
+// every tracked file for legacy (`seer`/`nemesis`/`forge`/`sentinel`/`sorcerer`)
+// tokens, plus a set of semantic invariants (authority sets,
+// README/package.json/plugin-manifest content), against
+// `src/config/naming-registry.json` and `src/config/naming-legacy-allowlist.json`.
 //
-// `AUTHORITY_ID` (src/packages/contracts/enums.mjs) and `ROSTER_ROLE_IDS`
-// (src/lib/roster/index.mjs) are runtime JS constants with no Rust
-// equivalent to import; their values are mirrored here as literals and must
-// be kept in sync by hand if those modules change.
+// `AUTHORITY_ID` (engine/crates/legion-contracts/src/l2_port/enums.rs) and
+// `ROSTER_ROLE_IDS` (roster role set: sage/alchemist/oracle) are mirrored
+// here as literals and must be kept in sync by hand if those modules change.
 
 use super::{read_json, read_text, tracked_files};
 use regex::RegexBuilder;
@@ -207,7 +205,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
     authority_sorted.sort();
     if authority_sorted != runtime_expected {
         issues.push(mk(
-            "src/packages/contracts/enums.mjs",
+            "engine/crates/legion-contracts/src/l2_port/enums.rs",
             "runtime authority set differs from naming registry",
         ));
     }
@@ -226,7 +224,7 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
     roster_sorted.sort();
     if roster_sorted != vec!["alchemist", "oracle", "sage"] {
         issues.push(mk(
-            "src/lib/roster/index.mjs",
+            "engine/bins/legion-dev/src/checks/canonical_names.rs",
             "runtime roster differs from naming registry",
         ));
     }
@@ -289,16 +287,16 @@ fn semantic_issues(root: &Path, registry: &Value) -> Vec<Issue> {
             "legacy product filename still exists",
         ));
     }
-    // Runtime authority registry literal check (authority-binding-store.mjs).
-    let abs_path = "src/lib/contracts/arcane/authority-binding-store.mjs";
+    // Runtime authority registry literal check (Rust port of the retired
+    // authority-binding-store.mjs).
+    let abs_path = "engine/crates/legion-policy/src/wf_port/wf067/binding_store.rs";
     if let Ok(source) = std::fs::read_to_string(root.join(abs_path)) {
-        let decl_re = RegexBuilder::new(r"const MAP\s*=\s*(\{[^}]+\})").build().unwrap();
-        let literal = decl_re
-            .captures(&source)
-            .and_then(|c| c.get(1))
-            .map(|m| m.as_str().to_string())
-            .unwrap_or_default();
-        let value_re = RegexBuilder::new(r#":\s*['"]([^'"]+)['"]"#).build().unwrap();
+        let fn_re = RegexBuilder::new(r"fn authority_for_agent_type[^{]*\{([\s\S]*?)\n\}")
+            .build()
+            .unwrap();
+        let literal =
+            fn_re.captures(&source).and_then(|c| c.get(1)).map(|m| m.as_str().to_string()).unwrap_or_default();
+        let value_re = RegexBuilder::new(r#"Some\(\s*"([^"]+)"\s*\)"#).build().unwrap();
         let mut observed: BTreeSet<String> = BTreeSet::new();
         for cap in value_re.captures_iter(&literal) {
             observed.insert(cap[1].to_string());
