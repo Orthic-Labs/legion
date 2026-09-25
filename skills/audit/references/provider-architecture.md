@@ -53,8 +53,8 @@ parses, merges, and validates both files for the planner, verifier, manifest gen
 `registry/provider-registry-complete.mjs` is only a compatibility re-export and contains no registry
 logic.
 
-`scripts/generate-manifest.mjs` renders the human/scanner compatibility manifest from that same
-loader. Edit registry data, regenerate the manifest, and run `generate-manifest.mjs --check`; never
+`legion-dev generate-manifest` renders the human/scanner compatibility manifest from that same
+loader. Edit registry data, regenerate the manifest, and run `legion-dev generate-manifest --check`; never
 hand-maintain executable selection logic in `manifest.json`.
 
 Selection is additive. Every matching language, framework, platform, security, runtime, and release
