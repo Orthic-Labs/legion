@@ -51,7 +51,11 @@ fn canonical_record(id: &str, fm: &Map<String, Value>, registry: &Value, skills_
     out.insert("kind".into(), Value::from(kind));
     out.insert("capabilityClass".into(), capability_class);
     out.insert("discoverability".into(), discoverability);
-    out.insert("domain".into(), domain);
+    // JS left `domain` undefined when the frontmatter omits it, and
+    // JSON.stringify drops undefined keys.
+    if fm.contains_key("domain") {
+        out.insert("domain".into(), domain);
+    }
     out.insert("operations".into(), Value::Array(list_field(fm.get("operations")).into_iter().map(Value::from).collect()));
     out.insert("effects".into(), Value::Array(list_field(fm.get("effects")).into_iter().map(Value::from).collect()));
     out.insert("hostRequirements".into(), Value::Array(host_requirements.iter().cloned().map(Value::from).collect()));
