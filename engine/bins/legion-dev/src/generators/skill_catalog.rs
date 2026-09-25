@@ -210,6 +210,11 @@ pub fn run(root: &Path, check: bool) -> bool {
         for (rel, expected) in [(OUT_INDEX, &index_text), (OUT_DOMAINS, &domains_text)] {
             let current = fs::read_to_string(root.join(rel)).unwrap_or_default();
             if &current != expected {
+                if let Some((n, (have, want))) = current.lines().zip(expected.lines()).enumerate().find(|(_, (a, b))| a != b) {
+                    eprintln!("{rel}:{}: checked in `{have}`, generated `{want}`", n + 1);
+                } else {
+                    eprintln!("{rel}: length differs ({} vs {} bytes)", current.len(), expected.len());
+                }
                 drift.push(rel);
             }
         }

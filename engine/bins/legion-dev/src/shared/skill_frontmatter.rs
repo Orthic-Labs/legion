@@ -257,6 +257,62 @@ pub fn parse_skill_frontmatter(text: &str, path: &str) -> Result<Frontmatter, St
 }
 
 /// `parseSkillFrontmatter` in its JSON-object shape, for generator callers.
+/// Mirrors the JS object exactly: only keys present in the file, scalars as
+/// strings (including a literal `null` domain), lists as string arrays.
+/// Validation is shared with [`parse_skill_frontmatter`].
 pub fn parse_skill_frontmatter_map(text: &str, path: &str) -> Result<Map<String, Value>, String> {
-    parse_skill_frontmatter(text, path).map(|f| f.as_value())
+    parse_skill_frontmatter(text, path)?;
+    const LISTS: [&str; 3] = ["operations", "effects", "hostRequirements"];
+    const SCALARS: [&str; 6] = ["name", "description", "kind", "capabilityClass", "discoverability", "domain"];
+    let end = text[4..].find("\n---").map(|i| i + 4).unwrap_or(text.len());
+    let top = Regex::new(r"^([A-Za-z_][A-Za-z0-9_-]*):(?:[ \t]*(.*))$").unwrap();
+    let mut out = Map::new();
+    let mut key: Option<String> = None;
+    let mut block: Option<(String, bool, Vec<String>)> = None;
+    let finish = |block: &mut Option<(String, bool, Vec<String>)>, out: &mut Map<String, Value>| {
+        if let Some((k, folded, lines)) = block.take() {
+            let joined = lines.join(if folded { " " } else { "\n" });
+            out.insert(k, Value::from(joined.trim().to_string()));
+        }
+    };
+    for raw in text[4..end].split('\n') {
+        let line = raw.strip_suffix('\r').unwrap_or(raw);
+        if let Some(caps) = top.captures(line) {
+            finish(&mut block, &mut out);
+            let k = caps[1].to_string();
+            let value = caps.get(2).map_or("", |m| m.as_str()).trim();
+            if LISTS.contains(&k.as_str()) {
+                out.insert(k.clone(), Value::Array(Vec::new()));
+            } else if SCALARS.contains(&k.as_str()) {
+                if value == ">" || value == "|" {
+                    block = Some((k.clone(), value == ">", Vec::new()));
+                } else {
+                    out.insert(k.clone(), Value::from(scalar(value, path, &k)?));
+                }
+            }
+            key = Some(k);
+            continue;
+        }
+        if let Some((_, _, lines)) = block.as_mut() {
+            if line.starts_with(|c: char| c.is_whitespace()) && !line.trim().is_empty() {
+                lines.push(line.trim().to_string());
+                continue;
+            }
+        }
+        if let Some(k) = key.as_deref().filter(|k| LISTS.contains(k)) {
+            let trimmed = line.trim_start();
+            if line.len() != trimmed.len() && trimmed.starts_with('-') {
+                let item = trimmed[1..].trim_start();
+                if trimmed[1..].starts_with(|c: char| c.is_whitespace()) && !item.is_empty() {
+                    let v = scalar(item, path, k)?;
+                    if let Some(Value::Array(items)) = out.get_mut(k) {
+                        items.push(Value::from(v));
+                    }
+                    continue;
+                }
+            }
+        }
+    }
+    finish(&mut block, &mut out);
+    Ok(out)
 }
