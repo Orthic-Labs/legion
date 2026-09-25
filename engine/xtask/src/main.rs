@@ -11,13 +11,17 @@
 mod assemble_native_release;
 mod finalize_macos_candidate;
 mod native_installed_smoke;
+mod package_windows_release;
 mod portable_core;
 mod prepare_unsigned_candidate;
 mod prepare_windows_candidate_finalization;
 mod process_boundary;
+mod qualify_windows;
 mod release;
 mod rightkit_release_bridge;
 mod verify_release;
+mod windows_release_config;
+mod windows_release_support;
 
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
@@ -60,7 +64,10 @@ enum Commands {
         #[arg(long)]
         provenance: Option<String>,
     },
-    PackageWindowsRelease { args: Vec<String> },
+    PackageWindowsRelease {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Native Rust port of scripts/ci/prepare-unsigned-candidate.mjs.
     /// createPortableArchive/SBOM/provenance calls delegate to the external
     /// @rightkit/release npm package as a subprocess.
@@ -119,7 +126,10 @@ enum Commands {
         #[arg(long)]
         receipt: Option<PathBuf>,
     },
-    QualifyWindowsRelease { args: Vec<String> },
+    QualifyWindowsRelease {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
     /// Native Rust port of installer-release-chain.mjs's `admission`
     /// subcommand (Gate 0A). Reads its inputs from the process environment,
     /// matching the JS `admitRelease(process.env)` default.
@@ -204,6 +214,7 @@ fn repo_root() -> PathBuf {
     dir
 }
 
+#[allow(dead_code)]
 fn delegate_to_node(script_rel: &str, args: &[String]) -> ExitCode {
     let root = repo_root();
     let script = root.join(script_rel);
@@ -228,7 +239,12 @@ fn delegate_to_node(script_rel: &str, args: &[String]) -> ExitCode {
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    // `pnpm <script> -- --flag` forwards the separator; the JS tools skipped it.
+    let mut argv: Vec<std::ffi::OsString> = std::env::args_os().collect();
+    if argv.len() > 2 && argv[2] == "--" {
+        argv.remove(2);
+    }
+    let cli = Cli::parse_from(argv);
     match cli.command {
         Commands::VerifyRelease { manifest_path, dist_dir } => {
             match verify_release::verify_release_manifest(&manifest_path, dist_dir.as_deref()) {
@@ -280,9 +296,7 @@ fn main() -> ExitCode {
                 }
             }
         }
-        Commands::PackageWindowsRelease { args } => {
-            delegate_to_node("scripts/package-windows-release.mjs", &args)
-        }
+        Commands::PackageWindowsRelease { args } => package_windows_release::cli::run(&args),
         Commands::PrepareUnsignedCandidate {
             input,
             output,
@@ -400,9 +414,7 @@ fn main() -> ExitCode {
                 }
             }
         }
-        Commands::QualifyWindowsRelease { args } => {
-            delegate_to_node("scripts/qualify-windows-release.mjs", &args)
-        }
+        Commands::QualifyWindowsRelease { args } => qualify_windows::cli::run(&args),
         Commands::ReleaseAdmission => {
             let env: std::collections::HashMap<String, String> = std::env::vars().collect();
             match release::admission::admit_release(&env, &repo_root()) {

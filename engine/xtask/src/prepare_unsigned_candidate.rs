@@ -674,4 +674,154 @@ mod tests {
         assert!(formatted.ends_with("T00:00:00.000Z"));
         assert!(formatted.starts_with("2026-08-28"));
     }
+
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+    fn temp_root(prefix: &str) -> PathBuf {
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let root = std::env::temp_dir().join(format!("{prefix}-{}-{n}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn fake_create_archive<'a>() -> PrepareDeps<'a> {
+        PrepareDeps {
+            create_archive: Box::new(|_root, _src, out| {
+                fs::create_dir_all(out.parent().unwrap()).map_err(|e| e.to_string())?;
+                fs::write(out, "portable archive\n").map_err(|e| e.to_string())?;
+                Ok(json!({ "path": out.to_string_lossy() }))
+            }),
+        }
+    }
+
+    fn first_jsonl_object(path: &Path) -> Value {
+        let text = fs::read_to_string(path).unwrap();
+        let line = text.lines().find(|l| !l.trim().is_empty()).unwrap();
+        serde_json::from_str(line).unwrap()
+    }
+
+    /// Rust port of "unsigned candidate binds portable archive to CycloneDX
+    /// 1.6 and SLSA v1 evidence" (`tests/unsigned-release-candidate.test.mjs`).
+    /// `createArchive` is stubbed (mirroring the JS test); SBOM/provenance
+    /// materialization and validation run for real against the external
+    /// `@rightkit/release` package, same as the JS test.
+    #[test]
+    fn prepare_and_check_unsigned_candidate_end_to_end() {
+        let root = temp_root("legion-unsigned-candidate");
+        let repository_root = root.join("repo");
+        let input = root.join("install");
+        let output_root = root.join("artifacts");
+        fs::create_dir_all(repository_root.join("release")).unwrap();
+        fs::write(
+            repository_root.join("release/version.json"),
+            json!({ "schemaVersion": 1, "kind": "legion-release-version", "version": "0.1.0" }).to_string(),
+        )
+        .unwrap();
+        fs::create_dir_all(input.join("bin")).unwrap();
+        fs::write(input.join("bin/legion"), "candidate runtime\n").unwrap();
+
+        let source_revision = "a".repeat(40);
+        let result = prepare_unsigned_candidate_with(
+            &repository_root,
+            PrepareArgs {
+                input: Some(input.clone()),
+                output_root: Some(output_root.clone()),
+                platform: Some("darwin".to_string()),
+                architecture: Some("arm64".to_string()),
+                source_revision: Some(source_revision.clone()),
+                version: None,
+                created_at: Some("2026-08-28T00:00:00.000Z".to_string()),
+            },
+            &fake_create_archive(),
+        )
+        .unwrap();
+
+        assert_eq!(result["status"], "complete");
+        assert_eq!(result["target"], "macos-arm64");
+        assert_eq!(result["version"], "0.1.0");
+        assert_eq!(result["sourceRevision"], source_revision);
+        assert!(result["archive"].as_str().unwrap().ends_with("legion-0.1.0-macos-arm64.tar.gz"));
+        assert!(result["candidate"].as_str().unwrap().ends_with("candidate.json"));
+
+        let candidate_path = PathBuf::from(result["candidate"].as_str().unwrap());
+        let candidate: Value = serde_json::from_str(&fs::read_to_string(&candidate_path).unwrap()).unwrap();
+        let mut file_keys: Vec<String> = candidate["files"].as_object().unwrap().keys().cloned().collect();
+        file_keys.sort();
+        assert_eq!(file_keys, vec!["archive", "provenance", "sbom"]);
+
+        let sbom_path = PathBuf::from(result["sbom"].as_str().unwrap());
+        let sbom: Value = serde_json::from_str(&fs::read_to_string(&sbom_path).unwrap()).unwrap();
+        assert_eq!(sbom["specVersion"], "1.6");
+        assert_eq!(sbom["components"][0]["name"], "legion-0.1.0-macos-arm64.tar.gz");
+
+        let provenance_path = PathBuf::from(result["provenance"].as_str().unwrap());
+        let provenance = first_jsonl_object(&provenance_path);
+        assert_eq!(provenance["predicateType"], "https://slsa.dev/provenance/v1");
+        assert_eq!(provenance["subject"][0]["digest"]["sha256"], result["archiveSha256"]);
+
+        let checked = check_unsigned_candidate(
+            &repository_root,
+            CheckArgs {
+                output_root: Some(output_root.clone()),
+                platform: Some("darwin".to_string()),
+                architecture: Some("arm64".to_string()),
+                source_revision: Some(source_revision.clone()),
+                version: None,
+            },
+        )
+        .unwrap();
+        assert_eq!(checked["status"], "verified");
+
+        let original_sbom = fs::read(&sbom_path).unwrap();
+        let mut tampered = original_sbom.clone();
+        tampered.extend_from_slice(b"tampered\n");
+        fs::write(&sbom_path, &tampered).unwrap();
+        let err = check_unsigned_candidate(
+            &repository_root,
+            CheckArgs {
+                output_root: Some(output_root.clone()),
+                platform: Some("darwin".to_string()),
+                architecture: Some("arm64".to_string()),
+                source_revision: Some(source_revision.clone()),
+                version: None,
+            },
+        )
+        .unwrap_err();
+        assert!(err.contains("candidate file digest or size mismatch"), "{err}");
+        fs::write(&sbom_path, &original_sbom).unwrap();
+
+        fs::write(output_root.join("extra.txt"), "unexpected\n").unwrap();
+        let err = check_unsigned_candidate(
+            &repository_root,
+            CheckArgs {
+                output_root: Some(output_root.clone()),
+                platform: Some("darwin".to_string()),
+                architecture: Some("arm64".to_string()),
+                source_revision: Some(source_revision.clone()),
+                version: None,
+            },
+        )
+        .unwrap_err();
+        assert!(err.contains("exactly candidate.json, archive, SBOM, and provenance"), "{err}");
+
+        let err = prepare_unsigned_candidate_with(
+            &repository_root,
+            PrepareArgs {
+                input: Some(input.clone()),
+                output_root: Some(input.join("nested-artifacts")),
+                platform: Some("darwin".to_string()),
+                architecture: Some("arm64".to_string()),
+                source_revision: Some(source_revision.clone()),
+                version: None,
+                created_at: None,
+            },
+            &PrepareDeps {
+                create_archive: Box::new(|_, _, _| panic!("archive should not be created")),
+            },
+        )
+        .unwrap_err();
+        assert!(err.contains("candidate artifacts must be outside assembled install root"), "{err}");
+
+        let _ = fs::remove_dir_all(&root);
+    }
 }

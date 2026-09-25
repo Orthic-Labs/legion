@@ -465,4 +465,191 @@ mod tests {
         let ok = assert_below(&root.join("dist/native/macos-arm64/legion-0.1.0"), &root.join("dist/native"), "candidate extraction output");
         assert!(ok.is_ok());
     }
+
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+    fn temp_root(prefix: &str) -> PathBuf {
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let root = std::env::temp_dir().join(format!("{prefix}-{}-{n}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    /// Builds an unsigned macOS candidate (real archive via the
+    /// `@rightkit/release` bridge, real SBOM/provenance) the way
+    /// `prepare_unsigned_candidate` fixtures do, so the finalization tests
+    /// below have a real `.tar.gz` to extract.
+    fn build_unsigned_macos_candidate(repository_root: &Path, input: &Path, output_root: &Path, binaries: &[&str], source_revision: &str) -> Value {
+        fs::create_dir_all(repository_root.join("release")).unwrap();
+        fs::write(
+            repository_root.join("release/version.json"),
+            json!({ "schemaVersion": 1, "kind": "legion-release-version", "version": "0.1.0" }).to_string(),
+        )
+        .unwrap();
+        fs::create_dir_all(input.join("bin")).unwrap();
+        for name in binaries {
+            fs::write(input.join("bin").join(name), format!("{name}\n")).unwrap();
+        }
+        prepare_unsigned_candidate::prepare_unsigned_candidate(
+            repository_root,
+            prepare_unsigned_candidate::PrepareArgs {
+                input: Some(input.to_path_buf()),
+                output_root: Some(output_root.to_path_buf()),
+                platform: Some("macos".to_string()),
+                architecture: Some("arm64".to_string()),
+                source_revision: Some(source_revision.to_string()),
+                version: None,
+                created_at: Some("2026-08-28T00:00:00.000Z".to_string()),
+            },
+        )
+        .unwrap()
+    }
+
+    /// Rust port of "macOS finalization expands exact verified candidate
+    /// bytes and records pre-sign identity"
+    /// (`tests/unsigned-release-candidate.test.mjs`). `run_tar` wraps the
+    /// real implementation (mirroring the JS test's pass-through
+    /// `commandRunner`) so it can capture the extraction invocation.
+    #[test]
+    fn macos_finalization_expands_exact_candidate_bytes() {
+        let root = temp_root("legion-macos-candidate");
+        let repository_root = root.join("repo");
+        let input = root.join("install");
+        let output_root = root.join("candidate");
+        let extracted = repository_root.join("dist/native/macos-arm64/legion-0.1.0");
+        let receipt_path = repository_root.join(".right-release/receipts/macos-candidate.json");
+        let source_revision = "c".repeat(40);
+
+        let candidate = build_unsigned_macos_candidate(&repository_root, &input, &output_root, &["legion", "legion-hook", "legion-mcp"], &source_revision);
+
+        let captured: std::rc::Rc<std::cell::RefCell<Option<(Vec<String>, PathBuf)>>> = std::rc::Rc::new(std::cell::RefCell::new(None));
+        let captured_clone = captured.clone();
+        let mut deps = MacosFinalizeDeps {
+            run_tar: Box::new(move |args, cwd| {
+                if args.first().map(String::as_str) == Some("-xzf") {
+                    *captured_clone.borrow_mut() = Some((args.to_vec(), cwd.to_path_buf()));
+                }
+                real_run_tar(args, cwd)
+            }),
+        };
+        let result = prepare_macos_candidate_finalization_with(
+            &repository_root,
+            PrepareArgs {
+                candidate_root: Some(output_root.clone()),
+                output_root: Some(extracted.clone()),
+                architecture: "arm64".to_string(),
+                source_revision: Some(source_revision.clone()),
+                version: Some("0.1.0".to_string()),
+                receipt_path: Some(receipt_path.clone()),
+            },
+            &mut deps,
+        )
+        .unwrap();
+
+        assert_eq!(result["candidateArchiveSha256"], candidate["archiveSha256"]);
+        let files: Vec<String> = result["files"].as_array().unwrap().iter().map(|f| f["file"].as_str().unwrap().to_string()).collect();
+        assert_eq!(files, vec!["bin/legion", "bin/legion-hook", "bin/legion-mcp"]);
+        let receipt: Value = serde_json::from_str(&fs::read_to_string(&receipt_path).unwrap()).unwrap();
+        assert_eq!(receipt["candidateArchiveSha256"], candidate["archiveSha256"]);
+
+        let captured = captured.borrow();
+        let (args, cwd) = captured.as_ref().expect("extraction must have been invoked");
+        assert!(!args.contains(&"-C".to_string()));
+        assert!(!Regex::new(r"^[A-Za-z]:").unwrap().is_match(&args[1]));
+        assert!(cwd.to_string_lossy().contains("candidate-extract"));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Rust port of "macOS packaging binds signed archive to fresh SBOM,
+    /// provenance, and notarization ZIP"
+    /// (`tests/unsigned-release-candidate.test.mjs`). `create_archive`,
+    /// `rebind`, and `run_ditto` are stubbed (mirroring the JS test's
+    /// `createArchive`/`commandRunner` overrides); SBOM/provenance
+    /// materialization runs for real against `@rightkit/release`.
+    #[test]
+    fn macos_packaging_binds_signed_archive_to_fresh_evidence() {
+        let root = temp_root("legion-macos-package");
+        let repository_root = root.join("repo");
+        let input = repository_root.join("dist/native/macos-arm64/legion-0.1.0");
+        let output = repository_root.join("dist/releases/mac/0.1.0/arm64");
+        let notary_zip = repository_root.join(".right-release/notary/legion-0.1.0-macos-arm64.zip");
+        let source_revision = "d".repeat(40);
+
+        fs::create_dir_all(input.join("bin")).unwrap();
+        for name in ["legion", "legion-hook", "legion-mcp"] {
+            fs::write(input.join("bin").join(name), format!("signed-{name}\n")).unwrap();
+        }
+
+        let rebinds: std::rc::Rc<std::cell::RefCell<Vec<RebindRequest>>> = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
+        let rebinds_clone = rebinds.clone();
+        let input_for_rebind = input.clone();
+        let mut deps = MacosPackageDeps {
+            create_archive: Box::new(|_root, _src, out| {
+                fs::create_dir_all(out.parent().unwrap()).map_err(|e| e.to_string())?;
+                fs::write(out, "signed portable archive\n").map_err(|e| e.to_string())?;
+                Ok(json!({ "path": out.to_string_lossy() }))
+            }),
+            rebind: Box::new(move |req| {
+                fs::create_dir_all(input_for_rebind.join("share/legion")).map_err(|e| e.to_string())?;
+                fs::write(
+                    input_for_rebind.join("share/legion/release.json"),
+                    json!({ "runtime": { "sha256": req.provenance.rsplit('/').next().unwrap(), "provenance": req.provenance.clone() } }).to_string(),
+                )
+                .map_err(|e| e.to_string())?;
+                rebinds_clone.borrow_mut().push(RebindRequest {
+                    args: req.args.clone(),
+                    platform: req.platform.clone(),
+                    architecture: req.architecture.clone(),
+                    target: req.target.clone(),
+                    out: req.out.clone(),
+                    bin_dir: req.bin_dir.clone(),
+                    provenance: req.provenance.clone(),
+                });
+                Ok(())
+            }),
+            run_ditto: Box::new(|_input, notary_zip| {
+                fs::create_dir_all(notary_zip.parent().unwrap()).map_err(|e| e.to_string())?;
+                fs::write(notary_zip, "notarization zip\n").map_err(|e| e.to_string())
+            }),
+        };
+
+        let result = package_macos_candidate_with(
+            &repository_root,
+            PackageArgs {
+                input_root: input.clone(),
+                output_root: output.clone(),
+                notarization_archive: notary_zip.clone(),
+                version: "0.1.0".to_string(),
+                architecture: "arm64".to_string(),
+                source_revision: source_revision.clone(),
+            },
+            &mut deps,
+        )
+        .unwrap();
+
+        let signed_runtime = {
+            let mut hasher = Sha256::new();
+            hasher.update(b"signed-legion\n");
+            hex::encode(hasher.finalize())
+        };
+
+        let rebinds = rebinds.borrow();
+        assert_eq!(rebinds.len(), 1, "signed runtime must be rebound exactly once before archiving");
+        assert_eq!(rebinds[0].provenance, format!("rightkit-release://macos-arm64/{signed_runtime}"));
+        assert_eq!(rebinds[0].out, input);
+        assert_eq!(result["notarizationArchive"].as_str().unwrap(), notary_zip.to_string_lossy());
+        let sbom: Value = serde_json::from_str(&fs::read_to_string(result["sbom"].as_str().unwrap()).unwrap()).unwrap();
+        assert_eq!(sbom["components"][0]["name"], "legion-0.1.0-macos-arm64.tar.gz");
+        let provenance = first_jsonl_object_local(Path::new(result["provenance"].as_str().unwrap()));
+        assert_eq!(provenance["subject"][0]["digest"]["sha256"], result["archiveSha256"]);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    fn first_jsonl_object_local(path: &Path) -> Value {
+        let text = fs::read_to_string(path).unwrap();
+        let line = text.lines().find(|l| !l.trim().is_empty()).unwrap();
+        serde_json::from_str(line).unwrap()
+    }
 }

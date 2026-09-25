@@ -4,15 +4,19 @@
 //! only read/compare JSON receipts already on disk, so they are fully
 //! native. `finalizationProvenanceEvidence` additionally needs
 //! `@rightkit/release`'s `readNativeFinalizationOutput`/
-//! `validateNativeFinalizationOutput`, so its non-JSON-shape validation runs
-//! through `node_shim`.
+//! `validateNativeFinalizationOutput`, so it runs those two calls through
+//! `crate::rightkit_release_bridge` (the shared T4 subprocess bridge into
+//! that external package) and does the rest of its identity/digest checks
+//! natively.
 
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
+use crate::rightkit_release_bridge::read_and_validate_native_finalization_output;
 use crate::windows_release_config::WindowsInstallContract;
-use crate::windows_release_support::{bare_digest, digest_matches, has_forbidden_binding_segment, paths_equal, path_inside, read_json, version_root_matches};
+use crate::windows_release_support::{bare_digest, digest_matches, has_forbidden_binding_segment, paths_equal, path_inside, read_json, sha256_file, version_root_matches};
 
 const REQUIRED_BINARIES: [&str; 3] = ["legion.exe", "legion-hook.exe", "legion-mcp.exe"];
 const REQUIRED_QUALIFICATION_GATES: [&str; 6] = ["installed-product", "command-resolution", "client-integration", "update", "rollback", "uninstall"];
@@ -249,4 +253,56 @@ pub fn assert_publication_policy(repository_root: &Path, evidence: &Value) -> Re
         return Err(format!("publication blocked: required evidence is incomplete ({})", missing.join(", ")));
     }
     Ok(())
+}
+
+/// Mirrors `finalizationProvenanceEvidence`. Reads/validates the receipt
+/// through the `@rightkit/release/native-release-finalization.mjs` bridge,
+/// then does the identity/archive-bytes checks natively.
+pub fn finalization_provenance_evidence(
+    provenance_path: Option<&Path>,
+    version: &str,
+    identity: &Value,
+    repository_root: &Path,
+) -> Result<Value, String> {
+    let provenance_path = match provenance_path.filter(|p| p.exists()) {
+        Some(p) => p,
+        None => return Ok(json!({ "status": "missing", "reason": "RightRelease finalization provenance receipt is required" })),
+    };
+    let receipt = match read_and_validate_native_finalization_output(
+        repository_root,
+        provenance_path,
+        &json!({ "requireArchive": true }),
+    ) {
+        Ok(v) => v,
+        Err(e) => return Ok(json!({ "status": "invalid", "reason": e })),
+    };
+    if receipt.get("app").and_then(|v| v.as_str()) != Some("legion")
+        || receipt.get("version").and_then(|v| v.as_str()) != Some(version)
+        || receipt.get("platform") != identity.get("platform")
+        || receipt.get("architecture") != identity.get("architecture")
+        || receipt.get("targetTriple") != identity.get("targetTriple")
+    {
+        return Ok(json!({ "status": "invalid", "reason": "RightRelease provenance identity does not match candidate" }));
+    }
+    let archive_reference = match receipt.pointer("/archive/path").and_then(|v| v.as_str()) {
+        Some(p) => p,
+        None => return Ok(json!({ "status": "invalid", "reason": "RightRelease provenance omits final archive path" })),
+    };
+    let archive_path = if Path::new(archive_reference).is_absolute() {
+        PathBuf::from(archive_reference)
+    } else {
+        repository_root.join(archive_reference)
+    };
+    let digest_ok = archive_path.is_file()
+        && sha256_file(&archive_path).map(|d| digest_matches(Some(&d), receipt.get("archiveSha256").and_then(|v| v.as_str()))).unwrap_or(false);
+    if !digest_ok {
+        return Ok(json!({ "status": "invalid", "reason": "RightRelease final archive bytes do not match provenance" }));
+    }
+    let _ = fs::metadata(&archive_path);
+    Ok(json!({
+        "status": "verified",
+        "receipt": provenance_path,
+        "source": receipt,
+        "archivePath": archive_path,
+    }))
 }

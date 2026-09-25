@@ -4,8 +4,6 @@ set -euo pipefail
 pnpm install --frozen-lockfile
 pnpm legion:check
 
-# Node integration tests exercise installed native CLI behavior. Assemble its
-# exact CI candidate first, then expose it only through the explicit test seam.
 if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   (
     cd engine
@@ -14,13 +12,10 @@ if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   )
 fi
 
-# The Node suite needs the native CLI whether or not Rust changed in this push.
+# Assemble the exact CI candidate and smoke the installed native CLI.
 (cd engine && cargo build --locked --bins)
-pnpm native:assemble -- --profile debug --out "${RUNNER_TEMP}/legion-install" --force
-node scripts/ci/native-installed-smoke.mjs "${RUNNER_TEMP}/legion-install"
-export LEGION_TEST_NATIVE_CLI_PATH="${RUNNER_TEMP}/legion-install/bin/legion.exe"
-
-pnpm test
+pnpm native:assemble --profile debug --out "${RUNNER_TEMP}/legion-install" --force
+pnpm native:smoke "${RUNNER_TEMP}/legion-install"
 
 # Known-answer recall gate. The bench scores planted defects against
 # negative controls and fails on any false positive, so a detector that

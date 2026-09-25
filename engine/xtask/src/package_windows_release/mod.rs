@@ -9,18 +9,16 @@
 //! Finalize mode (`--finalize`, `--publish-github`) is the CI-only signed
 //! publication path. Its glue logic (signature/provenance/qualification
 //! evidence verification, output layout, publication-policy checks) is
-//! native. It still needs `@rightkit/release`'s Azure manifest signing and
-//! GitHub Releases API client — an external npm package that stays, per
-//! the "no JS side in legion" decision — so those specific calls, plus
-//! legion's own not-yet-ported `checkUnsignedCandidate`
-//! (`scripts/ci/prepare-unsigned-candidate.mjs`), run as `node -e
-//! "import(...)"` one-liner subprocesses via `node_shim`. Every other byte
-//! of orchestration (path safety, digest/receipt verification, evidence
-//! wiring) is Rust.
+//! native (`evidence.rs`, `finalize.rs`). `checkUnsignedCandidate` calls the
+//! already-ported `crate::prepare_unsigned_candidate` in-process. The
+//! remaining calls that genuinely need `@rightkit/release`'s Azure manifest
+//! signing and GitHub Releases API client — an external npm package that
+//! stays, per the "no JS side in legion" decision — go through
+//! `crate::rightkit_release_bridge` (the shared T4 subprocess bridge).
 
 pub mod cli;
 pub mod evidence;
-pub mod node_shim;
+pub mod finalize;
 pub mod prepare;
 
 #[cfg(test)]

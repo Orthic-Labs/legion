@@ -145,7 +145,12 @@ enum Command {
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    // `pnpm <script> -- --flag` forwards the separator; the JS tools skipped it.
+    let mut argv: Vec<std::ffi::OsString> = std::env::args_os().collect();
+    if argv.len() > 2 && argv[2] == "--" {
+        argv.remove(2);
+    }
+    let cli = Cli::parse_from(argv);
     let root = match repo::find_root() {
         Ok(root) => root,
         Err(err) => {

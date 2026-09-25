@@ -106,8 +106,8 @@ fn run_inner(root: &Path, diagnostic: bool) -> Result<bool, String> {
         gate::validate_normalization(&row.fixture)?;
         let baseline = baselines.get(&row.id);
         let sandbox = gate::create_sandbox(root, &row.fixture)?;
-        let before = gate::snapshot_sandbox(&sandbox);
-        let before = match before {
+        let before = gate::snapshot_sandbox_hashed(&sandbox);
+        let (before, before_sha256) = match before {
             Ok(v) => v,
             Err(e) => {
                 gate::remove_sandbox(&sandbox);
@@ -123,10 +123,15 @@ fn run_inner(root: &Path, diagnostic: bool) -> Result<bool, String> {
         let timeout_ms = row.fixture.get("timeoutMs").and_then(Value::as_u64).unwrap_or(gate::DEFAULT_TIMEOUT_MS);
         let max_output = row.fixture.get("maxOutputBytes").and_then(Value::as_u64).unwrap_or(gate::DEFAULT_MAX_OUTPUT_BYTES as u64) as usize;
         let mut observation = gate::run_bounded(&provenance_executable, &argv, &sandbox.cwd, &sandbox.env, timeout_ms, max_output);
-        let after = gate::snapshot_sandbox(&sandbox);
+        let after = gate::snapshot_sandbox_hashed(&sandbox);
         gate::remove_sandbox(&sandbox);
-        let after = after?;
-        observation.filesystem = json!({ "before": before, "after": after });
+        let (after, after_sha256) = after?;
+        observation.filesystem = json!({
+            "before": before,
+            "after": after,
+            "beforeSha256": before_sha256,
+            "afterSha256": after_sha256,
+        });
         observation.sandbox_roots = sandbox.temp_roots.clone();
 
         let baseline_id_digest = baseline.and_then(|b| {

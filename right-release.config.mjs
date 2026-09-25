@@ -76,10 +76,12 @@ const selectedQualification = `.right-release/receipts/windows-${selectedWindows
 const selectedCandidateReceipt = `.right-release/receipts/windows-${selectedWindows.architecture}-candidate-input.json`;
 const selectedCandidate = process.env.LEGION_UNSIGNED_CANDIDATE_ROOT ?? "REQUIRED_LEGION_UNSIGNED_CANDIDATE_ROOT";
 const selectedSourceRevision = process.env.LEGION_SOURCE_REVISION ?? "REQUIRED_LEGION_SOURCE_REVISION";
+const XTASK = Object.freeze(["run", "-q", "--locked", "--release", "--manifest-path", "engine/Cargo.toml", "-p", "xtask", "--"]);
 const selectedCandidatePrePackage = Object.freeze({
-	cmd: "node",
+	cmd: "cargo",
 	args: Object.freeze([
-		"scripts/prepare-windows-candidate-finalization.mjs",
+		...XTASK,
+		"prepare-windows-candidate-finalization",
 		"--candidate",
 		selectedCandidate,
 		"--architecture",
@@ -111,9 +113,10 @@ const macCandidateReceipt = `.right-release/receipts/macos-${macArchitecture}-ca
 const macSigningReceipt = `.right-release/receipts/macos-${macArchitecture}-signing.json`;
 const macNotarizationReceipt = `.right-release/receipts/macos-${macArchitecture}-notarization.json`;
 const macCandidatePrePackage = Object.freeze({
-	cmd: "node",
+	cmd: "cargo",
 	args: Object.freeze([
-		"scripts/finalize-macos-candidate.mjs",
+		...XTASK,
+		"finalize-macos-candidate",
 		"--candidate",
 		selectedCandidate,
 		"--architecture",
@@ -164,18 +167,13 @@ export default {
 	packageManager: "pnpm",
 	workdir: ".",
 	checks: ["legion:check", "test"],
-	releaseVerifier: "scripts/verify-release.mjs",
+	releaseVerifier: "engine/xtask/src/verify_release.rs",
 	buildInputs: {
 		include: [
 			"engine/**",
 			"skills/**",
 			"packs/native/manifest.v1.json",
 			"src/registry/**",
-			"scripts/assemble-native-release.mjs",
-			"scripts/package-windows-release.mjs",
-			"scripts/prepare-windows-candidate-finalization.mjs",
-			"scripts/finalize-macos-candidate.mjs",
-			"scripts/qualify-windows-release.mjs",
 			"release/**",
 			"packaging/windows/sign.md",
 			"packaging/macos/sign.md",
@@ -338,9 +336,10 @@ export default {
 				receipt: macNotarizationReceipt,
 			},
 			package: {
-				cmd: "node",
+				cmd: "cargo",
 				args: [
-					"scripts/finalize-macos-candidate.mjs",
+					...XTASK,
+					"finalize-macos-candidate",
 					"--package",
 					"--input",
 					macAssemblyRoot,

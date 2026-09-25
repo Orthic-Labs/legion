@@ -1,22 +1,30 @@
 //! Native orchestration of `finalizeWindowsDirectRelease`. All pure
 //! verification (signature/provenance/qualification evidence, publication
-//! policy, output-path safety) runs in `evidence.rs`/native code here; the
-//! handful of calls that genuinely need `@rightkit/release` (Azure-signed
-//! release-manifest materialization, PowerShell bootstrap
-//! rendering/validation, CycloneDX/in-toto materialization, GitHub Releases
-//! publication) or legion's own not-yet-ported
-//! `scripts/ci/prepare-unsigned-candidate.mjs` go through `node_shim`.
+//! policy, output-path safety) runs in `evidence.rs`/native code here.
+//! `checkUnsignedCandidate` (`scripts/ci/prepare-unsigned-candidate.mjs`) is
+//! already ported natively (`crate::prepare_unsigned_candidate`, T4 packet)
+//! and is called directly, in-process. The handful of calls that genuinely
+//! need `@rightkit/release` (Azure-signed release-manifest materialization,
+//! PowerShell bootstrap rendering/validation, CycloneDX/in-toto
+//! materialization, GitHub Releases publication) go through
+//! `crate::rightkit_release_bridge`, the shared T4 subprocess bridge into
+//! that external package.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
+use crate::prepare_unsigned_candidate::{check_unsigned_candidate, CheckArgs};
+use crate::rightkit_release_bridge::call_module_function;
 use crate::windows_release_support::{assert_source_revision, digest_matches, read_json, sha256_file};
 
 use super::evidence::{assert_publication_policy, candidate_signature_evidence, finalization_provenance_evidence, qualification_evidence, CandidateSignatureArgs, QualificationEvidenceArgs};
-use super::node_shim::call_node_function;
 use super::prepare::{file_record, release_version, source_revision, windows_target_identity};
+
+fn call_node_function(repository_root: &Path, module_path: &str, function_name: &str, args: &Value) -> Result<Value, String> {
+    call_module_function(repository_root, module_path, function_name, args)
+}
 
 const PRODUCT: &str = "legion";
 const GITHUB_REPOSITORY: &str = "Orthic-Labs/legion";
@@ -48,22 +56,17 @@ pub fn finalize_windows_direct_release(options: FinalizeOptions) -> Result<Value
     let supplied_revision = options.source_revision.ok_or_else(|| "--source-revision is required when consuming an exact unsigned candidate".to_string())?;
     let revision = assert_source_revision(Some(supplied_revision))?;
 
-    // checkUnsignedCandidate (scripts/ci/prepare-unsigned-candidate.mjs) is
-    // legion's own script and not yet ported; this is the one legion-owned
-    // JS call left in this path, tracked as a follow-up port.
-    let checked = call_node_function(
+    // checkUnsignedCandidate: native in-process call (T4 packet port), no
+    // subprocess needed.
+    let checked = check_unsigned_candidate(
         options.repository_root,
-        "./scripts/ci/prepare-unsigned-candidate.mjs",
-        "checkUnsignedCandidate",
-        &json!({
-            "outputRoot": input_root,
-            "repositoryRoot": options.repository_root,
-            "platform": "windows",
-            "architecture": options.architecture,
-            "sourceRevision": revision,
-            "version": version,
-            "env": {},
-        }),
+        CheckArgs {
+            output_root: Some(input_root.clone()),
+            platform: Some("windows".to_string()),
+            architecture: Some(options.architecture.to_string()),
+            source_revision: Some(revision.clone()),
+            version: Some(version.clone()),
+        },
     )?;
     let identity = windows_target_identity(options.architecture)?;
     let archive_path_for_candidate = checked.get("archive").and_then(|v| v.as_str()).ok_or("checkUnsignedCandidate result has no archive path")?;
@@ -84,7 +87,8 @@ pub fn finalize_windows_direct_release(options: FinalizeOptions) -> Result<Value
         &version,
         &identity,
         options.repository_root,
-    )?;
+    )
+    .unwrap_or_else(|e| json!({ "status": "invalid", "reason": e }));
     if signed_provenance.get("status").and_then(|v| v.as_str()) != Some("verified") {
         return Err(format!(
             "RightRelease provenance is not verified: {}",

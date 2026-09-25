@@ -1122,11 +1122,21 @@ pub fn remove_sandbox(sandbox: &Sandbox) {
 }
 
 pub fn snapshot_sandbox(sandbox: &Sandbox) -> Result<Value, String> {
+    Ok(snapshot_sandbox_hashed(sandbox)?.0)
+}
+
+/// Matches `gate.mjs`'s `snapshotSandbox`, which returns `{ value, sha256 }`
+/// (`sha256(canonicalJson(value))`) — the hash is what
+/// `run-installed-parity.mjs`/`run-rust-characterization.mjs` record as
+/// `filesystem.beforeSha256`/`afterSha256` on every row.
+pub fn snapshot_sandbox_hashed(sandbox: &Sandbox) -> Result<(Value, String), String> {
     let cwd = snapshot_root(&sandbox.cwd, "cwd")?;
     let home = snapshot_root(&sandbox.home, "home")?;
     let local_app_data = snapshot_root(&sandbox.local_app_data, "localAppData")?;
     let state = snapshot_root(&sandbox.state_root, "state")?;
-    Ok(json!({ "cwd": cwd, "home": home, "localAppData": local_app_data, "state": state }))
+    let value = json!({ "cwd": cwd, "home": home, "localAppData": local_app_data, "state": state });
+    let digest = sha256(canonical_json(&value).as_bytes());
+    Ok((value, digest))
 }
 
 /// Bounded process execution: kills the child if it exceeds `timeout_ms` or

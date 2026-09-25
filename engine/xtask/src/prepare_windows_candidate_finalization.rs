@@ -166,3 +166,84 @@ pub fn prepare_windows_candidate_finalization(repository_root: &Path, args: Prep
     };
     Ok(receipt)
 }
+
+// Rust port of "Windows finalization expands exact verified candidate bytes
+// and records pre-sign identity" (`tests/unsigned-release-candidate.test.mjs`,
+// itself gated `{ skip: process.platform !== "win32" }`). No injection seam
+// is needed here: unlike the macOS test, the JS test does not mock
+// `createArchive`/`commandRunner` either — both `prepareUnsignedCandidate`
+// and `prepareWindowsCandidateFinalization` run for real (real zip creation,
+// real `Expand-Archive`), so this only compiles and runs on Windows, same as
+// the JS test only ran there.
+#[cfg(all(test, target_os = "windows"))]
+mod tests {
+    use super::*;
+    use crate::prepare_unsigned_candidate;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn temp_root(prefix: &str) -> PathBuf {
+        let n = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let root = std::env::temp_dir().join(format!("{prefix}-{}-{n}", std::process::id()));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn windows_finalization_expands_exact_candidate_bytes() {
+        let root = temp_root("legion-windows-candidate");
+        let repository_root = root.join("repo");
+        let input = root.join("install");
+        let output_root = root.join("candidate");
+        let extracted = repository_root.join("dist/native/windows-x86_64/legion-0.1.0");
+        let receipt_path = repository_root.join(".right-release/receipts/candidate.json");
+        let source_revision = "b".repeat(40);
+
+        fs::create_dir_all(repository_root.join("release")).unwrap();
+        fs::write(
+            repository_root.join("release/version.json"),
+            serde_json::json!({ "schemaVersion": 1, "kind": "legion-release-version", "version": "0.1.0" }).to_string(),
+        )
+        .unwrap();
+        fs::create_dir_all(input.join("bin")).unwrap();
+        for name in ["legion.exe", "legion-hook.exe", "legion-mcp.exe"] {
+            fs::write(input.join("bin").join(name), format!("{name}\n")).unwrap();
+        }
+
+        let candidate = prepare_unsigned_candidate::prepare_unsigned_candidate(
+            &repository_root,
+            prepare_unsigned_candidate::PrepareArgs {
+                input: Some(input.clone()),
+                output_root: Some(output_root.clone()),
+                platform: Some("windows".to_string()),
+                architecture: Some("x86_64".to_string()),
+                source_revision: Some(source_revision.clone()),
+                version: None,
+                created_at: Some("2026-08-28T00:00:00.000Z".to_string()),
+            },
+        )
+        .unwrap();
+
+        let result = prepare_windows_candidate_finalization(
+            &repository_root,
+            PrepareArgs {
+                candidate_root: Some(output_root.clone()),
+                output_root: Some(extracted.clone()),
+                architecture: Some("x86_64".to_string()),
+                source_revision: Some(source_revision.clone()),
+                version: Some("0.1.0".to_string()),
+                receipt_path: Some(receipt_path.clone()),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(result["candidateArchiveSha256"], candidate["archiveSha256"]);
+        let files: Vec<String> = result["files"].as_array().unwrap().iter().map(|f| f["file"].as_str().unwrap().to_string()).collect();
+        assert_eq!(files, vec!["bin/legion.exe", "bin/legion-hook.exe", "bin/legion-mcp.exe"]);
+        let receipt: Value = serde_json::from_str(&fs::read_to_string(&receipt_path).unwrap()).unwrap();
+        assert_eq!(receipt["candidateArchiveSha256"], candidate["archiveSha256"]);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+}
