@@ -299,7 +299,7 @@ fn windows_qualification_exercises_native_lifecycle_through_injected_seams() {
     assert_eq!(receipt["integrationJournal"]["generation"], receipt["install"]["generation"]);
     assert_eq!(receipt["integrationJournal"]["binding"]["resolvedVersionRoot"], receipt["install"]["currentVersionRoot"]);
     assert_eq!(receipt["integrationJournal"]["state"], "ready-for-uninstall");
-    assert_eq!(receipt["gates"]["update"]["stableCurrentPath"], receipt["install"]["currentPath"]);
+    assert_eq!(receipt["gates"]["update"]["stableCurrentPath"], receipt["install"]["currentPath"], "update gate: {}", receipt["gates"]["update"]);
     assert_eq!(receipt["gates"]["rollback"]["integrationsRestored"], true);
     assert_eq!(receipt["gates"]["rollback"]["priorHealthRestored"], true);
     assert_eq!(receipt["gates"]["installed-product"]["activationPath"], receipt["install"]["executable"]);
