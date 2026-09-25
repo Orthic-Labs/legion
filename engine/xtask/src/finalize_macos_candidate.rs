@@ -638,7 +638,11 @@ mod tests {
         assert_eq!(rebinds.len(), 1, "signed runtime must be rebound exactly once before archiving");
         assert_eq!(rebinds[0].provenance, format!("rightkit-release://macos-arm64/{signed_runtime}"));
         assert_eq!(rebinds[0].out, input);
-        assert_eq!(result["notarizationArchive"].as_str().unwrap(), notary_zip.to_string_lossy());
+        // Compare resolved paths: Windows temp dirs may come back as 8.3 short names.
+        assert_eq!(
+            fs::canonicalize(result["notarizationArchive"].as_str().unwrap()).unwrap(),
+            fs::canonicalize(&notary_zip).unwrap()
+        );
         let sbom: Value = serde_json::from_str(&fs::read_to_string(result["sbom"].as_str().unwrap()).unwrap()).unwrap();
         assert_eq!(sbom["components"][0]["name"], "legion-0.1.0-macos-arm64.tar.gz");
         let provenance = first_jsonl_object_local(Path::new(result["provenance"].as_str().unwrap()));

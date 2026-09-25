@@ -85,9 +85,11 @@ fn copy_dir(source: &Path, destination: &Path) {
 fn archive_extractor(fixture_root: PathBuf, current_zip: PathBuf, current_tree: PathBuf, prior_zip: Option<PathBuf>, prior_tree: PathBuf) -> Box<dyn Fn(&Path, &Path) -> Result<(), String>> {
     let _ = fixture_root;
     Box::new(move |archive: &Path, destination: &Path| {
-        let source = if archive == current_zip {
+        // Production canonicalizes archive paths (\\?\ on Windows, /private on macOS).
+        let same = |a: &Path, b: &Path| a == b || matches!((fs::canonicalize(a), fs::canonicalize(b)), (Ok(x), Ok(y)) if x == y);
+        let source = if same(archive, &current_zip) {
             &current_tree
-        } else if Some(archive.to_path_buf()) == prior_zip {
+        } else if prior_zip.as_deref().is_some_and(|p| same(archive, p)) {
             &prior_tree
         } else {
             return Err(format!("unexpected archive in test extractor: {}", archive.display()));

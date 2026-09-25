@@ -274,8 +274,9 @@ mod tests {
     #[test]
     fn inno_command_requires_absolute_script() {
         assert!(inno_command(Path::new("relative.iss"), "iscc.exe").is_err());
-        let (cmd, args) = inno_command(Path::new("/abs/script.iss"), "iscc.exe").unwrap();
+        let script = std::env::temp_dir().join("script.iss");
+        let (cmd, args) = inno_command(&script, "iscc.exe").unwrap();
         assert_eq!(cmd, "iscc.exe");
-        assert_eq!(args, vec!["/Qp", "/abs/script.iss"]);
+        assert_eq!(args, vec!["/Qp".to_string(), script.to_string_lossy().to_string()]);
     }
 }
