@@ -8,7 +8,9 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use crate::windows_release_config::WindowsInstallContract;
-use crate::windows_release_support::{digest_matches, has_forbidden_binding_segment, is_nonempty_digest, paths_equal, sha256_prefixed};
+use crate::windows_release_support::{digest_matches, has_forbidden_binding_segment, is_nonempty_digest, sha256_prefixed};
+// The JS qualifier's pathsEqual resolved both sides (realpath), unlike the packager's.
+use crate::windows_release_support::canonical_paths_equal as paths_equal;
 
 use super::tree::{CommandOptions, CommandOutcome};
 

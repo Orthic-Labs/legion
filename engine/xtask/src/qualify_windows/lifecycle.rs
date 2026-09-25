@@ -14,8 +14,10 @@ use serde_json::{json, Value};
 use crate::windows_release_config::WindowsInstallContract;
 use crate::windows_release_support::{
     assert_regular_file, assert_source_revision, assert_version, bare_digest, digest_matches, has_forbidden_binding_segment,
-    paths_equal, read_json, release_generation, sha256_file, sha256_prefixed, version_root_matches,
+    read_json, release_generation, sha256_file, sha256_prefixed, version_root_matches,
 };
+// The JS qualifier's pathsEqual resolved both sides (realpath), unlike the packager's.
+use crate::windows_release_support::canonical_paths_equal as paths_equal;
 
 use super::journal::{integration_journal_record, write_integration_journal, write_pointer, write_receipt, IntegrationJournalInput};
 use super::proofs::{command_environment, resolve_codex_executable, setup_health, CurrentRelease};
@@ -91,7 +93,7 @@ fn stable_install_paths(install_root: &Path) -> StablePaths {
         next: root.join(WindowsInstallContract::NEXT_CURRENT_NAME),
         versions: root.join("versions"),
         journal: root.join(WindowsInstallContract::INTEGRATION_JOURNAL_NAME),
-        executable: root.join(WindowsInstallContract::STABLE_CURRENT_NAME).join(WindowsInstallContract::EXECUTABLE_PATH),
+        executable: root.join(WindowsInstallContract::STABLE_CURRENT_NAME).join("bin").join("legion.exe"),
         root,
     }
 }
@@ -410,7 +412,7 @@ pub fn qualify_windows_release(options: QualifyWindowsOptions) -> Result<Value, 
     let install_current = atomic_replace_product(&current_root, &product_root, &run_root, None)?;
     let installed_launcher = stable_paths.executable.clone();
     if has_forbidden_binding_segment(&installed_launcher.to_string_lossy())
-        || !paths_equal(Some(&installed_launcher.to_string_lossy()), Some(&product_root.join(WindowsInstallContract::EXECUTABLE_PATH).to_string_lossy()))
+        || !paths_equal(Some(&installed_launcher.to_string_lossy()), Some(&product_root.join("bin").join("legion.exe").to_string_lossy()))
     {
         return Err(format!("installed activation path is outside stable current: {}", installed_launcher.display()));
     }

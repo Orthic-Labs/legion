@@ -140,9 +140,16 @@ pub fn paths_equal(left: Option<&str>, right: Option<&str>) -> bool {
 pub fn canonical_paths_equal(left: Option<&str>, right: Option<&str>) -> bool {
     match (left, right) {
         (Some(l), Some(r)) => {
-            let cl = canonical_path(Path::new(l)).to_string_lossy().replace('\\', "/").to_lowercase();
-            let cr = canonical_path(Path::new(r)).to_string_lossy().replace('\\', "/").to_lowercase();
-            cl == cr
+            if !Path::new(l).is_absolute() || !Path::new(r).is_absolute() {
+                return false;
+            }
+            // realpath() spelling: drop the Windows verbatim prefix so a
+            // resolved and an unresolved path compare equal.
+            let spell = |p: &str| {
+                let s = canonical_path(Path::new(p)).to_string_lossy().replace('\\', "/").to_lowercase();
+                s.strip_prefix("//?/").map(str::to_string).unwrap_or(s)
+            };
+            spell(l) == spell(r)
         }
         _ => false,
     }

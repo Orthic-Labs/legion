@@ -26,7 +26,7 @@ pub struct IntegrationJournalInput<'a> {
 /// Mirrors `integrationJournalRecord`.
 pub fn integration_journal_record(input: IntegrationJournalInput) -> Value {
     let install_root = input.current_path.parent().unwrap_or(Path::new("."));
-    let executable = input.current_path.join(WindowsInstallContract::EXECUTABLE_PATH);
+    let executable = input.current_path.join("bin").join("legion.exe");
     let next_path = install_root.join(WindowsInstallContract::NEXT_CURRENT_NAME);
     let active_health = input.current_health.or(input.prior_health);
 
