@@ -15,14 +15,14 @@ fn javascript_file_re() -> Regex {
     Regex::new(r"(?i)\.[cm]?js$").unwrap()
 }
 fn static_esm_re() -> Regex {
-    Regex::new(r#"(?m)^\s*(?:import\s+(?:[^"']+?\s+from\s+)?|export\s+[^"']*?\s+from\s+)(["'])(\.{1,2}/[^"']+)\1"#).unwrap()
+    Regex::new(r#"(?m)^\s*(?:import\s+(?:[^"']+?\s+from\s+)?|export\s+[^"']*?\s+from\s+)(?:"(\.{1,2}/[^"']+)"|'(\.{1,2}/[^"']+)')"#).unwrap()
 }
 fn dynamic_esm_re() -> Regex {
     // `(?!\/[/\*]|\*)` lookahead dropped (unsupported); approximated by
     // skipping lines that start with `//`, `/*`, or `*` after trimming,
     // matching the practical intent (skip comment lines) without changing
     // behaviour for real source files.
-    Regex::new(r#"(?m)^\s*[^\n]*?\bimport\s*\(\s*(["'])(\.{1,2}/[^"']+)\1\s*\)"#).unwrap()
+    Regex::new(r#"(?m)^\s*[^\n]*?\bimport\s*\(\s*(?:"(\.{1,2}/[^"']+)"|'(\.{1,2}/[^"']+)')\s*\)"#).unwrap()
 }
 
 fn normalize_path(path: &str) -> String {
@@ -33,7 +33,7 @@ fn normalize_path(path: &str) -> String {
 pub fn relative_esm_specifiers(source: &str) -> Vec<String> {
     let mut out = Vec::new();
     for cap in static_esm_re().captures_iter(source) {
-        out.push(cap[2].to_string());
+        out.push(cap.get(1).or_else(|| cap.get(2)).map_or("", |m| m.as_str()).to_string());
     }
     let dyn_re = dynamic_esm_re();
     for line in source.lines() {
@@ -42,7 +42,7 @@ pub fn relative_esm_specifiers(source: &str) -> Vec<String> {
             continue;
         }
         for cap in dyn_re.captures_iter(line) {
-            out.push(cap[2].to_string());
+            out.push(cap.get(1).or_else(|| cap.get(2)).map_or("", |m| m.as_str()).to_string());
         }
     }
     out
