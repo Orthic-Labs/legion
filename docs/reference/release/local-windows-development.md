@@ -35,6 +35,13 @@ Build only:
 pnpm run release:build:win:unsigned
 ```
 
+If isolated qualification passes but stable install exits 4 with `untrusted mount
+point` during activation, a packaged Codex shell has redirected LocalAppData
+through its LocalCache. The installer rolls `current` back. Run the exact
+qualified installer from a normal Windows host process (the Mac `win` bridge
+can launch that Windows process), then verify `current` binary hashes against
+the qualified assembly and exercise the hook. Do not copy binaries manually.
+
 Inno Setup 6 must be installed or `INNO_SETUP_PATH` must point to `ISCC.exe`.
 Never set Cargo target variables, invoke direct Cargo, spoof CI, sign, publish,
 or run Mac work in this local route.
