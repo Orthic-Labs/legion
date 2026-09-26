@@ -68,7 +68,7 @@ fn run(binary: &Path, args: &[&str], env_vars: &[(String, String)]) -> Result<(O
 /// product receives these paths as arguments and cannot open `\\?\` forms
 /// through every API (observed: "Incorrect function").
 fn plain_path(path: PathBuf) -> PathBuf {
-    let text = path.to_string_lossy();
+    let text = path.to_string_lossy().into_owned();
     if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
         PathBuf::from(format!(r"\\{rest}"))
     } else if let Some(rest) = text.strip_prefix(r"\\?\") {
