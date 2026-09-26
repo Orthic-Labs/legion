@@ -64,12 +64,27 @@ fn run(binary: &Path, args: &[&str], env_vars: &[(String, String)]) -> Result<(O
     Ok((output.status.code(), stdout, stderr))
 }
 
+/// Drop the Windows verbatim prefix canonicalize() adds: the installed
+/// product receives these paths as arguments and cannot open `\\?\` forms
+/// through every API (observed: "Incorrect function").
+fn plain_path(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{rest}"))
+    } else if let Some(rest) = text.strip_prefix(r"\\?\") {
+        PathBuf::from(rest)
+    } else {
+        path
+    }
+}
+
 pub fn native_installed_smoke(
     candidate: &Path,
     isolated_root: Option<&Path>,
 ) -> Result<(), String> {
     let candidate_root = candidate
         .canonicalize()
+        .map(plain_path)
         .map_err(|_| format!("assembled candidate root is missing: {}", candidate.display()))?;
     if !candidate_root.is_dir() {
         return Err(format!("assembled candidate root is missing: {}", candidate_root.display()));
