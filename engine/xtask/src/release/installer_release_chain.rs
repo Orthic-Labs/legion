@@ -118,6 +118,11 @@ fn right_release_cli(repository_root: &Path) -> PathBuf {
 fn run_command(runner: CommandRunner, command: &str, args: &[String], options: &CommandOptions, label: &str) -> ReleaseResult<crate::process_boundary::CommandResult> {
     let result = runner(command, args, options);
     if result.error_message.is_some() || result.status != Some(0) {
+        // The diagnostic keeps only the head of stderr; the failing step's own
+        // error is at the tail, so surface the full stream in the job log.
+        if let Some(stderr) = result.stderr.as_deref().filter(|s| !s.trim().is_empty()) {
+            eprintln!("--- {label} stderr ---\n{stderr}\n--- end {label} stderr ---");
+        }
         return Err(fail(format!("{label} failed: {}", command_diagnostic(&result))));
     }
     Ok(result)
@@ -451,6 +456,11 @@ fn gh(runner: CommandRunner, args: &[String], options: &CommandOptions) -> crate
 fn gh_json(runner: CommandRunner, args: &[String], options: &CommandOptions, label: &str) -> ReleaseResult<Value> {
     let result = gh(runner, args, options);
     if result.error_message.is_some() || result.status != Some(0) {
+        // The diagnostic keeps only the head of stderr; the failing step's own
+        // error is at the tail, so surface the full stream in the job log.
+        if let Some(stderr) = result.stderr.as_deref().filter(|s| !s.trim().is_empty()) {
+            eprintln!("--- {label} stderr ---\n{stderr}\n--- end {label} stderr ---");
+        }
         return Err(fail(format!("{label} failed: {}", command_diagnostic(&result))));
     }
     serde_json::from_str(&result.stdout.unwrap_or_default()).map_err(|_| fail(format!("{label} returned invalid JSON")))
