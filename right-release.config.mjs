@@ -76,7 +76,8 @@ const selectedQualification = `.right-release/receipts/windows-${selectedWindows
 const selectedCandidateReceipt = `.right-release/receipts/windows-${selectedWindows.architecture}-candidate-input.json`;
 const selectedCandidate = process.env.LEGION_UNSIGNED_CANDIDATE_ROOT ?? "REQUIRED_LEGION_UNSIGNED_CANDIDATE_ROOT";
 const selectedSourceRevision = process.env.LEGION_SOURCE_REVISION ?? "REQUIRED_LEGION_SOURCE_REVISION";
-const XTASK = Object.freeze(["run", "-q", "--locked", "--release", "--manifest-path", "engine/Cargo.toml", "-p", "xtask", "--"]);
+// xtask builds outside engine/target: right-release requires that path to be its own cache link.
+const XTASK = Object.freeze(["run", "-q", "--locked", "--release", "--manifest-path", "engine/Cargo.toml", "--target-dir", ".cache/xtask-target", "-p", "xtask", "--"]);
 const selectedCandidatePrePackage = Object.freeze({
 	cmd: "cargo",
 	args: Object.freeze([
