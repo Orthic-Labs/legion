@@ -275,7 +275,14 @@ pub struct PrepareArgs {
 }
 
 fn run_inherit(command: &str, args: &[&str], cwd: &Path, extra_env: &[(String, String)], label: &str) -> Result<(), String> {
-    let mut cmd = Command::new(command);
+    // pnpm is a .cmd shim on Windows, which CreateProcess cannot launch directly.
+    let mut cmd = if cfg!(windows) && command == "pnpm" {
+        let mut c = Command::new("cmd");
+        c.args(["/C", "pnpm"]);
+        c
+    } else {
+        Command::new(command)
+    };
     cmd.args(args).current_dir(cwd);
     for (k, v) in extra_env {
         cmd.env(k, v);
