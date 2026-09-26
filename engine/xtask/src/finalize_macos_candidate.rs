@@ -27,9 +27,15 @@ fn sha256_file(path: &Path) -> Result<String, String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
+/// `path.resolve()`: relative paths resolve against the working directory.
 fn normalize_lexical(path: &Path) -> PathBuf {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(path)
+    };
     let mut out = PathBuf::new();
-    for component in path.components() {
+    for component in absolute.components() {
         use std::path::Component::*;
         match component {
             ParentDir => {

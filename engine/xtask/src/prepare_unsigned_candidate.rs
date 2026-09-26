@@ -160,8 +160,14 @@ fn assert_regular_file(path: &Path, label: &str) -> Result<(), String> {
 
 /// Lexical `..`/`.` resolution without requiring existence.
 fn normalize_lexical(path: &Path) -> PathBuf {
+    // `path.resolve()`: relative paths resolve against the working directory.
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().unwrap_or_default().join(path)
+    };
     let mut out = PathBuf::new();
-    for component in path.components() {
+    for component in absolute.components() {
         use std::path::Component::*;
         match component {
             ParentDir => {
