@@ -98,8 +98,21 @@ pub fn has_forbidden_binding_segment(value: &str) -> bool {
 
 /// Best-effort canonicalization mirroring `realpathSync` with a fallback to
 /// lexical `resolve`.
+pub fn strip_verbatim(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy().into_owned();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{rest}"))
+    } else if let Some(rest) = text.strip_prefix(r"\\?\") {
+        PathBuf::from(rest)
+    } else {
+        path
+    }
+}
+
 pub fn canonical_path(path: &Path) -> PathBuf {
-    fs::canonicalize(path).unwrap_or_else(|_| lexical_resolve(path))
+    // realpath() spelling: no Windows `\\?\` verbatim prefix, which external
+    // tools (Inno Setup, the installed product) reject.
+    fs::canonicalize(path).map(strip_verbatim).unwrap_or_else(|_| lexical_resolve(path))
 }
 
 fn lexical_resolve(path: &Path) -> PathBuf {

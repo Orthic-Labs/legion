@@ -192,7 +192,8 @@ fn execute(runner: CommandRunner, repository_root: &Path, command: &str, args: &
 pub fn finalize_windows_installer(runner: CommandRunner, repository_root: &Path, template: &str, activation_script: &Path, input: FinalizeWindowsInstallerInput) -> ReleaseResult<FinalizeWindowsInstallerResult> {
     let Some(input_root) = input.input_root.as_ref() else { return Err(fail("--input-root & --output are required")) };
     let Some(output_root) = input.output_root.as_ref() else { return Err(fail("--input-root & --output are required")) };
-    let source = input_root.canonicalize().unwrap_or_else(|_| input_root.clone());
+    // realpath() spelling: Inno Setup rejects the `\\?\` prefix canonicalize() adds on Windows.
+    let source = input_root.canonicalize().map(crate::windows_release_support::strip_verbatim).unwrap_or_else(|_| input_root.clone());
     let output = if output_root.is_absolute() { output_root.clone() } else { std::env::current_dir().unwrap().join(output_root) };
     let meta = fs::symlink_metadata(&source).map_err(|_| fail("input root must be a real directory"))?;
     if meta.is_symlink() || !meta.is_dir() {

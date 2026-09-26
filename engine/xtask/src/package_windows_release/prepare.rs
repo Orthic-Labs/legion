@@ -123,7 +123,7 @@ pub fn assembled_release(input_root: &Path, architecture: &str, version: &str) -
 /// Mirrors `resolveInside`: resolves `relative_path` under `root`'s
 /// realpath, rejecting escapes.
 fn resolve_inside(root: &Path, relative_path: &str, label: &str) -> Result<PathBuf, String> {
-    let base = fs::canonicalize(root).map_err(|e| format!("{label} root is unreadable: {e}"))?;
+    let base = fs::canonicalize(root).map(crate::windows_release_support::strip_verbatim).map_err(|e| format!("{label} root is unreadable: {e}"))?;
     let candidate = base.join(relative_path.replace('/', &std::path::MAIN_SEPARATOR.to_string()));
     let candidate_resolved = crate::windows_release_support::canonical_path(&candidate);
     if candidate_resolved == base || !candidate_resolved.starts_with(&base) {
@@ -155,7 +155,7 @@ fn assert_release_output_path(output_dir: &Path, repository_root: &Path, input_r
 /// shells out to `tar` (the Windows System32 `bsdtar` on Windows) to build a
 /// zip from `source_dir`.
 pub fn create_portable_archive(source_dir: &Path, output_path: &Path) -> Result<(), String> {
-    let source = fs::canonicalize(source_dir).map_err(|e| e.to_string())?;
+    let source = fs::canonicalize(source_dir).map(crate::windows_release_support::strip_verbatim).map_err(|e| e.to_string())?;
     let output_dir = output_path.parent().unwrap_or(Path::new(".")).to_path_buf();
     fs::create_dir_all(&output_dir).map_err(|e| e.to_string())?;
     let tar_program = if cfg!(windows) {
