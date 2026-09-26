@@ -334,8 +334,8 @@ fn assemble_and_smoke(repository_root: &Path, input_root: &Path, identity: &Iden
         &[],
         "native assembly",
     )?;
-    let smoke_script = repository_root.join("scripts/ci/native-installed-smoke.mjs").to_string_lossy().to_string();
-    run_inherit("node", &[smoke_script.as_str(), &input_root_str], repository_root, &[], "installed-product smoke")?;
+    crate::native_installed_smoke::native_installed_smoke(&input_root, None)
+        .map_err(|e| format!("installed-product smoke failed: {e}"))?;
     let bin_name = if identity.platform == "windows" { "legion.exe" } else { "legion" };
     let native_cli_path = input_root.join("bin").join(bin_name).to_string_lossy().to_string();
     run_inherit(
@@ -343,7 +343,7 @@ fn assemble_and_smoke(repository_root: &Path, input_root: &Path, identity: &Iden
         &["test"],
         repository_root,
         &[("LEGION_TEST_NATIVE_CLI_PATH".to_string(), native_cli_path)],
-        "Node tests",
+        "tooling tests",
     )?;
     Ok(())
 }
