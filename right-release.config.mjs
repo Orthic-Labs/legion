@@ -77,7 +77,9 @@ const selectedCandidateReceipt = `.right-release/receipts/windows-${selectedWind
 const selectedCandidate = process.env.LEGION_UNSIGNED_CANDIDATE_ROOT ?? "REQUIRED_LEGION_UNSIGNED_CANDIDATE_ROOT";
 const selectedSourceRevision = process.env.LEGION_SOURCE_REVISION ?? "REQUIRED_LEGION_SOURCE_REVISION";
 // xtask builds outside engine/target: right-release requires that path to be its own cache link.
-const XTASK = Object.freeze(["run", "-q", "--locked", "--release", "--manifest-path", "engine/Cargo.toml", "--target-dir", ".cache/xtask-target", "-p", "xtask", "--"]);
+// These hooks run while the outer `pnpm release:*` xtask is still executing, so
+// they need their own target dir: Windows cannot replace a running xtask.exe.
+const XTASK = Object.freeze(["run", "-q", "--locked", "--release", "--manifest-path", "engine/Cargo.toml", "--target-dir", ".cache/xtask-hook-target", "-p", "xtask", "--"]);
 const selectedCandidatePrePackage = Object.freeze({
 	cmd: "cargo",
 	args: Object.freeze([
