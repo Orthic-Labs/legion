@@ -2365,7 +2365,10 @@ fn projection_source_files(
         // core carries `mcp.json`, which every other client reads, so the
         // projection adds the dotted copy. Without it `claude plugin details`
         // reports "MCP servers (0)" for a plugin that declares one.
-        if input.client_id == CLIENT_CLAUDE && files.contains_key("mcp.json") {
+        if input.client_id == CLIENT_CLAUDE
+            && files.contains_key("mcp.json")
+            && !files.contains_key(".mcp.json")
+        {
             let source = input.source_root.join("mcp.json");
             let digest = digest_path(&source)?;
             files.insert(".mcp.json".into(), (source, digest));
@@ -5046,6 +5049,18 @@ mod tests {
         assert_eq!(result.inspection.state, "current");
         assert!(result.repaired.iter().any(|path| path.ends_with("hooks.json")));
         assert_eq!(fs::read(&hooks_dest).unwrap(), hooks_v2);
+    }
+
+    #[test]
+    fn claude_projection_keeps_its_native_mcp_manifest() {
+        let root = TestRoot::new("claude-native-mcp-manifest");
+        let input = projection_test_input(&root, CLIENT_CLAUDE, "native-plugin", false);
+        let native = input.source_root.join(".mcp.json");
+        fs::write(&native, br#"{"mcpServers":{"legion":{"command":"legion","args":["serve","--stdio"]}}}"#).unwrap();
+
+        let files = projection_source_files(&input).unwrap();
+        assert_eq!(files.get(".mcp.json").unwrap().0, native);
+        assert_ne!(files.get(".mcp.json").unwrap().0, files.get("mcp.json").unwrap().0);
     }
 
     #[test]

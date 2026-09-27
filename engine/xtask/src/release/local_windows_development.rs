@@ -218,7 +218,7 @@ pub fn run_local_windows_development(options: RunLocalWindowsDevelopmentOptions)
         run_labeled(
             options.runner,
             &comspec,
-            &["/d".into(), "/s".into(), "/c".into(), "rightkit.cmd".into(), "cargo".into(), "build".into(), "--manifest-path".into(), "engine/Cargo.toml".into(), "--locked".into(), "--release".into(), "--bins".into(), "--target".into(), TARGET.into()],
+            &["/d".into(), "/s".into(), "/c".into(), "rightkit.cmd".into(), "cargo".into(), "build".into(), "--manifest-path".into(), "engine/Cargo.toml".into(), "--locked".into(), "--release".into(), "-p".into(), "legion".into(), "-p".into(), "legion-hook".into(), "-p".into(), "legion-mcp".into(), "--target".into(), TARGET.into()],
             &build_options,
             "managed native release build",
         )?;

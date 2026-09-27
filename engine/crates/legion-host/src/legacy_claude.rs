@@ -316,9 +316,7 @@ fn inspect_state(input: &ClaudeLegacyInput) -> Result<InspectedState, HostError>
     let canonical_skills_root_present = is_directory(&input.canonical_skills_root);
     let canonical_missing_skill_ids = current_skill_ids
         .iter()
-        .filter(|id| {
-            !canonical_skills_root_trusted || !is_directory(&input.canonical_skills_root.join(id))
-        })
+        .filter(|id| !regular_file(&input.canonical_skills_root.join(id).join("SKILL.md")))
         .cloned()
         .collect::<Vec<_>>();
 
@@ -1645,6 +1643,12 @@ mod tests {
 
         let inspection = inspect_claude_legacy(&legacy).unwrap();
         assert!(!inspection.canonical_skills_root_trusted);
+        assert!(inspection.canonical_missing_skill_ids.is_empty());
+        assert!(inspection.missing_current_skill_ids.is_empty());
+        assert!(inspection
+            .remediation
+            .iter()
+            .all(|item| !item.contains("lacks skill")));
         assert_eq!(
             inspection.standalone_projections[0].ownership,
             ClaudeProjectionOwnership::Unproven

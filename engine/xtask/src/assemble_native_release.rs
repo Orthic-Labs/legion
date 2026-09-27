@@ -569,6 +569,20 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     let _ = fs::remove_dir_all(&portable_skill_source_root);
     assemble_result?;
 
+    // Claude Code reads `.mcp.json` but does not expand the Agent Plugins
+    // `${PLUGIN_ROOT}` placeholder. Its installed `legion` command already
+    // resolves the stable release, so the native descriptor needs no root arg.
+    let mut claude_mcp: Value = serde_json::from_slice(
+        &fs::read(plugin_root.join("mcp.json")).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    let args = claude_mcp
+        .pointer_mut("/mcpServers/legion/args")
+        .and_then(Value::as_array_mut)
+        .ok_or("portable MCP manifest lacks Legion arguments")?;
+    *args = vec![json!("serve"), json!("--stdio")];
+    write_json(&plugin_root.join(".mcp.json"), &claude_mcp)?;
+
     let installed_host_projection = plugin_root.join("share/legion/src/registry/host-projection.json");
     fs::create_dir_all(installed_host_projection.parent().unwrap()).map_err(|e| e.to_string())?;
     fs::copy(repository_root.join("src/registry/host-projection.json"), &installed_host_projection).map_err(|e| e.to_string())?;

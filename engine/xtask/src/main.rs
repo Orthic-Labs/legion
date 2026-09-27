@@ -23,7 +23,7 @@ mod verify_release;
 mod windows_release_config;
 mod windows_release_support;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use clap::{Parser, Subcommand};
@@ -203,15 +203,17 @@ fn chrono_like_now_iso() -> String {
 }
 
 fn repo_root() -> PathBuf {
-    // engine/xtask -> engine -> repo root
-    let mut dir = std::env::current_dir().expect("cwd");
-    // Prefer CARGO_MANIFEST_DIR when run via `cargo run -p xtask`.
-    if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        dir = PathBuf::from(manifest_dir);
-    }
-    dir.pop(); // engine
-    dir.pop(); // repo root
-    dir
+    let cwd = std::env::current_dir().expect("cwd");
+    cwd.ancestors()
+        .find(|dir| dir.join("release/version.json").is_file() && dir.join("engine/Cargo.toml").is_file())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .and_then(Path::parent)
+                .expect("xtask is under engine/")
+                .to_path_buf()
+        })
 }
 
 #[allow(dead_code)]

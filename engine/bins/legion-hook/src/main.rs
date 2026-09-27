@@ -1246,12 +1246,16 @@ fn parse_effect_class(
 /// server: spawning a sibling session, messaging one, or listing them is host
 /// dispatch, the same family as Task/Agent. Treating these as unclassified
 /// third-party observations denied every cross-session orchestration call.
-/// Only the exact `ccd_` host prefix qualifies; nothing a foreign server can
-/// name itself starts with it inside the host-registered namespace.
+/// Its in-app browser is also host interaction. The browser tool name is
+/// registered by Claude, so navigation and UI operations belong with host
+/// dispatch rather than unclassified third-party MCP observations.
 fn is_first_party_host_tool(tool_name: &str) -> bool {
     tool_name
         .get(..9)
         .is_some_and(|prefix| prefix.eq_ignore_ascii_case("mcp__ccd_"))
+        || tool_name
+            .get(..21)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("mcp__Claude_Browser__"))
 }
 
 fn is_mcp_tool(tool_name: &str) -> bool {
@@ -1418,6 +1422,10 @@ fn is_known_read_only_tool(tool_name: &str) -> bool {
         "mcp__membrane__membrane_context"
             | "mcp__legion__legion_m1_status"
             | "mcp__plugin_legion_legion__legion_m1_status"
+            | "mcp__scheduled-tasks__list_tasks"
+            | "mcp__scheduled-tasks__list_task_runs"
+            | "mcp__scheduled-tasks__get_task"
+            | "mcp__scheduled-tasks__get_task_run"
     )
 }
 
@@ -2914,6 +2922,10 @@ mod tests {
             "mcp__ccd_session_mgmt__send_message",
             "mcp__ccd_session_mgmt__list_sessions",
             "mcp__ccd_session_mgmt__set_session_title",
+            "mcp__Claude_Browser__navigate",
+            "mcp__Claude_Browser__get_page_text",
+            "mcp__Claude_Browser__javascript_tool",
+            "mcp__Claude_Browser__browser_batch",
         ] {
             assert!(is_first_party_host_tool(tool), "{tool} must be recognised as host");
             let request = HookRequest {
@@ -2930,6 +2942,7 @@ mod tests {
             assert!(response.allowed, "{tool} must not fail closed: {}", response.reason);
         }
         assert!(!is_first_party_host_tool("mcp__ccdfake__spawn_task"));
+        assert!(!is_first_party_host_tool("mcp__Claude_Browser_fake__navigate"));
         assert!(!is_first_party_host_tool("mcp__docs__query"));
     }
 
@@ -2998,6 +3011,24 @@ mod tests {
     #[test]
     fn a_known_read_only_mcp_tool_is_allowed_and_an_unknown_one_is_not() {
         assert!(is_known_read_only_tool("mcp__membrane__membrane_context"));
+        for tool in [
+            "mcp__scheduled-tasks__list_tasks",
+            "mcp__scheduled-tasks__list_task_runs",
+            "mcp__scheduled-tasks__get_task",
+            "mcp__scheduled-tasks__get_task_run",
+        ] {
+            assert!(is_known_read_only_tool(tool), "{tool}");
+            let request = HookRequest {
+                schema_version: protocol::SCHEMA_VERSION,
+                kind: protocol::REQUEST_KIND.into(),
+                event_type: "PreToolUse".into(),
+                payload: json!({"tool_name": tool}),
+            };
+            let effect = effect_request(&request).unwrap().unwrap();
+            assert_eq!(effect.effect_class, EffectClass::MCP_KNOWN_OBSERVATION);
+            assert!(dispatch(request).allowed, "{tool}");
+        }
+        assert!(!is_known_read_only_tool("mcp__scheduled-tasks__delete_task"));
         assert!(!is_known_read_only_tool("mcp__membrane__membrane_write"));
         assert!(
             !is_known_read_only_tool("mcp__legion__legion_m1_invoke"),
