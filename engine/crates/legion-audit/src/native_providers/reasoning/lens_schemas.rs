@@ -842,13 +842,15 @@ mod tests {
 
     #[test]
     fn change_risk_rejects_invalid_evidence_and_empty_nonunknown_risk() {
-        let invalid = json!({
+        let mut invalid = json!({
             "changeRisk": { "reversibility": "reversible", "blastRadius": "service", "reason": "changed", "beforeEvidence": [], "afterEvidence": ["missing-line"] }
         });
         let errors = validate_change_risk("architecture", &invalid).unwrap_err();
         assert!(errors
             .iter()
             .any(|error| error.field.contains("afterEvidence[0]")));
+        invalid["changeRisk"]["afterEvidence"] = json!([]);
+        let errors = validate_change_risk("architecture", &invalid).unwrap_err();
         assert!(errors
             .iter()
             .any(|error| error.field == "changeRisk.beforeEvidence"));

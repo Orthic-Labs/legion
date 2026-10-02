@@ -520,7 +520,7 @@ mod tests {
 
     #[test]
     fn structure_lenses_use_skeleton_excerpts() {
-        for lens in ["architecture", "ai-slop", "naming", "dead-file"] {
+        for lens in ["naming", "dead-file"] {
             let plan = lens_plan_for(lens).expect("plan");
             assert_eq!(plan.excerpt_mode, ExcerptMode::Skeleton, "{lens}");
         }
@@ -529,6 +529,8 @@ mod tests {
     #[test]
     fn raw_lenses_use_raw_excerpts() {
         for lens in [
+            "architecture",
+            "ai-slop",
             "schema",
             "correctness",
             "performance",

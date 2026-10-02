@@ -101,15 +101,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     // Keep provider selection deterministic and equivalent to audit-run's
     // repeated --only/--skip flags. Filtering happens before plan compilation,
     // therefore excluded providers cannot affect frozen denominators or DAG.
-    if !args.only.is_empty() {
-        selected_specs.retain(|provider| args.only.iter().any(|id| id == provider.id.as_str()));
-    }
-    if !args.skip.is_empty() {
-        selected_specs.retain(|provider| !args.skip.iter().any(|id| id == provider.id.as_str()));
-    }
-    if let Some(family) = &args.r#type {
-        selected_specs.retain(|provider| provider.family == *family);
-    }
+    selected_specs = filter_provider_specs(selected_specs, &args);
     if selected_specs.is_empty() {
         return Err(CommandError::usage("provider selection produced an empty plan"));
     }
@@ -473,6 +465,19 @@ fn native_audit_input_gaps(args: &AuditArgs) -> Vec<String> {
     // so recording a gap here would diverge from Node by forcing Incomplete
     // where Node completes.
     gaps
+}
+
+fn filter_provider_specs(
+    mut providers: Vec<legion_contracts::ProviderSpec>,
+    args: &AuditArgs,
+) -> Vec<legion_contracts::ProviderSpec> {
+    if !args.only.is_empty() {
+        providers.retain(|provider| args.only.iter().any(|id| id == provider.id.as_str()));
+    }
+    if !args.skip.is_empty() {
+        providers.retain(|provider| !args.skip.iter().any(|id| id == provider.id.as_str()));
+    }
+    providers
 }
 
 /// Node-parity audit scope (tools/audit/collect-facts.mjs `scopeFor` +
@@ -1069,6 +1074,39 @@ mod closure_tests {
         let context = review_context(std::path::Path::new("."), &scope);
         assert_eq!(context["baseline"]["status"], "not-applicable");
         assert!(context.get("changedPaths").is_some());
+    }
+
+    #[test]
+    fn documented_scope_types_do_not_filter_provider_families() {
+        let provider: legion_contracts::ProviderSpec = serde_json::from_value(json!({
+            "schemaVersion": 2,
+            "id": "security.opengrep",
+            "providerVersion": "1",
+            "family": "security",
+            "lensIds": [],
+            "role": "deterministic",
+            "phase": "source",
+            "dependsOn": [],
+            "consumes": ["repository-inventory"],
+            "produces": ["provider-result"],
+            "selector": {"op": "always"},
+            "denominatorKind": "repository-inventory",
+            "runner": {"kind": "built-in"},
+            "hostCapabilities": [],
+            "execution": {},
+            "reasoning": {},
+            "benchmark": {},
+            "cleanClaim": "finding-producing",
+            "controlIds": [],
+            "scopes": [],
+            "selectable": true
+        })).unwrap();
+        for scope_type in ["all", "local", "committed", "uncommitted"] {
+            let mut args = minimal_audit_args();
+            args.r#type = Some(scope_type.into());
+            let selected = filter_provider_specs(vec![provider.clone()], &args);
+            assert_eq!(selected.len(), 1, "scope type {scope_type}");
+        }
     }
 
     fn minimal_audit_args() -> AuditArgs {
