@@ -2,9 +2,9 @@
 //! references/lens-routing.md`'s Input contract and "Excerpt compression"
 //! section: RAW excerpts (exact tokens, secret-redacted, `file:line`
 //! anchored) for `security`/`schema`/`correctness`/`performance`/`minimize`
-//! (plus `doc-drift`, which is RAW per `lens_plan.rs`); SKELETON excerpts
+//! plus `doc-drift`/`architecture`/`ai-slop`; SKELETON excerpts
 //! (signatures, type/struct/fn/class declarations, imports, no bodies) for
-//! `architecture`/`ai-slop`/`naming`/`dead-file`.
+//! `naming`/`dead-file`.
 //!
 //! Dependency-free by design: no `tree-sitter` (a new crate dependency is
 //! out of scope for this packet — see the Cargo.toml patch in the report).

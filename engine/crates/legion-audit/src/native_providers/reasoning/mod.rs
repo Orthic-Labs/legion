@@ -453,9 +453,9 @@ fn build_invocation(
     let lens_plan = lens_plan::lens_plan_packet_value(&provider.id);
     let lens_id = lens_plan::lens_id_for_provider(&provider.id);
     // Scoped excerpts: RAW (bounded, file:line anchored, secret-redacted)
-    // for security/schema/correctness/performance/minimize/doc-drift,
+    // for security/schema/correctness/performance/minimize/doc-drift/architecture/ai-slop,
     // SKELETON (signatures/declarations, no bodies) for
-    // architecture/ai-slop/naming/dead-file, per lens-routing.md's
+    // naming/dead-file, per lens-routing.md's
     // "Excerpt compression" section. `None` only for
     // `legacy.security.adjudication`, which is not lens-routed here.
     let excerpts = lens_plan::lens_plan_excerpt_mode(&provider.id)

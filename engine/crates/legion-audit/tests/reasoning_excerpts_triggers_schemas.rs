@@ -50,7 +50,7 @@ fn write(root: &Path, rel: &str, content: &str) {
 #[test]
 fn excerpt_mode_matches_lens_plan_for_every_owned_provider() {
     // Raw excerpts for security/schema/correctness/performance/minimize/
-    // doc-drift; skeleton for architecture/ai-slop/naming/dead-file, per
+    // doc-drift/architecture/ai-slop; skeleton for naming/dead-file, per
     // `lens_plan.rs` and `lens-routing.md`'s "Excerpt compression" section.
     for (provider, expect_raw) in [
         ("reasoning.security", true),
@@ -59,8 +59,8 @@ fn excerpt_mode_matches_lens_plan_for_every_owned_provider() {
         ("reasoning.performance", true),
         ("reasoning.minimize", true),
         ("reasoning.doc-drift", true),
-        ("reasoning.architecture", false),
-        ("reasoning.ai-slop", false),
+        ("reasoning.architecture", true),
+        ("reasoning.ai-slop", true),
         ("reasoning.naming", false),
         ("reasoning.dead-file", false),
     ] {

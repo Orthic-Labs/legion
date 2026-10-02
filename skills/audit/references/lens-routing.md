@@ -20,11 +20,10 @@ For each lens, pass the lens question, its redacted `facts.json` slice, the scop
 needs, and the report schema from `SKILL.md`. `collect-facts.mjs` redacts secrets in logs. The
 security lens receives scanner summaries and safe excerpts, never raw `.env` or key material.
 
-**Excerpt compression:** compress the excerpts for structure/survey lenses (`architecture`,
-decomposition, can-it-be-better, `ai-slop`, `naming`, `dead-file`) by running source files through
-`skel <file>` (tree-sitter skeleton, ~78% fewer tokens) — those lenses reason about shape, not
-bodies. Keep RAW excerpts for `security`, `schema`/contract-drift, `correctness`, `performance`,
-and `minimize`: they need the exact tokens, never skeletonize (`minimize`/ponytail judges
+**Excerpt compression:** use skeleton excerpts for `naming` & `dead-file` surveys.
+Keep RAW, secret-redacted excerpts for `architecture`, `ai-slop`, `doc-drift`, `security`,
+`schema`/contract-drift, `correctness`, `performance`, & `minimize`: semantic review needs
+implementation bodies & exact citations. Never skeletonize these lanes (`minimize`/ponytail judges
 `yagni`/`delete` — a one-impl trait vs a real DI seam, a wrapper that only delegates vs one that
 adds logic — which a skeleton strips out; guessing from a skeleton is exactly the false-positive
 trap `references/ponytail-lens.md` forbids).
