@@ -22,7 +22,10 @@ After check passes, run:
 pnpm run release:local:win:unsigned
 ```
 
-This command builds release binaries through managed RightKit, reusing its
+This command builds `xtask` through managed RightKit with an explicit native
+target, resolves its executable from Cargo's `compiler-artifact` output, then
+runs its existing installer workflow. Generic `cargo run` remains denied.
+The workflow builds release binaries through managed RightKit, reusing its
 persistent external Cargo cache. It assembles portable product, builds unsigned
 Inno installer, runs isolated installed qualification, then installs exact
 installer at `%LOCALAPPDATA%\Orthic Labs\Legion\current`. Final JSON records
