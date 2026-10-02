@@ -113,6 +113,18 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
     if selected_specs.is_empty() {
         return Err(CommandError::usage("provider selection produced an empty plan"));
     }
+    let review_context = review_context(&root, &scope);
+    for provider in &mut selected_specs {
+        if let Some(reasoning) = provider.reasoning.as_object_mut() {
+            reasoning.insert("reviewContext".into(), review_context.clone());
+        } else {
+            let source = provider.reasoning.clone();
+            provider.reasoning = json!({
+                "source": source,
+                "reviewContext": review_context.clone(),
+            });
+        }
+    }
     let operation = if args.plan_only {
         legion_application::NativeOperation::Plan {
             repository_id: root.to_string_lossy().into_owned(),
@@ -658,6 +670,92 @@ fn audit_scope(root: &std::path::Path, args: &AuditArgs) -> AuditScope {
     }
 }
 
+fn review_context(root: &std::path::Path, scope: &AuditScope) -> Value {
+    let mut context = json!({
+        "mode": scope.mode,
+        "type": scope.scope_type,
+        "rawRefs": {
+            "base": scope.base,
+            "baseCommit": scope.base_commit,
+            "dir": scope.dir,
+        },
+        "changedPaths": scope.changed_files,
+        "baseline": {
+            "status": "unavailable",
+            "kind": "none",
+            "commit": Value::Null,
+            "mergeBase": Value::Null,
+        },
+    });
+    if scope.mode == "whole-repo" || (scope.dir.is_some() && scope.base.is_none() && scope.base_commit.is_none() && scope.scope_type == "all") {
+        context["baseline"]["status"] = json!("not-applicable");
+        return context;
+    }
+    if scope.facts_unavailable {
+        return context;
+    }
+
+    let head = git_stdout(root, &["rev-parse", "HEAD"]).map(|value| value.trim().to_owned());
+    let Some(head) = head.filter(|value| !value.is_empty()) else {
+        return context;
+    };
+    let mut baseline_kind = "commit";
+    let mut baseline_commit = None;
+    let mut merge_base = None;
+    match scope.scope_type.as_str() {
+        "local" => {
+            let upstream = git_stdout(
+                root,
+                &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+            )
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty());
+            let Some(upstream) = upstream else { return context; };
+            merge_base = git_stdout(root, &["merge-base", &upstream, &head])
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty());
+            let Some(base) = merge_base.clone() else { return context; };
+            baseline_kind = "merge-base-with-worktree";
+            baseline_commit = Some(base.clone());
+        }
+        _ if scope.base_commit.is_some() => {
+            let raw = scope.base_commit.as_deref().unwrap_or_default();
+            baseline_commit = git_stdout(root, &["rev-parse", &format!("{raw}^{{commit}}")])
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty());
+            let Some(_base) = baseline_commit.clone() else { return context; };
+            baseline_kind = "commit-to-worktree";
+        }
+        _ if scope.base.is_some() => {
+            let raw = scope.base.as_deref().unwrap_or_default();
+            merge_base = git_stdout(root, &["merge-base", raw, &head])
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty());
+            let Some(base) = merge_base.clone() else { return context; };
+            baseline_kind = "merge-base";
+            baseline_commit = Some(base.clone());
+        }
+        "uncommitted" => {
+            baseline_kind = "index";
+        }
+        "committed" => {
+            baseline_commit = git_stdout(root, &["rev-parse", "HEAD~1"])
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty());
+            let Some(_base) = baseline_commit.clone() else { return context; };
+        }
+        _ => return context,
+    }
+    context["baseline"] = json!({
+        "status": "resolved",
+        "kind": baseline_kind,
+        "commit": baseline_commit,
+        "mergeBase": merge_base,
+        "head": head,
+    });
+    context
+}
+
 fn native_rule_diagnostic_application(
     args: &AuditArgs,
     root: &std::path::Path,
@@ -955,6 +1053,22 @@ mod closure_tests {
         // camelCase in plan, snake_case in facts — both shapes verified in Node.
         assert!(plan.get("baseCommit").is_some());
         assert!(plan.get("base_commit").is_none());
+    }
+
+    #[test]
+    fn whole_repo_review_context_is_explicitly_not_applicable() {
+        let scope = AuditScope {
+            mode: "whole-repo",
+            scope_type: "all".into(),
+            base: None,
+            base_commit: None,
+            dir: None,
+            changed_files: Vec::new(),
+            facts_unavailable: false,
+        };
+        let context = review_context(std::path::Path::new("."), &scope);
+        assert_eq!(context["baseline"]["status"], "not-applicable");
+        assert!(context.get("changedPaths").is_some());
     }
 
     fn minimal_audit_args() -> AuditArgs {

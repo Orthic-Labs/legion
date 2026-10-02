@@ -131,6 +131,8 @@ const AI_SLOP_CUES: &[&str] = &[
     "style drift >2 sigma from the repo baseline",
     "try/catch around every call against a codebase that does not work that way",
     "meta-commentary left in source (\"let me...\", \"this will...\")",
+    "standards axis: distinguish documented repo conventions from contextual design heuristics",
+    "logic-specific standards/design findings require raw excerpt quote + file:line source",
 ];
 
 const MINIMIZE_CUES: &[&str] = &[
@@ -141,6 +143,9 @@ const MINIMIZE_CUES: &[&str] = &[
 const ARCHITECTURE_CUES: &[&str] = &[
     "stack suitability: is the tech overkill/misfit for the domain?",
     "negative_space.missing list: absent tests / CI / lockfile / LICENSE are real findings",
+    "interface depth: abstraction must earn its boundary; apply deletion test",
+    "contextual Fowler smells: feature envy, data clumps, primitive obsession, repeated dispatch, shotgun surgery",
+    "respect ADRs and documented repo standards; identify valid dependency-injection seams",
 ];
 
 const DOC_DRIFT_CUES: &[&str] = &[
@@ -154,6 +159,7 @@ const DOC_DRIFT_CUES: &[&str] = &[
 
 const CORRECTNESS_CUES: &[&str] = &[
     "business-constant consistency: propagated values diverge across code/tests/docs/config",
+    "spec axis: public behavior, independent expected values, excessive internal mocks, refactor-fragile assertions",
     "desktop/Tauri: Mutex::lock().unwrap() in async, locks held across .await/transactions, sync #[tauri::command] doing I/O, missing spawn_blocking, sequential await invoke() chains, event->full-refetch storms",
 ];
 
@@ -206,7 +212,7 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
             lens: "architecture",
             question: "Is the implementation's decomposition the right shape for its responsibilities, and does every runtime candidate resolve to not-needed/confirmed/undetermined with evidence?",
             applicability: Applicability::Always,
-            excerpt_mode: ExcerptMode::Skeleton,
+            excerpt_mode: ExcerptMode::Raw,
             report_schema: "audit.lens.architecture.v1",
             model_tier: ModelTier::Judgment,
             requires_verify_pass: false,
@@ -228,7 +234,7 @@ fn lens_plan_for(lens: &str) -> Option<LensPlan> {
             lens: "ai-slop",
             question: "Where does this code carry LLM-fingerprint smells (duplication, dead exports, generic names, hallucinated APIs, style drift, meta-commentary), and would a competent human plausibly have written it this way on purpose?",
             applicability: Applicability::Always,
-            excerpt_mode: ExcerptMode::Skeleton,
+            excerpt_mode: ExcerptMode::Raw,
             report_schema: "audit.lens.ai-slop.v1",
             model_tier: ModelTier::Mechanical,
             requires_verify_pass: false,
@@ -418,6 +424,65 @@ pub fn lens_plan_excerpt_mode(provider_id: &str) -> Option<ExcerptMode> {
     lens_plan_for(lens).map(|plan| plan.excerpt_mode)
 }
 
+/// Contract instructions for semantic axes. These are part of the signed
+/// request packet so host judgments cannot silently change axis meaning.
+pub fn semantic_review_contract(lens: &str) -> Option<Value> {
+    let (axis, statuses, instruction) = match lens {
+        "correctness" => (
+            "spec",
+            &["pass", "findings", "unproven", "not-applicable"][..],
+            "Review public behavior against independent expected values. Flag missing/partial/wrong/unrequested spec behavior; avoid internal-mock or refactor-fragile claims without observable impact.",
+        ),
+        "ai-slop" => (
+            "standards",
+            &["pass", "findings", "unproven", "not-applicable"][..],
+            "Review contextual repo standards and design heuristics. Standards/documented violations override generic heuristics; logic-specific findings require raw source excerpts.",
+        ),
+        _ => return None,
+    };
+    Some(json!({
+        "axis": axis,
+        "resultField": "semanticReview",
+        "required": true,
+        "statuses": statuses,
+        "shape": {
+            "axis": "spec|standards",
+            "status": "pass|findings|unproven|not-applicable",
+            "reason": "nonempty string",
+            "sources": [{"location": "file:line", "quote": "nonempty raw excerpt"}]
+        },
+        "findingFields": {
+            "reviewAxis": axis,
+            "sourceQuote": "nonempty raw excerpt for axis findings",
+            "sourceLocation": "file:line",
+            "disposition": if axis == "spec" { json!(["missing", "partial", "wrong", "unrequested"]) } else { json!(["documented-violation", "design-heuristic"]) },
+            "changeAttribution": {
+                "status": ["introduced", "pre-existing", "unknown"],
+                "reason": "nonempty",
+                "baselineEvidence": "file:line array; required for introduced/pre-existing"
+            }
+        },
+        "sourceEvidence": "pass/findings require source location + nonempty quote; missing evidence is unproven",
+        "notApplicable": "allowed only when whole-repo context makes axis inapplicable, with explicit reason",
+        "instruction": instruction,
+    }))
+}
+
+pub fn change_risk_contract(lens: &str) -> Option<Value> {
+    (lens == "architecture").then(|| json!({
+        "fields": {
+            "reversibility": ["reversible", "one-way", "unknown"],
+            "blastRadius": "nonempty string",
+            "reason": "nonempty string",
+            "beforeEvidence": "string array",
+            "afterEvidence": "string array",
+            "evidenceItem": "file:line or file:start-end",
+            "nonUnknownRequiresEvidence": true
+        },
+        "instruction": "Assess change risk from supplied diff context. Whole-repo runs without change context must use unknown; do not invent evidence."
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -463,7 +528,13 @@ mod tests {
 
     #[test]
     fn raw_lenses_use_raw_excerpts() {
-        for lens in ["schema", "correctness", "performance", "minimize", "security"] {
+        for lens in [
+            "schema",
+            "correctness",
+            "performance",
+            "minimize",
+            "security",
+        ] {
             let plan = lens_plan_for(lens).expect("plan");
             assert_eq!(plan.excerpt_mode, ExcerptMode::Raw, "{lens}");
         }
@@ -471,7 +542,13 @@ mod tests {
 
     #[test]
     fn conditional_lenses_carry_trigger_text() {
-        for lens in ["a11y", "data-safety", "resilience", "platform-parity", "release-readiness"] {
+        for lens in [
+            "a11y",
+            "data-safety",
+            "resilience",
+            "platform-parity",
+            "release-readiness",
+        ] {
             let plan = lens_plan_for(lens).expect("plan");
             match plan.applicability {
                 Applicability::Conditional(trigger) => assert!(!trigger.is_empty(), "{lens}"),

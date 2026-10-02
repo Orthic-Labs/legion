@@ -57,13 +57,25 @@ fn spec(id: &str) -> ProviderSpec {
         runner: json!({"kind":"reasoning-contract","contract":"fixture-reasoning-v1"}),
         host_capabilities: Vec::new(),
         execution: json!({"required":true}),
-        reasoning: json!({"requirement":"review","freshContext":true,"producerSeparation":true}),
+        reasoning: json!({
+            "requirement":"review","freshContext":true,"producerSeparation":true,
+            "reviewContext": review_context()
+        }),
         benchmark: json!({"status":"qualified","requiredForCleanClaim":false}),
         clean_claim: "evidence-only".into(),
         control_ids: Vec::new(),
         scopes: Vec::new(),
         selectable: true,
     }
+}
+
+fn review_context() -> Value {
+    json!({
+        "mode": "diff", "type": "all",
+        "rawRefs": {"base": "main", "baseCommit": null, "dir": null},
+        "changedPaths": ["src/lib.rs"],
+        "baseline": {"kind": "merge-base", "status": "resolved", "head": "abc123", "commit": "def456", "mergeBase": "def456"}
+    })
 }
 
 fn plan(id: &str) -> (legion_audit::FrozenPlan, InventoryEnvelope) {
@@ -76,6 +88,31 @@ fn plan(id: &str) -> (legion_audit::FrozenPlan, InventoryEnvelope) {
 }
 
 fn result(request: &ReasoningInvocation) -> ProviderResult {
+    let mut details = BTreeMap::new();
+    match request.provider_id.as_str() {
+        "reasoning.architecture" => {
+            details.insert("changeRisk".into(), json!({
+                "reversibility": "unknown",
+                "blastRadius": "whole repository",
+                "reason": "fixture has no diff context",
+                "beforeEvidence": [],
+                "afterEvidence": []
+            }));
+        }
+        "reasoning.correctness" => {
+            details.insert("semanticReview".into(), json!({
+                "axis": "spec", "status": "pass", "reason": "fixture source reviewed",
+                "sources": [{"location": "src/lib.rs:1", "quote": "fixture source"}]
+            }));
+        }
+        "reasoning.ai-slop" => {
+            details.insert("semanticReview".into(), json!({
+                "axis": "standards", "status": "pass", "reason": "fixture source reviewed",
+                "sources": [{"location": "src/lib.rs:1", "quote": "fixture source"}]
+            }));
+        }
+        _ => {}
+    }
     ProviderResult {
         schema_version: 1,
         provider: ProviderId::new(&request.provider_id).unwrap(),
@@ -92,7 +129,7 @@ fn result(request: &ReasoningInvocation) -> ProviderResult {
         findings: Vec::new(),
         coverage_gaps: Vec::new(),
         degradation: Vec::new(),
-        details: BTreeMap::new(),
+        details,
     }
 }
 
@@ -146,12 +183,36 @@ struct FixtureHost {
     tamper: bool,
 }
 
+struct OrphanDetailFindingHost;
+
+impl ReasoningHost for OrphanDetailFindingHost {
+    fn invoke(
+        &self,
+        request: &ReasoningInvocation,
+    ) -> Result<ReasoningHostResponse, ReasoningHostError> {
+        let mut result = result(request);
+        result.details.insert("lensFindings".into(), json!([{
+            "id": "orphan",
+            "lens": "architecture",
+            "severity": "medium",
+            "confidence": "likely",
+            "evidence": ["src/lib.rs:1"],
+            "failureScenario": "architecture finding",
+            "action": "review boundary",
+            "verifyStatus": "unverified"
+        }]));
+        let receipt = signed_receipt(request, &result);
+        Ok(ReasoningHostResponse { result, receipt })
+    }
+}
+
 impl ReasoningHost for FixtureHost {
     fn invoke(
         &self,
         request: &ReasoningInvocation,
     ) -> Result<ReasoningHostResponse, ReasoningHostError> {
         self.calls.fetch_add(1, Ordering::SeqCst);
+        assert_eq!(request.packet.get("reviewContext"), Some(&review_context()));
         let result = result(request);
         let mut receipt = signed_receipt(request, &result);
         if self.tamper {
@@ -192,6 +253,29 @@ fn signed_host_result_is_bound_and_reaches_report_execution() {
 }
 
 #[test]
+fn diff_review_cannot_claim_whole_repo_non_applicability() {
+    struct NonApplicableHost;
+    impl ReasoningHost for NonApplicableHost {
+        fn invoke(&self, request: &ReasoningInvocation) -> Result<ReasoningHostResponse, ReasoningHostError> {
+            let mut result = result(request);
+            result.details.insert("semanticReview".into(), json!({
+                "axis":"spec", "status":"not-applicable",
+                "reason":"No supplied specification", "sources":[]
+            }));
+            Ok(ReasoningHostResponse { receipt: signed_receipt(request, &result), result })
+        }
+    }
+    let inventory = inventory();
+    let mut provider = spec("reasoning.correctness");
+    provider.reasoning["reviewContext"]["mode"] = json!("diff");
+    let plan = AuditPlan::compile(&inventory, &[provider]).unwrap().freeze(Some(KEY)).unwrap();
+    let executor = ReasoningProviderExecutor::new(".", Arc::new(NonApplicableHost), KEY.to_vec());
+    let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
+    assert!(!report.results[0].result.complete);
+    assert!(report.gaps.iter().any(|gap| gap.contains("frozen whole-repo context")));
+}
+
+#[test]
 fn receipt_tampering_is_rejected_and_cannot_complete_provider() {
     let (plan, inventory) = plan("reasoning.architecture");
     let host = Arc::new(FixtureHost {
@@ -205,6 +289,15 @@ fn receipt_tampering_is_rejected_and_cannot_complete_provider() {
         .gaps
         .iter()
         .any(|gap| gap.contains("reasoning receipt rejected")));
+}
+
+#[test]
+fn detail_finding_without_top_level_projection_is_rejected() {
+    let (plan, inventory) = plan("reasoning.architecture");
+    let executor = ReasoningProviderExecutor::new(".", Arc::new(OrphanDetailFindingHost), KEY.to_vec());
+    let report = legion_audit::execute(&plan, &inventory, &executor).unwrap();
+    assert!(!report.results[0].result.complete);
+    assert!(report.gaps.iter().any(|gap| gap.contains("absent from top-level findings")));
 }
 
 #[test]

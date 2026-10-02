@@ -45,7 +45,27 @@ fn base_properties() -> Value {
         },
         "failureScenario": { "type": "string", "minLength": 1 },
         "action": { "type": "string", "minLength": 1 },
-        "verifyStatus": { "type": "string", "enum": VERIFY_STATUSES }
+        "verifyStatus": { "type": "string", "enum": VERIFY_STATUSES },
+        "reviewAxis": { "type": "string", "enum": ["spec", "standards"] },
+        "sourceQuote": { "type": "string", "pattern": "\\S" },
+        "sourceLocation": { "type": "string", "pattern": "^[^:]+:[0-9]+(-[0-9]+)?$" },
+        "disposition": { "type": "string", "enum": ["missing", "partial", "wrong", "unrequested", "documented-violation", "design-heuristic"] },
+        "changeAttribution": {
+            "type": "object",
+            "required": ["status", "reason", "baselineEvidence"],
+            "properties": {
+                "status": { "type": "string", "enum": ["introduced", "pre-existing", "unknown"] },
+                "reason": { "type": "string", "pattern": "\\S" },
+                "baselineEvidence": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[^:]+:[0-9]+(-[0-9]+)?$" }
+                }
+            },
+            "allOf": [{
+                "if": { "properties": { "status": { "enum": ["introduced", "pre-existing"] } } },
+                "then": { "properties": { "baselineEvidence": { "minItems": 1 } } }
+            }]
+        }
     })
 }
 
@@ -172,6 +192,301 @@ pub struct ValidationError {
     pub reason: String,
 }
 
+fn source_location_valid(value: &str) -> bool {
+    evidence_entry_valid(value)
+}
+
+fn source_object_valid(value: &Value, field: &str, errors: &mut Vec<ValidationError>) {
+    let Some(object) = value.as_object() else {
+        errors.push(ValidationError {
+            field: field.into(),
+            reason: "must be an object".into(),
+        });
+        return;
+    };
+    match object.get("location").and_then(Value::as_str) {
+        Some(location) if source_location_valid(location) => {}
+        _ => errors.push(ValidationError {
+            field: format!("{field}.location"),
+            reason: "must be file:line or file:start-end".into(),
+        }),
+    }
+    match object.get("quote").and_then(Value::as_str) {
+        Some(quote) if !quote.trim().is_empty() => {}
+        _ => errors.push(ValidationError {
+            field: format!("{field}.quote"),
+            reason: "must be nonempty raw source excerpt".into(),
+        }),
+    }
+}
+
+fn validate_change_attribution(value: &Value, field: &str, errors: &mut Vec<ValidationError>) {
+    let Some(object) = value.as_object() else {
+        errors.push(ValidationError {
+            field: field.into(),
+            reason: "must be an object".into(),
+        });
+        return;
+    };
+    let status = object.get("status").and_then(Value::as_str);
+    if !matches!(
+        status,
+        Some("introduced") | Some("pre-existing") | Some("unknown")
+    ) {
+        errors.push(ValidationError {
+            field: format!("{field}.status"),
+            reason: "must be introduced, pre-existing, or unknown".into(),
+        });
+    }
+    match object.get("reason").and_then(Value::as_str) {
+        Some(reason) if !reason.trim().is_empty() => {}
+        _ => errors.push(ValidationError {
+            field: format!("{field}.reason"),
+            reason: "must be nonempty".into(),
+        }),
+    }
+    let baseline = object.get("baselineEvidence").and_then(Value::as_array);
+    match baseline {
+        Some(items) => {
+            for (index, item) in items.iter().enumerate() {
+                if !item.as_str().is_some_and(source_location_valid) {
+                    errors.push(ValidationError {
+                        field: format!("{field}.baselineEvidence[{index}]"),
+                        reason: "must be file:line evidence".into(),
+                    });
+                }
+            }
+            if matches!(status, Some("introduced") | Some("pre-existing")) && items.is_empty() {
+                errors.push(ValidationError {
+                    field: format!("{field}.baselineEvidence"),
+                    reason: "actual baseline evidence required".into(),
+                });
+            }
+        }
+        None => errors.push(ValidationError {
+            field: format!("{field}.baselineEvidence"),
+            reason: "must be an array, empty only for unknown attribution".into(),
+        }),
+    }
+}
+
+/// Validates semantic axis metadata carried in `details` for correctness and
+/// ai-slop. Ordinary findings remain valid without axis fields.
+pub fn validate_semantic_review(lens: &str, details: &Value) -> Result<(), Vec<ValidationError>> {
+    let axis = match lens {
+        "correctness" => "spec",
+        "ai-slop" => "standards",
+        _ => return Ok(()),
+    };
+    let mut errors = Vec::new();
+    let Some(review) = details.get("semanticReview").and_then(Value::as_object) else {
+        return Err(vec![ValidationError {
+            field: "semanticReview".into(),
+            reason: "required for semantic axis lens".into(),
+        }]);
+    };
+    match review.get("axis").and_then(Value::as_str) {
+        Some(value) if value == axis => {}
+        _ => errors.push(ValidationError {
+            field: "semanticReview.axis".into(),
+            reason: format!("must equal owning axis `{axis}`"),
+        }),
+    }
+    let status = review.get("status").and_then(Value::as_str);
+    if !matches!(
+        status,
+        Some("pass") | Some("findings") | Some("unproven") | Some("not-applicable")
+    ) {
+        errors.push(ValidationError {
+            field: "semanticReview.status".into(),
+            reason: "invalid semantic review status".into(),
+        });
+    }
+    let reason = review.get("reason").and_then(Value::as_str);
+    match reason {
+        Some(reason) if !reason.trim().is_empty() => {}
+        _ => errors.push(ValidationError {
+            field: "semanticReview.reason".into(),
+            reason: "must be nonempty".into(),
+        }),
+    }
+    let sources = review.get("sources").and_then(Value::as_array);
+    if let Some(sources) = sources {
+        for (index, source) in sources.iter().enumerate() {
+            source_object_valid(
+                source,
+                &format!("semanticReview.sources[{index}]"),
+                &mut errors,
+            );
+        }
+        if matches!(status, Some("pass") | Some("findings")) && sources.is_empty() {
+            errors.push(ValidationError {
+                field: "semanticReview.sources".into(),
+                reason: "status requires source evidence".into(),
+            });
+        }
+    } else {
+        errors.push(ValidationError {
+            field: "semanticReview.sources".into(),
+            reason: "must be an array".into(),
+        });
+    }
+    if let Some(findings) = details.get("lensFindings").and_then(Value::as_array) {
+        let mut axis_count = 0;
+        for (index, finding) in findings.iter().enumerate() {
+            if finding.get("reviewAxis").is_none() {
+                continue;
+            }
+            axis_count += 1;
+            let prefix = format!("lensFindings[{index}]");
+            if finding.get("reviewAxis").and_then(Value::as_str) != Some(axis) {
+                errors.push(ValidationError {
+                    field: format!("{prefix}.reviewAxis"),
+                    reason: "does not match owning axis".into(),
+                });
+            }
+            for field in ["sourceQuote", "sourceLocation", "disposition"] {
+                if finding
+                    .get(field)
+                    .and_then(Value::as_str)
+                    .is_none_or(|v| v.trim().is_empty())
+                {
+                    errors.push(ValidationError {
+                        field: format!("{prefix}.{field}"),
+                        reason: "required and nonempty for axis finding".into(),
+                    });
+                }
+            }
+            if let Some(location) = finding.get("sourceLocation").and_then(Value::as_str) {
+                if !source_location_valid(location) {
+                    errors.push(ValidationError {
+                        field: format!("{prefix}.sourceLocation"),
+                        reason: "must be file:line or file:start-end".into(),
+                    });
+                }
+            }
+            let allowed = if axis == "spec" {
+                &["missing", "partial", "wrong", "unrequested"][..]
+            } else {
+                &["documented-violation", "design-heuristic"][..]
+            };
+            if !finding
+                .get("disposition")
+                .and_then(Value::as_str)
+                .is_some_and(|v| allowed.contains(&v))
+            {
+                errors.push(ValidationError {
+                    field: format!("{prefix}.disposition"),
+                    reason: "invalid disposition for axis".into(),
+                });
+            }
+            match finding.get("changeAttribution") {
+                Some(attribution) => validate_change_attribution(
+                    attribution,
+                    &format!("{prefix}.changeAttribution"),
+                    &mut errors,
+                ),
+                None => errors.push(ValidationError {
+                    field: format!("{prefix}.changeAttribution"),
+                    reason: "required for axis finding".into(),
+                }),
+            }
+        }
+        if status == Some("findings") && axis_count == 0 {
+            errors.push(ValidationError {
+                field: "lensFindings".into(),
+                reason: "findings status requires axis finding".into(),
+            });
+        }
+        if matches!(
+            status,
+            Some("pass") | Some("unproven") | Some("not-applicable")
+        ) && axis_count > 0
+        {
+            errors.push(ValidationError {
+                field: "lensFindings".into(),
+                reason: "non-findings status cannot carry axis findings".into(),
+            });
+        }
+    } else if status == Some("findings") {
+        errors.push(ValidationError {
+            field: "lensFindings".into(),
+            reason: "findings status requires lensFindings array".into(),
+        });
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
+pub fn validate_change_risk(lens: &str, details: &Value) -> Result<(), Vec<ValidationError>> {
+    if lens != "architecture" {
+        return Ok(());
+    }
+    let mut errors = Vec::new();
+    let Some(risk) = details.get("changeRisk").and_then(Value::as_object) else {
+        return Err(vec![ValidationError {
+            field: "changeRisk".into(),
+            reason: "required for architecture lens".into(),
+        }]);
+    };
+    if !risk
+        .get("reversibility")
+        .and_then(Value::as_str)
+        .is_some_and(|v| ["reversible", "one-way", "unknown"].contains(&v))
+    {
+        errors.push(ValidationError {
+            field: "changeRisk.reversibility".into(),
+            reason: "invalid value".into(),
+        });
+    }
+    for field in ["blastRadius", "reason"] {
+        if risk
+            .get(field)
+            .and_then(Value::as_str)
+            .is_none_or(|v| v.trim().is_empty())
+        {
+            errors.push(ValidationError {
+                field: format!("changeRisk.{field}"),
+                reason: "must be nonempty".into(),
+            });
+        }
+    }
+    let mut evidence_count = 0usize;
+    for field in ["beforeEvidence", "afterEvidence"] {
+        match risk.get(field).and_then(Value::as_array) {
+            Some(items) => {
+                evidence_count += items.len();
+                for (index, item) in items.iter().enumerate() {
+                    if !item.as_str().is_some_and(source_location_valid) {
+                        errors.push(ValidationError {
+                            field: format!("changeRisk.{field}[{index}]"),
+                            reason: "must be file:line evidence".into(),
+                        });
+                    }
+                }
+            }
+            None => errors.push(ValidationError {
+                field: format!("changeRisk.{field}"),
+                reason: "must be an array of file:line evidence".into(),
+            }),
+        }
+    }
+    if risk.get("reversibility").and_then(Value::as_str) != Some("unknown") && evidence_count == 0 {
+        errors.push(ValidationError {
+            field: "changeRisk.beforeEvidence".into(),
+            reason: "non-unknown risk requires supporting evidence".into(),
+        });
+    }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
+}
+
 fn evidence_entry_valid(entry: &str) -> bool {
     match entry.rsplit_once(':') {
         Some((path, line_part)) if !path.is_empty() => {
@@ -179,7 +494,8 @@ fn evidence_entry_valid(entry: &str) -> bool {
             let start = parts.next().unwrap_or_default();
             let end = parts.next();
             let start_ok = !start.is_empty() && start.chars().all(|c| c.is_ascii_digit());
-            let end_ok = end.is_none_or(|value| !value.is_empty() && value.chars().all(|c| c.is_ascii_digit()));
+            let end_ok = end
+                .is_none_or(|value| !value.is_empty() && value.chars().all(|c| c.is_ascii_digit()));
             start_ok && end_ok
         }
         _ => false,
@@ -205,7 +521,11 @@ fn require_enum(
     }
 }
 
-fn require_nonempty_string(finding: &Value, field: &'static str, errors: &mut Vec<ValidationError>) {
+fn require_nonempty_string(
+    finding: &Value,
+    field: &'static str,
+    errors: &mut Vec<ValidationError>,
+) {
     match finding.get(field).and_then(Value::as_str) {
         Some(value) if !value.trim().is_empty() => {}
         Some(_) => errors.push(ValidationError {
@@ -313,6 +633,19 @@ pub fn validate_finding(lens: &str, finding: &Value) -> Result<(), Vec<Validatio
     if lens == "variant-analysis" {
         require_nonempty_string(finding, "parentFindingId", &mut errors);
     }
+    if finding.get("reviewAxis").is_some() {
+        match finding.get("changeAttribution") {
+            Some(attribution) => {
+                validate_change_attribution(attribution, "changeAttribution", &mut errors)
+            }
+            None => errors.push(ValidationError {
+                field: "changeAttribution".into(),
+                reason: "required when reviewAxis is present".into(),
+            }),
+        }
+    } else if let Some(attribution) = finding.get("changeAttribution") {
+        validate_change_attribution(attribution, "changeAttribution", &mut errors);
+    }
 
     if errors.is_empty() {
         Ok(())
@@ -365,11 +698,27 @@ mod tests {
     #[test]
     fn every_lens_has_a_schema_except_unowned_ids() {
         for lens in [
-            "doc-drift", "architecture", "correctness", "ai-slop", "naming", "dead-file",
-            "schema", "security", "minimize", "performance", "a11y", "data-safety",
-            "resilience", "platform-parity", "release-readiness", "variant-analysis",
+            "doc-drift",
+            "architecture",
+            "correctness",
+            "ai-slop",
+            "naming",
+            "dead-file",
+            "schema",
+            "security",
+            "minimize",
+            "performance",
+            "a11y",
+            "data-safety",
+            "resilience",
+            "platform-parity",
+            "release-readiness",
+            "variant-analysis",
         ] {
-            assert!(lens_report_schema(lens).is_some(), "missing schema for {lens}");
+            assert!(
+                lens_report_schema(lens).is_some(),
+                "missing schema for {lens}"
+            );
         }
         assert!(lens_report_schema("not-a-lens").is_none());
     }
@@ -402,7 +751,9 @@ mod tests {
         // must fail for the correctness lens's verify-pass rule.
         let errors = validate_finding("correctness", &finding).unwrap_err();
         assert!(errors.iter().any(|error| error.field == "verifyStatus"));
-        assert!(errors.iter().any(|error| error.field == "verificationMethod"));
+        assert!(errors
+            .iter()
+            .any(|error| error.field == "verificationMethod"));
 
         let mut good = finding.clone();
         good["verifyStatus"] = json!("verified");
@@ -432,7 +783,106 @@ mod tests {
     fn validate_lens_output_aggregates_indexed_errors() {
         let findings = vec![valid_finding("naming"), json!({"id": "bad"})];
         let errors = validate_lens_output("naming", &findings).unwrap_err();
-        assert!(errors.iter().any(|error| error.field.starts_with("findings[1].")));
-        assert!(!errors.iter().any(|error| error.field.starts_with("findings[0].")));
+        assert!(errors
+            .iter()
+            .any(|error| error.field.starts_with("findings[1].")));
+        assert!(!errors
+            .iter()
+            .any(|error| error.field.starts_with("findings[0].")));
+    }
+
+    fn semantic_details(lens: &str, status: &str, findings: Value) -> Value {
+        let axis = if lens == "correctness" {
+            "spec"
+        } else {
+            "standards"
+        };
+        json!({
+            "semanticReview": { "axis": axis, "status": status, "reason": "reviewed against supplied source", "sources": [{ "location": "src/lib.rs:10", "quote": "fn example() {}" }] },
+            "lensFindings": findings
+        })
+    }
+
+    #[test]
+    fn semantic_axis_accepts_source_backed_finding() {
+        let finding = json!([{
+            "reviewAxis": "spec", "sourceQuote": "assert_eq!(actual, expected)", "sourceLocation": "src/lib.rs:10", "disposition": "partial",
+            "changeAttribution": {"status": "unknown", "reason": "no baseline supplied", "baselineEvidence": []}
+        }]);
+        assert!(validate_semantic_review(
+            "correctness",
+            &semantic_details("correctness", "findings", finding)
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn semantic_axis_rejects_missing_or_contradictory_response() {
+        let missing = json!({ "lensFindings": [] });
+        assert!(validate_semantic_review("ai-slop", &missing).is_err());
+        let contradictory = semantic_details(
+            "ai-slop",
+            "pass",
+            json!([{
+                "reviewAxis": "spec", "sourceQuote": "let x = 1", "sourceLocation": "src/lib.rs:10", "disposition": "documented-violation"
+            }]),
+        );
+        assert!(validate_semantic_review("ai-slop", &contradictory).is_err());
+    }
+
+    #[test]
+    fn change_risk_requires_complete_architecture_contract() {
+        let missing = json!({});
+        assert!(validate_change_risk("architecture", &missing).is_err());
+        let valid = json!({
+            "changeRisk": { "reversibility": "unknown", "blastRadius": "repository", "reason": "no diff context", "beforeEvidence": [], "afterEvidence": [] }
+        });
+        assert!(validate_change_risk("architecture", &valid).is_ok());
+    }
+
+    #[test]
+    fn change_risk_rejects_invalid_evidence_and_empty_nonunknown_risk() {
+        let invalid = json!({
+            "changeRisk": { "reversibility": "reversible", "blastRadius": "service", "reason": "changed", "beforeEvidence": [], "afterEvidence": ["missing-line"] }
+        });
+        let errors = validate_change_risk("architecture", &invalid).unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|error| error.field.contains("afterEvidence[0]")));
+        assert!(errors
+            .iter()
+            .any(|error| error.field == "changeRisk.beforeEvidence"));
+    }
+
+    #[test]
+    fn attribution_requires_baseline_for_introduction_and_valid_status() {
+        let mut finding = valid_finding("naming");
+        finding["changeAttribution"] =
+            json!({ "status": "introduced", "reason": "changed hunk", "baselineEvidence": [] });
+        let errors = validate_finding("naming", &finding).unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|error| error.field == "changeAttribution.baselineEvidence"));
+        finding["changeAttribution"] =
+            json!({ "status": "maybe", "reason": "x", "baselineEvidence": ["bad"] });
+        let errors = validate_finding("naming", &finding).unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|error| error.field == "changeAttribution.status"));
+        assert!(errors
+            .iter()
+            .any(|error| error.field.contains("baselineEvidence[0]")));
+        finding["reviewAxis"] = json!("standards");
+        finding.as_object_mut().unwrap().remove("changeAttribution");
+        let errors = validate_finding("naming", &finding).unwrap_err();
+        assert!(errors
+            .iter()
+            .any(|error| error.field == "changeAttribution"));
+    }
+
+    #[test]
+    fn findings_summary_cannot_claim_findings_without_axis_finding() {
+        let details = semantic_details("correctness", "findings", json!([]));
+        assert!(validate_semantic_review("correctness", &details).is_err());
     }
 }

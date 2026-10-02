@@ -39,7 +39,8 @@
       "references/migration-safety.md",
       "references/okf-output.md",
       "references/ponytail-lens.md",
-      "references/provider-architecture.md"
+      "references/provider-architecture.md",
+      "references/semantic-review.md"
     ],
     "scripts": [],
     "templates": [],
@@ -62,7 +63,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://audit/SKILL.md",
-      "digest": "sha256:cc0158e9a6f921a424748a9fb8e9a3702c0c62b0add744e9fa56ddef32cdd91c"
+      "digest": "sha256:fb4f681b41e956414f3277cb17ecf8ba3c09d9fdcd26838c4291716d66ffcc36"
     },
     {
       "path": "agents/openai.yaml",
@@ -92,7 +93,7 @@
     {
       "path": "references/engine-interface.md",
       "uri": "legion-skill://audit/references/engine-interface.md",
-      "digest": "sha256:e961e49e56a0f6ad128adf561d60e37ea5535f47db958b1bb57d2b9e2bf81276"
+      "digest": "sha256:858ba3d4fd7ec6739d43659d937bf4bea5e1f30a18e799dec1ab9510da414906"
     },
     {
       "path": "references/execution-contract.md",
@@ -102,12 +103,12 @@
     {
       "path": "references/lens-cues.md",
       "uri": "legion-skill://audit/references/lens-cues.md",
-      "digest": "sha256:ff9347a5ef3df3b2c4e9de970cd0313e9e1d566359d6b4e6703ad7337babeb56"
+      "digest": "sha256:fe0c2f73db1be471d55c9e6edcef900ea3212d1b45aae0409fbaaa2244df919f"
     },
     {
       "path": "references/lens-routing.md",
       "uri": "legion-skill://audit/references/lens-routing.md",
-      "digest": "sha256:88479944ef1606e884bbbc5707a394c29641425ec6bd46d92fa4739ef3213295"
+      "digest": "sha256:91011276ecd3c44e6853af894a4fe45afee6df9dfd2dea53be747ab4dd88b061"
     },
     {
       "path": "references/manual.md",
@@ -133,6 +134,11 @@
       "path": "references/provider-architecture.md",
       "uri": "legion-skill://audit/references/provider-architecture.md",
       "digest": "sha256:026252277d26c2e57ad506a45df0c1cc75516b377be6377ea5b0016d1fad73e1"
+    },
+    {
+      "path": "references/semantic-review.md",
+      "uri": "legion-skill://audit/references/semantic-review.md",
+      "digest": "sha256:112ffbad75a2f5bf2dc8ebb76f06d0f76b1d62968599b3dd664ff6d917180196"
     }
   ]
 }

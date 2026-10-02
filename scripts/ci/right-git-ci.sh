@@ -1,8 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${GITHUB_ACTIONS:-}" != "true" ]]; then
+  echo "Run this build gate through the managed GitHub workflow." >&2
+  exit 1
+fi
+
 pnpm install --frozen-lockfile
-pnpm legion:check
+# Hosted runners own Cargo directly; local package scripts use the RightKit
+# broker client, which is intentionally absent from hosted CI.
+checks=(
+  "check-canonical-names"
+  "check-authority-parity"
+  "check-blueprint-config"
+  "check-portability"
+  "check-version-parity"
+  "generate-schemas --check"
+  "check-dependency-closure"
+  "check-publication-surface"
+  "check-packed-import-closure"
+  "check-distribution-contract"
+  "check-release-obligations"
+  "generate-codex-skill-sidecars --check"
+  "generate-skill-catalog --check"
+  "generate-host-projection --check"
+  "refresh-local-skill-manifests --check"
+  "generate-manifest --check"
+  "generate-catalogs --check"
+  "verify-plugin-parity --check --structural-only"
+  "native-cli-inventory"
+  "check-native-cli-surface"
+)
+for check in "${checks[@]}"; do
+  read -r -a check_args <<< "$check"
+  cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- "${check_args[@]}"
+done
 
 if [[ "${RIGHT_GIT_RUST_CHANGED:-true}" == "true" ]]; then
   (
@@ -14,8 +46,8 @@ fi
 
 # Assemble the exact CI candidate and smoke the installed native CLI.
 (cd engine && cargo build --locked --bins)
-pnpm native:assemble --profile debug --out "${RUNNER_TEMP}/legion-install" --force
-pnpm native:smoke "${RUNNER_TEMP}/legion-install"
+cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- assemble-native-release --profile debug --out "${RUNNER_TEMP}/legion-install" --force
+cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- native-installed-smoke "${RUNNER_TEMP}/legion-install"
 
 # Known-answer recall gate. The bench scores planted defects against
 # negative controls and fails on any false positive, so a detector that

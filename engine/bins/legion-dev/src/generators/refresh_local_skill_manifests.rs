@@ -166,7 +166,7 @@ pub fn refresh_local_skill_manifest(root: &Path, bundle: &str) -> Result<PathBuf
 /// `legion-dev refresh-local-skill-manifests [--check] [BUNDLE...]`. With no
 /// bundles given, `--check` checks every catalog bundle (matching the JS
 /// default); without `--check` an empty bundle list is a usage error, same
-/// as the JS script.
+/// as the JS script. The CLI passes positional bundles through this function.
 pub fn run_with_args(root: &Path, check: bool, requested: &[String]) -> bool {
     let bundles: Vec<String> = if !requested.is_empty() {
         requested.to_vec()
@@ -222,11 +222,8 @@ pub fn run_with_args(root: &Path, check: bool, requested: &[String]) -> bool {
     true
 }
 
-/// No-arg entry point kept for the `legion-dev` subcommand signature; runs
-/// `--check` over every catalog bundle (matching the JS default when no
-/// bundle args are given and `--check` is set), since `legion-dev`'s clap
-/// surface for this command carries only `--check`. Use `run_with_args`
-/// directly to pass specific bundle ids.
+/// Compatibility entry point for callers that intentionally supply no bundle
+/// arguments. The CLI uses `run_with_args` so positional bundle ids are kept.
 pub fn run(root: &Path, check: bool) -> bool {
     run_with_args(root, check, &[])
 }

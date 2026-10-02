@@ -16,6 +16,31 @@ Use audit doctor and these flags for local-review convenience without changing `
 
 Scope metadata is advisory context. Scanner coverage remains honest: a scoped report must not claim unscanned checks were clean.
 
+## Semantic review outputs
+
+The existing frozen report remains the machine source of truth. Reasoning details carry two separate
+axis results: `details.semanticReview` from `correctness` (`axis: "spec"`) and `ai-slop` (`axis:
+"standards"`). Each uses `status: pass|findings|unproven|not-applicable`, nonempty `reason`, and
+`sources: [{location: "file:line", quote: "..."}]`; `pass`/`findings` require source evidence.
+No source means `unproven` unless whole-repo non-applicability is justified in the reason. A
+standards result never proves SPEC fidelity, and a SPEC result never proves standards compliance.
+
+Semantic findings additionally carry (or map to equivalent existing finding metadata):
+
+- `reviewAxis`, `sourceQuote`, `sourceLocation`, and axis disposition on each axis finding;
+- SPEC disposition `missing|partial|wrong|unrequested`; STANDARDS disposition
+  `documented-violation|design-heuristic`; per-requirement `satisfied` remains separate from
+  verdict/disposition;
+- `changeAttribution: {status: introduced|pre-existing|unknown, reason, baselineEvidence: [...]}`;
+  non-unknown statuses require real baseline evidence;
+- architecture `details.changeRisk` with `reversibility: reversible|one-way|unknown`, nonempty
+  `blastRadius`/`reason`, `beforeEvidence`, and `afterEvidence`.
+
+Missing baseline means provenance is `unknown`; missing or invented standards never become a clean
+verdict. Whole-repo runs without diff context use unknown change risk evidence. Test-quality
+observations assess public behavior, independent expected values, mock dependence, and refactor
+fragility while preserving valid DI seams and framework conventions.
+
 ## Scanner registry (check → command → runs when)
 
 Commands (the literal re-run lines the report prints):

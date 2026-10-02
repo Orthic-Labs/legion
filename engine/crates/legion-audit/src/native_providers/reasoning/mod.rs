@@ -8,7 +8,10 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
-    sync::{atomic::{AtomicU64, Ordering}, Arc, Mutex},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -30,8 +33,8 @@ use crate::{
 pub mod excerpts;
 pub mod lens_plan;
 pub mod lens_schemas;
-pub mod triggers;
 pub mod security_adjudication;
+pub mod triggers;
 
 pub const REASONING_RECEIPT_SCHEMA_VERSION: u32 = 1;
 pub const REASONING_RECEIPT_KIND: &str = "legion-reasoning-receipt";
@@ -209,8 +212,15 @@ pub struct ReasoningProviderExecutor {
 // signed receipt for an otherwise identical frozen plan.
 fn invocation_epoch() -> String {
     static NEXT: AtomicU64 = AtomicU64::new(0);
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-    format!("{}:{}:{}", std::process::id(), now.as_nanos(), NEXT.fetch_add(1, Ordering::Relaxed))
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    format!(
+        "{}:{}:{}",
+        std::process::id(),
+        now.as_nanos(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    )
 }
 
 impl std::fmt::Debug for ReasoningProviderExecutor {
@@ -468,6 +478,17 @@ fn build_invocation(
     // verify status, plus lens-specific extras), matching the id carried
     // in `lensPlan.reportSchema`.
     let report_schema_body = lens_id.and_then(lens_schemas::lens_report_schema);
+    let semantic_contract = lens_id.and_then(lens_plan::semantic_review_contract);
+    let change_risk_contract = lens_id.and_then(lens_plan::change_risk_contract);
+    let projection = serde_json::to_value(inventory)
+        .map_err(|error| AuditError::Invalid(format!("inventory projection failed: {error}")))?;
+    let review_context = provider
+        .configuration
+        .get("reasoning")
+        .and_then(Value::as_object)
+        .and_then(|reasoning| reasoning.get("reviewContext"))
+        .cloned()
+        .unwrap_or(Value::Null);
     let packet = json!({
         "schemaVersion": 1,
         "kind": "legion-reasoning-packet",
@@ -486,7 +507,10 @@ fn build_invocation(
         "excerpts": excerpts,
         "triggerEvidence": trigger_evidence,
         "reportSchemaBody": report_schema_body,
-        "projection": inventory,
+        "semanticReviewContract": semantic_contract,
+        "changeRiskContract": change_risk_contract,
+        "reviewContext": review_context,
+        "projection": projection,
         "artifactIds": [],
     });
     let identity = json!({
@@ -588,9 +612,59 @@ fn verify_response(
                     .map(|error| format!("{}: {}", error.field, error.reason))
                     .collect::<Vec<_>>()
                     .join("; ");
-                format!("reasoning result for lens {lens} failed report-schema validation: {joined}")
+                format!(
+                    "reasoning result for lens {lens} failed report-schema validation: {joined}"
+                )
             })?;
         }
+        let details = serde_json::to_value(&response.result.details)
+            .map_err(|error| format!("reasoning result details serialization failed: {error}"))?;
+        if details
+            .get("semanticReview")
+            .and_then(|value| value.get("status"))
+            .and_then(Value::as_str)
+            == Some("not-applicable")
+            && request
+                .packet
+                .get("reviewContext")
+                .and_then(|value| value.get("mode"))
+                .and_then(Value::as_str)
+                != Some("whole-repo")
+        {
+            return Err("semantic non-applicability requires frozen whole-repo context".into());
+        }
+        if let Some(detail_findings) = details.get("lensFindings").and_then(Value::as_array) {
+            let top_level_ids = response
+                .result
+                .findings
+                .iter()
+                .filter_map(|finding| serde_json::to_value(finding).ok())
+                .filter_map(|finding| finding.get("id").and_then(Value::as_str).map(str::to_owned))
+                .collect::<BTreeSet<_>>();
+            for (index, finding) in detail_findings.iter().enumerate() {
+                if let Some(id) = finding.get("id").and_then(Value::as_str) {
+                    if !top_level_ids.contains(id) {
+                        return Err(format!("reasoning result for lens {lens} detail finding {index} is absent from top-level findings"));
+                    }
+                }
+            }
+        }
+        lens_schemas::validate_semantic_review(lens, &details).map_err(|errors| {
+            let joined = errors
+                .iter()
+                .map(|error| format!("{}: {}", error.field, error.reason))
+                .collect::<Vec<_>>()
+                .join("; ");
+            format!("reasoning result for lens {lens} failed semantic-review validation: {joined}")
+        })?;
+        lens_schemas::validate_change_risk(lens, &details).map_err(|errors| {
+            let joined = errors
+                .iter()
+                .map(|error| format!("{}: {}", error.field, error.reason))
+                .collect::<Vec<_>>()
+                .join("; ");
+            format!("reasoning result for lens {lens} failed change-risk validation: {joined}")
+        })?;
     }
     let mut result = response.result.clone();
     result.details.insert(

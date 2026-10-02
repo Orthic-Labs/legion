@@ -65,11 +65,15 @@ overrides it.
 7. Read [lens routing](references/lens-routing.md); fan every applicable reasoning contract to one
    native subagent in one parallel wave, always using lowest available tier. Inline execution is
    fallback only when no native seat is available. Reason only inside frozen-plan providers.
-8. Adjudicate each security candidate independently; no generator closes its own finding.
-9. Deduplicate, then finalize through [execution contract](references/execution-contract.md) so
+8. Apply [semantic review](references/semantic-review.md) when a repository supplies explicit
+   specifications or standards. Reuse `correctness` for SPEC fidelity & `ai-slop` for STANDARDS,
+   with independent inputs, reports, & verdicts; missing inputs are typed `unproven` or
+   `not-applicable` with a reason, never filled from invented standards.
+9. Adjudicate each security candidate independently; no generator closes its own finding.
+10. Deduplicate, then finalize through [execution contract](references/execution-contract.md) so
    `report.json`, `report.sarif`, & receipts reconcile against exact plan. Missing provider/lens
    coverage stays typed `incomplete`.
-10. Reconcile every provider & denominator; incomplete coverage is never clean.
+11. Reconcile every provider & denominator; incomplete coverage is never clean.
 
 Return gate vector, coverage, findings with evidence loci, rerun commands, & receipts, artifacts, &
 typed degradation; `quality_gate` stays separate. A zero-finding result is reportable only after

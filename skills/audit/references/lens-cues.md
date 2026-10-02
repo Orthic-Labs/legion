@@ -40,6 +40,26 @@ workflow (CodeRabbit as an external reviewer is retired); that is not a coverage
 - `security` (positive assurance): answer a fixed question set WITH grep evidence, not just emit findings — does anything disable TLS/cert-validation? does any secret/token reach a log sink? do all mutating routes/commands enforce auth/validation? A cited clean answer is a deliverable; silence is not.
 - `security` (invariant falsification): extract THIS app's own stated security invariants from its docs ("renderer receives opaque grants", "history never leaves the device"), then test each against the command/IPC/network surface. A doc-drift × security hybrid — the app's claims are the checklist.
 - `negative_space` / `correctness` (test quality): tests that assert source-code substrings or are snapshot-only are FALSE coverage — classify, don't count. Read `meta.test_skew` (code-vs-test file counts per subtree): heavy skew on a critical subsystem is a finding; `meta.unsafe_sites` clusters with no error-path test likewise.
+- `correctness` (SPEC fidelity): compare each explicit requirement or acceptance criterion with
+  observable behavior through its public interface. Mark `missing`, `partial`, `wrong`, or
+  `unrequested` behavior separately; cite exact requirement and implementation loci. Do not infer
+  requirements from a preferred design.
+- `correctness` / `negative_space` (test quality): prefer behavior-level assertions, independently
+  derived expected values, and real DI/framework seams. Flag excessive internal mocks,
+  implementation-detail assertions, source-substring tests, snapshot-only coverage, and tests that
+  are likely to fail on harmless refactors or pass while behavior is wrong.
+- `ai-slop` (STANDARDS): compare code against supplied repository-local standards, lint/config
+  policy, documented exceptions, and ADR conventions. Apply contextual design cues — feature
+  envy, data clumps, primitive obsession, repeated dispatch, and shotgun surgery — only with
+  evidence. Preserve valid DI seams and framework conventions; generic style preference is not a
+  standard.
+- `ai-slop` / `minimize`: apply an interface-complexity and deletion test before suggesting an
+  abstraction be removed: inspect callers, implementations, contracts, extension points, and
+  behavior added by wrapper. Cite ADRs or exceptions that justify the shape.
+- All semantic lenses: classify finding provenance relative to frozen diff as `introduced`,
+  `pre-existing`, or `unknown` (unknown when baseline is unavailable). Summarize change risk as
+  `reversible`, `one-way`, or `unknown`, including blast radius and before/after evidence when
+  available; remediation stays bounded and actionable.
 - `security` / `minimize`: read `debt_markers.meta` — surface `ponytail:` shortcuts with no upgrade trigger and TODO/FIXME density.
 - `security` (app-level — beyond the scanners): reason over the application-security taxonomy in `references/security-checklist.md` (100 checks: authn, authz/**IDOR**, injection classes, XSS/CSP, CSRF/CORS, **SSRF**, crypto, uploads, API hardening). The scanners catch secrets/CVEs/SAST patterns; this catches the *logic* they miss. Every finding still needs a real `file:line`. Deterministic backers where the project configures them: `eslint-plugin-security`, semgrep app-sec rulesets — absent tool = NOT-SCANNED, never "clean".
 - `performance` (static, catch the smell — the runtime pass then *measures* it): React re-render hazards — unmemoized Context provider `value={{...}}`, inline object/array/arrow props to memoized children, state/context lifted so high all consumers re-render on every change, missing `React.memo`/`useMemo`/`useCallback` on hot paths, a component defined inside another component's render, `key={index}`, unvirtualized large lists, derived state recomputed in render. Deterministic backers (if the project configures them in eslint): `@eslint-react/no-unstable-context-value`, `react/no-unstable-nested-components`, `react/no-array-index-key`, `react-hooks/exhaustive-deps`, `@arthurgeron/react-usememo/require-usememo`.

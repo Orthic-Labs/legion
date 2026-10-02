@@ -112,6 +112,8 @@ enum Command {
     RefreshLocalSkillManifests {
         #[arg(long)]
         check: bool,
+        #[arg(value_name = "BUNDLE")]
+        bundles: Vec<String>,
     },
     /// Port of `scripts/verify-plugin-parity.mjs`.
     VerifyPluginParity {
@@ -188,7 +190,9 @@ fn main() -> ExitCode {
         Command::GenerateHostProjection { check } => generators::host_projection::run(&root, check),
         Command::GenerateSkillCatalog { check } => generators::skill_catalog::run(&root, check),
         Command::GenerateCodexSkillSidecars { check } => generators::codex_skill_sidecars::run(&root, check),
-        Command::RefreshLocalSkillManifests { check } => generators::refresh_local_skill_manifests::run(&root, check),
+        Command::RefreshLocalSkillManifests { check, bundles } => {
+            generators::refresh_local_skill_manifests::run_with_args(&root, check, &bundles)
+        }
         Command::VerifyPluginParity { check, structural_only } => {
             generators::verify_plugin_parity::run_opts(&root, check, structural_only)
         }
@@ -208,5 +212,28 @@ fn main() -> ExitCode {
         ExitCode::SUCCESS
     } else {
         ExitCode::FAILURE
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refresh_local_skill_manifests_accepts_bundle_arguments() {
+        let cli = Cli::try_parse_from([
+            "legion-dev",
+            "refresh-local-skill-manifests",
+            "audit",
+            "--check",
+        ])
+        .expect("bundle positional argument should parse");
+        match cli.command {
+            Command::RefreshLocalSkillManifests { check, bundles } => {
+                assert!(check);
+                assert_eq!(bundles, vec!["audit"]);
+            }
+            _ => panic!("unexpected command parsed"),
+        }
     }
 }

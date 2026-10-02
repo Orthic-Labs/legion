@@ -33,6 +33,22 @@ When Blueprint Phase 2 exists, pass `understanding.json.architecture.coverageGap
 `partial|missing|undetermined` flow must appear in the lens output with its evidence and an
 `architect` handoff; absence of a code file is the evidence for a documented-but-missing flow.
 
+## Semantic routing
+
+When explicit specifications or standards are present, run two independent contracts in the same
+parallel wave:
+
+- Route SPEC fidelity to `correctness`, with only exact requirements, acceptance criteria, public
+  contracts, applicable ADR consequences, and scoped implementation evidence. Preserve per-
+  requirement `satisfied|partial|wrong|missing|unrequested|unproven` status and exact citations.
+- Route STANDARDS to `ai-slop`, with repository-local standards, config/lint policy, documented
+  exceptions, and relevant code shape. Its verdict and report stay separate from SPEC. Do not
+  substitute generic taste for a missing standard.
+
+Absent spec/standards input is typed `unproven` unless whole-repo non-applicability is explicitly
+justified with searched scope and reason. Present but incomplete or inaccessible input is typed
+`unproven` with missing evidence. Neither is silently clean, and one axis never closes the other.
+
 ## Model routing
 
 - Dispatch every lens to lowest available native tier. Lens category never upgrades model tier.
@@ -43,6 +59,8 @@ When Blueprint Phase 2 exists, pass `understanding.json.architecture.coverageGap
 - Conditional lenses spawn only when their trigger fires.
 - `minimize` reads raw bodies and `references/ponytail-lens.md`; a skeleton alone cannot distinguish
   dead abstraction from a real DI, test, or extension seam.
+- Semantic lanes read [semantic review](semantic-review.md) for test-quality, design-smell,
+  attribution, and change-risk rules; preserve DI seams and framework conventions.
 
 ## Correctness verify-pass
 
