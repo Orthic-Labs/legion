@@ -264,6 +264,14 @@ The `native_application` failure branch returns
 without claiming strong enforcement; a focused regression test pins this
 label.
 
+Codex bridges invoke installed stable `current/bin/legion-hook --host codex`.
+This native transport emits Codex context output & exit 2 for Guard denials;
+default transport retains its versioned response envelope. Accepted Stop events
+may notify configured computer-use cleanup with bounded thread/turn identity &
+a 500 ms deadline. Missing, stale, invalid, failed, or timed-out cleanup remains
+diagnostic only: it never changes Guard's decision. Host bridges contain no
+completion policy or notifier implementation.
+
 ## Receipts
 
 Receipt ownership is deliberately split:

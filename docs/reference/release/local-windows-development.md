@@ -1,10 +1,27 @@
-# Local Windows installer development
+# Windows unsigned installer development
+
+Before any local build/check/test, inspect `rightkit list` once. Another queued or
+running build, or any build processed within preceding **30 minutes**, forces
+GitHub CI. Include completed, failed & cancelled work; inspect completion/activity
+timestamps rather than current running state alone. Missing inventory/timestamps
+also select CI. Never poll, wait for local capacity, or queue another local build.
+`scripts/release/local-build-route.mjs` enforces this at local native-check &
+installer entry points.
+
+CI route: push exact owned source to `codex/legion-windows-*`; this triggers
+`.github/workflows/windows-development.yml` on Windows only. It checks whole
+native workspace/all targets, tests native Codex Stop transport, builds unsigned
+installer & runs isolated installed qualification. Download artifact bound to
+exact run/SHA, verify installer digest against qualification, then install exact
+qualified artifact at stable `current` & verify requested installed behavior.
+This route requires no signing, publication or Mac work. A CI artifact is not
+proof of installation on Adrian's machine.
 
 Adrian authorized local unsigned Legion installer development. Tracked
 `.rightkit-local-development.json` limits this exception to
 `Orthic-Labs/legion`, native Windows, & unsigned installer work.
 
-From primary Legion checkout, run:
+Only after local idle admission, from primary Legion checkout run:
 
 ```powershell
 pnpm run native:check:local

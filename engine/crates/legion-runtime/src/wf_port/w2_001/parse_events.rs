@@ -1,4 +1,4 @@
-//! Port of `skills/alchemist/scripts/parse_events.py`.
+//! JSONL event parsing and summary helpers.
 //!
 //! Modes ported 1:1:
 //!   * `--stream`  -> [`stream_line`], applied per input line by the caller

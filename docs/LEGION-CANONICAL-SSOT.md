@@ -129,7 +129,7 @@ examples: architect, audit, research, designer, seo
 HOST CAPABILITY
 externally supplied execution or tool facility the package does not contain,
 declared in src/registry/capabilities.json
-examples: blueprint-graph, web-search, omniroute
+examples: blueprint-graph, web-search, python-runtime
 ```
 
 Unqualified "capability" in this document means **domain capability**. Host capabilities are

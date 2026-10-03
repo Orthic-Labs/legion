@@ -29,15 +29,9 @@
       "Execute a settled, bounded change through Legion's Alchemist authority. Use /alchemist after scope, ownership, checks, and acceptance are decided."
     ],
     "outputs": [
-      "references/manual.md",
-      "references/route-resources.json"
+      "references/manual.md"
     ],
-    "scripts": [
-      "scripts/run-worker.ps1",
-      "scripts/run-worker.sh",
-      "scripts/start-stack.vbs",
-      "scripts/tray.ps1"
-    ],
+    "scripts": [],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -54,7 +48,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://alchemist/SKILL.md",
-      "digest": "sha256:d422ea95e7e4f55ccc2eab11868cadf6cc6caebaec90e6e1699deaadb0bdbc3d"
+      "digest": "sha256:683b403a3a743f815d5a487e0ade43bdacbe47b02c13d2c210fca7ce89fc97ce"
     },
     {
       "path": "agents/openai.yaml",
@@ -64,12 +58,12 @@
     {
       "path": "dependencies.json",
       "uri": "legion-skill://alchemist/dependencies.json",
-      "digest": "sha256:d7203dd76df8a30d7999161f8470e8078e66d54f4773d9db04dcb7040eb11dcb"
+      "digest": "sha256:d6c709f32d149b7ebc6dd644875345aaee47defee38bae47bafc1857d478b699"
     },
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://alchemist/evals/evals.json",
-      "digest": "sha256:660e3f0a21cb82c58f3439918849969d31d5f57018cb33e9467f6b9bf3407edd"
+      "digest": "sha256:77ca637288887720a6ca261514d8b7fd1968e760b3a5ada364c3d4a646f0b7b6"
     },
     {
       "path": "evals/legacy-jfdi.json",
@@ -77,39 +71,9 @@
       "digest": "sha256:473df0302e99ad22000b67813954549d67878aa9517d774843266bdde80c3026"
     },
     {
-      "path": "model-catalog.json",
-      "uri": "legion-skill://alchemist/model-catalog.json",
-      "digest": "sha256:02d3b77ae6f0a4f3a34da9b056b5378f5a48e8f3594bfd69b362e373b9649976"
-    },
-    {
       "path": "references/manual.md",
       "uri": "legion-skill://alchemist/references/manual.md",
-      "digest": "sha256:b36cfd0f224f4d0362b04b2935ed50cc8eb632184d5aa3c1392c7dcc71bd94cc"
-    },
-    {
-      "path": "references/route-resources.json",
-      "uri": "legion-skill://alchemist/references/route-resources.json",
-      "digest": "sha256:bc62023f5f5f4e9bd645fb41a6ebe8ab8f89f1bed578829bb931403904c0208c"
-    },
-    {
-      "path": "scripts/run-worker.ps1",
-      "uri": "legion-skill://alchemist/scripts/run-worker.ps1",
-      "digest": "sha256:eebf1c33106367bd7fb24a4d0128843f2a6fa69ce14e3f801ad83dbdcf7c769c"
-    },
-    {
-      "path": "scripts/run-worker.sh",
-      "uri": "legion-skill://alchemist/scripts/run-worker.sh",
-      "digest": "sha256:f900b2c7516eec6b07065466bdf98236a9ab5fe3abd08ea4c11ad0618c8ee5f8"
-    },
-    {
-      "path": "scripts/start-stack.vbs",
-      "uri": "legion-skill://alchemist/scripts/start-stack.vbs",
-      "digest": "sha256:aaf68e2f56fe76567ba4caf74aa4dbf10f39e081098dcc98bd0d6ab4686ee0f6"
-    },
-    {
-      "path": "scripts/tray.ps1",
-      "uri": "legion-skill://alchemist/scripts/tray.ps1",
-      "digest": "sha256:be2a3d6f65340c7de8d9a72eb99419136d2ac7d48790ac29689b7c39e7018563"
+      "digest": "sha256:75b1fd502940508e38849cea5df1cdb81e080922f05967a5b8d227db8d9ed595"
     }
   ]
 }

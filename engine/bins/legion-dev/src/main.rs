@@ -36,6 +36,13 @@ enum Command {
     CheckPublicationSurface,
     /// Port of `scripts/check-authority-parity.mjs`.
     CheckAuthorityParity,
+    /// Grade recorded role decisions against independently labelled replay cases.
+    EvaluateAuthorityReplay {
+        #[arg(long, default_value = "src/evals/architecture/authority-adoption.jsonl")]
+        cases: std::path::PathBuf,
+        #[arg(long)]
+        observations: std::path::PathBuf,
+    },
     /// Port of `scripts/generate-catalogs.mjs`.
     GenerateCatalogs {
         #[arg(long)]
@@ -168,6 +175,9 @@ fn main() -> ExitCode {
         }
         Command::CheckPublicationSurface => checks::publication_surface::run(&root),
         Command::CheckAuthorityParity => checks::authority_parity::run(&root),
+        Command::EvaluateAuthorityReplay { cases, observations } => {
+            checks::authority_replay::run(&root, &cases, &observations)
+        }
         Command::GenerateCatalogs { check } => generators::catalogs::run(&root, check),
         Command::CheckCanonicalNames { json } => checks::canonical_names::run(&root, json),
         Command::CheckBlueprintConfig { json } => checks::blueprint_config::run(&root, json),

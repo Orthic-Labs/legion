@@ -1,31 +1,18 @@
-//! Portable decision logic shared by `skills/alchemist/scripts/run-worker.sh`
-//! and `run-worker.ps1`. See the module-level doc comment in `super` for why
-//! the process-spawning/watchdog halves of those two scripts are not ported.
+//! Portable input validation shared by host-native Alchemist runners.
+//! for host-native runner input handling.
 
 use regex::Regex;
 
-/// Default OmniRoute gateway URL both scripts fall back to when
-/// `OMNIROUTE_URL` is unset.
-pub const DEFAULT_GATEWAY_URL: &str = "http://127.0.0.1:20128";
-
-/// Documented exit codes from `run-worker.sh`'s header comment (the
-/// PowerShell runner uses the same 0/2/4/5/124 values plus its own
-/// byte/output-limit codes 65/66/125).
+/// Host-native runner exit codes, including bounded input/output failures.
 pub const EXIT_OK: i32 = 0;
 pub const EXIT_USAGE: i32 = 2;
-pub const EXIT_GATEWAY_DOWN: i32 = 4;
 pub const EXIT_UNKNOWN_PROFILE: i32 = 5;
-pub const EXIT_ZERO_EVENTS: i32 = 65; // run-worker.ps1 only
-pub const EXIT_INPUT_TOO_LARGE: i32 = 66; // run-worker.ps1 only
-pub const EXIT_OUTPUT_TOO_LARGE: i32 = 125; // run-worker.ps1 only
+pub const EXIT_ZERO_EVENTS: i32 = 65;
+pub const EXIT_INPUT_TOO_LARGE: i32 = 66;
+pub const EXIT_OUTPUT_TOO_LARGE: i32 = 125;
 pub const EXIT_TIMEOUT: i32 = 124;
 
-/// Port of the `sed -nE 's/^[[:space:]]*model[[:space:]]*=[[:space:]]*"(...)".*/\1/p'`
-/// pipeline in `run-worker.sh` and the equivalent `[regex]::Match` in
-/// `run-worker.ps1`: both extract the first `model = "..."` line from a
-/// Codex profile TOML file using the same character class
-/// (`[A-Za-z0-9._:/-]+`). Returns `None` when the profile has no such line,
-/// mirroring both scripts' "No safe model value in profile" failure.
+/// Extracts first safe `model = "..."` value from Codex profile TOML.
 pub fn extract_model(profile_toml: &str) -> Option<String> {
     // (?m) so `^`/`$` behaviour matches per-line scanning; only the first
     // match is used, matching `head -1` / `[regex]::Match` (first match).
@@ -34,34 +21,7 @@ pub fn extract_model(profile_toml: &str) -> Option<String> {
         .map(|c| c.get(1).unwrap().as_str().to_string())
 }
 
-/// Result of probing `${GATEWAY}/healthz`.
-#[derive(Debug, PartialEq, Eq)]
-pub enum GatewayHealth {
-    /// One of the status codes both scripts treat as "the gateway answered,
-    /// proceed" (run-worker.sh: `200|204|301|302|307|401`).
-    Reachable,
-    /// No code, or a code outside the accepted set: exit
-    /// [`EXIT_GATEWAY_DOWN`].
-    Unreachable,
-}
-
-/// Port of `run-worker.sh`'s `case "$CODE" in 200|204|301|302|307|401) ;; *) exit 4 ;; esac`.
-/// `code` is `None` when the probe itself failed (curl error, empty body),
-/// matching the script's `${CODE:-none}` fallback.
-pub fn classify_healthz(code: Option<u16>) -> GatewayHealth {
-    match code {
-        Some(200 | 204 | 301 | 302 | 307 | 401) => GatewayHealth::Reachable,
-        _ => GatewayHealth::Unreachable,
-    }
-}
-
-/// Port of both scripts' empty-brief guard:
-/// bash: `[ -z "${BRIEF// }" ]` (empty after stripping spaces);
-/// PowerShell: `[string]::IsNullOrWhiteSpace($brief)` (empty after
-/// stripping *all* whitespace, a strictly broader check). This follows the
-/// PowerShell (stricter) behaviour, which is a superset of the bash guard
-/// and is the one that actually blocks the empty-brief exit path in both
-/// runners.
+/// Rejects empty or whitespace-only runner briefs.
 pub fn validate_brief(brief: &str) -> Result<(), &'static str> {
     if brief.trim().is_empty() {
         Err("Empty brief on stdin - refusing to spawn a worker with no task.")
@@ -70,9 +30,7 @@ pub fn validate_brief(brief: &str) -> Result<(), &'static str> {
     }
 }
 
-/// Port of `run-worker.sh`'s `MaxInputBytes` guard in `run-worker.ps1`
-/// (`$briefBytes -gt $MaxInputBytes`), measured in UTF-8 bytes as the
-/// PowerShell script does (`[Text.Encoding]::UTF8.GetByteCount`).
+/// Enforces maximum UTF-8 input size.
 pub fn validate_brief_size(brief: &str, max_input_bytes: usize) -> Result<(), String> {
     let byte_len = brief.len();
     if byte_len > max_input_bytes {
@@ -84,9 +42,8 @@ pub fn validate_brief_size(brief: &str, max_input_bytes: usize) -> Result<(), St
     }
 }
 
-/// Port of the bounded-vs-full-access sandbox argument selection shared by
-/// both scripts: bash checks `ALCHEMIST_FULL_ACCESS=1`, PowerShell checks
-/// the `-FullAccess` switch. Bounded default: `--sandbox workspace-write`;
+/// Selects bounded or explicitly full-access sandbox arguments. Bounded
+/// default: `--sandbox workspace-write`;
 /// explicit opt-in: `--dangerously-bypass-approvals-and-sandbox`.
 pub fn access_args(full_access: bool) -> &'static str {
     if full_access {
@@ -96,26 +53,18 @@ pub fn access_args(full_access: bool) -> &'static str {
     }
 }
 
-/// Port of `run-worker.ps1`'s `Remove-LeadingJsonPreamble`: strips leading
-/// whitespace and a leading BOM (`^[\s﻿]+`) from one line before it is
-/// counted as a JSON event or forwarded to `parse_events.py --stream`.
+/// Strips leading whitespace and BOM from one JSON event line.
 pub fn remove_leading_json_preamble(line: &str) -> String {
     line.trim_start_matches(|c: char| c.is_whitespace() || c == '\u{feff}')
         .to_string()
 }
 
-/// Port of the event-log path both scripts build when the caller does not
-/// supply one explicitly: `${RUN_DIR}/<timestamp>-<profile>.jsonl`
-/// (bash: `date +%Y%m%d-%H%M%S`; PowerShell: `Get-Date -Format
-/// 'yyyyMMdd-HHmmss'` — the same format). `timestamp` is supplied by the
-/// caller (already formatted `yyyyMMdd-HHmmss`) so this stays a pure,
-/// clock-free function.
+/// Builds an event-log path from run directory, timestamp, and profile.
 pub fn default_event_log_path(run_dir: &str, timestamp: &str, profile: &str) -> String {
     format!("{run_dir}/{timestamp}-{profile}.jsonl")
 }
 
-/// Port of `run-worker.sh`'s `PROFILE_FILE="${CODEX_HOME_DIR}/${PROFILE}.config.toml"`
-/// (and the equivalent `Join-Path $codexHome "$Profile.config.toml"`).
+/// Builds a Codex profile config path.
 pub fn profile_file_path(codex_home: &str, profile: &str) -> String {
     format!("{codex_home}/{profile}.config.toml")
 }
@@ -126,8 +75,8 @@ mod tests {
 
     #[test]
     fn extract_model_reads_first_quoted_model_line() {
-        let toml = "profile = \"default\"\nmodel = \"omniroute/gpt-5.6\"\nother = \"x\"\n";
-        assert_eq!(extract_model(toml).as_deref(), Some("omniroute/gpt-5.6"));
+        let toml = "profile = \"default\"\nmodel = \"gpt-5.6\"\nother = \"x\"\n";
+        assert_eq!(extract_model(toml).as_deref(), Some("gpt-5.6"));
     }
 
     #[test]
@@ -145,22 +94,8 @@ mod tests {
     fn extract_model_rejects_disallowed_characters_in_value() {
         // A value containing a character outside [A-Za-z0-9._:/-] (a space)
         // does not match, mirroring the sed/regex character class in both
-        // scripts.
+        // runner inputs.
         assert_eq!(extract_model("model = \"bad value\"\n"), None);
-    }
-
-    #[test]
-    fn classify_healthz_accepts_documented_codes() {
-        for code in [200, 204, 301, 302, 307, 401] {
-            assert_eq!(classify_healthz(Some(code)), GatewayHealth::Reachable);
-        }
-    }
-
-    #[test]
-    fn classify_healthz_rejects_other_codes_and_none() {
-        assert_eq!(classify_healthz(Some(500)), GatewayHealth::Unreachable);
-        assert_eq!(classify_healthz(Some(404)), GatewayHealth::Unreachable);
-        assert_eq!(classify_healthz(None), GatewayHealth::Unreachable);
     }
 
     #[test]
@@ -204,7 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn profile_file_path_matches_both_scripts() {
+    fn profile_file_path_matches_codex_layout() {
         assert_eq!(
             profile_file_path("/home/u/.codex", "fast"),
             "/home/u/.codex/fast.config.toml"

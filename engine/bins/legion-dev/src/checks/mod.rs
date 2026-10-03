@@ -1,4 +1,5 @@
 pub mod authority_parity;
+pub mod authority_replay;
 pub mod blueprint_config;
 pub mod canonical_names;
 pub mod dependency_closure;

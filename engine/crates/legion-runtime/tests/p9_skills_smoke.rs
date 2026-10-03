@@ -2,7 +2,7 @@
 //! entry points end to end (not just the private helpers unit-tested inside each file), per the
 //! "assert on the production entry point" rule.
 
-use legion_runtime::p9_skills::alchemist::{extract_model_from_profile, is_gateway_reachable};
+use legion_runtime::p9_skills::alchemist::extract_model_from_profile;
 use legion_runtime::p9_skills::brand_identity::{audit_pairs, check_contrast, AuditPair};
 use legion_runtime::p9_skills::covenant::{digest_value, validate_record_fields};
 use legion_runtime::p9_skills::qa::{build_dispatch, QaVerb};
@@ -48,11 +48,9 @@ fn covenant_contracts_digest_and_validate_entry_points() {
 }
 
 #[test]
-fn alchemist_worker_profile_and_healthz_entry_points() {
-    let profile = "  model = \"gpt-5.6-omniroute\"\n";
-    assert_eq!(extract_model_from_profile(profile).as_deref(), Some("gpt-5.6-omniroute"));
-    assert!(is_gateway_reachable(200));
-    assert!(!is_gateway_reachable(500));
+fn alchemist_worker_profile_entry_point() {
+    let profile = "  model = \"gpt-5.6\"\n";
+    assert_eq!(extract_model_from_profile(profile).as_deref(), Some("gpt-5.6"));
 }
 
 #[test]
