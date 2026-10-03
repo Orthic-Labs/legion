@@ -1,11 +1,6 @@
-//! Port of `src/lib/host/adapters/{claude-code,codex,cline,command-code,pi,generic}.mjs`.
-//!
-//! Only the `id`, `installOwner`, and `surfaces` fields are ported — the
-//! only fields `generate-host-projection.mjs`'s `harnessFidelity()` reads.
-//! `detect` (used by runtime harness auto-detection, not by this
-//! generator) and `generic.mjs`'s `resolveGenericDescriptor`/env-descriptor
-//! merge logic (a runtime bind-time concern, not read by the host
-//! projection generator) are not ported.
+//! Host surface declarations consumed by the projection generator.
+//! Native role configuration is materialized by legion's commands/bind.rs;
+//! supported configuration does not prove a host loaded or launched a role.
 
 pub struct Surface {
     pub fidelity: &'static str,
@@ -42,7 +37,7 @@ pub fn host_adapters() -> Vec<Adapter> {
         Adapter {
             id: "codex",
             install_owner: "adapter",
-            surfaces: surfaces!("strong", "agents-md", "strong", "skills-dir", "unsupported", "none", "strong", "toml", "unsupported", "none"),
+            surfaces: surfaces!("strong", "agents-md", "strong", "skills-dir", "strong", "agent-config", "strong", "toml", "unsupported", "none"),
         },
         Adapter {
             id: "cline",

@@ -4,6 +4,152 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
+/// Read configuration candidates. Host trust, profiles, live overrides & loading
+/// are not observable through this filesystem diagnostic.
+fn role_configuration(home: &Path, root: &Path) -> Value {
+    let codex_home = std::env::var_os("CODEX_HOME").map(PathBuf::from).unwrap_or_else(|| home.join(".codex"));
+    role_configuration_in(home, root, &codex_home)
+}
+
+fn role_configuration_in(home: &Path, root: &Path, codex_home: &Path) -> Value {
+    let mut scopes = root.ancestors().map(Path::to_path_buf).collect::<Vec<_>>();
+    scopes.retain(|scope| scope != home);
+    scopes.push(home.to_path_buf());
+    let layers = scopes.iter().filter_map(|scope| {
+        let config = if scope == home { codex_home.join("config.toml") } else { scope.join(".codex/config.toml") };
+        config.is_file().then(|| {
+            let parsed = std::fs::read_to_string(&config).map_err(|e| e.to_string())
+                .and_then(|raw| toml::from_str::<toml::Value>(&raw).map_err(|e| e.to_string()));
+            (scope.clone(), config, parsed)
+        })
+    }).collect::<Vec<_>>();
+    let sources = layers.iter().map(|(scope, config, parsed)| json!({
+        "scope":scope,"config":config,"state":if parsed.is_ok(){"parsed"}else{"invalid"}
+    })).collect::<Vec<_>>();
+    let configuration_error = layers.iter().find_map(|(_, config, parsed)|
+        parsed.as_ref().err().map(|error| json!({"config":config,"error":error})));
+    let inherited_setting = |keys: &[&str]| -> Option<toml::Value> {
+        layers.iter().filter_map(|(_, _, parsed)| parsed.as_ref().ok()).find_map(|value| {
+            keys.iter().try_fold(value, |value, key| value.get(*key)).cloned()
+        })
+    };
+    let entries = ["sage", "alchemist", "oracle"].iter().map(|id| {
+        let mut row = json!({"role":id,"status":"unregistered","declaredModelTier":role(id).tier,
+            "tierCompatibility":"unverified","runtime":{"status":"unknown",
+            "reason":"file configuration does not prove role loading, model compatibility or accepted launch"}});
+        if let Some(error) = &configuration_error {
+            row["status"] = json!("invalid"); row["configurationError"] = error.clone();
+            return row;
+        }
+        // Resolve config_file per key: a nearer description-only override must
+        // not erase a parent's role path or change its relative-path base.
+        let mut registered = false;
+        let mut selected = None;
+        for (scope, config, parsed) in &layers {
+            let value = parsed.as_ref().unwrap();
+            if let Some(registration) = value.get("agents").and_then(|v| v.get(*id)) {
+                registered = true;
+                let Some(table) = registration.as_table() else {
+                    row["status"] = json!("invalid"); row["configurationError"] = json!("role registration must be a table");
+                    return row;
+                };
+                if let Some(path) = table.get("config_file") {
+                    let Some(path) = path.as_str().filter(|s| !s.trim().is_empty()) else {
+                        row["status"] = json!("invalid"); row["configurationError"] = json!("config_file must be a nonblank path");
+                        return row;
+                    };
+                    selected = Some((scope.clone(), config.parent().unwrap().join(path), "config_file"));
+                    break;
+                }
+            }
+        }
+        // Current hosts can discover standalone role files without a legacy
+        // [agents.<role>] declaration. Standard generated names are inspected.
+        if selected.is_none() {
+            selected = scopes.iter().find_map(|scope| {
+                let path = if scope == home { codex_home.join(format!("agents/{id}.toml")) } else { scope.join(format!(".codex/agents/{id}.toml")) };
+                path.is_file().then(|| (scope.clone(), path, "standalone-file"))
+            });
+        }
+        let Some((scope, file, mechanism)) = selected else {
+            if registered { row["status"] = json!("registered-without-file"); }
+            return row;
+        };
+        row["status"] = json!("registered"); row["scope"] = json!(scope);
+        row["inheritance"] = json!(if scope == root {"local"} else {"inherited"});
+        row["configFile"] = json!(file); row["mechanism"] = json!(mechanism);
+        let raw = match std::fs::read_to_string(&file) {
+            Ok(raw) => raw,
+            Err(error) => {
+                row["fileState"] = json!(if file.exists() {"invalid"} else {"missing"});
+                row["fileError"] = json!(error.to_string());
+                return row;
+            }
+        };
+        let parsed: toml::Value = match toml::from_str(&raw) {
+            Ok(value) => value,
+            Err(_) => { row["fileState"] = json!("invalid"); return row; }
+        };
+        let valid = parsed.get("name").and_then(toml::Value::as_str) == Some(*id)
+            && ["description", "developer_instructions"].iter().all(|key|
+                parsed.get(*key).and_then(toml::Value::as_str).is_some_and(|s| !s.trim().is_empty()))
+            && ["model", "model_reasoning_effort"].iter().all(|key|
+                parsed.get(*key).is_none_or(|v| v.as_str().is_some_and(|s| !s.trim().is_empty())));
+        if !valid { row["fileState"] = json!("invalid"); return row; }
+        row["fileState"] = json!("valid");
+        row["projectionState"] = json!(if parsed.get("developer_instructions").and_then(toml::Value::as_str)
+            == Some(role_projection(id).as_str()) && parsed.get("description").and_then(toml::Value::as_str)
+            == Some(role(id).description.as_str()) {"current"} else {"stale"});
+        let (model, source) = if let Some(model) = parsed.get("model") {
+            (Some(model.clone()), "role-file")
+        } else if let Some(model) = inherited_setting(&["agents", "default_subagent_model"]) {
+            (Some(model), "subagent-default")
+        } else { (inherited_setting(&["model"]), "parent-config") };
+        row["configuredModel"] = json!(model); row["modelSource"] = json!(source);
+        row["roleReasoningEffort"] = json!(parsed.get("model_reasoning_effort"));
+        row
+    }).collect::<Vec<_>>();
+    json!({"entries":entries,"sources":sources,"resolution":"nearest-file-per-key",
+        "hostModelDefaults":{"parent":inherited_setting(&["model"]),
+            "parentEffort":inherited_setting(&["model_reasoning_effort"]),
+            "subagent":inherited_setting(&["agents", "default_subagent_model"]),
+            "subagentEffort":inherited_setting(&["agents", "default_subagent_reasoning_effort"])},
+        "unobserved":["project trust", "active profile", "CLI/runtime overrides", "nonstandard standalone filenames", "runtime role loading", "model availability/tier compatibility", "accepted launch"]})
+}
+
+fn codex_agent_content(id: &str) -> String {
+    format!("# Generated by Legion bind. Do not edit; re-run `legion bind --write`.\nname = {}\ndescription = {}\ndeveloper_instructions = {}\n\n",
+        json_string(id), json_string(&role(id).description), json_string(&role_projection(id)))
+}
+
+fn codex_role_target_content(root: &Path, id: &str) -> String {
+    let report = role_configuration(&home_dir(), root);
+    let defaults = &report["hostModelDefaults"];
+    let mut profile: toml::Value = std::fs::read_to_string(root.join(format!(".codex/agents/{id}.toml")))
+        .ok().and_then(|text| toml::from_str(&text).ok()).unwrap_or_else(|| toml::from_str(&codex_agent_content(id)).unwrap());
+    if !profile.is_table() { profile = toml::from_str(&codex_agent_content(id)).unwrap(); }
+    let table = profile.as_table_mut().unwrap();
+    let canonical: toml::Value = toml::from_str(&codex_agent_content(id)).unwrap();
+    for key in ["name", "description", "developer_instructions"] {
+        table.insert(key.into(), canonical[key].clone());
+    }
+    // Frontier roles must not silently inherit a cheaper worker default.
+    // Exact names come from host configuration, never roster prose.
+    let judgment = role(id).tier == "frontier-judgment";
+    let (model, effort) = if judgment || defaults["subagent"].as_str().is_none() {
+        (&defaults["parent"], &defaults["parentEffort"])
+    } else { (&defaults["subagent"], &defaults["subagentEffort"]) };
+    if !table.contains_key("model") {
+        if let Some(model) = model.as_str().filter(|s| !s.trim().is_empty()) {
+            table.insert("model".into(), toml::Value::String(model.into()));
+            if !table.contains_key("model_reasoning_effort") {
+                if let Some(effort) = effort.as_str() { table.insert("model_reasoning_effort".into(), toml::Value::String(effort.into())); }
+            }
+        }
+    }
+    format!("# Generated by Legion bind. Host settings preserved; re-run `legion bind --write`.\n{}", toml::to_string(&profile).unwrap())
+}
+
 
 const HARNESS_NAMES: [&str; 4] = ["claude-code", "codex", "gemini", "agents-md"];
 const MARKER_START: &str = "<!-- legion:bind:start v1 -->";
@@ -15,6 +161,132 @@ const ROSTER_ALCHEMIST: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), 
 const ROSTER_ORACLE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/roster/oracle.md"));
 const COVENANT_DOCTRINE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../doctrine/covenant-seat.md"));
 const HOST_PROJECTION: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/host-projection.json"));
+const LEGION_DOCTRINE: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../doctrine/legion.md"));
+
+#[cfg(test)]
+mod role_binding_tests {
+    use super::*;
+    struct Fixture(PathBuf);
+    impl Fixture {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!("legion-role-binding-{}-{}",
+                std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+            std::fs::create_dir_all(path.join("home")).unwrap();
+            std::fs::create_dir_all(path.join("project/deep")).unwrap();
+            Self(path)
+        }
+        fn write(&self, path: &str, text: &str) {
+            let path = self.0.join(path);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        }
+        fn report(&self) -> Value {
+            role_configuration_in(&self.0.join("home"), &self.0.join("project/deep"), &self.0.join("home/.codex"))
+        }
+    }
+    impl Drop for Fixture {
+        fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); }
+    }
+    const PROFILE: &str = "name = 'sage'\ndescription = 'judgment'\ndeveloper_instructions = 'bounded adjudication'\n";
+
+    #[test]
+    fn inherited_path_keeps_declaring_base_under_description_override() {
+        let f = Fixture::new();
+        f.write("project/.codex/config.toml", "model = 'parent-model'\n[agents.sage]\nconfig_file = 'custom/decision.toml'\n");
+        f.write("project/.codex/custom/decision.toml", &format!("{PROFILE}model = 'role-model'\n"));
+        f.write("project/deep/.codex/config.toml", "[agents.sage]\ndescription = 'local guidance'\n[agents]\ndefault_subagent_model = 'cheap-default'\n");
+        let row = f.report()["entries"][0].clone();
+        assert_eq!(row["fileState"], "valid");
+        assert_eq!(row["inheritance"], "inherited");
+        assert_eq!(row["configuredModel"], "role-model");
+        assert_eq!(row["modelSource"], "role-file");
+        assert_eq!(row["runtime"]["status"], "unknown");
+    }
+
+    #[test]
+    fn missing_nearer_profile_does_not_fall_back_to_parent() {
+        let f = Fixture::new();
+        f.write("project/.codex/config.toml", "[agents.sage]\nconfig_file = 'sage.toml'\n");
+        f.write("project/.codex/sage.toml", PROFILE);
+        f.write("project/deep/.codex/config.toml", "[agents.sage]\nconfig_file = 'missing.toml'\n");
+        let row = f.report()["entries"][0].clone();
+        assert_eq!(row["fileState"], "missing");
+        assert_eq!(row["inheritance"], "local");
+    }
+
+    #[test]
+    fn malformed_config_or_role_file_never_reports_valid_binding() {
+        let f = Fixture::new();
+        f.write("project/.codex/agents/sage.toml", PROFILE);
+        f.write("project/deep/.codex/config.toml", "[agents.sage\n");
+        assert_eq!(f.report()["entries"][0]["status"], "invalid");
+        f.write("project/deep/.codex/config.toml", "[agents.sage]\nconfig_file = 'sage.toml'\n");
+        f.write("project/deep/.codex/sage.toml", "# name = 'sage'\n# developer_instructions = 'fake'\nmalformed = [\n");
+        assert_eq!(f.report()["entries"][0]["fileState"], "invalid");
+    }
+
+    #[test]
+    fn standalone_file_reports_subagent_default_separately_from_role_tier() {
+        let f = Fixture::new();
+        f.write("home/.codex/config.toml", "model = 'parent-model'\n[agents]\ndefault_subagent_model = 'host-worker-model'\n");
+        f.write("project/deep/.codex/agents/sage.toml", PROFILE);
+        let row = f.report()["entries"][0].clone();
+        assert_eq!(row["mechanism"], "standalone-file");
+        assert_eq!(row["configuredModel"], "host-worker-model");
+        assert_eq!(row["modelSource"], "subagent-default");
+        assert_eq!(row["declaredModelTier"], "frontier-judgment");
+        assert_eq!(row["tierCompatibility"], "unverified");
+    }
+
+    #[test]
+    fn generated_profiles_satisfy_native_required_fields_and_lead_selects_above_dispatch() {
+        for id in ["sage", "alchemist", "oracle"] {
+            let parsed: toml::Value = toml::from_str(&codex_agent_content(id)).unwrap();
+            for key in ["name", "description", "developer_instructions"] {
+                assert!(!parsed[key].as_str().unwrap().trim().is_empty());
+            }
+        }
+        let lead = agents_target(Path::new("unused")).expected;
+        assert!(lead.contains("before selecting Dispatch"));
+        assert!(lead.contains("## Role selection reference"));
+        assert_eq!(lead.matches("## Triggers").count(), 3);
+        assert!(lead.contains("never silently downgrade"));
+    }
+
+    #[test]
+    fn judgment_profiles_use_parent_model_and_preserve_operator_overrides() {
+        let f = Fixture::new();
+        f.write("project/deep/.codex/config.toml", "model = 'host-frontier'\nmodel_reasoning_effort = 'high'\n[agents]\ndefault_subagent_model = 'host-executor'\n");
+        let root = f.0.join("project/deep");
+        for id in ["sage", "oracle"] {
+            let profile: toml::Value = toml::from_str(&codex_role_target_content(&root, id)).unwrap();
+            assert_eq!(profile["model"].as_str(), Some("host-frontier"));
+            assert_eq!(profile["model_reasoning_effort"].as_str(), Some("high"));
+        }
+        let profile: toml::Value = toml::from_str(&codex_role_target_content(&root, "alchemist")).unwrap();
+        assert_eq!(profile["model"].as_str(), Some("host-executor"));
+        f.write("project/deep/.codex/agents/alchemist.toml", "model = 'operator-model'\nsandbox_mode = 'read-only'\n");
+        let profile: toml::Value = toml::from_str(&codex_role_target_content(&root, "alchemist")).unwrap();
+        assert_eq!(profile["model"].as_str(), Some("operator-model"));
+        assert_eq!(profile["sandbox_mode"].as_str(), Some("read-only"));
+    }
+
+    #[test]
+    fn shared_generated_lead_context_is_updated_through_its_owner() {
+        let f = Fixture::new();
+        let root = f.0.join("project/deep");
+        f.write("project/deep/AGENTS.md", "<!-- GENERATED FILE. Source: docs/agent-rules/legion.md -->\nSelect roles from legion/src/roster/*\n");
+        let target = agents_target(&root);
+        assert!(target.skip_write);
+        assert!(target.conflicts.is_empty());
+        assert_eq!(target.kind, "external-context");
+        let plan = build_harness(&root, "codex", None);
+        assert!(plan.report["wouldWrite"].as_array().unwrap().iter().all(|row|
+            row["path"].as_str() != Some(root.join("AGENTS.md").to_str().unwrap())));
+        f.write("project/deep/AGENTS.md", "<!-- GENERATED FILE. Source: docs/agent-rules/legion.md -->\nOld context\n");
+        assert!(!agents_target(&root).conflicts.is_empty());
+    }
+}
 
 #[derive(Debug, Args)]
 pub struct BindArgs {
@@ -78,7 +350,7 @@ fn build_harness(root:&Path,name:&str,receipt:Option<&Value>)->HarnessPlan{
     let prior=receipt.and_then(|r|r["harnesses"].as_array()).and_then(|rs|rs.iter().find(|h|h["name"].as_str()==Some(name)));
     let artifacts=targets.iter().map(|t|artifact(root,t)).collect::<Vec<_>>(); let drift=drift_for_harness(root,prior,&targets);
     let managed=targets.iter().filter(|t|!t.conflicts.is_empty()).map(|t|json!({"path":t.path,"conflicts":t.conflicts})).collect::<Vec<_>>();
-    let mut report=json!({"name":name,"present":present,"fidelityTier":fidelity,"wouldWrite":targets.iter().map(|t|json!({"path":t.path,"reason":t.reason})).collect::<Vec<_>>(),"artifacts":artifacts,"drift":drift,"managedConflicts":managed});
+    let mut report=json!({"name":name,"present":present,"fidelityTier":fidelity,"wouldWrite":targets.iter().filter(|t|!t.skip_write && t.conflicts.is_empty()).map(|t|json!({"path":t.path,"reason":t.reason})).collect::<Vec<_>>(),"artifacts":artifacts,"drift":drift,"managedConflicts":managed});
     if retired.is_some(){report["retired"]=json!(true);} if let Some(n)=note{report["note"]=json!(n);}
     for t in &mut targets{if !t.conflicts.is_empty(){t.skip_write=true;}}
     HarnessPlan{targets,report}
@@ -179,9 +451,19 @@ fn gemini_targets(root: &Path) -> Vec<Target> {
     ));
     out
 }
-fn agents_target(root:&Path)->Target{let roles=["sage","alchemist","oracle"].iter().map(|id|{let r=role(id);format!("- **{}** — {} Model tier: `{}`.",r.name,r.description,r.tier)}).collect::<Vec<_>>().join("\n");let cat=capability_catalog();let block=format!("# Legion authority context\n\n{roles}\n- **Covenant seat** — doctrine-only advisory review seat; not an authority.\n\nUse Legion routing. Do not edit generated harness files; rerun `legion bind --write`.{}",if cat.is_empty(){String::new()}else{format!("\n\n{cat}")});target_marker(root.join("AGENTS.md"),"install low-fidelity Legion authority context and capability catalog in AGENTS.md".into(),block)}
+fn agents_target(root:&Path)->Target{
+    let path = root.join("AGENTS.md");
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    if existing.starts_with("<!-- GENERATED FILE.") && existing.contains("Source: docs/agent-rules/legion.md") {
+        let conflicts = if existing.contains("legion/src/roster/*") {Vec::new()} else {
+            vec![json!({"kind":"external-context-needs-source-update","owner":"docs/agent-rules/legion.md"})]
+        };
+        return Target {path,kind:"external-context",reason:"Legion context is maintained by workspace agent-rules source".into(),
+            expected:existing.clone(),write_content:existing,skip_write:true,conflicts};
+    }
+    let roles=["sage","alchemist","oracle"].iter().map(|id|{let r=role(id);let source=match *id{"sage"=>ROSTER_SAGE,"alchemist"=>ROSTER_ALCHEMIST,_=>ROSTER_ORACLE};let trigger=markdown_section(&frontmatter(source).1,"Triggers").unwrap_or_default();format!("- **{}** — {} Model tier: `{}`.\n\n{}",r.name,r.description,r.tier,trigger)}).collect::<Vec<_>>().join("\n\n");let cat=capability_catalog();let lead=markdown_section(&frontmatter(LEGION_DOCTRINE).1,"Role selection reference").unwrap_or_default();let block=format!("# Legion authority context\n\n{lead}\n\n{roles}\n\n- **Covenant seat** — doctrine-only advisory review seat; not an authority.\n\nUse Legion routing. Do not edit generated harness files; rerun `legion bind --write`.{}",if cat.is_empty(){String::new()}else{format!("\n\n{cat}")});target_marker(root.join("AGENTS.md"),"install low-fidelity Legion authority context and capability catalog in AGENTS.md".into(),block)}
 
-fn codex_targets(root:&Path)->Vec<Target>{let mut out=Vec::new();for id in ["sage","alchemist","oracle"]{let content=format!("# Generated by Legion bind. Do not edit; re-run `legion bind --write`.\nname = {}\ndeveloper_instructions = {}\n\n",json_string(id),json_string(&role_projection(id)));out.push(target_whole(root.join(format!(".codex/agents/{id}.toml")),format!("install {id} agent projection under .codex/agents/"),content));}let content=format!("# Generated by Legion bind. Do not edit; re-run `legion bind --write`.\nname = {}\ndeveloper_instructions = {}\n\n",json_string("covenant-seat"),json_string(COVENANT_DOCTRINE));out.push(target_whole(root.join(".codex/agents/covenant-seat.toml"),"install covenant-seat agent projection under .codex/agents/".into(),content));let path=root.join(".codex/config.toml");let raw=std::fs::read_to_string(&path).unwrap_or_default();let(existing,conf)=migrate_legacy_config(&raw);let target=if let Some(c)=conf{Target{path:path.clone(),kind:"toml-managed",reason:"install Legion agent projections and MCP entry in .codex/config.toml".into(),expected:raw.clone(),write_content:raw,skip_write:true,conflicts:c}}else{match upsert_managed(&existing,&generated_header(),&config_inner()){Ok((c,_))=>Target{path:path.clone(),kind:"toml-managed",reason:"install Legion agent projections and MCP entry in .codex/config.toml".into(),expected:c.clone(),skip_write:c==raw,write_content:c,conflicts:Vec::new()},Err(c)=>Target{path:path.clone(),kind:"toml-managed",reason:"install Legion agent projections and MCP entry in .codex/config.toml".into(),expected:raw.clone(),write_content:raw,skip_write:true,conflicts:c}}};out.push(target);out}
+fn codex_targets(root:&Path)->Vec<Target>{let mut out=vec![agents_target(root)];for id in ["sage","alchemist","oracle"]{let content=codex_role_target_content(root,id);out.push(target_whole(root.join(format!(".codex/agents/{id}.toml")),format!("install {id} agent projection under .codex/agents/"),content));}let content=format!("# Generated by Legion bind. Do not edit; re-run `legion bind --write`.\nname = {}\ndescription = {}\ndeveloper_instructions = {}\n\n",json_string("covenant-seat"),json_string(&frontmatter(COVENANT_DOCTRINE).0.get("description").cloned().unwrap_or_default()),json_string(COVENANT_DOCTRINE));out.push(target_whole(root.join(".codex/agents/covenant-seat.toml"),"install covenant-seat agent projection under .codex/agents/".into(),content));let path=root.join(".codex/config.toml");let raw=std::fs::read_to_string(&path).unwrap_or_default();let(existing,conf)=migrate_legacy_config(&raw);let target=if let Some(c)=conf{Target{path:path.clone(),kind:"toml-managed",reason:"install Legion agent projections and MCP entry in .codex/config.toml".into(),expected:raw.clone(),write_content:raw,skip_write:true,conflicts:c}}else{match upsert_managed(&existing,&generated_header(),&config_inner()){Ok((c,_))=>Target{path:path.clone(),kind:"toml-managed",reason:"install Legion agent projections and MCP entry in .codex/config.toml".into(),expected:c.clone(),skip_write:c==raw,write_content:c,conflicts:Vec::new()},Err(c)=>Target{path:path.clone(),kind:"toml-managed",reason:"install Legion agent projections and MCP entry in .codex/config.toml".into(),expected:raw.clone(),write_content:raw,skip_write:true,conflicts:c}}};out.push(target);out}
 fn config_inner()->String{let mut t=Vec::new();for id in ["sage","alchemist","oracle"]{let r=role(id);t.push(format!("[agents.{id}]\ndescription = {}\nconfig_file = {}\n",json_string(&r.description),json_string(&format!("agents/{id}.toml"))));}let covenant=frontmatter(COVENANT_DOCTRINE).0.get("description").cloned().unwrap_or_default();t.push(format!("[agents.covenant-seat]\ndescription = {}\nconfig_file = \"agents/covenant-seat.toml\"\n",json_string(&covenant)));t.join("\n")}
 fn generated_header()->String{"# Generated by Legion bind.\n# Owned keys: [agents.sage], [agents.alchemist], [agents.oracle], [agents.covenant-seat].\n# Everything outside the legion:managed-block markers below is the user's file.".into()}
 fn owned_headers()->Vec<String>{["[agents.sage]","[agents.alchemist]","[agents.oracle]","[agents.covenant-seat]","[mcp_servers.legion]"].iter().map(|s|(*s).into()).collect()}
@@ -199,9 +481,9 @@ fn assurance_migration(raw:&str)->(String,Option<Vec<Value>>){let target="[mcp_s
 fn migrate_mcp_servers(value:&mut Value){let Some(obj)=value.as_object_mut()else{return};let key=if obj.get("mcp_servers").is_some_and(Value::is_object){"mcp_servers"}else if obj.get("mcpServers").is_some_and(Value::is_object){"mcpServers"}else{return};let Some(servers)=obj.get_mut(key).and_then(Value::as_object_mut)else{return};let Some(seer)=servers.get("seer").cloned()else{return};let owned=seer["command"].as_str().is_some_and(|x|x=="python"||x=="python3")&&seer["args"].as_array().is_some_and(|a|a.windows(2).any(|w|w[0]=="-m"&&w[1]=="legion_kernel.adapters.mcp_server"));if owned{if !servers.contains_key("oracle"){servers.insert("oracle".into(),seer.clone());servers.remove("seer");}else if servers["oracle"]==seer{servers.remove("seer");}}}
 fn read_json_file(path:&Path)->Option<Value>{serde_json::from_str(&std::fs::read_to_string(path).ok()?).ok()}
 
-fn registrations_report(root:&Path)->CommandResult{let home=home_dir();let e=enumerate_registrations(&home,Some(root));let d=e["duplicates"].as_array().is_some_and(|x|!x.is_empty());let mut o=json!({"schemaVersion":1,"kind":"legion-bind-registrations","root":root,"sources":e["sources"],"registrations":e["registrations"],"duplicates":e["duplicates"]});if d{o["status"]=json!("policy-fail");}Ok(o)}
+fn registrations_report(root:&Path)->CommandResult{let home=home_dir();let e=enumerate_registrations(&home,Some(root));let d=e["duplicates"].as_array().is_some_and(|x|!x.is_empty());let mut o=json!({"schemaVersion":2,"kind":"legion-bind-registrations","root":root,"sources":e["sources"],"registrations":e["registrations"],"duplicates":e["duplicates"],"roles":role_configuration(&home,root)});if d{o["status"]=json!("policy-fail");}Ok(o)}
 fn home_dir()->PathBuf{std::env::var_os("USERPROFILE").map(PathBuf::from).or_else(||std::env::var_os("HOME").map(PathBuf::from)).unwrap_or_else(||PathBuf::from("."))}
-fn enumerate_registrations(home:&Path,root:Option<&Path>)->Value{let mut r=Vec::new();let mut s=Vec::new();settings_source(&home.join(".claude/settings.json"),"user-settings",&mut r,&mut s);if let Some(root)=root{settings_source(&root.join(".claude/settings.json"),"project-settings",&mut r,&mut s);settings_source(&root.join(".claude/settings.local.json"),"project-local-settings",&mut r,&mut s)}skills_dir_plugins(home,&mut r,&mut s);marketplace_plugins(home,&mut r,&mut s);let mut g:BTreeMap<String,Vec<Value>>=BTreeMap::new();for e in &r{g.entry(format!("{}::{}",e["event"].as_str().unwrap_or_default(),e["handler"].as_str().unwrap_or_default())).or_default().push(e.clone())}let mut d=Vec::new();for(k,es)in g{let src=es.iter().filter_map(|e|e["source"].as_str()).collect::<BTreeSet<_>>();if es.len()>1&&src.len()>1{let p=k.splitn(2,"::").collect::<Vec<_>>();let sources=src.into_iter().collect::<Vec<_>>();d.push(json!({"event":p[0],"handler":p.get(1).copied().unwrap_or_default(),"count":es.len(),"sources":sources,"detail":format!("{} runs {}x on {} (from {})",p.get(1).copied().unwrap_or_default(),es.len(),p[0],sources.join(" + "))}))}}r.sort_by_key(|e|format!("{}{}{}",e["event"],e["handler"],e["source"]));d.sort_by_key(|e|e["detail"].as_str().unwrap_or_default().to_owned());json!({"sources":s,"registrations":r,"duplicates":d})}
+fn enumerate_registrations(home:&Path,root:Option<&Path>)->Value{let mut r=Vec::new();let mut s=Vec::new();settings_source(&home.join(".claude/settings.json"),"user-settings",&mut r,&mut s);if let Some(root)=root{let mut p=Some(root);let mut n=0;while let Some(scope)=p{settings_source(&scope.join(".claude/settings.json"),if n==0{"project-settings"}else{"ancestor-settings"},&mut r,&mut s);settings_source(&scope.join(".claude/settings.local.json"),if n==0{"project-local-settings"}else{"ancestor-local-settings"},&mut r,&mut s);if scope==home{break}p=scope.parent();n+=1}}skills_dir_plugins(home,&mut r,&mut s);marketplace_plugins(home,&mut r,&mut s);let mut g:BTreeMap<String,Vec<Value>>=BTreeMap::new();for e in &r{g.entry(format!("{}::{}",e["event"].as_str().unwrap_or_default(),e["handler"].as_str().unwrap_or_default())).or_default().push(e.clone())}let mut d=Vec::new();for(k,es)in g{let src=es.iter().filter_map(|e|e["source"].as_str()).collect::<BTreeSet<_>>();if es.len()>1&&src.len()>1{let p=k.splitn(2,"::").collect::<Vec<_>>();let sources=src.into_iter().collect::<Vec<_>>();d.push(json!({"event":p[0],"handler":p.get(1).copied().unwrap_or_default(),"count":es.len(),"sources":sources,"detail":format!("{} runs {}x on {} (from {})",p.get(1).copied().unwrap_or_default(),es.len(),p[0],sources.join(" + "))}))}}r.sort_by_key(|e|format!("{}{}{}",e["event"],e["handler"],e["source"]));d.sort_by_key(|e|e["detail"].as_str().unwrap_or_default().to_owned());json!({"sources":s,"registrations":r,"duplicates":d})}
 fn settings_source(path:&Path,source:&str,out:&mut Vec<Value>,sources:&mut Vec<Value>){if !path.is_file(){return}let Some(v)=read_json_file(path)else{return};sources.push(json!({"source":source,"path":path,"kind":"settings"}));from_hooks(v.get("hooks"),source,path,out)}
 fn from_hooks(hooks:Option<&Value>,source:&str,path:&Path,out:&mut Vec<Value>){let Some(h)=hooks.and_then(Value::as_object)else{return};for(event,rows)in h{for row in rows.as_array().into_iter().flatten(){for hook in row["hooks"].as_array().into_iter().flatten(){let args=hook["args"].as_array().map(|a|a.iter().filter_map(Value::as_str).collect::<Vec<_>>()).unwrap_or_default();out.push(json!({"event":event,"handler":handler_id(hook["command"].as_str(),&args),"source":source,"sourcePath":path}))}}}}
 fn plugin_source(dir:&Path,source:&str,out:&mut Vec<Value>,sources:&mut Vec<Value>){let m=dir.join(".claude-plugin/plugin.json");let h=dir.join("hooks/hooks.json");if !m.is_file()||!h.is_file(){return}let Some(v)=read_json_file(&h)else{return};sources.push(json!({"source":source,"path":h,"kind":"plugin"}));from_hooks(if v.get("hooks").is_some(){v.get("hooks")}else{Some(&v)},source,&h,out)}

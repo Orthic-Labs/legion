@@ -215,10 +215,16 @@ pub fn run_local_windows_development(options: RunLocalWindowsDevelopmentOptions)
     phase("native-release-build", || {
         let comspec = options.env.get("ComSpec").cloned().unwrap_or_else(|| "cmd.exe".to_string());
         let build_options = CommandOptions { cwd: Some(root.to_path_buf()), env: Some(options.env.clone()) };
+        let hosted_ci = options.env.get("GITHUB_ACTIONS").map(String::as_str) == Some("true");
+        let command = if hosted_ci { "cargo" } else { &comspec };
+        let mut arguments: Vec<String> = if hosted_ci { vec![] } else {
+            vec!["/d".into(), "/s".into(), "/c".into(), "rightkit.cmd".into(), "cargo".into()]
+        };
+        arguments.extend(["build", "--manifest-path", "engine/Cargo.toml", "--locked", "--release", "-p", "legion", "-p", "legion-hook", "-p", "legion-mcp", "--target", TARGET].map(String::from));
         run_labeled(
             options.runner,
-            &comspec,
-            &["/d".into(), "/s".into(), "/c".into(), "rightkit.cmd".into(), "cargo".into(), "build".into(), "--manifest-path".into(), "engine/Cargo.toml".into(), "--locked".into(), "--release".into(), "-p".into(), "legion".into(), "-p".into(), "legion-hook".into(), "-p".into(), "legion-mcp".into(), "--target".into(), TARGET.into()],
+            command,
+            &arguments,
             &build_options,
             "managed native release build",
         )?;

@@ -10,13 +10,14 @@ use std::{
 use legion_application::{NativeApplication, NativeApplicationConfig};
 use legion_contracts::{
     AgentId, AuthorityKind, CapabilityUsage, ChallengePass, ComputePosture, ContextUsage,
-    CostUsage, EffectClass, EffectRequest, OutcomeResult, RequestId, Route, RouteOutcomeTrace,
-    SemanticRequirement, TaskId, TraceId,
+    CostUsage, EffectClass, EffectRequest, OutcomeResult, RequestId, RoleDecision,
+    Route, RouteOutcomeTrace, SemanticRequirement, TaskId, TraceId,
 };
 use serde_json::{Map, Value};
 
 mod error;
 mod protocol;
+mod codex;
 
 use error::HookError;
 use protocol::{HookRequest, HookResponse};
@@ -1926,6 +1927,15 @@ pub struct TraceMetrics {
     /// challenged, evidence-available traces ending in NARROW or REVISE /
     /// materially assumption-dependent traces.
     pub avoidable_user_challenge_rate: MetricValue,
+    /// Launched role decisions / labelled eligible=true role decisions.
+    pub role_adoption_rate: MetricValue,
+    pub labelled_role_eligibility: usize,
+    pub selected_roles: usize,
+    pub bound_roles: usize,
+    pub launched_roles: usize,
+    pub skipped_roles: usize,
+    pub unnecessary_role_launches: usize,
+    pub unknown_role_launches: usize,
 }
 
 /// Fold route traces into the tracker rates without inspecting prose or
@@ -1996,6 +2006,7 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
                 )
         })
         .count();
+    let adoption = legion_contracts::fold_role_adoption(traces);
 
     TraceMetrics {
         sage_dispatch_rate: MetricValue::ratio(sage_dispatches, traces.len()),
@@ -2006,6 +2017,17 @@ pub fn fold_trace_metrics(traces: &[RouteOutcomeTrace]) -> TraceMetrics {
             avoidable_challenges,
             assumption_dependent,
         ),
+        role_adoption_rate: MetricValue::ratio(
+            adoption.eligible_launches,
+            adoption.labelled_eligible,
+        ),
+        labelled_role_eligibility: adoption.labelled_eligible,
+        selected_roles: adoption.pending_selected,
+        bound_roles: adoption.pending_bound,
+        launched_roles: adoption.eligible_launches,
+        skipped_roles: adoption.eligible_skips,
+        unnecessary_role_launches: adoption.unnecessary_launches,
+        unknown_role_launches: adoption.unknown_launches,
     }
 }
 
@@ -2073,8 +2095,36 @@ fn route_trace_from_request(
     let cost = trace_cost(source, payload)?;
     let challenge = trace_value(source, payload, &["challenge"])
         .and_then(|value| serde_json::from_value::<ChallengePass>(value.clone()).ok())?;
+    // Role lifecycle data is optional and host/lead supplied. Absent data
+    // preserves legacy v1 emission; invalid supplied data is rejected.
+    let role_decisions = match trace_value(source, payload, &["roleDecisions", "role_decisions"])
+    {
+        None => None,
+        Some(value) => Some(serde_json::from_value::<Vec<RoleDecision>>(value.clone()).ok()?),
+    };
+    let supplied_trace_version = match trace_value(
+        source,
+        payload,
+        &["schema_version", "schemaVersion"],
+    ) {
+        None => None,
+        Some(Value::Number(version)) => Some(
+            version
+                .as_u64()
+                .and_then(|value| u32::try_from(value).ok())?,
+        ),
+        Some(_) => return None,
+    };
+    if let Some(version) = supplied_trace_version {
+        if !matches!(version, 1 | 2)
+            || (role_decisions.is_some() && version != 2)
+            || (role_decisions.is_none() && version == 2)
+        {
+            return None;
+        }
+    }
     let trace = RouteOutcomeTrace {
-        schema_version: 1,
+        schema_version: if role_decisions.is_some() { 2 } else { 1 },
         trace_id,
         request_id,
         task_id,
@@ -2149,6 +2199,7 @@ fn route_trace_from_request(
         latency_ms: latency.as_millis().min(u64::MAX as u128) as u64,
         cost,
         challenge,
+        role_decisions,
     };
     trace.validate().ok().map(|_| trace)
 }
@@ -2385,13 +2436,26 @@ fn error_response(error: HookError) -> HookResponse {
 }
 
 fn main() {
+    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
+    let codex_host = arguments == ["--host", "codex"];
+    if !arguments.is_empty() && !codex_host {
+        eprintln!("usage: legion-hook [--host codex]");
+        std::process::exit(2);
+    }
+    let mut parsed_request = None;
     let response = match read_request() {
         Ok(input) => match HookRequest::parse(&input) {
-            Ok(request) => dispatch(request),
+            Ok(request) => {
+                parsed_request = Some(request.clone());
+                dispatch(request)
+            }
             Err(error) => error_response(error),
         },
         Err(error) => error_response(error),
     };
+    if codex_host {
+        std::process::exit(codex::emit_response(&response, parsed_request.as_ref()));
+    }
     let _ = write_response(response);
 }
 
@@ -2461,6 +2525,7 @@ mod tests {
                 evidence_available_at_first_answer: false,
                 user_challenge_event: false,
             },
+            role_decisions: None,
         }
     }
 
@@ -2724,6 +2789,68 @@ mod tests {
             metrics.avoidable_user_challenge_rate,
             MetricValue::NotEnoughData
         );
+        assert_eq!(metrics.role_adoption_rate, MetricValue::NotEnoughData);
+    }
+
+    #[test]
+    fn role_decision_data_emits_v2_and_rejects_invalid_extension_or_version() {
+        let mut payload = complete_trace_payload("unused-trace-path");
+        payload["roleDecisions"] = json!([{
+            "role": "sage",
+            "eligible": true,
+            "state": "launched",
+            "reason": "host launched sage"
+        }]);
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload,
+        };
+        let response = dispatch_inner(request.clone());
+        let trace = route_trace_from_request(&request, &response, Duration::from_millis(1), None)
+            .expect("valid role data emits trace");
+        assert_eq!(trace.schema_version, 2);
+        assert!(trace.role_decisions.is_some());
+
+        let mut invalid = complete_trace_payload("unused-trace-path");
+        invalid["roleDecisions"] = json!([{
+            "role": "sage",
+            "eligible": null,
+            "state": "skipped"
+        }]);
+        let request = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "SessionStart".into(),
+            payload: invalid,
+        };
+        let response = dispatch_inner(request.clone());
+        assert!(route_trace_from_request(&request, &response, Duration::from_millis(1), None)
+            .is_none(), "invalid supplied extension must not downgrade to v1");
+
+        for supplied_version in [
+            json!(9),
+            json!("2"),
+            Value::Null,
+            json!(-1),
+            json!(4_294_967_297_u64),
+        ] {
+            let mut unknown = complete_trace_payload("unused-trace-path");
+            unknown["schemaVersion"] = supplied_version;
+            let request = HookRequest {
+                schema_version: protocol::SCHEMA_VERSION,
+                kind: protocol::REQUEST_KIND.into(),
+                event_type: "SessionStart".into(),
+                payload: unknown,
+            };
+            let response = dispatch_inner(request.clone());
+            assert!(
+                route_trace_from_request(&request, &response, Duration::from_millis(1), None)
+                    .is_none(),
+                "malformed or unknown trace version must be rejected"
+            );
+        }
     }
 
     #[test]

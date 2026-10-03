@@ -6,9 +6,18 @@ $installerTask = $null
 
 Push-Location $repositoryRoot
 try {
+    if ($env:GITHUB_ACTIONS -eq 'true') {
+        $compiler = 'cargo'
+        $compilerPrefix = @()
+    } else {
+        & node (Join-Path $PSScriptRoot 'local-build-route.mjs')
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $compiler = 'rightkit'
+        $compilerPrefix = @('cargo')
+    }
     # Keep compilation inside RightKit. The local development policy permits
     # native builds, while arbitrary cargo-run commands remain denied.
-    & rightkit cargo build --locked --release --manifest-path engine/Cargo.toml `
+    & $compiler @compilerPrefix build --locked --release --manifest-path engine/Cargo.toml `
         --target x86_64-pc-windows-msvc -p xtask --message-format=json-render-diagnostics |
         ForEach-Object {
             if ($_ -match '^\{') {

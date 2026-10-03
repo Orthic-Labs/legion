@@ -47,8 +47,9 @@ Report requested states actually reached. Independent nested repositories are de
 
 ## How dispatch works
 
+- Legion selects authority before Dispatch or another capability using canonical `src/roster/*` triggers. Explicit role requests override routine-work exclusions. Resolve host registration & compatible model before launch; if inheritance is prohibited, pass an explicit compatible model. Surface rejected launches; never silently skip requested authority or downgrade required judgment. See `doctrine/legion.md` for selection & observation rules.
 - Start each bounded subagent with `fork_turns: "none"`; never inherit parent turns by default. Send a self-contained assignment with current scope, exclusions, owned paths, evidence pointers & expected result. Inherit history only when the user explicitly requests it. Bound reads & tool output to relevant excerpts; split large assignments instead of accumulating full logs.
-- Legion routes work by capability descriptions and explicit `@sage`/`@oracle`/`@alchemist` invocation; Alchemist reaches cheap execution through the OmniRoute worker scripts where the host provides the `omniroute` capability.
+- Legion routes work by capability descriptions & explicit `@sage`/`@oracle`/`@alchemist` invocation; Alchemist executes through host-native agents with host-supported model tiers.
 - Worker output is untrusted until Legion verifies it in the primary checkout. Require a reachable canonical commit or a content-addressed patch outside its disposable worktree before archive; clean read-only tasks archive freely.
 - On each worker return, integrate accepted work & assign remaining ready work or finish it inline. Partial returns never close scope; size lanes by dependency & evidence cost, not fixed quotas.
 - Verify requested behavior on its actual platform, application mode & installed build. Launch, transport, compilation & worker claims prove only their own stage; read back resulting user-visible state.
@@ -74,10 +75,11 @@ Legion provides shared routing, execution, and independent semantic validation a
 - Read generated `docs/pending/README.md` as sole pending-work index.
 
 ## Commands
-- Before any Windows installer build, run `pnpm run native:check:local` from primary checkout. It compile-checks whole Rust workspace/all targets through managed RightKit using same external release cache; do not spend an installer build until it passes.
-- For Windows installer development, run `pnpm run release:local:win:unsigned` from primary checkout after local native check passes. This is default pre-publication path: managed RightKit warm cache → unsigned installer → isolated installed qualification → exact stable-`current` install. See `docs/reference/release/local-windows-development.md`.
+- Before local build/check/test admission, inspect managed RightKit inventory once, including past 30 minutes. If another build is queued, running, or was processed within that window, never start or queue local work: move to Windows unsigned GitHub CI. Missing inventory fails closed to CI; do not poll or wait for local capacity.
+- Before any Windows installer build, check whole native workspace/all targets on selected build host. GitHub development workflow includes this gate; local path uses `pnpm run native:check:local` only after idle admission.
+- For Windows installer development, use `.github/workflows/windows-development.yml` when local admission is refused or CI is requested. Otherwise use `pnpm run release:local:win:unsigned` from primary checkout after native check passes. Both routes require unsigned installer → isolated installed qualification → exact stable-`current` install. See `docs/reference/release/local-windows-development.md`.
 - Use `pnpm run release:build:win:unsigned` only when build output is requested without install or qualification. Focused local tests supporting this route are allowed.
-- Do not use GitHub Actions, signing, publication, or Mac work for Windows installer development. Use public release machinery only after local installed route passes & operator explicitly requests publication.
+- Windows unsigned development CI is authorized; signing, publication & Mac work require explicit scope. CI success proves build/qualification only; download exact qualified installer, reinstall stable `current` & verify requested installed behavior.
 
 ## Locked invariants
 - Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle.

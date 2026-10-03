@@ -1,7 +1,6 @@
-//! Port of src/lib/host/adapters/{claude-code,cline,codex,command-code,
-//! generic,pi}.mjs. These are static descriptor data in JS; ported here as
-//! functions returning the equivalent JSON so the shape (and any future
-//! consumer that walks `surfaces`) matches exactly.
+//! Host surface declarations. Role files and registrations are materialized
+//! by legion's commands/bind.rs; configuration fidelity is distinct from
+//! observed host loading or role launch.
 
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -42,7 +41,7 @@ pub fn codex_descriptor() -> Value {
         "surfaces": {
             "instructions": {"fidelity": "strong", "mechanism": {"kind": "agents-md", "path": "AGENTS.md"}},
             "skills": {"fidelity": "strong", "mechanism": {"kind": "skills-dir", "path": ".agents/skills"}, "note": "native Agent Skills discovery with generated implicit/explicit invocation policy"},
-            "agents": {"fidelity": "unsupported", "mechanism": {"kind": "none"}, "note": "no native subagents"},
+            "agents": {"fidelity": "strong", "mechanism": {"kind": "agent-config", "path": ".codex/agents", "registration": ".codex/config.toml"}, "note": "bind projects roster roles and native registrations; verify effective config and runtime launch separately"},
             "mcp": {"fidelity": "strong", "mechanism": {"kind": "toml", "path": ".codex/config.toml", "table": "mcp_servers"}},
             "hooks": {"fidelity": "unsupported", "mechanism": {"kind": "none"}, "note": "no effect-enforcement hook surface; Guard enforcement is absent, not degraded"},
         },

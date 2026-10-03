@@ -9,9 +9,11 @@ Legion provides shared routing, execution, and independent semantic validation a
 
 ## Commands
 
-- For Windows installer development, run `pnpm run release:local:win:unsigned` from primary checkout. This is default pre-publication path: managed RightKit warm cache → unsigned installer → isolated installed qualification → exact stable-`current` install. See `docs/reference/release/local-windows-development.md`.
+- Before local build/check/test admission, inspect managed RightKit inventory once, including past 30 minutes. If another build is queued, running, or was processed within that window, never start or queue local work: move to Windows unsigned GitHub CI. Missing inventory fails closed to CI; do not poll or wait for local capacity.
+- Before Windows installer assembly, check whole native workspace/all targets on selected host. GitHub development workflow includes this gate; local path uses `pnpm run native:check:local` after idle admission.
+- For Windows installer development, use `.github/workflows/windows-development.yml` when local admission is refused or CI is requested; otherwise run `pnpm run release:local:win:unsigned` from primary checkout after native check passes. Both routes require unsigned installer → isolated installed qualification → exact stable-`current` install. See `docs/reference/release/local-windows-development.md`.
 - Use `pnpm run release:build:win:unsigned` only when build output is requested without install or qualification. Focused local tests supporting this route are allowed.
-- Do not use GitHub Actions, signing, publication, or Mac work for Windows installer development. Use public release machinery only after local installed route passes & operator explicitly requests publication.
+- Windows unsigned development CI is authorized; signing, publication & Mac work require explicit scope. Download exact qualified installer, reinstall stable `current` & verify requested installed behavior before claiming completion.
 
 ## Locked invariants
 - Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle.

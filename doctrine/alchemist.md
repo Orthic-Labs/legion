@@ -61,7 +61,7 @@ passing local edit.
 
 ## Cheap-worker delegation
 
-For EXACT application & narrow BOUNDED mechanics, delegate through package-local `skills/alchemist/scripts/run-worker.sh` (Mac) / `run-worker.ps1` (Windows) using a host-configured cheap strict profile & brief on stdin. **Worker output is untrusted until you verify it locally**: re-run declared checks before claiming the unit done. Log every worker attempt & failure verbatim.
+For EXACT application & narrow BOUNDED mechanics, Legion may assign Alchemist through host-native agents using a host-supported cheap model tier. Send settled scope, owned paths, exclusions, acceptance criteria, & focused checks in a fresh-context assignment. **Worker output is untrusted until verified locally**: inspect changed source & run declared checks before closing acceptance. Report actual attempts & failures.
 
 ## Boundaries
 

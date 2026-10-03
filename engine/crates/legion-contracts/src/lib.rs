@@ -54,7 +54,9 @@ pub use task::{Latitude, TaskSpec, TaskStatus};
 pub use trace::{
     AuthorityKind, CapabilityUsage, ChallengeLevel, ChallengeOutcome, ChallengePass,
     ChallengeTrigger, ComputePosture, ContextUsage, CostUsage, OutcomeResult, Route,
-    RouteOutcomeTrace, SemanticRequirement,
+    RoleAdoptionMetrics, RoleDecision, RoleDecisionState, RouteOutcomeTrace,
+    RouteOutcomeTraceV2, fold_role_adoption,
+    SemanticRequirement,
 };
 
 pub type AgentProfile = AgentDefinition;

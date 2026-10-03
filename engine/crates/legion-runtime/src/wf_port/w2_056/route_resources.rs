@@ -175,7 +175,7 @@ mod tests {
                     ]
                 },
                 "adapters": {
-                    "omniroute-codex-worker": [
+                    "demo-worker": [
                         {"class": "HOST_CAPABILITY", "capability": "codex-cli"},
                         {"class": "PACKAGE_INTERNAL", "path": "scripts/x.mjs"}
                     ]
