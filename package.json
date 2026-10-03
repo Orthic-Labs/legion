@@ -77,13 +77,15 @@
     "native-cli:parity-installed": "rightkit cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- native-cli-parity-installed",
     "native-cli:surface-check": "rightkit cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-native-cli-surface",
     "native:assemble": "rightkit cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- assemble-native-release",
-    "native:check:local": "rightkit cargo check --manifest-path engine/Cargo.toml --workspace --all-targets --locked --release --target x86_64-pc-windows-msvc",
+    "native:check:local": "powershell -NoProfile -NonInteractive -File scripts/release/native-check-local.ps1",
     "native:smoke": "rightkit cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- native-installed-smoke",
     "plugin:dev": "rightkit cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- plugin-dev",
     "plugin:surface": "rightkit cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity",
     "plugin:verify": "rightkit cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity --check",
     "release:admission": "rightkit cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- release-admission",
     "release:build:win:unsigned": "powershell -NoProfile -NonInteractive -File scripts/release/local-windows-development.ps1 -BuildOnly",
+    "dev:build:win": "powershell -NoProfile -NonInteractive -File scripts/release/local-windows-development.ps1 -DevelopmentProfile",
+    "dev:build:mac": "pnpm exec right-release dev --platform mac --build-only",
     "release:doctor": "right-release doctor --platform win",
     "release:finalize-macos": "rightkit cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- release-finalize-macos",
     "release:finalize-windows": "rightkit cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- release-finalize-windows",
@@ -105,6 +107,6 @@
   "devDependencies": {
     "@rightkit/ax": "0.2.4",
     "@rightkit/git": "0.2.24",
-    "@rightkit/release": "0.2.105"
+    "@rightkit/release": "0.2.108"
   }
 }

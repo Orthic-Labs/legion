@@ -77,3 +77,14 @@ scraper = "0.20"
 [profile.dev]
 # line-tables-only: full debuginfo dominates large-crate dev codegen; backtraces keep file:line
 debug = "line-tables-only"
+
+[profile.release-iterate]
+inherits = "release"
+opt-level = 1
+lto = false
+codegen-units = 16
+incremental = true
+strip = "none"
+
+[profile.release-iterate.package."*"]
+incremental = false

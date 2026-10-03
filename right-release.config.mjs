@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const releaseVersion = JSON.parse(
@@ -104,6 +106,7 @@ if (!MACOS_ARCHITECTURES[macArchitecture]) {
 }
 const selectedMac = MACOS_ARCHITECTURES[macArchitecture];
 const macAssemblyRoot = `dist/native/macos-${macArchitecture}/legion-${releaseVersion}`;
+const macDevelopmentRoot = `dist/development/macos-${macArchitecture}/legion-${releaseVersion}`;
 const macOutput = `dist/releases/mac/${releaseVersion}/${macArchitecture}`;
 const macStem = `legion-${releaseVersion}-macos-${macArchitecture}`;
 const macArchive = `${macOutput}/${macStem}.tar.gz`;
@@ -182,6 +185,31 @@ export default {
 			"package.json",
 			"pnpm-lock.yaml",
 		],
+	},
+	development: {
+		targets: {
+			mac: {
+				build: [
+					{
+						name: "unsigned native Legion binaries",
+						cmd: "pnpm",
+						args: ["exec", "rightkit", "cargo", "build", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "release-iterate", "--target", selectedMac.targetTriple, "-p", "legion", "-p", "legion-hook", "-p", "legion-mcp", "--message-format=json-render-diagnostics"],
+					},
+					{
+						name: "assemble unsigned development payload",
+						cmd: "pnpm",
+						args: ["exec", "rightkit", "cargo", "run", "--locked", "--manifest-path", "engine/Cargo.toml", "--profile", "release-iterate", "--target", selectedMac.targetTriple, "-p", "xtask", "--", "assemble-native-release", "--profile", "release-iterate", "--platform", "macos", "--architecture", macArchitecture, "--target", selectedMac.targetTriple, "--out", macDevelopmentRoot, "--force"],
+					},
+				],
+				install: {
+					kind: "portable",
+					sourceDirectory: macDevelopmentRoot,
+					installRoot: join(homedir(), "Library", "Application Support", "Orthic Labs", "Legion"),
+					entrypoint: "bin/legion",
+					activation: { kind: "current" },
+				},
+			},
+		},
 	},
 	nativeAssembly: {
 		cargoManifest: "engine/Cargo.toml",

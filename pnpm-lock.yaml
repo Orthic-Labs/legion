@@ -19,8 +19,8 @@ importers:
         specifier: 0.2.24
         version: 0.2.24
       '@rightkit/release':
-        specifier: 0.2.105
-        version: 0.2.105
+        specifier: 0.2.108
+        version: 0.2.108
 
 packages:
 
@@ -36,8 +36,8 @@ packages:
     resolution: {integrity: sha512-Z8AOe4eRJN90k98D9DB6XgKjSmjNTeQNcpHuTBIJRk0xmFyO7jqzV9AmO7jxFJOSg9YkzEuftra0UhfYLbGXRA==}
     hasBin: true
 
-  '@rightkit/release@0.2.105':
-    resolution: {integrity: sha512-uIIdbnJTISkIes5gQp/RxqvhcylC7eh0IpLpomnAbwnjpTwKHK3szfNbrIl1hMpsT95C2eSb9P3qI7g+whtiUg==}
+  '@rightkit/release@0.2.108':
+    resolution: {integrity: sha512-xG5Qvlt1tbcTb3fulnWms+JvrKM/ddKt6Gw8fgM5tsDvsQC7GtnXu+Upo/s/kmPptapB05ePFtlLWCnR74N+sQ==}
     hasBin: true
 
 snapshots:
@@ -48,4 +48,4 @@ snapshots:
 
   '@rightkit/hooks@0.1.1': {}
 
-  '@rightkit/release@0.2.105': {}
+  '@rightkit/release@0.2.108': {}
