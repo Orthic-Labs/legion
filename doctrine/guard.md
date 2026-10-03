@@ -95,8 +95,8 @@ Those aliases are protocol support; they are not additional registrations in
 `hooks/hooks.json`.
 
 Lifecycle and post-effect acknowledgements are not effect authorization. The
-`Stop` path delivers the Arcane-owned cognitive ending-shape policy through the
-Guard event; the Guard delivers that policy but does not own it. Stop completion
+`Stop` path does not infer unfinished work from assistant wording or block prose.
+Arcane response policy cannot create Stop re-prompt loops. Stop completion
 verification is proportional: it consults a typed verification requirement and
 checks the `oracle-completion-validation-v1` receipt only when that requirement
 demands one, rather than treating any file write as grounds for mandatory
