@@ -46,6 +46,8 @@ jobs:
       - name: Qualify repaired installer & Stop behavior
         timeout-minutes: 5
         run: |
+          # Structural client fixtures, matching Windows installed qualification.
+          mkdir -p "$HOME/.claude" "$HOME/.codex"
           "$RUNNER_TEMP/delivery/Legion Installer.app/Contents/MacOS/Legion Installer" --headless 2> "$RUNNER_TEMP/delivery/installer-qualification.log"
           tar -czf "$RUNNER_TEMP/delivery/Legion-0.3.21-macos-arm64-installer.tar.gz" -C "$RUNNER_TEMP/delivery" 'Legion Installer.app'
           python3 - <<'PY'
@@ -67,7 +69,7 @@ jobs:
           r=subprocess.run([str(installed/'bin/legion-hook')],input=json.dumps({'hook_event_name':'Stop','stop_hook_active':True,'verificationRequirement':'oracle'}),text=True,capture_output=True,timeout=10)
           assert json.loads(r.stdout)['code']=='ARC_VERIFICATION_REQUIRED'
           archive=root/'Legion-0.3.21-macos-arm64-installer.tar.gz'
-          receipt={'status':'qualified','sourceRevision':os.environ['GITHUB_SHA'],'nativeCandidateSourceRevision':'b1fbbb85eeb9607cd3af15487aef5b2621c3443f','installerSha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'binaryChecks':checks,'claudeStopCases':13,'observedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          receipt={'status':'qualified','qualificationMode':'structural-client-fixtures','sourceRevision':os.environ['GITHUB_SHA'],'nativeCandidateSourceRevision':'b1fbbb85eeb9607cd3af15487aef5b2621c3443f','installerSha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'binaryChecks':checks,'claudeStopCases':13,'observedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
           (root/'installer-qualification.json').write_text(json.dumps(receipt,indent=2)+'\n')
           PY
           rm -r "$RUNNER_TEMP/delivery/Legion Installer.app"
