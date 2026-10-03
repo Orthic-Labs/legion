@@ -85,7 +85,7 @@
     "release:admission": "rightkit cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- release-admission",
     "release:build:win:unsigned": "powershell -NoProfile -NonInteractive -File scripts/release/local-windows-development.ps1 -BuildOnly",
     "dev:build:win": "powershell -NoProfile -NonInteractive -File scripts/release/local-windows-development.ps1 -DevelopmentProfile",
-    "dev:build:mac": "pnpm exec right-release dev --platform mac --build-only",
+    "dev:build:mac": "pnpm exec right-release dev --platform mac",
     "release:doctor": "right-release doctor --platform win",
     "release:finalize-macos": "rightkit cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- release-finalize-macos",
     "release:finalize-windows": "rightkit cargo run -q --locked --release --manifest-path engine/Cargo.toml -p xtask -- release-finalize-windows",
