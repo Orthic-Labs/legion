@@ -57,6 +57,7 @@ jobs:
           "$xtask" prepare-unsigned-candidate --input "$RUNNER_TEMP/legion-install" --output "$RUNNER_TEMP/legion-macos-delivery/candidate" --platform macos --architecture arm64 --source-revision "$GITHUB_SHA"
           "$xtask" prepare-unsigned-candidate --check --output "$RUNNER_TEMP/legion-macos-delivery/candidate" --platform macos --architecture arm64 --source-revision "$GITHUB_SHA"
       - name: Package existing installer & exercise headless installation
+        timeout-minutes: 5
         run: |
           app="$RUNNER_TEMP/legion-macos-delivery/Legion Installer.app"
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"

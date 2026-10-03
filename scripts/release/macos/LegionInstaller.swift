@@ -7,13 +7,28 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
   private let commandTimeout: TimeInterval = 60
   private var headless: Bool { CommandLine.arguments.contains("--headless") }
 
+  static func main() {
+    let installer = LegionInstaller()
+    if installer.headless {
+      do {
+        try installer.install()
+        installer.log("installation complete")
+        exit(0)
+      } catch {
+        installer.log(error.localizedDescription)
+        exit(1)
+      }
+    }
+    let application = NSApplication.shared
+    application.delegate = installer
+    withExtendedLifetime(installer) { application.run() }
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
     do {
       try install()
-      if headless { log("installation complete"); exit(0) }
       show(title: "Legion installed", message: "Legion is ready in ~/Library/Application Support/Orthic Labs/Legion.", style: .informational)
     } catch {
-      if headless { log(error.localizedDescription); exit(1) }
       show(title: "Legion installation failed", message: error.localizedDescription, style: .critical)
     }
     NSApp.terminate(nil)

@@ -1,0 +1,80 @@
+# Reuse exact qualified native bytes; only installer source changed.
+name: legion-macos-installer-recovery
+on:
+  push:
+    branches: ['codex/legion-mac-installer-*']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  installer:
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-15
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require unchanged native candidate inputs
+        run: |
+          git diff --exit-code b1fbbb85eeb9607cd3af15487aef5b2621c3443f HEAD -- . ':(exclude).github/workflows/**' ':(exclude)scripts/release/macos/LegionInstaller.swift'
+      - name: Download exact passed native candidate
+        run: gh run download 37152313857 --repo Orthic-Labs/legion --name legion-macos-unsigned-b1fbbb85eeb9607cd3af15487aef5b2621c3443f --dir "$RUNNER_TEMP/previous"
+      - name: Verify candidate digests & package repaired installer
+        run: |
+          python3 - <<'PY'
+          import pathlib,json,hashlib,os
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'previous/candidate'
+          c=json.loads((root/'candidate.json').read_text())
+          assert c['sourceRevision']=='b1fbbb85eeb9607cd3af15487aef5b2621c3443f'
+          for record in c['files'].values():
+              assert hashlib.sha256((root/record['name']).read_bytes()).hexdigest()==record['sha256']
+          PY
+          app="$RUNNER_TEMP/delivery/Legion Installer.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/payload"
+          swiftc -parse-as-library scripts/release/macos/LegionInstaller.swift -framework Cocoa -o "$app/Contents/MacOS/Legion Installer"
+          tar -xzf "$RUNNER_TEMP/previous/candidate/legion-0.3.21-macos-arm64.tar.gz" -C "$app/Contents/Resources/payload"
+          printf '0.3.21\n' > "$app/Contents/Resources/version.txt"
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string Legion Installer' "$app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.orthiclabs.legion.installer' "$app/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string APPL' "$app/Contents/Info.plist"
+          cp -R "$RUNNER_TEMP/previous/candidate" "$RUNNER_TEMP/delivery/candidate"
+      - name: Qualify repaired installer & Stop behavior
+        timeout-minutes: 5
+        run: |
+          "$RUNNER_TEMP/delivery/Legion Installer.app/Contents/MacOS/Legion Installer" --headless 2> "$RUNNER_TEMP/delivery/installer-qualification.log"
+          tar -czf "$RUNNER_TEMP/delivery/Legion-0.3.21-macos-arm64-installer.tar.gz" -C "$RUNNER_TEMP/delivery" 'Legion Installer.app'
+          python3 - <<'PY'
+          import pathlib,json,hashlib,subprocess,os,datetime
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'delivery'
+          installed=pathlib.Path.home()/'Library/Application Support/Orthic Labs/Legion/current'
+          payload=root/'Legion Installer.app/Contents/Resources/payload'
+          checks=[]
+          for name in ['legion','legion-hook','legion-mcp']:
+              digest=hashlib.sha256((installed/'bin'/name).read_bytes()).hexdigest()
+              assert digest==hashlib.sha256((payload/'bin'/name).read_bytes()).hexdigest()
+              checks.append({'name':name,'sha256':digest})
+          for text in ['I recommend this approach.','Shall I continue?','Done. One caveat: CI is still running.']:
+              for active in [False,True]:
+                  for alias in ['last_assistant_message','lastAssistantText']:
+                      r=subprocess.run([str(installed/'bin/legion-hook')],input=json.dumps({'hook_event_name':'Stop','stop_hook_active':active,alias:text}),text=True,capture_output=True,timeout=10)
+                      j=json.loads(r.stdout)
+                      assert r.returncode==0 and not r.stderr and j['allowed'] and j.get('decision')!='block'
+          r=subprocess.run([str(installed/'bin/legion-hook')],input=json.dumps({'hook_event_name':'Stop','stop_hook_active':True,'verificationRequirement':'oracle'}),text=True,capture_output=True,timeout=10)
+          assert json.loads(r.stdout)['code']=='ARC_VERIFICATION_REQUIRED'
+          archive=root/'Legion-0.3.21-macos-arm64-installer.tar.gz'
+          receipt={'status':'qualified','sourceRevision':os.environ['GITHUB_SHA'],'nativeCandidateSourceRevision':'b1fbbb85eeb9607cd3af15487aef5b2621c3443f','installerSha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'binaryChecks':checks,'claudeStopCases':13,'observedAt':datetime.datetime.now(datetime.timezone.utc).isoformat()}
+          (root/'installer-qualification.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          PY
+          rm -r "$RUNNER_TEMP/delivery/Legion Installer.app"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: ${{ always() }}
+        with:
+          name: legion-macos-installer-${{ github.sha }}
+          path: ${{ runner.temp }}/delivery/
+          if-no-files-found: error
+          retention-days: 14
