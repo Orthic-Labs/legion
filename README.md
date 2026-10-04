@@ -55,8 +55,11 @@ project's deployment targets, architecture, data layer, and any Rust/Tauri/Cargo
 
 Each bundle is self-contained for native skill projection. Xcode, SwiftPM, and optional
 build/UI/documentation/release adapters are checked only for the selected workflow; the
-skills install nothing and grant no account, signing, telemetry, upload, or publishing
-permission. See [packaged skills](docs/architecture/skills.md) and
+skills include official-source setup recipes and a read-only PATH preflight helper. Agents
+detect and reuse tools, propose missing setup, then apply only authorized changes and verify.
+CLI setup persists per environment and MCP registration per selected client scope, shared
+by both skills. Loading a skill grants no installation, persistent-access, account, signing,
+telemetry, upload, or publishing permission. See [packaged skills](docs/architecture/skills.md) and
 [third-party notices](docs/THIRD_PARTY_NOTICES.md) for provenance and tool boundaries.
 
 ## Harnesses & fidelity

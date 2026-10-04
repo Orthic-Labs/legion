@@ -1,4 +1,7 @@
-# Toolchain and optional adapters
+# Toolchain and task-selected adapters
+
+Read [tool setup](tool-setup.md) before execution. It contains official acquisition recipes,
+reusable client configuration and verification. Optional means task-selected, not undiscoverable.
 
 ## Preflight the selected project
 
@@ -28,9 +31,9 @@ runtime for platform claims. Preserve the project's Cargo/Tauri build path when 
 | AppStoreConnectCLI | Authorized account/release operation needs the existing CLI | Version/help, authentication mechanism, exact app/team/action | Return local release preparation and the missing capability |
 | CodexMonitor / agent-scripts | The user's existing development workflow explicitly uses them | Repository setup and exact approved operation | Keep the current agent/terminal workflow; no new orchestration dependency |
 
-This is a selection guide, not an installation list. Only Xcode/SwiftPM and the explicitly
-selected adapters bind host capabilities in [route resources](route-resources.json).
-Other aids remain optional references; never infer that they are installed or connected.
+This matrix selects capabilities; [tool setup](tool-setup.md) supplies their setup path.
+Only selected workflows/adapters bind host capabilities in [route resources](route-resources.json).
+Never infer that a tool is installed or connected; detect and reuse before proposing setup.
 
 ## Version-safe MCP use
 

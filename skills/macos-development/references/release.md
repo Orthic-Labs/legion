@@ -32,13 +32,15 @@ review, publish, buy services, or change app/account settings. Check the live re
 applicable Legion/host policy before the relevant effect. Keep credentials out of chat,
 source, scripts, logs, and generated artifacts; use the approved secure mechanism.
 
-AppStoreConnectCLI is an optional adapter only when already available and authorized.
+AppStoreConnectCLI is a task-selected adapter. Reuse an available compatible installation;
+if missing, follow [tool setup](tool-setup.md) to propose authorized one-time setup.
 Xopoko's AppStoreConnectCLI uses ascctl and an OpenAPI-oriented workflow; rorkai's
 app-store-connect-cli-skills describe a different asc CLI. Detect the installed tool and
 version; their command syntax and authentication assumptions are not interchangeable.
 Discover its actual command/version and inspect a read-only status first. Confirm app,
 team, version/build, destination and intended action before a consequential mutation;
-absence of the adapter leaves a reviewable preparation result, not an automatic install.
+absence of the adapter requires a concrete setup proposal or a supported existing alternative,
+while useful local preparation continues. Installation does not authorize account access.
 
 Do not disable code-signing, Gatekeeper, sandboxing, library validation, or macro security
 to force success. Explain the concrete blocker and smallest supported next step.

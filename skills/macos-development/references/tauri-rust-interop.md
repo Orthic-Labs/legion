@@ -1,7 +1,8 @@
 # Apple boundaries in Rust and Tauri apps
 
 Use this reference when an iOS or macOS feature touches a Rust/Tauri consumer.
-These skills provide engineering guidance; they install nothing and grant no access.
+These skills provide engineering guidance and setup recipes; loading them installs nothing
+and grants no access. Follow the authorized setup lifecycle only when a needed tool is missing.
 
 ## Architecture is a constraint
 

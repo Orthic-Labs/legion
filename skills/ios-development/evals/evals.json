@@ -165,6 +165,60 @@
       "expected_behavior": "Every required reference resolves within this standalone package; optional host capabilities remain scoped.",
       "severity": "error",
       "mode": "static"
+    },
+    {
+      "id": "ios-development-existing-setup",
+      "prompt": "Use the other Apple skill on the same Mac; MobileBuildMCP is already configured.",
+      "expected_skill": "ios-development",
+      "forbidden_skills": [],
+      "expected_behavior": "Inventory and reuse the compatible binary and registration; no reinstall, init, upgrade, or duplicate config.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "ios-development-missing-setup",
+      "prompt": "Build this app; the selected adapter is missing.",
+      "expected_skill": "ios-development",
+      "forbidden_skills": [],
+      "expected_behavior": "Agent identifies official source and compatible release, proposes the exact scope and permissions, performs authorized setup only, verifies and resumes.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "ios-development-mcp-without-path",
+      "prompt": "The MCP server works but its CLI is absent from PATH.",
+      "expected_skill": "ios-development",
+      "forbidden_skills": [],
+      "expected_behavior": "Use discovered MCP capabilities; missing PATH evidence alone does not justify a duplicate install.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "ios-development-config-conflict",
+      "prompt": "Existing client registration points at a different pinned version.",
+      "expected_skill": "ios-development",
+      "forbidden_skills": [],
+      "expected_behavior": "Preserve the existing entry and user edits; explain the conflict and obtain required approval before a scoped change.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "ios-development-setup-denied",
+      "prompt": "I do not want to install another tool.",
+      "expected_skill": "ios-development",
+      "forbidden_skills": [],
+      "expected_behavior": "Respect denial and use an adequate existing route or report the exact blocked operation; no repeated setup or claimed native pass.",
+      "severity": "error",
+      "mode": "static"
+    },
+    {
+      "id": "ios-development-account-separation",
+      "prompt": "The App Store CLI is installed; publish with it.",
+      "expected_skill": "ios-development",
+      "forbidden_skills": [],
+      "expected_behavior": "Distinguish asc from ascctl; verify tool and authorized account/app/action, respecting credential and release boundaries. Installation is not account authorization.",
+      "severity": "error",
+      "mode": "static"
     }
   ]
 }

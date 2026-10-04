@@ -44,9 +44,12 @@
       "references/tauri-rust-interop.md",
       "references/testing.md",
       "references/third-party-notices.md",
+      "references/tool-setup.md",
       "references/toolchain.md"
     ],
-    "scripts": [],
+    "scripts": [
+      "scripts/tool_preflight.py"
+    ],
     "templates": [],
     "schemas": [],
     "receipts": [],
@@ -62,7 +65,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://ios-development/SKILL.md",
-      "digest": "sha256:3dc5e6ee4b87d33cff0aaae036695dc2038b564229b07487edca55fc41b02777"
+      "digest": "sha256:b2f9aec0245b8783c533358985ce41dcd774b52f974f614bc11341e78d160c36"
     },
     {
       "path": "agents/openai.yaml",
@@ -72,7 +75,12 @@
     {
       "path": "config/source-manifest.json",
       "uri": "legion-skill://ios-development/config/source-manifest.json",
-      "digest": "sha256:2e8b34afa792b3576a4a091646ad892d2aa889759456b87b018bcc28e6d5a748"
+      "digest": "sha256:95c23a689ecf3b994b711d3a929584a56d340d27ce8541e3acfdc818acc93313"
+    },
+    {
+      "path": "config/tool-catalog.json",
+      "uri": "legion-skill://ios-development/config/tool-catalog.json",
+      "digest": "sha256:6cb717addba5e2a2dd1fe3b67806f8962eb50f1006ea802531ae16ffb58c3201"
     },
     {
       "path": "dependencies.json",
@@ -82,7 +90,7 @@
     {
       "path": "evals/evals.json",
       "uri": "legion-skill://ios-development/evals/evals.json",
-      "digest": "sha256:07b5b194e96e8b7bae4524464c5c499545f792d4d2d969eed5cc97fed401871a"
+      "digest": "sha256:e6eff1fbf631da8878f5036e8d714bb725bbbad6a8aa91627630f44134152b55"
     },
     {
       "path": "references/architecture.md",
@@ -112,12 +120,12 @@
     {
       "path": "references/release.md",
       "uri": "legion-skill://ios-development/references/release.md",
-      "digest": "sha256:3dce940240d1068bd7724f226dbe868514cbc6b38ab724835173e41a5ce9de2c"
+      "digest": "sha256:0fe4f611883601a0922b552799364859ad20e4a7c5bd1fb857106c12f6b15e3d"
     },
     {
       "path": "references/route-resources.json",
       "uri": "legion-skill://ios-development/references/route-resources.json",
-      "digest": "sha256:a91f6a5cc5b08c8624166ed53fe28b06e6e07cd142b2488587542a9a036bb69f"
+      "digest": "sha256:2b863ccd2df9eaafa34ed9dbb10ff89db6571bbf146c07d9cd4875a1aaba5a53"
     },
     {
       "path": "references/swiftui.md",
@@ -132,7 +140,7 @@
     {
       "path": "references/tauri-rust-interop.md",
       "uri": "legion-skill://ios-development/references/tauri-rust-interop.md",
-      "digest": "sha256:6eb8da8b72a0d2ff6e349c75d366239d45dc01a9d971adc274fd5b7404774e0d"
+      "digest": "sha256:82b7e91557111b6744fd66b96dafc089cbcfca02386d209e70d5ca0980239344"
     },
     {
       "path": "references/testing.md",
@@ -142,12 +150,22 @@
     {
       "path": "references/third-party-notices.md",
       "uri": "legion-skill://ios-development/references/third-party-notices.md",
-      "digest": "sha256:e88cf6ac7292366c1090d1b07156bf6e0429e3ed1cf81c1891d8e39d27c9754b"
+      "digest": "sha256:7bebb9c7e7212c019d2ea55cefd60d650ae3a1056a30a4e19132b5c2ddb4ad90"
+    },
+    {
+      "path": "references/tool-setup.md",
+      "uri": "legion-skill://ios-development/references/tool-setup.md",
+      "digest": "sha256:a69abde94b6982c82194fe5b4b159bcda304cf94e7308ef9926a249b1bbe8737"
     },
     {
       "path": "references/toolchain.md",
       "uri": "legion-skill://ios-development/references/toolchain.md",
-      "digest": "sha256:6f3302534d203f529733b4c7b1d902ebd0a7f57e9701844ae0c41f5003e832c4"
+      "digest": "sha256:a9b1fc9269f14a1026273e751b523e4db9b6baaba8f4c2ff8efef9d32721db1e"
+    },
+    {
+      "path": "scripts/tool_preflight.py",
+      "uri": "legion-skill://ios-development/scripts/tool_preflight.py",
+      "digest": "sha256:01173e87427821ef655d3840ee832d6cfc09920f0df528894179ef16fb1a73a7"
     }
   ]
 }

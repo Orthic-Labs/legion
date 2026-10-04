@@ -565,7 +565,7 @@
           "kind": "mcp-server",
           "summary": "Optional configured XcodeBuildMCP or MobileBuildMCP adapter, selected through the installed server version and actual tool schemas.",
           "degradation": "Skip this adapter; use an authorized project-native CLI route if available, otherwise report the exact Apple operation as unrun.",
-          "remedy": "Use a compatible already configured server or the project CLI; configuring a new persistent integration requires applicable authorization.",
+          "remedy": "Use a compatible already configured server or the project CLI; configuring a new persistent integration requires applicable authorization. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": null
         },
         {
@@ -575,7 +575,7 @@
           "kind": "command-line-tool",
           "summary": "Optional AppStoreConnectCLI adapter for specifically authorized App Store Connect operations.",
           "degradation": "Return local release preparation and name the unperformed account/upload/submission operation; never install, authenticate, or publish automatically.",
-          "remedy": "Use an existing compatible authorized CLI/account workflow; credentials and consequential actions remain governed by live permission.",
+          "remedy": "Use an existing compatible authorized CLI/account workflow; credentials and consequential actions remain governed by live permission. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": null
         },
         {
@@ -585,7 +585,7 @@
           "kind": "command-line-tool",
           "summary": "Optional AXe simulator UI adapter for an explicitly selected native UI validation route.",
           "degradation": "Use the project's available XCTest/UI tooling or report simulator UI validation unrun; no screenshot or click implies a pass.",
-          "remedy": "Use an authorized Mac with a compatible installed AXe and selected simulator, or retain the existing UI test workflow.",
+          "remedy": "Use an authorized Mac with a compatible installed AXe and selected simulator, or retain the existing UI test workflow. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": {
             "kind": "command",
             "command": "axe"
@@ -598,7 +598,7 @@
           "kind": "tool",
           "summary": "Optional local Apple documentation query adapter selected for installed-SDK documentation lookup.",
           "degradation": "Read current official Apple/Swift documentation and disclose that installed-SDK docset evidence was unavailable.",
-          "remedy": "Use an existing compatible DocSetQuery integration and local docsets, or official documentation.",
+          "remedy": "Use an existing compatible DocSetQuery integration and local docsets, or official documentation. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": null
         },
         {
@@ -608,10 +608,27 @@
           "kind": "language-runtime",
           "summary": "Project-compatible Swift compiler and Swift Package Manager for the selected package build/test route.",
           "degradation": "Swift package build/test checks remain unrun; do not substitute them for Apple app verification.",
-          "remedy": "Use an authorized environment with the project-compatible Swift toolchain; no automatic installation or language-mode upgrade.",
+          "remedy": "Use an authorized environment with the project-compatible Swift toolchain; no automatic installation or language-mode upgrade. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": {
             "kind": "command",
             "command": "swift"
+          }
+        },
+        {
+          "scope": "workflow:tool-preflight",
+          "scopeKind": "workflow",
+          "id": "python-runtime",
+          "kind": "language-runtime",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
           }
         },
         {
@@ -621,7 +638,7 @@
           "kind": "command-line-tool",
           "summary": "Selected macOS Xcode SDK and command-line build/test tools used only by Apple build, simulator, or release-preparation routes.",
           "degradation": "Apple build, test, simulator, and archive checks remain unrun; source review and implementation can continue without claiming native verification.",
-          "remedy": "Use an authorized Mac with the project-compatible Xcode SDK and destination; this skill does not install or select Xcode automatically.",
+          "remedy": "Use an authorized Mac with the project-compatible Xcode SDK and destination; this skill does not install or select Xcode automatically. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": {
             "kind": "command",
             "command": "xcodebuild"
@@ -651,7 +668,7 @@
           "kind": "mcp-server",
           "summary": "Optional configured XcodeBuildMCP or MobileBuildMCP adapter, selected through the installed server version and actual tool schemas.",
           "degradation": "Skip this adapter; use an authorized project-native CLI route if available, otherwise report the exact Apple operation as unrun.",
-          "remedy": "Use a compatible already configured server or the project CLI; configuring a new persistent integration requires applicable authorization.",
+          "remedy": "Use a compatible already configured server or the project CLI; configuring a new persistent integration requires applicable authorization. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": null
         },
         {
@@ -661,7 +678,7 @@
           "kind": "command-line-tool",
           "summary": "Optional AppStoreConnectCLI adapter for specifically authorized App Store Connect operations.",
           "degradation": "Return local release preparation and name the unperformed account/upload/submission operation; never install, authenticate, or publish automatically.",
-          "remedy": "Use an existing compatible authorized CLI/account workflow; credentials and consequential actions remain governed by live permission.",
+          "remedy": "Use an existing compatible authorized CLI/account workflow; credentials and consequential actions remain governed by live permission. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": null
         },
         {
@@ -671,7 +688,7 @@
           "kind": "command-line-tool",
           "summary": "Optional AXe simulator UI adapter for an explicitly selected native UI validation route.",
           "degradation": "Use the project's available XCTest/UI tooling or report simulator UI validation unrun; no screenshot or click implies a pass.",
-          "remedy": "Use an authorized Mac with a compatible installed AXe and selected simulator, or retain the existing UI test workflow.",
+          "remedy": "Use an authorized Mac with a compatible installed AXe and selected simulator, or retain the existing UI test workflow. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": {
             "kind": "command",
             "command": "axe"
@@ -684,7 +701,7 @@
           "kind": "tool",
           "summary": "Optional local Apple documentation query adapter selected for installed-SDK documentation lookup.",
           "degradation": "Read current official Apple/Swift documentation and disclose that installed-SDK docset evidence was unavailable.",
-          "remedy": "Use an existing compatible DocSetQuery integration and local docsets, or official documentation.",
+          "remedy": "Use an existing compatible DocSetQuery integration and local docsets, or official documentation. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": null
         },
         {
@@ -694,10 +711,27 @@
           "kind": "language-runtime",
           "summary": "Project-compatible Swift compiler and Swift Package Manager for the selected package build/test route.",
           "degradation": "Swift package build/test checks remain unrun; do not substitute them for Apple app verification.",
-          "remedy": "Use an authorized environment with the project-compatible Swift toolchain; no automatic installation or language-mode upgrade.",
+          "remedy": "Use an authorized environment with the project-compatible Swift toolchain; no automatic installation or language-mode upgrade. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": {
             "kind": "command",
             "command": "swift"
+          }
+        },
+        {
+          "scope": "workflow:tool-preflight",
+          "scopeKind": "workflow",
+          "id": "python-runtime",
+          "kind": "language-runtime",
+          "summary": "Python runtime used by package-local validators and the optional worker adapters' event parsers.",
+          "degradation": "The dependent skill reports that its local validator or worker adapter is unavailable and does not substitute another runtime.",
+          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "probe": {
+            "kind": "command-any",
+            "commands": [
+              "python3",
+              "python",
+              "py"
+            ]
           }
         },
         {
@@ -707,7 +741,7 @@
           "kind": "command-line-tool",
           "summary": "Selected macOS Xcode SDK and command-line build/test tools used only by Apple build, simulator, or release-preparation routes.",
           "degradation": "Apple build, test, simulator, and archive checks remain unrun; source review and implementation can continue without claiming native verification.",
-          "remedy": "Use an authorized Mac with the project-compatible Xcode SDK and destination; this skill does not install or select Xcode automatically.",
+          "remedy": "Use an authorized Mac with the project-compatible Xcode SDK and destination; this skill does not install or select Xcode automatically. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations.",
           "probe": {
             "kind": "command",
             "command": "xcodebuild"

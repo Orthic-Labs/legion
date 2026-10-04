@@ -32,7 +32,10 @@ platform expertise within Legion, not a new authority, agent harness, or permiss
 2. Keep the app's architecture and dependencies unless the request requires a change.
    Preserve UIKit, XCTest, Core Data, Tauri/Rust, and other existing choices; modern APIs
    are conditional on the target's SDK and deployment availability.
-3. Read only the references needed for the request:
+3. For execution or tool-dependent work, run the mandatory [tool setup lifecycle](references/tool-setup.md):
+   detect → select → reuse → authorized setup only when missing → verify → continue.
+   The agent owns finding and proposing the needed tools; the user should not hunt for them.
+   Then load only the relevant references:
    - iOS lifecycle, navigation, adaptation, permissions, native UI: [iOS platform](references/ios-platform.md)
    - App Intents, Shortcuts, Siri, Spotlight, widgets: [System integration](references/system-integration.md)
    - View identity, state ownership, SwiftUI performance: [SwiftUI](references/swiftui.md)

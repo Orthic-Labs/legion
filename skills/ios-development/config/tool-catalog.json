@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "kind": "apple-tool-setup-catalog",
+  "checkedOn": "2026-10-04",
+  "purpose": "Agent setup recipes, not an automatic installer or permission grant.",
+  "versionPolicy": "Reuse compatible installed/project-pinned versions. Resolve and record a supported exact release before a new install; provenance commit pins are source-review evidence, not asserted package versions. Homebrew formulas are moving releases: inspect and disclose the resolved version before approval. Never silently upgrade or reinstall.",
+  "tools": [
+    {
+      "id": "mobilebuildmcp",
+      "name": "MobileBuildMCP (formerly XcodeBuildMCP)",
+      "source": "https://github.com/getsentry/MobileBuildMCP",
+      "executables": [
+        "mobilebuildmcp",
+        "xcodebuildmcp"
+      ],
+      "platforms": [
+        "Darwin"
+      ],
+      "scope": "environment binary; MCP client/user or project registration",
+      "useWhen": "build, test, simulator/device, logs and debugging",
+      "setupRecipe": "brew tap getsentry/xcodebuildmcp; brew install mobilebuildmcp OR npm install -g mobilebuildmcp@<approved-version>",
+      "verify": "Before invocation set process MOBILEBUILDMCP_SENTRY_DISABLED=true and inspect higher-priority project/session overrides; mobilebuildmcp --help; mobilebuildmcp tools; inspect actual connected MCP tool schemas",
+      "versionPolicy": "Preserve a compatible existing XcodeBuildMCP/server; confirm renamed interface, package version and project pin before migration.",
+      "recipeReference": "references/tool-setup.md#mobilebuildmcp"
+    },
+    {
+      "id": "axe",
+      "name": "AXe",
+      "source": "https://github.com/cameroncooke/AXe",
+      "executables": [
+        "axe"
+      ],
+      "platforms": [
+        "Darwin"
+      ],
+      "scope": "environment binary",
+      "useWhen": "simulator accessibility and UI actions",
+      "setupRecipe": "brew install cameroncooke/axe/axe",
+      "verify": "axe --help; axe list-simulators",
+      "versionPolicy": "Match selected Xcode/simulator runtime and packaged frameworks; check whether MobileBuildMCP already supplies the required AXe capability.",
+      "recipeReference": "references/tool-setup.md#axe"
+    },
+    {
+      "id": "docsetquery",
+      "name": "DocSetQuery",
+      "source": "https://github.com/PaulSolt/DocSetQuery",
+      "executables": [],
+      "platforms": [
+        "Darwin"
+      ],
+      "scope": "versioned source checkout; local docsets/cache; project docs",
+      "useWhen": "local Apple documentation extraction and search",
+      "setupRecipe": "Fetch the reviewed official repository revision into an approved tools directory; inspect its Python imports and prerequisites; use tools/docset_query.py and tools/docindex.py",
+      "verify": "python3 <checkout>/tools/docset_query.py --help; python3 <checkout>/tools/docindex.py --help",
+      "versionPolicy": "No package-manager formula or MCP server is assumed. Requires a compatible local docset; inspect DOCSET_ROOT/DOCSET_CACHE_DIR and Python dependencies.",
+      "recipeReference": "references/tool-setup.md#docsetquery"
+    },
+    {
+      "id": "xcbeautify",
+      "name": "xcbeautify",
+      "source": "https://github.com/cpisciotta/xcbeautify",
+      "executables": [
+        "xcbeautify"
+      ],
+      "platforms": [
+        "Darwin",
+        "Linux"
+      ],
+      "scope": "environment binary",
+      "useWhen": "format existing build logs",
+      "setupRecipe": "brew install xcbeautify OR mint install cpisciotta/xcbeautify",
+      "verify": "xcbeautify --version; xcbeautify --help",
+      "versionPolicy": "Preserve raw logs and producer exit status (pipefail); no formatter is required to build.",
+      "recipeReference": "references/tool-setup.md#xcbeautify"
+    },
+    {
+      "id": "sourcery",
+      "name": "Sourcery",
+      "source": "https://github.com/krzysztofzablocki/Sourcery",
+      "executables": [
+        "sourcery"
+      ],
+      "platforms": [
+        "Darwin",
+        "Linux"
+      ],
+      "scope": "environment binary OR existing project dependency/plugin",
+      "useWhen": "project-approved code generation",
+      "setupRecipe": "brew install sourcery OR use the project-pinned CocoaPods/SPM/Mint/release-binary route",
+      "verify": "sourcery --version; sourcery --help; inspect existing .sourcery.yml/templates",
+      "versionPolicy": "Keep generator/template/compiler versions compatible; platform/build-method support differs. Do not add build phases, templates or plugins just to install a tool.",
+      "recipeReference": "references/tool-setup.md#sourcery"
+    },
+    {
+      "id": "inject",
+      "name": "Inject / InjectionIII",
+      "source": "https://github.com/krzysztofzablocki/Inject",
+      "executables": [],
+      "platforms": [
+        "Darwin"
+      ],
+      "scope": "project Swift package/code/debug settings plus developer-machine app",
+      "useWhen": "requested hot reload in an existing app",
+      "setupRecipe": "Add approved project-pinned Inject Swift package; follow upstream linked InjectionIII/InjectionForXcode setup for the selected compiler",
+      "verify": "Inspect Package.resolved/project dependencies, debug linker settings and Injection app version; validate one intended view update",
+      "versionPolicy": "Project integration is a separate code/settings change. Do not weaken signing/library validation or enable injection on a release target.",
+      "recipeReference": "references/tool-setup.md#inject"
+    },
+    {
+      "id": "ascctl",
+      "name": "Xopoko AppStoreConnectCLI (ascctl)",
+      "source": "https://github.com/Xopoko/AppStoreConnectCLI",
+      "executables": [
+        "ascctl"
+      ],
+      "platforms": [
+        "Darwin",
+        "Linux"
+      ],
+      "scope": "environment binary; separately authorized account profile",
+      "useWhen": "OpenAPI-oriented App Store Connect operations",
+      "setupRecipe": "brew tap Xopoko/tap; brew install ascctl",
+      "verify": "ascctl --help (JSON ok=true); inspect config/auth/openapi help before any account access",
+      "versionPolicy": "Distinct from asc: do not interchange flags or auth. Use project-compatible release; binary presence does not establish authentication.",
+      "recipeReference": "references/tool-setup.md#ascctl"
+    },
+    {
+      "id": "asc",
+      "name": "rorkai App Store Connect CLI (asc)",
+      "source": "https://github.com/rorkai/App-Store-Connect-CLI",
+      "executables": [
+        "asc"
+      ],
+      "platforms": [
+        "Darwin",
+        "Linux",
+        "Windows"
+      ],
+      "scope": "environment binary; separately authorized account profile",
+      "useWhen": "release/TestFlight/metadata workflows described by rorkai skills",
+      "setupRecipe": "brew install asc on a supported Homebrew host; otherwise choose the official signed release asset for OS/architecture",
+      "verify": "Set ASC_TELEMETRY_DISABLED=1 and DO_NOT_TRACK=1 for the process before any invocation; asc version; asc --help; inspect selected operation help",
+      "versionPolicy": "Distinct from ascctl. Existing rorkai playbooks are referenced, not automatically installed; account credentials and release actions need separate authority. Verify the installed version honors telemetry opt-out; default upstream command telemetry is not implied authorization.",
+      "recipeReference": "references/tool-setup.md#asc"
+    },
+    {
+      "id": "rocketsim",
+      "name": "RocketSim",
+      "source": "https://www.rocketsim.app/docs/features/agentic-development/rocketsim-cli/",
+      "executables": [
+        "rocketsim"
+      ],
+      "platforms": [
+        "Darwin"
+      ],
+      "scope": "installed licensed app; environment CLI symlink",
+      "useWhen": "simulator UI inspection when selected",
+      "setupRecipe": "In an authorized existing RocketSim app: Settings > CLI & Agent > Install Command Line Tool; choose an approved PATH directory",
+      "verify": "rocketsim doctor; inspect current CLI help",
+      "versionPolicy": "CLI stays inside the app and follows app updates; requires running app and applicable permissions. No purchase or app download is implied.",
+      "recipeReference": "references/tool-setup.md#rocketsim"
+    },
+    {
+      "id": "codexmonitor",
+      "name": "CodexMonitor",
+      "source": "https://github.com/Dimillian/CodexMonitor",
+      "executables": [],
+      "platforms": [
+        "Darwin",
+        "Linux",
+        "Windows"
+      ],
+      "scope": "separate user-selected development app",
+      "useWhen": "explicitly selected existing agent/workspace UI",
+      "setupRecipe": "Use official repository release/build instructions only if the user requests this app; preserve current Codex workflow otherwise",
+      "verify": "Inspect installed app version, repository README and configured Codex CLI/workspace",
+      "versionPolicy": "Not a build or UI-test prerequisite; never create remote-access services or read unrelated sessions as part of Apple setup.",
+      "recipeReference": "references/tool-setup.md#codexmonitor"
+    },
+    {
+      "id": "agent-scripts",
+      "name": "steipete agent-scripts",
+      "source": "https://github.com/steipete/agent-scripts",
+      "executables": [],
+      "platforms": [
+        "Darwin",
+        "Linux"
+      ],
+      "scope": "selected reviewed source files in an approved tools location",
+      "useWhen": "specific requested helper; profiling methodology already adapted",
+      "setupRecipe": "Inspect the exact reviewed helper and dependencies in the official repository; copy/fetch only that helper when authorized",
+      "verify": "Read the selected script before execution and inspect its help where safe",
+      "versionPolicy": "No install-all command; do not import personal agent rules, browser sessions, credentials, hooks or unrelated orchestration.",
+      "recipeReference": "references/tool-setup.md#agent-scripts"
+    }
+  ]
+}

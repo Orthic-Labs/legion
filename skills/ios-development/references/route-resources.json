@@ -12,6 +12,12 @@
         "class": "HOST_CAPABILITY",
         "capability": "swift-toolchain"
       }
+    ],
+    "tool-preflight": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "python-runtime"
+      }
     ]
   },
   "adapters": {

@@ -334,6 +334,40 @@ mod apple_skill_tests {
     }
 
     #[test]
+    fn apple_tool_setup_is_self_contained_and_discoverable() {
+        let root = repository_root();
+        let expected = ["mobilebuildmcp", "axe", "docsetquery", "xcbeautify", "sourcery",
+            "inject", "ascctl", "asc", "rocketsim", "codexmonitor", "agent-scripts"];
+        for id in APPLE_SKILLS {
+            let bundle = root.join("skills").join(id);
+            let entry = fs::read_to_string(bundle.join("SKILL.md")).unwrap();
+            assert!(entry.contains("mandatory [tool setup lifecycle]"));
+            let setup = fs::read_to_string(bundle.join("references/tool-setup.md")).unwrap();
+            let catalog = read_json(&bundle.join("config/tool-catalog.json")).unwrap();
+            let tools = catalog["tools"].as_array().unwrap();
+            assert_eq!(tools.len(), expected.len());
+            for tool_id in expected {
+                let matches: Vec<_> = tools.iter().filter(|tool| tool["id"] == tool_id).collect();
+                assert_eq!(matches.len(), 1, "missing/duplicate setup entry {tool_id}");
+                let tool = matches[0];
+                for field in ["source", "scope", "useWhen", "setupRecipe", "verify", "versionPolicy"] {
+                    assert!(tool[field].as_str().is_some_and(|value| !value.trim().is_empty()), "{tool_id}: {field}");
+                }
+                assert!(tool["source"].as_str().unwrap().starts_with("https://"));
+                assert_eq!(tool["recipeReference"], format!("references/tool-setup.md#{tool_id}"));
+                assert!(setup.contains(&format!("## {tool_id}\n")));
+            }
+            assert!(setup.contains("never replace an entire config file") || setup.contains("never\n   replace an entire config file"));
+            assert!(setup.contains("do not rerun installation") || setup.contains("Do not rerun installation"));
+            assert!(bundle.join("scripts/tool_preflight.py").is_file());
+        }
+        for path in ["config/tool-catalog.json", "scripts/tool_preflight.py", "references/tool-setup.md"] {
+            assert_eq!(fs::read(root.join("skills/ios-development").join(path)).unwrap(),
+                fs::read(root.join("skills/macos-development").join(path)).unwrap());
+        }
+    }
+
+    #[test]
     fn apple_skill_manifests_bind_current_files_and_source_notices() {
         let root = repository_root();
         for id in APPLE_SKILLS {
@@ -343,7 +377,7 @@ mod apple_skill_tests {
             assert_eq!(current["licenseState"], "licensed");
             assert_eq!(current["rightsReceipt"]["sourceManifest"], "config/source-manifest.json");
             let files = current["files"].as_array().unwrap();
-            for required in ["config/source-manifest.json", "references/third-party-notices.md", "evals/evals.json"] {
+            for required in ["config/source-manifest.json", "references/third-party-notices.md", "evals/evals.json", "config/tool-catalog.json", "references/tool-setup.md", "scripts/tool_preflight.py"] {
                 assert!(files.iter().any(|file| file["path"] == required));
             }
         }
