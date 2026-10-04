@@ -4,6 +4,8 @@ This page routes to task-specific guidance. Read the smallest matching page, the
 the target's compiler/SDK, Swift language mode, strict-concurrency level, default actor
 isolation, and upcoming features before applying version-sensitive advice.
 
+- Detailed topic index, including task lifetime and memory guidance: [concurrency/_index.md](concurrency/_index.md)
+
 - Fundamentals, callback bridges, `async let`: [concurrency/async-await-basics.md](concurrency/async-await-basics.md) and [concurrency/foundations.md](concurrency/foundations.md)
 - Actors, reentrancy, global actors, executors and `Mutex`: [concurrency/actors.md](concurrency/actors.md)
 - `Sendable`, regions, `sending`, closures and unsafe escape hatches: [concurrency/sendable.md](concurrency/sendable.md)

@@ -939,7 +939,7 @@
     {
       "path": "references/system-integration.md",
       "uri": "legion-skill://macos-development/references/system-integration.md",
-      "digest": "sha256:cdd2223d25b7efc762a1c73d5651754e896578f22fcebbf167ca8e637d050d6b"
+      "digest": "sha256:f48741727f8e4389fda33fc4662c2df7030a64951e15cdaf900fa50fd48fd290"
     },
     {
       "path": "references/tauri-rust-interop.md",

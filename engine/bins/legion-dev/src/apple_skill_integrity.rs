@@ -299,6 +299,7 @@ fn assert_source_ledgers(root: &Path) {
     }
 
     let mut seen = HashSet::<usize>::new();
+    let mut destination_issues = Vec::new();
     for (source_id, source_path, ledger_hash, file) in &ledgers {
         let identity = format!("{source_id}:{source_path}");
         let inventory_match = expected
@@ -384,21 +385,23 @@ fn assert_source_ledgers(root: &Path) {
             for destination in destinations {
                 let destination = destination.as_str().unwrap();
                 let (relative, fragment) = destination.split_once('#').unwrap_or((destination, ""));
-                let target = root
-                    .join(relative)
-                    .canonicalize()
-                    .unwrap_or_else(|error| panic!("{destination}: {error}"));
-                assert!(
-                    target.starts_with(root),
-                    "destination escapes repository: {destination}"
-                );
+                let target = match root.join(relative).canonicalize() {
+                    Ok(target) => target,
+                    Err(error) => {
+                        destination_issues.push(format!("{identity}: {destination}: {error}"));
+                        continue;
+                    }
+                };
+                if !target.starts_with(root) {
+                    destination_issues.push(format!("{identity}: destination escapes repository: {destination}"));
+                    continue;
+                }
                 if !fragment.is_empty()
                     && target.extension().and_then(|extension| extension.to_str()) == Some("md")
                 {
-                    assert!(
-                        anchors(&target).contains(fragment),
-                        "broken destination anchor: {destination}"
-                    );
+                    if !anchors(&target).contains(fragment) {
+                        destination_issues.push(format!("{identity}: broken destination anchor: {destination}"));
+                    }
                 }
             }
         }
@@ -429,6 +432,7 @@ fn assert_source_ledgers(root: &Path) {
         );
     }
     assert_eq!(seen.len(), expected.len(), "source inventory has undispositioned files");
+    assert!(destination_issues.is_empty(), "Source ledger destinations:\n{}", destination_issues.join("\n"));
 }
 
 fn assert_native_app_store_ledger(root: &Path) {

@@ -50,7 +50,7 @@
     {
       "path": "agents/openai.yaml",
       "uri": "legion-skill://oracle/agents/openai.yaml",
-      "digest": "sha256:5e9e3a4064c02a4d408c1b359d8cc02add911abd1085da4a21d55215cd1cc0bf"
+      "digest": "sha256:34efc8a3a7a55934b2c430334b485dd6532748f67d2220b6ed06a855e9b3e15d"
     },
     {
       "path": "dependencies.json",

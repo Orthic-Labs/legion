@@ -12,6 +12,7 @@ Use this reference for measured Apple build-time diagnosis, scoped remediation, 
 | Package graph, plugins, pins, macros, module variants | [SPM analysis](build-optimization/spm-analysis.md) |
 | Scoped settings, scripts, source, or package changes | [fixing](build-optimization/fixing.md) |
 | Full baseline → analysis → prioritized plan → verification | [orchestration](build-optimization/orchestration.md) |
+| Source citations, evidence provenance, and tool-version qualifiers | [source/evidence map](build-optimization/sources.md) |
 
 ## Shared contract
 

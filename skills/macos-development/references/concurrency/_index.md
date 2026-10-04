@@ -25,7 +25,7 @@ Quick navigation for the Swift Concurrency skill.
 |---|---|
 | `testing.md` | Swift Testing first, XCTest fallback, leak checks |
 | `performance.md` | Instruments workflow, actor hops, suspension cost |
-| `memory-management.md` | retain cycles, long-lived tasks, cleanup |
+| [memory-management.md](memory-management.md) | retain cycles, long-lived tasks, cleanup |
 | `core-data.md` | `NSManagedObjectID`, `perform`, default isolation conflicts |
 | `observation.md` | `@Observable` with `@MainActor`, cross-isolation access, Sendable constraints |
 
