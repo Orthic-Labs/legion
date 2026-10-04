@@ -38,35 +38,44 @@ jobs:
       - name: Generate canonical bundle projections
         shell: bash
         run: |
-          set -euo pipefail
-          cargo check --manifest-path engine/Cargo.toml -p legion-apple
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-codex-skill-sidecars
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests ios-development macos-development
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- native-cli-inventory
+          set -uo pipefail
+          result=0
+          generate() { "$@" || result=1; }
+          generate cargo check --manifest-path engine/Cargo.toml -p legion-apple
+          generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-codex-skill-sidecars
+          generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog
+          generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection
+          generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests ios-development macos-development
+          generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- native-cli-inventory
           git diff --binary > apple-generated.patch
+          exit "$result"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: apple-generated-${{ github.sha }}
           path: apple-generated.patch
           retention-days: 7
       - name: Verify bundle closure, provenance & helpers
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
-          set -euo pipefail
-          cargo test --locked --manifest-path engine/Cargo.toml -p legion-apple
-          cargo test --locked --manifest-path engine/Cargo.toml -p legion-dev apple_skill_integrity
-          cargo test --locked --manifest-path engine/Cargo.toml -p legion --test apple_cli --test script_cli --test m1_vertical_slice
-          cargo test --locked --manifest-path engine/Cargo.toml -p legion --bin legion apple_
-          cargo test --locked --manifest-path engine/Cargo.toml -p xtask canonical_mcp_schema
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-codex-skill-sidecars --check
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog --check
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests --check ios-development macos-development
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-dependency-closure
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-native-cli-surface
-          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity --check --structural-only
+          set -uo pipefail
+          result=0
+          verify() { "$@" || result=1; }
+          verify cargo test --locked --manifest-path engine/Cargo.toml -p legion-apple
+          verify cargo test --locked --manifest-path engine/Cargo.toml -p legion-dev apple_skill_integrity
+          verify cargo test --locked --manifest-path engine/Cargo.toml -p legion --test apple_cli --test script_cli --test m1_vertical_slice
+          verify cargo test --locked --manifest-path engine/Cargo.toml -p legion --bin legion apple_
+          verify cargo test --locked --manifest-path engine/Cargo.toml -p xtask canonical_mcp_schema
+          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-codex-skill-sidecars --check
+          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog --check
+          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check
+          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests --check ios-development macos-development
+          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-dependency-closure
+          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-native-cli-surface --phase enforce
+          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity --check --structural-only
+          exit "$result"
       - name: Reject uncommitted generated drift
+        if: ${{ !cancelled() }}
         shell: bash
         run: git diff --exit-code

@@ -11,6 +11,7 @@ const MAX_INPUT_BYTES: usize = 32 * 1024 * 1024;
 const MAX_ADDRESSES: usize = 200_000;
 const MAX_TOP: usize = 1_000;
 const MAX_ATOS_BATCH: usize = 80;
+const MAX_SYMBOL_BYTES: usize = 1_048_576;
 
 /// Parse exported samples or prepare bounded symbol batches. Typed effect
 /// plans for `profile.export`, `memory.inspect`, and `symbolicate` remain
@@ -241,7 +242,18 @@ pub fn assemble_symbol_csv(rows: &[(u64, u64)], symbols: &[&str]) -> Result<Stri
         if symbol.contains('\n') || symbol.contains('\r') {
             return Err("symbol output must be one line per address".to_string());
         }
-        output.push_str(&format!("0x{address:x},{count},{symbol}\n"));
+        if symbol.len() > MAX_SYMBOL_BYTES {
+            return Err(format!("symbol exceeds {MAX_SYMBOL_BYTES} bytes"));
+        }
+        output.push_str(&format!("0x{address:x},{count},"));
+        if symbol.contains(',') || symbol.contains('"') {
+            output.push('"');
+            output.push_str(&symbol.replace('"', "\"\""));
+            output.push('"');
+        } else {
+            output.push_str(symbol);
+        }
+        output.push('\n');
     }
     Ok(output)
 }
@@ -263,7 +275,8 @@ mod tests {
     fn symbol_batches_require_load_range_bounds() {
         let symbols = invoke("profile.symbols", &json!({"binary_path":"/tmp/a","load_address":"0x1000","text_size":4096,"addresses":["0x1001"]})).unwrap();
         assert_eq!(symbols["batches"][0]["executable"], "/usr/bin/atos");
-        assert_eq!(assemble_symbol_csv(&[(0x1001, 2)], &["Demo.work"]), "address,count,symbol\n0x1001,2,Demo.work\n");
+        assert_eq!(assemble_symbol_csv(&[(0x1001, 2)], &["Demo.work"]).unwrap(), "address,count,symbol\n0x1001,2,Demo.work\n");
+        assert_eq!(assemble_symbol_csv(&[(0x1001, 2)], &["Demo, \"work\""]).unwrap(), "address,count,symbol\n0x1001,2,\"Demo, \"\"work\"\"\"\n");
         assert!(assemble_symbol_csv(&[(0x1001, 2)], &["bad\nrow"]).is_err());
         assert!(invoke("profile.symbols", &json!({"binary_path":"x","load_address":"bad","addresses":[]})).is_err());
     }

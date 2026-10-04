@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 /// `legion script --list` enumerates every `<skill>/<stem>` Rust port wired
 /// into the static dispatch table, so it must include the ports called out
@@ -524,7 +524,7 @@ fn native_script_brand_identity_color_check_bad_usage_exits_2() {
 fn native_script_seo_provider_registry_discover() {
     let output = Command::new(env!("CARGO_BIN_EXE_legion"))
         .args(["script", "seo/provider_registry", "discover"])
-        .current_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/../../..")
+        .current_dir(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../.."))
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(0), "{output:?}");

@@ -21,9 +21,10 @@ const SHARED_TOPICS: [&str; 8] = [
     "swiftui",
     "testing",
 ];
-const BYTE_IDENTICAL_TOPICS: [&str; 5] = [
+// Build guidance shares file coverage, but selected Xcode destinations differ
+// between the iOS & macOS bundles.
+const BYTE_IDENTICAL_TOPICS: [&str; 4] = [
     "architecture",
-    "build-optimization",
     "concurrency",
     "profiling",
     "release",

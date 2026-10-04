@@ -182,6 +182,19 @@
       ],
       "remedy": "Use an authorized Mac with the project-compatible Xcode SDK and destination; this skill does not install or select Xcode automatically. The selected Apple skill owns detect/reuse/authorized-setup/verify via references/tool-setup.md and config/tool-catalog.json; preserve existing configuration and reuse setup across invocations."
     },
+    "legion-apple": {
+      "kind": "command-line-tool",
+      "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
+      "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
+      "probe": {
+        "kind": "command",
+        "command": "legion"
+      },
+      "commands": [
+        "legion"
+      ],
+      "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route."
+    },
     "swift-toolchain": {
       "kind": "language-runtime",
       "summary": "Project-compatible Swift compiler and Swift Package Manager for the selected package build/test route.",

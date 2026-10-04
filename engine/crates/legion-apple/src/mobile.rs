@@ -1101,12 +1101,13 @@ mod tests {
     #[tokio::test]
     async fn plan_uses_typed_argv_and_selected_developer_dir() {
         let cwd = env::current_dir().unwrap();
-        let args = json!({"project": "Package.swift", "scheme": "Demo", "cwd": cwd, "developer_dir": "/Applications/Xcode.app/Contents/Developer"});
+        let developer_dir = cwd.join("SelectedXcode/Contents/Developer");
+        let args = json!({"project": "Package.swift", "scheme": "Demo", "cwd": cwd, "developer_dir": developer_dir});
         let value = invoke("project.settings", &args).await.unwrap();
         assert_eq!(value["kind"], "plan");
         assert_eq!(value["executable"], XCODEBUILD);
         assert!(value["args"].as_array().unwrap().iter().all(|item| item.as_str().unwrap() != "sh"));
-        assert_eq!(value["env"]["DEVELOPER_DIR"], "/Applications/Xcode.app/Contents/Developer");
+        assert_eq!(value["env"]["DEVELOPER_DIR"], developer_dir.to_str().unwrap());
     }
 
     #[tokio::test]
@@ -1151,8 +1152,9 @@ mod tests {
     #[tokio::test]
     async fn axe_plans_require_scoped_target_and_preserve_typed_selectors() {
         let cwd = env::current_dir().unwrap();
-        let value = invoke("ui.tap", &json!({"cwd": cwd, "axe_path": "/opt/homebrew/bin/axe", "udid": "SIMULATOR-UDID", "label": "Continue", "tap_style": "physical"})).await.unwrap();
-        assert_eq!(value["executable"], "/opt/homebrew/bin/axe");
+        let axe = cwd.join("axe");
+        let value = invoke("ui.tap", &json!({"cwd": cwd, "axe_path": axe, "udid": "SIMULATOR-UDID", "label": "Continue", "tap_style": "physical"})).await.unwrap();
+        assert_eq!(value["executable"], axe.to_str().unwrap());
         let args = value["args"].as_array().unwrap().iter().map(|item| item.as_str().unwrap()).collect::<Vec<_>>();
         assert!(args.windows(2).any(|window| window == ["--label", "Continue"]));
         assert!(args.windows(2).any(|window| window == ["--udid", "SIMULATOR-UDID"]));
@@ -1164,9 +1166,9 @@ mod tests {
         assert!(invoke("mac.stop", &json!({"process_name": ".*"})).await.is_err());
         assert!(invoke("mac.stop", &json!({"process_name": "-Demo"})).await.is_err());
         let process = invoke("mac.stop", &json!({"process_name": "My App"})).await.unwrap();
-        assert_eq!(process["args"][2], "My App");
+        assert_eq!(process["args"][1], "My App");
         let helper = invoke("mac.stop", &json!({"process_name": "Foo.Helper"})).await.unwrap();
-        assert_eq!(helper["args"][2], "Foo\\.Helper");
+        assert_eq!(helper["args"][1], "Foo\\.Helper");
         let value = invoke("debug.breakpoint", &json!({"pid": 1234, "action": "add", "file": "Sources/My App.swift", "line": 42})).await.unwrap();
         let args = value["args"].as_array().unwrap().iter().map(|item| item.as_str().unwrap()).collect::<Vec<_>>();
         assert!(args.iter().any(|arg| arg.contains("breakpoint set --file \"") && arg.contains("My App.swift\" --line 42")));
