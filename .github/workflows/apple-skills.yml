@@ -1,7 +1,7 @@
 name: apple-skills
 on:
   push:
-    branches: ['main', 'codex/apple-skill-absorption']
+    branches: ['main']
     paths:
       - 'skills/ios-development/**'
       - 'skills/macos-development/**'

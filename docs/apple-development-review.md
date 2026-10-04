@@ -59,4 +59,6 @@ Local build admission was refused because managed RightKit inventory contained r
 
 Source review separately examines concrete rule retention, code examples & native operation correctness. Neither static bundle checks nor Windows unit tests prove macOS runtime behavior, simulator/device results, signing, authenticated App Store access or publication. No live account mutation, release upload or installer deployment belongs to this absorption request.
 
-Final observed CI & review results are recorded after they complete; this paragraph is a pending integration record.
+At `fddf7d8b717ed4b8590fdf2fdd6cf6af31c05c3b`, [Windows Apple CI passed](https://github.com/Orthic-Labs/legion/actions/runs/37241327474): 126 selected tests (55 native backend, 7 source integrity, 5 CLI, 3 real stdio MCP integration, 42 script compatibility, 11 Apple policy, 2 schema & 1 authority binding). Canonical projection, manifest, dependency closure, native surface, plugin parity & zero-generated-drift checks also passed.
+
+Independent read-only Oracle review passed after target-bound authorization, SwiftPM write/network grants & App Store publication classification were repaired. A separate SwiftUI forward check confirmed availability branches for `foregroundStyle`, `onChange`, `Tab` & `enumerated()` collection use. This records source assurance & Windows verification; macOS/device/account execution remains outside those results. Detailed source trace now covers 363 inventoried files & 2,181 rule/group dispositions.
