@@ -265,22 +265,6 @@ fn assert_source_ledgers(root: &Path) {
                 expected.source_id == *source_id
                     && expected.path == *source_path
                     && expected.hash.as_ref() == ledger_hash.as_ref()
-            })
-            .or_else(|| {
-                // Build ledger consolidates three byte-identical donor paths into
-                // one canonical references file. Keep this alias explicit so a
-                // hash from another source cannot satisfy coverage accidentally.
-                if source_id == "avdlee-xcode-build-optimization-agent-skill"
-                    && source_path == "references/build-settings-best-practices.md"
-                {
-                    expected.iter().enumerate().find(|(_, expected)| {
-                        expected.source_id == *source_id
-                            && expected.path.ends_with("/references/build-settings-best-practices.md")
-                    && expected.hash.as_ref() == ledger_hash.as_ref()
-                    })
-                } else {
-                    None
-                }
             });
         if let Some((index, _)) = inventory_match {
             assert!(seen.insert(index), "duplicate ledger file: {identity}");
@@ -409,7 +393,13 @@ fn assert_native_app_store_ledger(root: &Path) {
     let ledger = read_json(&path);
     assert_eq!(ledger["schemaVersion"], 1);
     assert_eq!(ledger["lane"], "native-app-store-connect-adapter");
-    assert!(ledger["destination"].as_str().is_some_and(|value| !value.is_empty()));
+    let destinations = ledger["destination"].as_array().unwrap();
+    assert!(!destinations.is_empty());
+    for destination in destinations {
+        let relative = destination.as_str().unwrap();
+        let resolved = root.join(relative).canonicalize().unwrap();
+        assert!(resolved.starts_with(root) && resolved.is_file(), "invalid native destination: {relative}");
+    }
     for rule in ledger["nativeRules"].as_array().unwrap() {
         for field in ["sourceLines", "destinationLines"] {
             let bounds = rule[field].as_array().unwrap();
@@ -446,7 +436,7 @@ fn assert_native_app_store_ledger(root: &Path) {
             );
             assert!(matches!(
                 file["disposition"].as_str(),
-                Some("merged") | Some("rejected")
+                Some("merged") | Some("rejected") | Some("notice-retained")
             ));
         }
     }

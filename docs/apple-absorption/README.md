@@ -1,6 +1,6 @@
 # Apple source absorption trace
 
-Reviewed 2026-10-05. This directory records source-bound absorption for iOS/macOS guidance. `source-inventory.json` is the pinned denominator: 362 inventoried files across 15 source entries. Lane ledgers preserve per-file review state; each substantive `rules[]` row records source line range, summary, `kept`/`merged`/`rejected` disposition, operational destination(s) where supplied, and reason. Metadata-only files remain explicit with empty rules when no content was eligible. Native adapter ledgers are additional source-bound receipts for implementation lanes.
+Reviewed 2026-10-05. This directory records source-bound absorption for iOS/macOS guidance. `source-inventory.json` is the pinned denominator: 363 inventoried files across 15 source entries. Lane ledgers preserve per-file review state; each substantive `rules[]` row records source line range, summary, `kept`/`merged`/`rejected` disposition, operational destination(s) where supplied, and reason. Metadata-only files remain explicit with empty rules when no content was eligible. Native adapter ledgers are additional source-bound receipts for implementation lanes.
 
 ## Lane coverage
 

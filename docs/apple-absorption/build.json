@@ -275,7 +275,7 @@
         },
         {
           "path": "skills/xcode-build-fixer/references/build-settings-best-practices.md",
-          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf9b8a4",
+          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf70bc9b8a4",
           "kind": "reference",
           "review": "Fully read; byte duplicate of root settings reference.",
           "duplicateOf": "references/build-settings-best-practices.md",
@@ -333,7 +333,7 @@
         },
         {
           "path": "skills/xcode-build-orchestrator/references/build-settings-best-practices.md",
-          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf9b8a4",
+          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf70bc9b8a4",
           "kind": "reference",
           "review": "Fully read; byte duplicate settings reference; represented in shared settings guidance.",
           "duplicateOf": "references/build-settings-best-practices.md",
@@ -455,7 +455,7 @@
         },
         {
           "path": "skills/xcode-project-analyzer/references/build-settings-best-practices.md",
-          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf9b8a4",
+          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf70bc9b8a4",
           "kind": "reference",
           "review": "Fully read; byte duplicate.",
           "duplicateOf": "references/build-settings-best-practices.md",

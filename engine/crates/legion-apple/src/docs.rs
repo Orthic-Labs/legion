@@ -1061,7 +1061,7 @@ mod tests {
             }),
             0,
         );
-        let result = invoke(&json!({"operation":"read", "docset_path": fixture.0, "path":"/documentation/demo", "max_rows":2, "max_bytes":8})).unwrap();
+        let result = invoke(&json!({"operation":"read", "docset_path": fixture.0, "path":"/documentation/demo/0", "max_rows":2, "max_bytes":8})).unwrap();
         assert_eq!(result["summary"]["variants"].as_array().unwrap().len(), 2);
         assert_eq!(
             result["structure"]["primary_content"]

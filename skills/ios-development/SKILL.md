@@ -48,7 +48,7 @@ platform expertise within Legion, not a new authority, agent harness, or permiss
    - Signing, archive/export, TestFlight/App Store preparation: [Release](references/release.md)
    - A cross-platform shell or native bridge: [Rust/Tauri interop](references/tauri-rust-interop.md)
    - Native iOS workflow router & deep workflows: [iOS workflows](references/ios-workflows.md), [SwiftUI quality](references/ios-workflows/swiftui-quality.md), [simulator debugging](references/ios-workflows/simulator-debugging.md), [memory evidence](references/ios-workflows/memory-evidence.md), [performance evidence](references/ios-workflows/performance-evidence.md)
-   - Mac workflow guidance for multiplatform targets in this bundle: [macOS workflows](references/macos-workflows.md), [AppKit interop](references/macos-workflows/appkit-interop.md)
+   - Mac workflow boundary for multiplatform targets: [macOS workflow boundary](references/macos-workflows.md)
    - Build analysis & measured optimization: [Build optimization](references/build-optimization.md), [benchmarking](references/build-optimization/benchmarking.md), [compilation analysis](references/build-optimization/compilation-analysis.md)
    - Profiling capture & interpretation: [Profiling](references/profiling.md), [capture](references/profiling/capture.md), [hotspots](references/profiling/hotspots.md), [export](references/profiling/export.md)
 4. Make the smallest coherent change, then run the existing focused checks and the actual

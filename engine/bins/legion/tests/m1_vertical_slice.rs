@@ -491,7 +491,9 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
             }
         }}),
     );
-    assert!(denied.get("error").is_some(), "unguarded account execution must fail: {denied}");
+    assert_eq!(denied["result"]["isError"], true, "unguarded account execution must fail: {denied}");
+    assert_eq!(denied["result"]["structuredContent"]["error"]["code"], "INVALID_PARAMS");
+    assert!(denied["result"]["structuredContent"]["data"].is_null());
 
     let invoked = request(
         &mut stdin,

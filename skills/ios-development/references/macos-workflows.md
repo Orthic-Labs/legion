@@ -2,8 +2,9 @@
 
 Use this short boundary when an iOS or multiplatform task touches a Mac target. Keep
 shared SwiftUI, state, identity, observation, concurrency, persistence, and test rules
-in this skill's existing references. Route native Mac behavior to
-[macOS workflow references](../../macos-development/references/macos-workflows.md).
+in `ios-development` references. Select `macos-development` capability for native Mac
+workflow topics: scenes, windows, AppKit interop, SwiftPM GUI staging, signing, and
+distribution.
 
 Before changing a shared target, separate platform conditions: deployment minimum,
 SDK, scene model, window/document ownership, menu and keyboard routing, sandbox/TCC,
@@ -12,8 +13,9 @@ an iOS pattern does not establish a Mac window or menu contract, and a Mac API d
 automatically apply to Catalyst or another platform.
 
 For multiplatform code, put availability checks and platform branches at the boundary,
-keep domain operations shared, and verify each affected target. Use Mac references for
-SwiftPM GUI bundle staging, `NSWindow`/`NSPanel`, responder chains, menu-bar extras,
-Liquid Glass, macOS window placement, codesign/notarization, and unified logging.
+keep domain operations shared, and verify each affected target. In `macos-development`,
+read workflow topics for SwiftPM GUI bundle staging, `NSWindow`/`NSPanel`, responder
+chains, menu-bar extras, Liquid Glass, macOS window placement, codesign/notarization,
+and unified logging.
 Do not infer a simulator, device, or Mac runtime pass from source checks on another
 platform.

@@ -1,16 +1,17 @@
-# iOS workflows
+# iOS workflow boundary
 
-Use this router when a multiplatform or Catalyst task includes an iOS target. Keep
-Mac-specific windows, menus, sandbox, signing, & release checks in macOS references;
-apply every recipe to the selected iOS target and deployment minimum.
+Use this boundary when a multiplatform or Catalyst task includes an iOS target. Keep
+Mac-specific windows, menus, sandbox, signing, & release checks in `macos-development`
+references. Select `ios-development` capability for iOS workflow topics, applying every
+recipe to selected iOS target and deployment minimum.
 
 | Need | Read |
 | --- | --- |
-| Build, launch, inspect UI, logs | [simulator-debugging.md](../../ios-development/references/ios-workflows/simulator-debugging.md) |
-| Browser mirror or package preview hot reload | [preview-browser.md](../../ios-development/references/ios-workflows/preview-browser.md) |
-| App Intents & system surfaces | [app-intents.md](../../ios-development/references/ios-workflows/app-intents.md) |
-| Performance or memory evidence | [performance-evidence.md](../../ios-development/references/ios-workflows/performance-evidence.md), [memory-evidence.md](../../ios-development/references/ios-workflows/memory-evidence.md) |
-| SwiftUI shell & quality patterns | [swiftui-shell.md](../../ios-development/references/ios-workflows/swiftui-shell.md), [swiftui-quality.md](../../ios-development/references/ios-workflows/swiftui-quality.md) |
+| Build, launch, inspect UI, logs | `ios-workflows/simulator-debugging` |
+| Browser mirror or package preview hot reload | `ios-workflows/preview-browser` |
+| App Intents & system surfaces | `ios-workflows/app-intents` |
+| Performance or memory evidence | `ios-workflows/performance-evidence`, `ios-workflows/memory-evidence` |
+| SwiftUI shell & quality patterns | `ios-workflows/swiftui-shell`, `ios-workflows/swiftui-quality` |
 
 Use existing project tooling and preserve target boundaries. A successful Mac build
 does not prove iOS behavior; record target, SDK/runtime, simulator UDID, scheme,

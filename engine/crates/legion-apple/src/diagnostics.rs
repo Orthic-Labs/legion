@@ -19,7 +19,9 @@ use tokio::time;
 const MAX_INPUT_BYTES: u64 = 32 * 1024 * 1024;
 const MAX_NODES: usize = 200_000;
 const MAX_ROWS: usize = 1_000;
-const MAX_DEPTH: usize = 2_048;
+// Keep recursive traversal below typical Windows worker-stack exhaustion;
+// malformed input is rejected before recursion can grow dangerously.
+const MAX_DEPTH: usize = 256;
 const DEFAULT_TIMEOUT_MS: u64 = 30_000;
 const MAX_TIMEOUT_MS: u64 = 120_000;
 const DEFAULT_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
@@ -638,7 +640,11 @@ mod tests {
     fn flamegraph_depth_bound_rejects_deep_fixture() {
         let mut root = json!({"name":"leaf","duration":1,"children":[]});
         for _ in 0..=MAX_DEPTH {
-            root = json!({"name":"frame","duration":1,"children":[root]});
+            let mut object = Map::new();
+            object.insert("name".to_string(), Value::String("frame".to_string()));
+            object.insert("duration".to_string(), Value::from(1));
+            object.insert("children".to_string(), Value::Array(vec![root]));
+            root = Value::Object(object);
         }
         let mut totals = FlamegraphTotals::default();
         assert!(visit_node(&root, &mut totals, 0).is_err());

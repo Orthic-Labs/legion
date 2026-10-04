@@ -1180,9 +1180,17 @@
       "repository": "https://github.com/AvdLee/Xcode-Build-Optimization-Agent-Skill",
       "commit": "6bd7b596cd688b1127ded00e812b1b6937ec35d6",
       "scope": [
+        "references/",
         "skills/"
       ],
       "files": [
+        {
+          "path": "references/build-settings-best-practices.md",
+          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf70bc9b8a4",
+          "lines": 216,
+          "bytes": 8567,
+          "kind": "file"
+        },
         {
           "path": "skills/spm-build-analysis/SKILL.md",
           "sha256": "4ac9f10fac0ead182a0caa86f5e36eb11436db327f6b47c08c655ea5eb1afa48",

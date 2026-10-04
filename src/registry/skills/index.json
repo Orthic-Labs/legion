@@ -678,6 +678,32 @@
           "probe": null
         },
         {
+          "scope": "adapter:legion-apple",
+          "scopeKind": "adapter",
+          "id": "legion-apple",
+          "kind": "command-line-tool",
+          "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
+          "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
+          "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        },
+        {
+          "scope": "workflow:apple-native-cli",
+          "scopeKind": "workflow",
+          "id": "legion-apple",
+          "kind": "command-line-tool",
+          "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
+          "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
+          "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        },
+        {
           "scope": "workflow:swift-package",
           "scopeKind": "workflow",
           "id": "swift-toolchain",
@@ -693,18 +719,14 @@
         {
           "scope": "workflow:tool-preflight",
           "scopeKind": "workflow",
-          "id": "python-runtime",
-          "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators.",
-          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "id": "legion-apple",
+          "kind": "command-line-tool",
+          "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
+          "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
+          "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
           "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
-            ]
+            "kind": "command",
+            "command": "legion"
           }
         },
         {
@@ -794,6 +816,32 @@
           "probe": null
         },
         {
+          "scope": "adapter:legion-apple",
+          "scopeKind": "adapter",
+          "id": "legion-apple",
+          "kind": "command-line-tool",
+          "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
+          "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
+          "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        },
+        {
+          "scope": "workflow:apple-native-cli",
+          "scopeKind": "workflow",
+          "id": "legion-apple",
+          "kind": "command-line-tool",
+          "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
+          "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
+          "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
+          "probe": {
+            "kind": "command",
+            "command": "legion"
+          }
+        },
+        {
           "scope": "workflow:swift-package",
           "scopeKind": "workflow",
           "id": "swift-toolchain",
@@ -809,18 +857,14 @@
         {
           "scope": "workflow:tool-preflight",
           "scopeKind": "workflow",
-          "id": "python-runtime",
-          "kind": "language-runtime",
-          "summary": "Python runtime used by package-local validators.",
-          "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-          "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH.",
+          "id": "legion-apple",
+          "kind": "command-line-tool",
+          "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
+          "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
+          "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
           "probe": {
-            "kind": "command-any",
-            "commands": [
-              "python3",
-              "python",
-              "py"
-            ]
+            "kind": "command",
+            "command": "legion"
           }
         },
         {

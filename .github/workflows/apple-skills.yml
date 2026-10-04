@@ -64,9 +64,11 @@ jobs:
           verify() { "$@" || result=1; }
           verify cargo test --locked --manifest-path engine/Cargo.toml -p legion-apple
           verify cargo test --locked --manifest-path engine/Cargo.toml -p legion-dev apple_skill_integrity
-          verify cargo test --locked --manifest-path engine/Cargo.toml -p legion --test apple_cli --test script_cli --test m1_vertical_slice
+          verify cargo test --locked --manifest-path engine/Cargo.toml -p legion --test apple_cli --test script_cli --test m1_vertical_slice --no-fail-fast
           verify cargo test --locked --manifest-path engine/Cargo.toml -p legion --bin legion apple_
           verify cargo test --locked --manifest-path engine/Cargo.toml -p xtask canonical_mcp_schema
+          verify cargo test --locked --manifest-path engine/Cargo.toml -p legion-runtime --test role_host_binding
+          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-authority-parity
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-codex-skill-sidecars --check
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog --check
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check
