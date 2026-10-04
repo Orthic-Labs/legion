@@ -264,7 +264,7 @@ struct BadShakeModifier: ViewModifier {
 
 ### Multiple Properties with AnimatablePair
 
-For deployment targets below iOS 26, use `AnimatablePair` to combine multiple animated properties. For iOS 26+ targets, prefer `@Animatable` or `AnimatableValues` — see [@Animatable Macro (iOS 26+)](animation-advanced.md#animatable-macro-ios-26) in `animation-advanced.md`.
+For deployment targets below iOS 26, use `AnimatablePair` to combine multiple animated properties. For iOS 26+ targets, prefer `@Animatable` or `AnimatableValues` — see [@Animatable Macro (iOS 26+)](donor-lee-animation-advanced.md#animatable-macro-ios-26).
 
 ```swift
 // GOOD (below iOS 26) - AnimatablePair for two properties
@@ -326,5 +326,4 @@ struct ThreePropertyModifier: ViewModifier, Animatable {
 - Forget `animatableData` implementation (silent failure)
 - Use inline blur/opacity instead of proper transitions
 - Expect property animation when view identity changes
-
 

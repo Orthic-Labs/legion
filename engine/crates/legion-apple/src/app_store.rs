@@ -11,7 +11,10 @@ use std::env;
 use std::fs;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[path = "app_store_openapi.rs"]
 mod app_store_openapi;
+#[path = "app_store_upload.rs"]
+mod app_store_upload;
 
 const API_ORIGIN: &str = "https://api.appstoreconnect.apple.com";
 const API_HOST: &str = "api.appstoreconnect.apple.com";
@@ -40,8 +43,12 @@ pub fn catalog() -> Value {
             "paginate": "Follow bounded same-origin GET links.next pages",
             "template": "Build a redacted request template without network access",
             "dry-run": "Alias for template",
+            "openapi": "Discover or select operationId from bounded local JSON OpenAPI spec",
+            "operations": "Alias for openapi discovery",
+            "upload": "Reserve, transfer, and commit IPA/PKG build upload using Apple presigned operations",
             "apps": "Alias for /v1/apps resources",
             "builds": "Alias for /v1/builds resources",
+            "buildUpload": "Native action=upload reserves, transfers, and commits IPA/PKG files with Apple presigned operations",
             "testflight": "Alias for beta groups/testers resources",
             "metadata": "Alias for app/version localization resources",
             "submission": "Alias for review submission resources",
@@ -75,6 +82,13 @@ pub fn catalog() -> Value {
                 "required": ["path"],
                 "fixedMethod": "GET",
                 "maxPages": {"type": "integer", "minimum": 1, "maximum": MAX_MAX_PAGES}
+            },
+            "upload": {
+                "required": ["artifact", "appId", "version", "buildNumber"],
+                "artifact": {"extensions": [".ipa", ".pkg"], "maxBytes": 8589934592},
+                "platform": {"enum": ["IOS", "MAC_OS", "TV_OS", "VISION_OS"]},
+                "execute": {"type": "boolean", "default": false},
+                "notes": ["Apple API reserves upload operations before presigned transfer", "processing remains separate from publication"]
             },
             "alias": {
                 "required": ["action"],
@@ -119,6 +133,15 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
     if object.contains_key("spec_path") || matches!(action.as_str(), "openapi" | "operations") {
         return app_store_openapi::invoke(arguments).await;
     }
+    if action == "upload"
+        || (action == "builds"
+            && object
+                .get("operation")
+                .and_then(Value::as_str)
+                .is_some_and(|operation| operation.eq_ignore_ascii_case("upload")))
+    {
+        return app_store_upload::invoke(arguments).await;
+    }
     ensure_action(&action)?;
 
     match action.as_str() {
@@ -139,7 +162,7 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
 fn ensure_action(action: &str) -> Result<(), String> {
     match action {
         "discover" | "catalog" | "template" | "dry-run" | "request" | "paginate" | "openapi"
-        | "operations" | "apps" | "builds" | "testflight" | "metadata" | "submission"
+        | "operations" | "upload" | "apps" | "builds" | "testflight" | "metadata" | "submission"
         | "signing" => Ok(()),
         other => Err(format!("unknown action: {other}")),
     }

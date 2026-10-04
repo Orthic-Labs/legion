@@ -1063,7 +1063,7 @@ impl M1McpApi {
 
 impl legion_mcp::NativeApi for M1McpApi {
     fn tool_definitions(&self) -> Vec<Value> {
-        vec![
+        let mut tools = vec![
             json!({
                 "name": "legion_m1_status",
                 "description": "Return the native M1 release status.",
@@ -1087,7 +1087,9 @@ impl legion_mcp::NativeApi for M1McpApi {
                     }
                 }
             }),
-        ]
+        ];
+        tools.extend(crate::apple_mcp::tool_definitions());
+        tools
     }
 
     fn validate_tool_scope(
@@ -1095,6 +1097,10 @@ impl legion_mcp::NativeApi for M1McpApi {
         operation: &str,
         arguments: &Value,
     ) -> Result<(), legion_mcp::McpError> {
+        if operation == "legion_apple" {
+            return crate::apple_mcp::validate_scope(arguments)
+                .map_err(|_| legion_mcp::McpError::InvalidParams);
+        }
         if operation != "legion_m1_invoke" {
             return Ok(());
         }
@@ -1111,6 +1117,11 @@ impl legion_mcp::NativeApi for M1McpApi {
         operation: &str,
         arguments: &Value,
     ) -> Result<Value, legion_runtime::RuntimeError> {
+        if operation == "legion_apple" {
+            return Err(legion_runtime::RuntimeError::Policy(
+                "Apple operation requires async dispatch".into(),
+            ));
+        }
         let application = self.application()?;
         match operation {
             "legion_m1_status" => {
@@ -1149,6 +1160,17 @@ impl legion_mcp::NativeApi for M1McpApi {
                 "unknown M1 MCP operation".into(),
             )),
         }
+    }
+
+    fn invoke_async<'a>(
+        &'a self,
+        operation: &'a str,
+        arguments: &'a Value,
+    ) -> legion_mcp::NativeFuture<'a> {
+        if operation == "legion_apple" {
+            return Box::pin(async move { crate::apple_mcp::invoke(arguments).await });
+        }
+        Box::pin(async move { self.invoke(operation, arguments) })
     }
 }
 

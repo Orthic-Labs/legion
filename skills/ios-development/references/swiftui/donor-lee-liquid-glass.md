@@ -427,7 +427,7 @@ An automatic scroll edge effect blurs and fades content under system toolbars to
 - Apply glass before padding/frame modifiers
 - Nest `GlassEffectContainer` unnecessarily
 - Add custom darkening backgrounds behind toolbars (conflicts with scroll edge effect)
-- For toolbar grouping, customization, overflow, and minimization, see [toolbar-patterns.md](toolbar-patterns.md).
+- For toolbar grouping, customization, overflow, and minimization, see [toolbar patterns](donor-lee-toolbar-patterns.md).
 
 ## Checklist
 
@@ -439,4 +439,3 @@ An automatic scroll edge effect blurs and fades content under system toolbars to
 - [ ] Consistent shapes and spacing across feature
 - [ ] Container spacing matches layout spacing
 - [ ] Tint opacity used instead of non-existent `.prominent` for emphasis
-

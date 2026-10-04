@@ -3,7 +3,7 @@
   "lane": "native-app-store-connect-adapter",
   "review": "full for listed files",
   "purpose": "Source ledger for native Rust App Store Connect transport, operation discovery, aliases, pagination, and credential handling.",
-  "destination": "engine/crates/legion-apple/src/app_store.rs",
+  "destination": ["engine/crates/legion-apple/src/app_store.rs", "engine/crates/legion-apple/src/app_store_openapi.rs"],
   "nativeRules": [
     {"sourceLines": [1, 99], "destinationLines": [30, 99], "summary": "Offline discovery catalog exposes request, pagination, template/dry-run, aliases, payload limits, credential inputs, and concrete App Store Connect routes.", "disposition": "merged"},
     {"sourceLines": [102, 137], "destinationLines": [102, 137], "summary": "JSON action dispatch keeps discover local and makes execute an explicit caller field; unknown actions fail before transport.", "disposition": "merged"},
@@ -12,7 +12,9 @@
     {"sourceLines": [1, 84], "destinationLines": [266, 321], "summary": "Pagination follows only bounded same-origin links.next GET requests and stops on the first HTTP failure without following its next link.", "disposition": "merged"},
     {"sourceLines": [1, 84], "destinationLines": [450, 500], "summary": "ASC token or issuer/key/private-key credentials use redacted bearer transport and bounded private-key/env reads; ES256 JWT uses App Store Connect audience and 18-minute expiry.", "disposition": "merged"},
     {"sourceLines": [1, 84], "destinationLines": [531, 617], "summary": "Transport disables redirects, bounds Content-Length and streamed response bytes, preserves exact status/data, extracts links.next and processing state, and rejects non-443 or foreign origins.", "disposition": "merged"},
-    {"sourceLines": [1, 84], "destinationLines": [620, 710], "summary": "Local tests cover catalog, dry-run redaction, path/origin restrictions, query ordering, pagination bounds, aliases, fixture status/state parsing, and unknown actions.", "disposition": "merged"}
+    {"sourceLines": [1, 84], "destinationLines": [620, 710], "summary": "Local tests cover catalog, dry-run redaction, path/origin restrictions, query ordering, pagination bounds, aliases, fixture status/state parsing, and unknown actions.", "disposition": "merged"},
+    {"sourceLines": [1, 174], "destinationLines": [1, 407], "summary": "Bounded local OpenAPI JSON discovery indexes operationId/method/path, resolves local refs with cycle/depth/count limits, validates path/query/body inputs, and delegates fixed-origin template/run transport.", "disposition": "merged"},
+    {"sourceLines": [1, 398], "destinationLines": [1, 380], "summary": "Native build upload reserves Apple build/upload-file resources, validates exact IPA/PKG size and contiguous operations, streams bounded presigned chunks without ASC credentials, verifies SHA-256/MD5 checksums, commits uploaded state, and reports processing separately from publication.", "disposition": "merged"}
   ],
   "operationMapping": [
     {"alias": "apps", "operations": ["list", "view", "create", "update", "delete"], "routes": ["/v1/apps", "/v1/apps/{id}"], "destinationLines": [191, 208]},
@@ -55,6 +57,18 @@
       ]
     },
     {
+      "repository": "rorkai-app-store-connect-cli",
+      "commit": "107242d3087360c7b54f2691656e2c6d70acfb9b",
+      "files": [
+        {"path": "internal/cli/schema/operation_lookup.go", "lines": [1, 174], "sha256": "b460cf5fcca03724341bd974c926b2abf2b4842eb4846d6c136dc8571ac0e536", "ruleGroups": ["operation registry matching", "method/path template selection"], "disposition": "merged", "destinations": ["engine/crates/legion-apple/src/app_store_openapi.rs"]},
+        {"path": "internal/asc/upload.go", "lines": [1, 398], "sha256": "04d34b9a0202624b68df05811974371c43f54cd3dc75a5e8c92a6c1c0cf63201", "ruleGroups": ["bounded build upload operations", "offset/length validation", "no-redirect retry transport"], "disposition": "merged", "destinations": ["engine/crates/legion-apple/src/app_store_upload.rs"]},
+        {"path": "internal/asc/upload_output_redaction.go", "lines": [1, 24], "sha256": "c91ce2872c15b2968f671b5aa2cde09dd9e1668098c811961a5e7b13edc3244f", "ruleGroups": ["presigned URL/header redaction"], "disposition": "merged", "destinations": ["engine/crates/legion-apple/src/app_store.rs:template_result"]},
+        {"path": "internal/asc/client_builds.go", "lines": [1, 970], "sha256": "1998ddd67f1ff847ffdb25a32540af8184ffbc6efeb7ce68e7036b1703d818c4", "ruleGroups": ["build operation registry and processing relationships"], "disposition": "merged", "destinations": ["engine/crates/legion-apple/src/app_store.rs:catalog", "engine/crates/legion-apple/src/app_store_openapi.rs"]},
+        {"path": "internal/cli/builds/builds_uploads.go", "lines": [1, 385], "sha256": "ec6cc552dc1bb1f54a5d78b0b388e50105a83c84f6b3f5a182e1a56c65d8b25d", "ruleGroups": ["build upload command orchestration"], "disposition": "rejected", "reason": "CLI orchestration, local build discovery, and external tool packaging belong to root release/build owner; no subprocess or foreign command runner imported."},
+        {"path": "LICENSE", "lines": [1, 21], "sha256": "56fde5f70d5af10b746863208dee6bf0b99e49066da1f76e1800c760e276139b", "ruleGroups": ["MIT adaptation notice"], "disposition": "notice-retained", "reason": "MIT source permits adaptation; copyright and permission notice retained in absorption ledger."}
+      ]
+    },
+    {
       "repository": "steipete-agent-scripts",
       "commit": "444751eadeb7dabc00634326614ba2483642984f",
       "files": [],
@@ -63,7 +77,7 @@
     }
   ],
   "dependencyDisposition": {
-    "kept": ["reqwest async transport", "serde_json", "jsonwebtoken ES256 with rust_crypto feature and standard PEM defaults"],
+    "kept": ["reqwest async transport", "serde_json", "sha2 workspace dependency", "hex workspace dependency", "md-5 RustCrypto dependency for Apple checksum variants", "jsonwebtoken ES256 with rust_crypto feature and standard PEM defaults"],
     "rejected": ["asc executable", "ascctl executable", "Swift Package Manager runtime", "Python packaging validator", "foreign shell/JS helpers"],
     "reason": "Root owns Cargo wiring and CLI/MCP integration; adapter remains native Rust and has no external CLI/runtime dependency."
   }

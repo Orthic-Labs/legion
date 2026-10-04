@@ -177,7 +177,11 @@ ForEach(items.enumerated(), id: \.element.id) { index, item in
 }
 ```
 
-**No `Array(...)` wrapper is needed on Swift 6.1+.** As of Swift 6.1, the sequence returned by `.enumerated()` conditionally conforms to `RandomAccessCollection` when the base collection does, so `ForEach` accepts it directly. On earlier toolchains, wrap it in `Array(...)`. Favor the direct form in new code — it avoids an eager copy on every body evaluation.
+The direct `ForEach(items.enumerated(), id: \.element.id)` form requires a compiler and target
+stdlib that provide `EnumeratedSequence`'s collection conformance. Confirm that availability
+for each deployment target before using it. For older iOS/macOS toolchains, use
+`ForEach(Array(items.enumerated()), id: \.element.id)`; use `ForEach(items)` when index is not
+needed. Avoid unconditional direct-enumerated guidance in shared iOS 17/macOS 14 code.
 
 ## Reorderable Collections (SDK 27)
 
@@ -528,11 +532,10 @@ Table(people) { /* columns */ }
 - [ ] Constant number of views per ForEach element; rows are unary (single top-level view)
 - [ ] No inline filtering in ForEach (prefilter and cache instead)
 - [ ] No `AnyView` in list rows
-- [ ] `.enumerated()` uses the element's id (not `\.offset`); no `Array(...)` wrapper needed on Swift 6.1+
+- [ ] `.enumerated()` uses element identity (not `\.offset`); direct form is gated by compiler/stdlib availability, with `Array(...)` fallback
 - [ ] Use `.refreshable` for pull-to-refresh
 - [ ] Use `ContentUnavailableView` for empty states (iOS 17+)
 - [ ] Use `.scrollContentBackground(.hidden)` for custom list backgrounds
 - [ ] `Table` adapts for compact size classes (first column shows combined info)
 - [ ] `Table` sorting re-sorts data in `.onChange(of: sortOrder)` (table doesn't sort itself)
 - [ ] `Table` data conforms to `Identifiable`
-

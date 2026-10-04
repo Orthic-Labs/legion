@@ -6,16 +6,16 @@
 
 iPhone Duo has an outer display and a larger inner display. The outer display uses the familiar compact-horizontal, regular-vertical iPhone context in portrait; the inner display can provide regular width and height, including sidebar and multi-column presentations. Use the current proposal and size classes, not a device check, orientation, fixed breakpoint, or global screen.
 
-Opening, closing, rotating, partially folding, Split View multitasking, and pinned video all resize the same app experience. Preserve navigation state, content hierarchy, and functionality across those transitions. Do not make a feature available only in one pose or prescribe a bespoke layout for every pose. Generic resizability, safe-area, and display-scale rules remain canonical in [layout-best-practices.md](layout-best-practices.md) and [image-optimization.md](image-optimization.md).
+Opening, closing, rotating, partially folding, Split View multitasking, and pinned video all resize the same app experience. Preserve navigation state, content hierarchy, and functionality across those transitions. Do not make a feature available only in one pose or prescribe a bespoke layout for every pose. Generic resizability, safe-area, and display-scale rules remain canonical in [layout best practices](donor-lee-layout-best-practices.md) and [image optimization](donor-lee-image-optimization.md).
 
-Hardware placement is asymmetric. The outer and inner cameras occupy different positions, and system controls can use a vertical bar on a hardware-aligned side. Never assume opposite safe-area or margin values are equal. Let standard SwiftUI containers and directional safe areas place foreground controls; full-bleed visual backgrounds can extend behind them. See [toolbar-patterns.md](toolbar-patterns.md) for vertical-bar APIs.
+Hardware placement is asymmetric. The outer and inner cameras occupy different positions, and system controls can use a vertical bar on a hardware-aligned side. Never assume opposite safe-area or margin values are equal. Let standard SwiftUI containers and directional safe areas place foreground controls; full-bleed visual backgrounds can extend behind them. See [toolbar patterns](donor-lee-toolbar-patterns.md) for vertical-bar APIs.
 
 ## Choose the Technique by Screen Structure
 
 Classify the screen by structure before choosing a fold technique; starting from `ArrangementView` or `reservedRegions` tends to misread the screen. Check in this order:
 
-1. **Rows push further screens** (settings, mailboxes, folders, even a short list): `NavigationSplitView` needs no Duo-specific code; it collapses on compact width and scales to iPad and resizable windows. See [sheet-navigation-patterns.md](sheet-navigation-patterns.md#large-displays).
-2. **Cards or a feed in one `ScrollView`** (dashboards, collection grids): [reflow into two columns](layout-best-practices.md#two-column-reflow-for-card-screens) with the gutter over a vertical fold; don't split at a horizontal fold.
+1. **Rows push further screens** (settings, mailboxes, folders, even a short list): `NavigationSplitView` needs no Duo-specific code; it collapses on compact width and scales to iPad and resizable windows. See [sheet navigation](donor-lee-sheet-navigation-patterns.md#large-displays).
+2. **Cards or a feed in one `ScrollView`** (dashboards, collection grids): [reflow into two columns](donor-lee-layout-best-practices.md#two-column-reflow-for-card-screens) with the gutter over a vertical fold; don't split at a horizontal fold.
 3. **Two peer regions without navigation** (media and controls, visual and copy): `ArrangementView` with `.split`, outside any scroll view.
 4. **Content plus a supplementary queue or panel**: consider keeping the compact pattern, a persistent bar that pushes the full view (like the Music mini player). If you use `.inspector`, attach it around the `NavigationStack`, not on a pushed screen; in Xcode 27.1 that broke pushes and put full-bleed content under the inspector column.
 5. **Custom edge-to-edge chrome only**: read `reservedRegions` directly.
@@ -26,7 +26,7 @@ In a portrait-only iPhone app, regular width effectively means the inner display
 
 The outer camera always shapes the outer-display area; standard safe areas and bars account for it. On the inner display, an active fold is represented as a `.division` reserved region because it separates the available area. The active FaceTime camera is an `.occlusion` region because it covers a smaller frame. Inner regions can change activity as the device pose and camera use change.
 
-System components (`NavigationStack`, `NavigationSplitView`, `TabView`, sheets, alerts, menus, `List`, `ScrollView`) already adapt around the fold and system UI. Do not displace continuously scrolling articles, feeds, documents, or lists merely because a fold exists. Pick the technique with the list above, then see [`ArrangementView`](layout-best-practices.md#two-region-arrangements-ios-271) and [reserved regions](layout-best-practices.md#reserved-regions-ios-271).
+System components (`NavigationStack`, `NavigationSplitView`, `TabView`, sheets, alerts, menus, `List`, `ScrollView`) already adapt around the fold and system UI. Do not displace continuously scrolling articles, feeds, documents, or lists merely because a fold exists. Pick the technique with the list above, then see [`ArrangementView`](donor-lee-layout-best-practices.md#two-region-arrangements-ios-271) and [reserved regions](donor-lee-layout-best-practices.md#reserved-regions-ios-271).
 
 ## Duo Displacement Heuristics
 
@@ -70,7 +70,7 @@ Before claiming a fold or landscape layout works, exercise available simulator/d
 and record which poses were covered. Do not require a third-party tool; previews are useful for
 iteration but do not replace runtime coverage.
 
-Resizing is continuous, so also check the extremes, not just named poses: narrowest, widest, shortest, tallest, and roughly square. Look for clipped content, overlapping controls, and text that sprawls at wide sizes. If the root is a `TabView`, see [Tab Bar and Sidebar](sheet-navigation-patterns.md#tab-bar-and-sidebar-ios-27) for the iPhone sidebar presentation.
+Resizing is continuous, so also check the extremes, not just named poses: narrowest, widest, shortest, tallest, and roughly square. Look for clipped content, overlapping controls, and text that sprawls at wide sizes. If the root is a `TabView`, see [Tab Bar and Sidebar](donor-lee-sheet-navigation-patterns.md#tab-bar-and-sidebar-ios-27) for the iPhone sidebar presentation.
 
 ## Official Sources
 

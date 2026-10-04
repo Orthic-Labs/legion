@@ -10,6 +10,13 @@ it is hard-deprecated or when its stated SDK is available; retain older branches
 
 > This file lists *what* the modern replacements are. For *how to behave* when you find a soft-deprecated API — when to migrate, when to leave it alone, and the scoping rule for unrelated edits — see `donor-lee-soft-deprecation.md`. Refresh this lookup through normal repository maintenance when SDKs change.
 
+## macOS platform gate
+
+Rows labelled iOS-only, iPhone Duo, status bar, or iOS 27.1 are review-only for macOS.
+Apply shared rows only when their macOS availability is stated or verified in the installed
+SDK; preserve AppKit/window/menu behavior and existing deployment targets. macOS 26/27
+availability does not imply iOS availability, and iOS availability does not imply macOS.
+
 ## Table of Contents
 - [Preferred replacements on iOS 15+](#preferred-replacements-on-ios-15)
 - [When Targeting iOS 16+](#when-targeting-ios-16)
@@ -279,7 +286,7 @@ On iOS 18.4+ / macOS 15.4+, use the typed customization accessors:
 - `customization[tab: id].sidebarVisibility`
 - `customization[section: id].resetTabOrder()`
 
-On iOS 27+, `defaultTabBarPlacement(_:)` chooses a sidebar or tab bar on platforms where a `.sidebarAdaptable` `TabView` cannot morph (such as iPhone), and `@Environment(\.isTabViewSidebarAvailable)` reports whether a tab sidebar is available inside the tab content. See [`sheet-navigation-patterns.md`](sheet-navigation-patterns.md#tab-bar-and-sidebar-ios-27).
+On iOS 27+, `defaultTabBarPlacement(_:)` chooses a sidebar or tab bar on platforms where a `.sidebarAdaptable` `TabView` cannot morph (such as iPhone), and `@Environment(\.isTabViewSidebarAvailable)` reports whether a tab sidebar is available inside the tab content. See [sheet navigation](donor-lee-sheet-navigation-patterns.md#tab-bar-and-sidebar-ios-27).
 
 ### Previews
 
@@ -297,7 +304,7 @@ On iOS 27+, `defaultTabBarPlacement(_:)` chooses a sidebar or tab bar on platfor
 
 ## When Targeting iOS 26+
 
-For Liquid Glass APIs (`glassEffect`, `GlassEffectContainer`, glass button styles), see [liquid-glass.md](liquid-glass.md).
+For Liquid Glass APIs (`glassEffect`, `GlassEffectContainer`, glass button styles), see [Liquid Glass](donor-lee-liquid-glass.md).
 
 ### Scroll Edge Effects
 
@@ -359,11 +366,11 @@ TabView {
 
 ### Toolbars
 
-For `ToolbarSpacer`, shared-background visibility, badges, customization, transitions, overflow, and minimization, consult [`toolbar-patterns.md`](toolbar-patterns.md).
+For `ToolbarSpacer`, shared-background visibility, badges, customization, transitions, overflow, and minimization, consult [toolbar patterns](donor-lee-toolbar-patterns.md).
 
 ### Search
 
-Use `searchToolbarBehavior(.minimize)` on iOS or visionOS 26+ to opt into a minimized search button. See [`toolbar-patterns.md`](toolbar-patterns.md) for platform availability.
+Use `searchToolbarBehavior(.minimize)` on iOS or visionOS 26+ to opt into a minimized search button. See [toolbar patterns](donor-lee-toolbar-patterns.md) for platform availability.
 
 ### Animations
 
@@ -496,13 +503,13 @@ Migrate the older location/`isTargeted` `dropDestination` overload to `dropDesti
 
 Use the focused topic references for detailed guidance:
 
-- [`state-management.md`](state-management.md)
-- [`view-structure.md`](view-structure.md)
-- [`list-patterns.md`](list-patterns.md)
-- [`image-optimization.md`](image-optimization.md)
-- [`layout-best-practices.md`](layout-best-practices.md)
-- [`sheet-navigation-patterns.md`](sheet-navigation-patterns.md)
-- [`toolbar-patterns.md`](toolbar-patterns.md)
+- [state management](donor-lee-state-management.md)
+- [view structure](donor-lee-view-structure.md)
+- [list patterns](donor-lee-list-patterns.md)
+- [image optimization](donor-lee-image-optimization.md)
+- [layout best practices](donor-lee-layout-best-practices.md)
+- [sheet navigation](donor-lee-sheet-navigation-patterns.md)
+- [toolbar patterns](donor-lee-toolbar-patterns.md)
 
 On iOS 27+, use `toolbarVisibility(_:for: .statusBar)` instead of `statusBarHidden(_:)`. `ToolbarPlacement.statusBar` is iOS-only; on visionOS, remove `statusBarHidden` because it has no effect. The newer `dropDestination(for:isEnabled:action:)` overload is also available on visionOS 26+ (as well as iOS/macOS 26+).
 
@@ -524,16 +531,16 @@ Other lookup entries from the SDK include:
 
 Platform-specific entries include `CarouselTabViewStyle` → `VerticalTabViewStyle` and `listRowPlatterColor(_:)` → `listItemTint(_:)` on watchOS, `ControlActiveState` → `appearsActive` on macOS, and `SurroundingsEffect.systemDark` → `.dark` on visionOS.
 
-Search this file's lookup table when migrating an API that the 27 SDK marks soft-deprecated. Do not introduce unrelated migrations during feature work; follow [`soft-deprecation.md`](soft-deprecation.md).
+Search this file's lookup table when migrating an API that the 27 SDK marks soft-deprecated. Do not introduce unrelated migrations during feature work; follow [soft deprecation](donor-lee-soft-deprecation.md).
 
 ---
 
 ## When Targeting iOS 27.1+
 
-- `ArrangementView`, `.split` / `.overlay`, and arrangement axis constraints provide adaptive two-region layout and tuning modifiers such as `splitArrangementLayoutRatio`. See [`layout-best-practices.md`](layout-best-practices.md).
-- `ReservedRegion` and `GeometryProxy.reservedRegions(kind:options:layoutDirectionBehavior:)` expose division and occlusion geometry for custom layouts. See [`layout-best-practices.md`](layout-best-practices.md).
-- `ToolbarContent.axisBehavior(_:)`, `toolbarVerticalEdge`, `toolbarVerticalCompressionBehavior(_:)`, and `toolbarVerticalBehavior(_:)` support adaptive vertical bars. See [`toolbar-patterns.md`](toolbar-patterns.md).
-- `onHingeChange` and the optional `DeviceHingeContext.hinge` support live effects and interactions, not layout decisions. For iPhone Duo-specific use, see [`iphone-duo.md`](iphone-duo.md).
+- `ArrangementView`, `.split` / `.overlay`, and arrangement axis constraints provide adaptive two-region layout and tuning modifiers such as `splitArrangementLayoutRatio`. See [layout best practices](donor-lee-layout-best-practices.md).
+- `ReservedRegion` and `GeometryProxy.reservedRegions(kind:options:layoutDirectionBehavior:)` expose division and occlusion geometry for custom layouts. See [layout best practices](donor-lee-layout-best-practices.md).
+- `ToolbarContent.axisBehavior(_:)`, `toolbarVerticalEdge`, `toolbarVerticalCompressionBehavior(_:)`, and `toolbarVerticalBehavior(_:)` support adaptive vertical bars. See [toolbar patterns](donor-lee-toolbar-patterns.md).
+- `onHingeChange` and the optional `DeviceHingeContext.hinge` support live effects and interactions, not layout decisions. For iPhone Duo-specific use, see [iPhone Duo](donor-lee-iphone-duo.md).
 
 These APIs are from the beta iOS 27.1 SDK. Gate runtime use with `#available(iOS 27.1, *)`, provide an earlier-system fallback, and recheck semantics against the shipping SDK.
 

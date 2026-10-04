@@ -33,4 +33,4 @@ Developer Tools permission may be required for Terminal/Xcode. Request it throug
 - device, OS, revision and configuration are recorded;
 - no credentials or private rows are copied into report.
 
-Reusable native helper requirement: a future Rust wrapper should accept exactly one of `--attach PID` or `--launch BINARY`, require explicit `--trace`, validate duration and preserve xctrace's exit status. Upstream shell remains source evidence and is not shipped.
+Native capture uses Legion's typed `profile` operation. Supply `template`, `output`, and one selected target (`bundle_id` for launch or `device_id` for device work); its argv plan is `xcrun xctrace record` with no shell interpolation. Host transport timeout is bounded, and caller must preserve xctrace exit status. Inspect `xcrun xctrace list templates` & `list devices` first, verify target identity, and retain trace output privately. Do not use unbounded upstream recording wrappers.

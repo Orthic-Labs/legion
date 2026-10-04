@@ -101,7 +101,7 @@ Use `ViewThatFits` when a compact alternative should replace a layout that overf
 
 Use size classes for *what* to show (for example, fewer or more columns) and the proposed size, `containerRelativeFrame`, or `GeometryReader` for *how big* to draw something. When a layout decision only changes at a breakpoint, prefer `onChange(of: horizontalSizeClass)` over `onChange(of: geometry.size)`, which fires on every resize step.
 
-Avoid branching on a size class between two containers that already adapt on their own, such as `TabView` and `NavigationSplitView`. Swapping the container changes view identity mid-resize and discards navigation state and collapse animations. Branch only when the two layouts are genuinely different, and let `NavigationSplitView` and toolbar overflow handle compact-to-regular transitions. For `TabView`, see [Tab Bar and Sidebar](sheet-navigation-patterns.md#tab-bar-and-sidebar-ios-27).
+Avoid branching on a size class between two containers that already adapt on their own, such as `TabView` and `NavigationSplitView`. Swapping the container changes view identity mid-resize and discards navigation state and collapse animations. Branch only when the two layouts are genuinely different, and let `NavigationSplitView` and toolbar overflow handle compact-to-regular transitions. For `TabView`, see [Tab Bar and Sidebar](donor-lee-sheet-navigation-patterns.md#tab-bar-and-sidebar-ios-27).
 
 At wide sizes, consider capping the width of long-form text with `.frame(maxWidth:)` so line lengths stay readable.
 
@@ -125,7 +125,7 @@ Choose the safe-area modifier by content:
 
 Avoid `GeometryReader` whose only purpose is to read and reapply safe-area insets. Prefer `safeAreaBar`, `safeAreaInset`, or an intentional fixed `safeAreaPadding`, which express placement without manually carrying inset values.
 
-Vertical toolbar behavior, including `toolbarVerticalEdge`, belongs in [toolbar-patterns.md](toolbar-patterns.md).
+Vertical toolbar behavior, including `toolbarVerticalEdge`, belongs in [toolbar patterns](donor-lee-toolbar-patterns.md).
 
 ## Two-Column Reflow for Card Screens
 
@@ -430,4 +430,3 @@ Button("Publish Project") {
 - [ ] Use `.frame(maxWidth: .infinity, alignment:)` for full-width views (not `HStack` + `Spacer`)
 - [ ] Avoid excessive `GeometryReader` usage
 - [ ] Use `containerRelativeFrame()` when appropriate
-

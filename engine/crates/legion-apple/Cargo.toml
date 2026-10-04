@@ -14,3 +14,6 @@ jsonwebtoken.workspace = true
 rusqlite.workspace = true
 brotli.workspace = true
 futures-util.workspace = true
+sha2.workspace = true
+hex.workspace = true
+md-5 = "0.11"

@@ -5,6 +5,8 @@ concrete examples and diagnostics from Hudson and SwiftLee after removing foreig
 They are implementation reference, not mandates to raise deployment targets or change architecture.
 Upstream prose that says `references/<topic>.md` maps to same-directory `donor-lee-<topic>.md`;
 use links below as canonical local routes.
+The iPhone Duo and iOS 27.1 entries are shared-source review material only on macOS; use
+macOS-specific scene, window, menu, AppKit, and availability guidance for implementation.
 
 ## State, views, and data
 

@@ -5,11 +5,10 @@ file. A target SwiftUI source file is **optional** — if provided, you can
 cite specific lines; without one, the trace still surfaces view names,
 hot symbols, and high-severity events that tell the user where to look.
 
-The bundled parser reads five lanes for SwiftUI responsiveness (Time
+Native `swiftui-trace` reads five lanes for SwiftUI responsiveness (Time
 Profiler, Hangs, Animation Hitches, SwiftUI updates, and the SwiftUI
-cause graph) and exposes three discovery modes (`--list-logs`,
-`--list-signposts`, `--fanin-for`) plus a `--window` flag so the agent
-can focus analysis on a precise slice of the trace.
+cause graph) from bounded exported XML. It exposes typed operations
+`list-logs`, `list-signposts`, `fanin-for`, and `analyze` with `windowMs`.
 
 ## When to invoke
 
@@ -25,76 +24,56 @@ Triggering does **not** require a SwiftUI source file. If one is present
 you'll ground recommendations in specific lines; if not, base them on the
 view names and symbols the trace reveals.
 
-## The three CLI modes
+## Native operations
 
-The scripts live alongside this skill at `scripts/` and need only the
-Python 3 stdlib + `xctrace` (ships with Xcode at `/usr/bin/xctrace`).
+Export first with `legion apple profile.export`, then pass XML to
+`legion apple swiftui-trace`. Input stays JSON; no Python, shell wrapper,
+or unbounded trace parser is part of this route.
 
 ### 1. Full analysis (default)
 
 ```bash
-python3 "${SKILL_DIR}/scripts/analyze_trace.py" \
-  --trace "/path/to/file.trace" \
-  --top 10 --top-hitches 5 \
-  [--window START_MS:END_MS] \
-  --json-only
+legion apple swiftui-trace --input-file analysis.json
 ```
 
-- `--json-only` gives you structured data; omit for JSON + markdown
-  summary; `--markdown-only` is for pasting a digest into the chat.
-- `--output <path>` writes `<path>.json` and `<path>.md` instead of stdout.
-- `--window START_MS:END_MS` (optional) restricts every lane and every
-  correlation to that time slice.
-- `--run N` selects a specific run when the trace contains more than one
-  recording session. Single-run traces don't need it; multi-run traces
-  require it and will error with the available run numbers if omitted.
-  Use `--list-runs` to dump per-run metadata (template, duration,
-  start/end dates, schemas) before analyzing.
+`analysis.json`:
+
+```json
+{"operation":"analyze","xml":"<exported-trace-xml>","top":10,"windowMs":{"start":10400,"end":11700}}
+```
+
+- `top` caps evidence per lane; `windowMs` restricts every lane and
+  correlation to one time slice.
+- Use `operation:"list-runs"` before selecting a run when exported XML
+  contains multiple sessions; absent run metadata is reported explicitly.
 
 ### 2. `--list-logs` — find os_log timestamps
 
-```bash
-python3 "${SKILL_DIR}/scripts/analyze_trace.py" --trace <path> --list-logs \
-  [--log-subsystem com.myapp.net] \
-  [--log-category "Network"] \
-  [--log-type Fault] \
-  [--log-message-contains "loaded feed"] \
-  [--log-limit 10] \
-  [--window START_MS:END_MS]
+```json
+{"operation":"list-logs","xml":"<exported-trace-xml>","subsystem":"com.myapp.net","category":"Network","messageContains":"loaded feed","top":10}
 ```
 
-Returns JSON `{ "logs": [...], "count": N }` where each log entry includes
-`time_ms`, `type`, `subsystem`, `category`, `process`, and the formatted
-`message` (with args substituted) + raw `format_string`. All filters are
-AND-combined; `--log-message-contains` is case-insensitive substring match.
+Returns bounded entries with `subsystem`, `category`, `process`, event type,
+message, and time fields. Filters are AND-combined; no matches return
+`status:"no_evidence"`.
 
 ### 3. `--list-signposts` — find signpost intervals
 
-```bash
-python3 "${SKILL_DIR}/scripts/analyze_trace.py" --trace <path> --list-signposts \
-  [--signpost-name-contains "ImageDecode"] \
-  [--signpost-subsystem com.myapp.feed] \
-  [--signpost-category "Rendering"] \
-  [--window START_MS:END_MS]
+```json
+{"operation":"list-signposts","xml":"<exported-trace-xml>","nameContains":"ImageDecode","subsystem":"com.myapp.feed","category":"Rendering"}
 ```
 
-Returns JSON `{ "intervals": [...], "events": [...] }`. Intervals are
-paired `begin`/`end` signposts with `start_ms`, `end_ms`, `duration_ms`,
-`name`, `subsystem`, `category`, `process`, `signpost_id`. Single-point
-events (and any unpaired begins) go into `events`. All filters are
-AND-combined; `--signpost-name-contains` is case-insensitive substring
-match.
+Returns bounded interval/point entries with name, subsystem, category,
+process, event type, and time fields. Unpaired points remain evidence;
+no matches return `status:"no_evidence"`.
 
 ### 4. `--fanin-for` — who keeps invalidating this view?
 
-```bash
-python3 "${SKILL_DIR}/scripts/analyze_trace.py" --trace <path> \
-  --fanin-for "TextStyleModifier" \
-  [--window START_MS:END_MS] \
-  [--top 10]
+```json
+{"operation":"fanin-for","xml":"<exported-trace-xml>","destinationContains":"TextStyleModifier","top":10}
 ```
 
-Returns JSON `{ "matches": [...] }`. Each match names a destination node
+Returns JSON with destination and ranked source nodes. Each match names a destination node
 whose fmt string contains the substring (case-insensitive) and lists its
 top incoming source nodes ranked by edge count. Use this after the
 `swiftui` lane names an expensive view and you want to know *why it keeps
@@ -107,23 +86,23 @@ canonical signature of an `@AppStorage` / `UserDefaults` feedback storm.
 When the user says something like "focus on X", "between A and B", or
 "during signpost Y", compose the three modes:
 
-1. **Discover** — call `--list-logs` or `--list-signposts` with filters
+1. **Discover** — call `list-logs` or `list-signposts` with filters
    that match the user's description. Pick the right entries.
-2. **Build the window** — take `time_ms` (logs) or `start_ms`/`end_ms`
-   (intervals) and form `--window START:END`.
-3. **Analyse** — call the default mode with `--window`.
+2. **Build the window** — take time fields from logs or intervals and form
+   `windowMs:{start,end}`.
+3. **Analyse** — call `analyze` with `windowMs`.
 
 Examples:
 
 - *"Focus on the section after the log saying 'loaded feed'."*
-  → `--list-logs --log-message-contains "loaded feed"`, take the entry's
-  `time_ms`, set window = `[that_ms, end_of_trace_ms]` (or use the trace
+  → `list-logs` with `messageContains:"loaded feed"`, take entry's
+  `startNs`, set `windowMs` to `[that_ms, end_of_trace_ms]` (or use trace
   `duration_s × 1000`).
 - *"Between the 'begin-sync' log and the 'done-sync' log."*
-  → Two `--list-logs` calls (or one with a broader filter), pick the two
+  → Two `list-logs` calls (or one with a broader filter), pick two
   timestamps, set window = `[first, second]`.
 - *"During the signpost 'ImageDecode'."*
-  → `--list-signposts --signpost-name-contains "ImageDecode"`, pick the
+  → `list-signposts` with `nameContains:"ImageDecode"`, pick the
   interval, set window = `[start_ms, end_ms]`.
 
 ## JSON shape
@@ -261,7 +240,7 @@ Signatures to watch for in `top_sources`:
   `donor-lee-list-patterns.md` and `donor-lee-view-structure.md`.
 
 When a specific view in `swiftui.high_severity_events` keeps showing up,
-run `--fanin-for "<view name>"` to see the ranked list of sources
+run `fanin-for` with `destinationContains:"<view name>"` to see ranked sources
 invalidating it.
 
 ### Picking targets from a full-trace analysis
@@ -281,7 +260,7 @@ Prioritise from most actionable to least:
    restructure.
 5. **`swiftui.high_severity_events`** — `onChange`, `Gesture`, or `Action
    Callback` with `duration_ms > ~16` are frame-dropping handlers. For
-   any that keep firing, run `--fanin-for` to find the source.
+   any that keep firing, run `fanin-for` to find source.
 6. **`swiftui.top_offenders`** — heaviest views by total body time, even
    without triggering hitches; candidates for view extraction or
    memoisation (`equatable`, `@ViewBuilder` extraction).

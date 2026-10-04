@@ -212,6 +212,5 @@ On iOS 27+, `ToolbarPlacement.statusBar` can be passed to `toolbarVisibility(_:f
 }
 ```
 
-For broader Liquid Glass styling, see [liquid-glass.md](liquid-glass.md). For macOS window and toolbar concerns, keep platform-specific guidance in the macOS references.
-
+For broader Liquid Glass styling, see [Liquid Glass](donor-lee-liquid-glass.md). For macOS window and toolbar concerns, keep platform-specific guidance in the macOS references.
 

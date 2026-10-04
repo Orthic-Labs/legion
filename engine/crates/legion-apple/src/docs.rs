@@ -17,8 +17,15 @@ const DEFAULT_MAX_CHUNKS: usize = 8;
 const MAX_CHUNKS: usize = 64;
 const DEFAULT_MAX_BYTES: usize = 32 * 1024;
 const MAX_BYTES: usize = 128 * 1024;
-const DEFAULT_MAX_SCAN_ROWS: usize = 500_000;
-const MAX_SCAN_ROWS: usize = 1_000_000;
+const DEFAULT_MAX_SCAN_ROWS: usize = 20_000;
+const MAX_SCAN_ROWS: usize = 250_000;
+const MAX_SCAN_OFFSET: usize = 5_000_000;
+const DEFAULT_MAX_ROWS: usize = 128;
+const MAX_ROWS: usize = 512;
+const DEFAULT_MAX_CACHED_CHUNKS: usize = 32;
+const MAX_CACHED_CHUNKS: usize = 128;
+const DEFAULT_MAX_CACHE_BYTES: usize = 32 * 1024 * 1024;
+const MAX_CACHE_BYTES: usize = 128 * 1024 * 1024;
 const MAX_SOURCE_CHUNK_BYTES: u64 = 16 * 1024 * 1024;
 
 /// Return supported native operations and their source-format boundary.
@@ -37,7 +44,12 @@ pub fn catalog() -> Value {
             "language": "Preferred DocC interfaceLanguage, default swift",
             "limit": "Search/root result bound, default 20, maximum 100",
             "max_chunks": "Read content chunk bound, default 8, maximum 64",
-            "max_bytes": "Read content byte bound, default 32768, maximum 131072"
+            "max_bytes": "Read aggregate textual content byte bound, default 32768, maximum 131072",
+            "max_rows": "Read structure/variant/topic row bound, default 128, maximum 512",
+            "chunk_cursor": "Resume content at section:<index>; response returns next_cursor",
+            "scan_offset": "Resume cache ref scan after an incomplete read",
+            "max_cached_chunks": "Per-call decoded chunk count, default 32, maximum 128",
+            "max_cache_bytes": "Per-call decoded chunk memory, default 32 MiB, maximum 128 MiB"
         },
         "supported_format": {
             "index": "Contents/Resources/docSet.dsidx SQLite searchIndex table",
@@ -277,26 +289,46 @@ fn read(source: &Source, arguments: &Map<String, Value>) -> Result<Value, String
     let language = string_argument(arguments, "language").unwrap_or_else(|| "swift".to_string());
     let max_chunks = bounded(arguments, "max_chunks", DEFAULT_MAX_CHUNKS, MAX_CHUNKS)?;
     let max_bytes = bounded(arguments, "max_bytes", DEFAULT_MAX_BYTES, MAX_BYTES)?;
+    let max_output_rows = bounded(arguments, "max_rows", DEFAULT_MAX_ROWS, MAX_ROWS)?;
+    let chunk_offset = read_cursor(arguments)?;
     let max_rows = bounded(
         arguments,
         "max_scan_rows",
         DEFAULT_MAX_SCAN_ROWS,
         MAX_SCAN_ROWS,
     )?;
+    let scan_offset = bounded_or_zero(arguments, "scan_offset", MAX_SCAN_OFFSET)?;
+    let max_cached_chunks = bounded(
+        arguments,
+        "max_cached_chunks",
+        DEFAULT_MAX_CACHED_CHUNKS,
+        MAX_CACHED_CHUNKS,
+    )?;
+    let max_cache_bytes = bounded(
+        arguments,
+        "max_cache_bytes",
+        DEFAULT_MAX_CACHE_BYTES,
+        MAX_CACHE_BYTES,
+    )?;
     let cache = open_read_only(&source.cache)?;
     let mut statement = cache
-        .prepare("SELECT data_id, uuid, offset, length FROM refs ORDER BY data_id, offset LIMIT ?1")
+        .prepare("SELECT data_id, uuid, offset, length FROM refs ORDER BY data_id, offset LIMIT ?1 OFFSET ?2")
         .map_err(|error| format!("unsupported Apple docs cache schema: {error}"))?;
     let mut rows = statement
-        .query(params![max_rows as i64])
+        .query(params![(max_rows as i64) + 1, scan_offset as i64])
         .map_err(|error| format!("Apple docs cache read failed: {error}"))?;
-    let mut chunks = HashMap::<i64, Vec<u8>>::new();
+    let mut chunks = ChunkCache::new(max_cached_chunks, max_cache_bytes);
     let mut scanned = 0usize;
     let mut found: Option<(Value, SourcePointer)> = None;
+    let mut incomplete_reason = None;
     while let Some(row) = rows
         .next()
         .map_err(|error| format!("Apple docs cache read failed: {error}"))?
     {
+        if scanned >= max_rows {
+            incomplete_reason = Some(format!("scan row budget reached ({max_rows})"));
+            break;
+        }
         scanned += 1;
         let data_id: i64 = row
             .get(0)
@@ -308,12 +340,21 @@ fn read(source: &Source, arguments: &Map<String, Value>) -> Result<Value, String
         let length: i64 = row
             .get(3)
             .map_err(|error| format!("invalid refs.length: {error}"))?;
-        let bytes = if let Some(bytes) = chunks.get(&data_id) {
-            bytes.clone()
+        let bytes = if let Some(bytes) = chunks.get(data_id) {
+            bytes.to_vec()
         } else {
-            let bytes = read_chunk(source, data_id)?;
-            chunks.insert(data_id, bytes.clone());
-            bytes
+            let bytes = match read_chunk(source, data_id) {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    incomplete_reason = Some(error);
+                    break;
+                }
+            };
+            if let Err(reason) = chunks.insert(data_id, bytes) {
+                incomplete_reason = Some(reason);
+                break;
+            }
+            chunks.get(data_id).expect("inserted chunk").to_vec()
         };
         if offset < 0 || length < 0 || (offset as usize) > bytes.len() {
             continue;
@@ -347,12 +388,101 @@ fn read(source: &Source, arguments: &Map<String, Value>) -> Result<Value, String
             break;
         }
     }
+    if let Some(reason) = incomplete_reason {
+        return Ok(incomplete_read(
+            &path,
+            &language,
+            scan_offset + scanned,
+            scanned,
+            reason,
+            chunks.total_bytes,
+            chunks.len(),
+        ));
+    }
     let (document, pointer) = found.ok_or_else(|| {
         format!("Apple documentation path not found after scanning {scanned} cache records: {path}")
     })?;
     Ok(render_read(
-        &document, &path, &language, pointer, max_chunks, max_bytes,
+        &document,
+        &path,
+        &language,
+        pointer,
+        max_chunks,
+        max_bytes,
+        max_output_rows,
+        chunk_offset,
     ))
+}
+
+struct ChunkCache {
+    chunks: HashMap<i64, Vec<u8>>,
+    total_bytes: usize,
+    max_chunks: usize,
+    max_bytes: usize,
+}
+
+impl ChunkCache {
+    fn new(max_chunks: usize, max_bytes: usize) -> Self {
+        Self {
+            chunks: HashMap::new(),
+            total_bytes: 0,
+            max_chunks,
+            max_bytes,
+        }
+    }
+
+    fn get(&self, data_id: i64) -> Option<&Vec<u8>> {
+        self.chunks.get(&data_id)
+    }
+
+    fn len(&self) -> usize {
+        self.chunks.len()
+    }
+
+    fn insert(&mut self, data_id: i64, bytes: Vec<u8>) -> Result<(), String> {
+        if self.chunks.contains_key(&data_id) {
+            return Ok(());
+        }
+        if self.chunks.len() >= self.max_chunks {
+            return Err(format!(
+                "decoded chunk budget reached ({})",
+                self.max_chunks
+            ));
+        }
+        if bytes.len() > self.max_bytes.saturating_sub(self.total_bytes) {
+            return Err(format!(
+                "decoded chunk memory budget reached ({} bytes)",
+                self.max_bytes
+            ));
+        }
+        self.total_bytes += bytes.len();
+        self.chunks.insert(data_id, bytes);
+        Ok(())
+    }
+}
+
+fn incomplete_read(
+    path: &str,
+    language: &str,
+    next_scan_offset: usize,
+    scanned: usize,
+    reason: String,
+    cache_bytes: usize,
+    cached_chunks: usize,
+) -> Value {
+    json!({
+        "operation": "read",
+        "path": path,
+        "language": language,
+        "complete": false,
+        "incomplete": true,
+        "reason": reason,
+        "scanned_rows": scanned,
+        "cache_bytes": cache_bytes,
+        "cached_chunks": cached_chunks,
+        "next_scan_offset": next_scan_offset,
+        "resume": {"operation": "read", "path": path, "language": language, "scan_offset": next_scan_offset}
+    })
 }
 
 fn documentation_roots(index: &Connection, limit: usize) -> Result<Vec<Value>, String> {
@@ -389,16 +519,35 @@ fn render_read(
     pointer: SourcePointer,
     max_chunks: usize,
     max_bytes: usize,
+    max_rows: usize,
+    chunk_offset: usize,
 ) -> Value {
     let metadata = document.get("metadata").unwrap_or(&Value::Null);
     let mut chunks = Vec::new();
-    let mut used = 0usize;
     let sections = document
         .get("primaryContentSections")
         .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    for (index, section) in sections.iter().enumerate().take(max_chunks) {
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    let title = bounded_value_string(
+        metadata.get("title").or_else(|| document.get("title")),
+        max_bytes,
+    );
+    let role = bounded_value_string(
+        metadata.get("roleHeading").or_else(|| document.get("kind")),
+        max_bytes,
+    );
+    let abstract_text = bounded_text(document.get("abstract"), max_bytes.min(2048));
+    let mut used = abstract_text.len();
+    let variants = document_variants(document, max_rows, max_bytes);
+    let end = chunk_offset.saturating_add(max_chunks).min(sections.len());
+    let mut next_cursor = None;
+    for (index, section) in sections
+        .iter()
+        .enumerate()
+        .skip(chunk_offset)
+        .take(max_chunks)
+    {
         let mut text = String::new();
         collect_text(section, &mut text, max_bytes.saturating_sub(used));
         let text = text.trim().to_string();
@@ -416,25 +565,32 @@ fn render_read(
             "source": pointer.json_pointer(format!("/primaryContentSections/{index}"))
         }));
         if used >= max_bytes {
+            next_cursor = Some(format!("section:{}", index + 1));
             break;
         }
+    }
+    if next_cursor.is_none() && end < sections.len() {
+        next_cursor = Some(format!("section:{end}"));
     }
     json!({
         "operation": "read",
         "path": path,
         "language": language,
+        "complete": next_cursor.is_none(),
+        "chunk_offset": chunk_offset,
+        "next_cursor": next_cursor,
         "summary": {
-            "title": metadata.get("title").and_then(Value::as_str).or_else(|| document.get("title").and_then(Value::as_str)),
-            "role": metadata.get("roleHeading").or_else(|| document.get("kind")),
-            "abstract": bounded_text(document.get("abstract"), 2048),
-            "identifier": document.get("identifier").and_then(|value| value.get("url")),
-            "variants": document_variants(document),
+            "title": title,
+            "role": role,
+            "abstract": abstract_text,
+            "identifier": bounded_value_string(document.get("identifier").and_then(|value| value.get("url")), max_bytes),
+            "variants": variants,
             "topic_section_count": document.get("topicSections").and_then(Value::as_array).map_or(0, Vec::len),
             "primary_section_count": sections.len()
         },
-        "structure": structure(document),
+        "structure": structure(document, max_rows, max_bytes),
         "chunks": chunks,
-        "truncated": used >= max_bytes || sections.len() > max_chunks,
+        "truncated": next_cursor.is_some(),
         "source": pointer.value()
     })
 }
@@ -468,20 +624,23 @@ fn source_pointer(source: &Source, extra: Option<Value>) -> Value {
     value
 }
 
-fn structure(document: &Value) -> Value {
+fn structure(document: &Value, max_rows: usize, max_bytes: usize) -> Value {
     let sections = document
         .get("primaryContentSections")
         .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
     json!({
-        "primary_content": sections.iter().enumerate().map(|(index, section)| json!({"index": index, "kind": section.get("kind"), "keys": section.as_object().map(|object| object.keys().cloned().collect::<Vec<_>>()).unwrap_or_default()})).collect::<Vec<_>>(),
-        "topics": document.get("topicSections").and_then(Value::as_array).map(|items| items.iter().map(|item| json!({"title": item.get("title"), "identifier_count": item.get("identifiers").and_then(Value::as_array).map_or(0, Vec::len)})).collect::<Vec<_>>()).unwrap_or_default()
+        "primary_content": sections.iter().enumerate().take(max_rows).map(|(index, section)| json!({"index": index, "kind": bounded_value_string(section.get("kind"), max_bytes), "keys": section.as_object().map(|object| object.keys().take(max_rows).map(|key| bounded_string(key, max_bytes)).collect::<Vec<_>>()).unwrap_or_default()})).collect::<Vec<_>>(),
+        "topics": document.get("topicSections").and_then(Value::as_array).map(|items| items.iter().take(max_rows).map(|item| json!({"title": bounded_value_string(item.get("title"), max_bytes), "identifier_count": item.get("identifiers").and_then(Value::as_array).map_or(0, Vec::len)})).collect::<Vec<_>>()).unwrap_or_default()
     })
 }
 
-fn document_variants(document: &Value) -> Vec<Value> {
-    document.get("variants").and_then(Value::as_array).map(|variants| variants.iter().map(|variant| json!({"languages": variant.get("traits"), "paths": variant.get("paths")})).collect()).unwrap_or_default()
+fn document_variants(document: &Value, max_rows: usize, max_bytes: usize) -> Vec<Value> {
+    document.get("variants").and_then(Value::as_array).map(|variants| variants.iter().take(max_rows).map(|variant| json!({
+        "languages": variant.get("traits").and_then(Value::as_array).map(|items| items.iter().take(max_rows).map(|item| json!({"interfaceLanguage": bounded_value_string(item.get("interfaceLanguage"), max_bytes)})).collect::<Vec<_>>()).unwrap_or_default(),
+        "paths": variant.get("paths").and_then(Value::as_array).map(|items| items.iter().take(max_rows).map(|item| bounded_value_string(Some(item), max_bytes)).collect::<Vec<_>>()).unwrap_or_default()
+    })).collect()).unwrap_or_default()
 }
 
 fn document_paths(document: &Value, language: &str) -> Vec<String> {
@@ -618,6 +777,47 @@ fn bounded(
     }
 }
 
+fn bounded_or_zero(arguments: &Map<String, Value>, key: &str, max: usize) -> Result<usize, String> {
+    match arguments.get(key) {
+        None => Ok(0),
+        Some(value) => value
+            .as_u64()
+            .and_then(|value| usize::try_from(value).ok())
+            .filter(|value| *value <= max)
+            .ok_or_else(|| format!("{key} must be an integer in 0..{max}")),
+    }
+}
+
+fn read_cursor(arguments: &Map<String, Value>) -> Result<usize, String> {
+    if let Some(cursor) =
+        string_argument(arguments, "chunk_cursor").or_else(|| string_argument(arguments, "cursor"))
+    {
+        let value = cursor
+            .strip_prefix("section:")
+            .ok_or_else(|| "chunk_cursor must use section:<index>".to_string())?;
+        return value
+            .parse::<usize>()
+            .map_err(|_| "chunk_cursor section index must be an integer".to_string());
+    }
+    bounded_or_zero(
+        arguments,
+        "chunk_offset",
+        MAX_ROWS.saturating_mul(MAX_CHUNKS),
+    )
+}
+
+fn bounded_string(value: &str, limit: usize) -> String {
+    truncate_utf8(value, limit).0.to_string()
+}
+
+fn bounded_value_string(value: Option<&Value>, limit: usize) -> String {
+    match value {
+        Some(Value::String(value)) => bounded_string(value, limit),
+        Some(value) => bounded_string(&value.to_string(), limit),
+        None => String::new(),
+    }
+}
+
 fn bounded_text(value: Option<&Value>, limit: usize) -> String {
     let mut text = String::new();
     if let Some(value) = value {
@@ -692,7 +892,7 @@ mod tests {
         }
     }
 
-    fn fixture() -> Fixture {
+    fn fixture_with(document: Value, decoys: usize) -> Fixture {
         let stamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -709,15 +909,45 @@ mod tests {
                 "CREATE TABLE refs(data_id INTEGER, uuid TEXT, offset INTEGER, length INTEGER);",
             )
             .unwrap();
-        let document = br#"{"identifier":{"url":"doc://demo"},"metadata":{"title":"Demo","roleHeading":"Article"},"variants":[{"traits":[{"interfaceLanguage":"swift"}],"paths":["/documentation/demo"]}],"abstract":[{"type":"paragraph","inlineContent":[{"type":"text","text":"A local demo."}]}],"primaryContentSections":[{"kind":"content","content":[{"type":"paragraph","inlineContent":[{"type":"text","text":"Grounded content."}]}]}],"topicSections":[]}"#;
-        fs::write(documents.join("fs/1"), document).unwrap();
+        for data_id in 1..=decoys {
+            let decoy = json!({"identifier":{"url":format!("doc://decoy-{data_id}")},"variants":[{"traits":[{"interfaceLanguage":"swift"}],"paths":[format!("/documentation/decoy-{data_id}")]}],"primaryContentSections":[],"topicSections":[]});
+            let bytes = serde_json::to_vec(&decoy).unwrap();
+            fs::write(documents.join(format!("fs/{data_id}")), &bytes).unwrap();
+            cache
+                .execute(
+                    "INSERT INTO refs VALUES (?1, ?2, 0, ?3)",
+                    rusqlite::params![
+                        data_id as i64,
+                        format!("uuid-{data_id}"),
+                        bytes.len() as i64
+                    ],
+                )
+                .unwrap();
+        }
+        let target_id = decoys + 1;
+        let bytes = serde_json::to_vec(&document).unwrap();
+        fs::write(documents.join(format!("fs/{target_id}")), &bytes).unwrap();
         cache
             .execute(
-                "INSERT INTO refs VALUES (1, 'uuid-demo', 0, ?1)",
-                [document.len() as i64],
+                "INSERT INTO refs VALUES (?1, 'uuid-demo', 0, ?2)",
+                rusqlite::params![target_id as i64, bytes.len() as i64],
             )
             .unwrap();
         Fixture(root)
+    }
+
+    fn fixture() -> Fixture {
+        fixture_with(
+            json!({
+                "identifier":{"url":"doc://demo"},
+                "metadata":{"title":"Demo","roleHeading":"Article"},
+                "variants":[{"traits":[{"interfaceLanguage":"swift"}],"paths":["/documentation/demo"]}],
+                "abstract":[{"type":"paragraph","inlineContent":[{"type":"text","text":"A local demo."}]}],
+                "primaryContentSections":[{"kind":"content","content":[{"type":"paragraph","inlineContent":[{"type":"text","text":"Grounded content."}]}]}],
+                "topicSections":[]
+            }),
+            0,
+        )
     }
 
     #[test]
@@ -762,10 +992,84 @@ mod tests {
     #[test]
     fn read_returns_bounded_content_and_cache_pointer() {
         let fixture = fixture();
-        let result = invoke(&json!({"operation":"read", "docset_path": fixture.0, "path":"/documentation/demo", "max_bytes":8})).unwrap();
+        let result = invoke(&json!({"operation":"read", "docset_path": fixture.0, "path":"/documentation/demo", "max_bytes":16})).unwrap();
         assert_eq!(result["summary"]["title"], "Demo");
         assert_eq!(result["source"]["data_id"], 1);
         assert_eq!(result["source"]["offset"], 0);
         assert_eq!(result["chunks"][0]["truncated"], true);
+    }
+
+    #[test]
+    fn read_cursor_resumes_after_first_content_page() {
+        let sections = (0..3)
+            .map(|index| json!({"kind":"content","content":[{"type":"paragraph","inlineContent":[{"type":"text", "text":format!("section-{index}")}]}]}))
+            .collect::<Vec<_>>();
+        let fixture = fixture_with(
+            json!({
+                "identifier":{"url":"doc://demo"},
+                "metadata":{"title":"Demo"},
+                "variants":[{"traits":[{"interfaceLanguage":"swift"}],"paths":["/documentation/demo"]}],
+                "primaryContentSections":sections,
+                "topicSections":[]
+            }),
+            0,
+        );
+        let first = invoke(&json!({"operation":"read", "docset_path": fixture.0, "path":"/documentation/demo", "max_chunks":1})).unwrap();
+        assert_eq!(first["chunks"][0]["text"], "section-0");
+        assert_eq!(first["next_cursor"], "section:1");
+        let second = invoke(&json!({"operation":"read", "docset_path": fixture.0, "path":"/documentation/demo", "max_chunks":1, "chunk_cursor":first["next_cursor"]})).unwrap();
+        assert_eq!(second["chunks"][0]["text"], "section-1");
+        assert_eq!(second["chunk_offset"], 1);
+    }
+
+    #[test]
+    fn read_returns_incomplete_when_decoded_cache_budget_is_reached() {
+        let fixture = fixture_with(
+            json!({
+                "identifier":{"url":"doc://demo"},
+                "metadata":{"title":"Demo"},
+                "variants":[{"traits":[{"interfaceLanguage":"swift"}],"paths":["/documentation/demo"]}],
+                "primaryContentSections":[],
+                "topicSections":[]
+            }),
+            2,
+        );
+        let result = invoke(&json!({"operation":"read", "docset_path": fixture.0, "path":"/documentation/demo", "max_cached_chunks":1})).unwrap();
+        assert_eq!(result["complete"], false);
+        assert_eq!(result["incomplete"], true);
+        assert!(result["resume"]["scan_offset"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn read_caps_oversized_structure_and_variants() {
+        let variants = (0..20)
+            .map(|index| json!({"traits":[{"interfaceLanguage":format!("lang-{index}")}],"paths":[format!("/documentation/demo/{index}")]}))
+            .collect::<Vec<_>>();
+        let sections = (0..20)
+            .map(|index| json!({"kind":format!("kind-{index}"),"content":[]}))
+            .collect::<Vec<_>>();
+        let topics = (0..20)
+            .map(|index| json!({"title":format!("topic-{index}"),"identifiers":[]}))
+            .collect::<Vec<_>>();
+        let fixture = fixture_with(
+            json!({
+                "identifier":{"url":"doc://demo"},
+                "metadata":{"title":"Demo"},
+                "variants":variants,
+                "primaryContentSections":sections,
+                "topicSections":topics
+            }),
+            0,
+        );
+        let result = invoke(&json!({"operation":"read", "docset_path": fixture.0, "path":"/documentation/demo", "max_rows":2, "max_bytes":8})).unwrap();
+        assert_eq!(result["summary"]["variants"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            result["structure"]["primary_content"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+        assert_eq!(result["structure"]["topics"].as_array().unwrap().len(), 2);
     }
 }

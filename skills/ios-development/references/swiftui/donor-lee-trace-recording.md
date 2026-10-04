@@ -4,13 +4,12 @@ Use this reference when the user asks to record a new trace — either to
 attach to a running app, launch one fresh, or capture a specific session
 of actions they'll perform interactively.
 
-The bundled `scripts/record_trace.py` wraps `xctrace record` with:
+Native Legion `profile` operation plans `xcrun xctrace record` with:
 
 - The **SwiftUI** template by default (override with `--template`).
 - **Manual stop** via Ctrl+C, a stop-file, or `--time-limit`.
 - JSON discovery for devices and templates.
-- Normal Python exit codes so an agent can orchestrate.
-- Redacted command logging for values passed through `--env`.
+- Typed argv, host policy gating, bounded output, and explicit execution.
 - An explicit acknowledgement gate for system-wide recordings.
 
 ## Privacy and consent
@@ -31,10 +30,7 @@ local process-inspection tools may still expose process arguments.
 ### A) Attach to a running app on a connected device
 
 ```bash
-python3 "${SKILL_DIR}/scripts/record_trace.py" \
-  --device "Pol's iPhone" \
-  --attach "Helm" \
-  --output ~/Desktop/helm-session.trace
+legion apple profile --input '{"template":"SwiftUI","output":"artifacts/helm-session.trace","device_id":"DEVICE-UDID","bundle_id":"Helm"}'
 ```
 
 Leave it running while the user exercises the app. Stop with **Ctrl+C**.
@@ -42,40 +38,28 @@ Leave it running while the user exercises the app. Stop with **Ctrl+C**.
 ### B) Launch an app and record from the first frame
 
 ```bash
-python3 "${SKILL_DIR}/scripts/record_trace.py" \
-  --device "<UDID>" \
-  --launch "/path/to/App.app" \
-  --output ~/Desktop/launch.trace
+legion apple profile --input '{"template":"SwiftUI","output":"artifacts/launch.trace","device_id":"DEVICE-UDID","bundle_id":"com.example.App"}'
 ```
 
 Useful for diagnosing cold-start hitches and view-creation cost.
 
 ### C) Agent-driven: start in background, stop via stop-file
 
-When you (the agent) are running non-interactively — e.g. via
-`Bash run_in_background` — use a stop-file so you can signal the
-recording to end cleanly:
+For bounded native execution, pass explicit template/output/device/bundle fields
+to `profile`; stop/timeout behavior remains owned by host process transport:
 
 ```bash
 # Start recording (background)
-python3 "${SKILL_DIR}/scripts/record_trace.py" \
-  --attach Helm --stop-file /tmp/stop-trace \
-  --output ~/Desktop/session.trace
-
-# ...user does their thing...
-
-# Stop cleanly (from another shell or tool call)
-touch /tmp/stop-trace
+legion apple profile --input '{"template":"SwiftUI","output":"artifacts/session.trace","device_id":"DEVICE-UDID","bundle_id":"com.example.App","timeout_ms":30000}'
 ```
 
-The script polls every 0.5s for the stop-file, sends SIGINT to xctrace
-when it appears, and waits up to 60s for the trace to finalise.
+Native transport uses typed argv and bounded timeout/cleanup; inspect returned
+status before reading an output trace.
 
 ### D) Time-boxed recording
 
 ```bash
-python3 "${SKILL_DIR}/scripts/record_trace.py" \
-  --attach Helm --time-limit 30s --output ~/Desktop/30s.trace
+legion apple profile --input '{"template":"Time Profiler","output":"artifacts/30s.trace","device_id":"DEVICE-UDID","bundle_id":"com.example.App","timeout_ms":30000}'
 ```
 
 xctrace stops itself at the limit.
@@ -83,11 +67,11 @@ xctrace stops itself at the limit.
 ## Discovery helpers
 
 ```bash
-# List every connected device, simulator, and the host — JSON.
-python3 "${SKILL_DIR}/scripts/record_trace.py" --list-devices
+# List devices through mobile catalog/operation before choosing device_id.
+legion apple device.list --input '{}'
 
-# List all Instruments templates — JSON with a flat list + by-section map.
-python3 "${SKILL_DIR}/scripts/record_trace.py" --list-templates
+# Choose a template supported by host Xcode; profile plan keeps template typed.
+legion apple profile --input '{"template":"Time Profiler","output":"artifacts/profile.trace","bundle_id":"com.example.App"}'
 ```
 
 Device entries have `kind` (`devices`, `devices offline`, `simulators`),
@@ -101,7 +85,7 @@ plug them in before recording.
 > Simulator it records but the SwiftUI lane comes back empty.** If the
 > chosen UDID falls under the `simulators` kind from `--list-devices`,
 > switch to `Time Profiler`. It still gives you Time Profiler + Hangs +
-> Animation Hitches, which `analyze_trace.py` analyses and correlates
+> Animation Hitches, which native `swiftui-trace` analysis can correlate
 > normally; only the `swiftui` lane will report `available: false`.
 
 Decision flow:
@@ -120,37 +104,31 @@ after it becomes available.
 For ad-hoc hang hunting on any target, `Time Profiler` or
 `Animation Hitches` alone may be enough.
 
-For an explicitly approved system-wide recording:
-
-```bash
-python3 "${SKILL_DIR}/scripts/record_trace.py" \
-  --all-processes --allow-system-wide-recording \
-  --time-limit 30s --output ~/Desktop/system-wide.trace
-```
+System-wide recording is outside current bounded `profile` operation scope;
+use app/target-scoped capture until native operation catalog adds explicit
+system-wide acknowledgement fields.
 
 ## Chaining into analysis
 
-The recording script prints `trace written: <path>` on exit. Feed that
-path straight into `analyze_trace.py`:
+Pass returned trace path into native `profile.export`, then into
+`swiftui-trace` pure analysis:
 
 ```bash
-TRACE=$(python3 "${SKILL_DIR}/scripts/record_trace.py" \
-    --attach Helm --stop-file /tmp/stop-trace --output ~/Desktop/session.trace \
-    2>&1 | awk '/trace written:/ {print $NF}')
-python3 "${SKILL_DIR}/scripts/analyze_trace.py" --trace "$TRACE" --json-only
+legion apple profile.export --input '{"trace_path":"artifacts/session.trace","output_path":"artifacts/session.xml"}'
+legion apple swiftui-trace --input-file artifacts/analysis-request.json
 ```
 
-If the user wanted a specific scope, combine with `--list-logs` /
-`--list-signposts` / `--window` from `references/trace-analysis.md`.
+For a specific scope, set `operation` to `list-logs`, `list-signposts`, or
+`analyze` with `windowMs` in analysis-request.json.
 
 ## Failure modes to handle
 
-- **Device offline** — `--list-devices` shows it in `devices offline`.
+- **Device offline** — `device.list` reports unavailable target state.
   Report device unavailable; retry after device is connected and unlocked.
-- **Output path exists** — the script refuses to overwrite. Either pick
-  a new `--output` or delete the existing bundle.
-- **App not running (for `--attach`)** — xctrace exits with an error;
-  fall back to `--launch` or tell the user to open the app first.
+- **Output path exists** — choose a new output path or remove existing artifact
+  through an explicitly authorized file operation.
+- **App target unavailable** — use a launch-capable bundle path/identifier or
+  start target before selecting an attach flow.
 - **Signing / trust on device** — iOS requires a development build
   signed with the user's team. If xctrace returns a signing error, point
   the user to trust the developer profile on the device.

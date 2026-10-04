@@ -478,7 +478,7 @@ fn optional_input_text(object: &Map<String, Value>, keys: &[&str]) -> Result<Opt
 }
 
 fn parse_remote_packages(text: &str) -> Vec<Value> {
-    let reference_re = Regex::new(r"(?s)XCRemoteSwiftPackageReference\s+\"(?P<name>[^\"]+)\".*?repositoryURL\s*=\s*\"(?P<url>[^\"]+)\".*?requirement\s*=\s*\{(?P<requirement>[^}]*)\}").expect("valid remote package regex");
+    let reference_re = Regex::new(r#"(?s)XCRemoteSwiftPackageReference\s+"(?P<name>[^"]+)".*?repositoryURL\s*=\s*"(?P<url>[^"]+)".*?requirement\s*=\s*\{(?P<requirement>[^}]*)\}"#).expect("valid remote package regex");
     let kind_re = Regex::new(r"kind\s*=\s*([^;]+)").expect("valid requirement kind regex");
     let branch_re = Regex::new(r"branch\s*=\s*([^;]+)").expect("valid branch regex");
     let revision_re = Regex::new(r"revision\s*=\s*([^;]+)").expect("valid revision regex");
@@ -494,12 +494,12 @@ fn parse_remote_packages(text: &str) -> Vec<Value> {
 }
 
 fn parse_local_packages(text: &str) -> Vec<Value> {
-    let local_re = Regex::new(r"(?s)XCLocalSwiftPackageReference\s+\"(?P<name>[^\"]+)\".*?relativePath\s*=\s*\"(?P<path>[^\"]+)\"").expect("valid local package regex");
+    let local_re = Regex::new(r#"(?s)XCLocalSwiftPackageReference\s+"(?P<name>[^"]+)".*?relativePath\s*=\s*"(?P<path>[^"]+)""#).expect("valid local package regex");
     local_re.captures_iter(text).map(|caps| json!({"name": caps.name("name").map(|m| m.as_str()).unwrap_or_default(), "relative_path": caps.name("path").map(|m| m.as_str()).unwrap_or_default()})).take(MAX_ROWS).collect()
 }
 
 fn parse_product_dependencies(text: &str) -> Vec<Value> {
-    let product_re = Regex::new(r"(?s)XCSwiftPackageProductDependency\s+\"(?P<id>[^\"]+)\".*?productName\s*=\s*\"(?P<product>[^\"]+)\"(?:.*?package\s*=\s*(?P<package>[A-Za-z0-9]+))?").expect("valid package product regex");
+    let product_re = Regex::new(r#"(?s)XCSwiftPackageProductDependency\s+"(?P<id>[^"]+)".*?productName\s*=\s*"(?P<product>[^"]+)"(?:.*?package\s*=\s*(?P<package>[A-Za-z0-9]+))?"#).expect("valid package product regex");
     product_re.captures_iter(text).map(|caps| json!({"id": caps.name("id").map(|m| m.as_str()).unwrap_or_default(), "product": caps.name("product").map(|m| m.as_str()).unwrap_or_default(), "package": caps.name("package").map(|m| m.as_str())})).take(MAX_ROWS).collect()
 }
 

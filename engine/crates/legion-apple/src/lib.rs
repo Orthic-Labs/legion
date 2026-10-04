@@ -11,6 +11,8 @@ pub mod diagnostics;
 pub mod docs;
 pub mod mobile;
 pub mod preflight;
+pub mod profiling;
+pub mod swiftui_trace;
 
 use serde_json::{json, Value};
 
@@ -26,7 +28,9 @@ pub async fn invoke(operation: &str, arguments: &Value) -> Result<Value, String>
         "docs" => docs::invoke(arguments),
         "build-analysis" => build_analysis::invoke(arguments),
         "app-store" => app_store::invoke(arguments).await,
-        "flamegraph" | "memgraph" | "build-log" => diagnostics::invoke(operation, arguments),
+        "flamegraph" | "memgraph" | "memgraph.parse" | "build-log" => diagnostics::invoke(operation, arguments).await,
+        "profile.parse" | "profile_parse" | "profile.symbols" | "profile_symbols" => profiling::invoke(operation, arguments),
+        "swiftui-trace" => swiftui_trace::invoke(arguments),
         _ => mobile::invoke(operation, arguments).await,
     }
 }
@@ -42,8 +46,12 @@ pub fn catalog() -> Value {
             "build-analysis": build_analysis::catalog(),
             "app-store": app_store::catalog(),
             "mobile": mobile::catalog(),
+            "swiftui-trace": swiftui_trace::catalog(),
+            "profile.parse": "Parse bounded exported Instruments kperf XML into sampled addresses",
+            "profile.symbols": "Rank sampled addresses, prepare bounded atos argv & assemble symbol CSV",
             "flamegraph": "Bounded trace analysis",
             "memgraph": "Bounded memory diagnostic analysis",
+            "memgraph.parse": "Pure bounded leaks text analysis",
             "build-log": "Bounded Xcode build log analysis"
         }
     })

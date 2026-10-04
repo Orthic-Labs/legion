@@ -274,7 +274,7 @@ Do not infer split-view behavior from the device family. Respond to the space Sw
 
 ### Large Displays
 
-When rows push further screens (settings, mailboxes, folders), `NavigationSplitView` shows the next level beside the list on large displays and collapses on compact width; see [the screen-structure rule](iphone-duo.md#choose-the-technique-by-screen-structure).
+When rows push further screens (settings, mailboxes, folders), `NavigationSplitView` shows the next level beside the list on large displays and collapses on compact width; see [the screen-structure rule](donor-lee-iphone-duo.md#choose-the-technique-by-screen-structure).
 
 - Keep the sidebar visible with `columnVisibility` `.all` plus `toolbar(removing: .sidebarToggle)` when hiding the list would strand the user.
 - Use `navigationSplitViewColumnWidth(min:ideal:)` if sidebar cards or buttons wrap at the default width. Avoid `max:`: in a fold-aligned pose the system can widen the sidebar to the fold, and a maximum caps it short.
@@ -420,5 +420,4 @@ For older `alert` and `confirmationDialog` API patterns, see `latest-apis.md`. P
 - [ ] Avoid passing dismiss/save callbacks to sheets
 - [ ] Use enum-based `Identifiable` type with `.sheet(item:)` when presenting multiple sheets
 - [ ] Navigation state can be saved/restored when needed
-
 
