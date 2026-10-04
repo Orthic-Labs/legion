@@ -250,7 +250,7 @@ pub fn build_projection(root: &Path) -> Result<Value, String> {
             .collect(),
         ),
     );
-    out.insert("mcpTools".into(), mcp_tools);
+    out.insert("mcpTools".into(), Value::Array(mcp_tools));
     out.insert("capabilities".into(), Value::Array(capabilities));
     out.insert("roles".into(), Value::Array(roles));
     out.insert("modelTiers".into(), model_tiers);

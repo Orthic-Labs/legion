@@ -472,7 +472,26 @@ fn actual_binary_serves_the_shared_m1_surface_and_lazy_capability_body() {
         .iter()
         .map(|tool| tool["name"].as_str().unwrap())
         .collect::<Vec<_>>();
-    assert_eq!(names, ["legion_m1_status", "legion_m1_invoke"]);
+    assert_eq!(names, ["legion_m1_status", "legion_m1_invoke", "legion_apple"]);
+
+    let apple = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":20, "method":"tools/call", "params":{
+            "name":"legion_apple", "arguments":{"operation":"catalog"}
+        }}),
+    );
+    assert_eq!(apple["result"]["structuredContent"]["data"]["backend"], "legion-apple", "{apple}");
+    let denied = request(
+        &mut stdin,
+        &mut stdout,
+        json!({"jsonrpc":"2.0", "id":21, "method":"tools/call", "params":{
+            "name":"legion_apple", "arguments":{
+                "operation":"app-store", "arguments":{"action":"apps", "execute":true}
+            }
+        }}),
+    );
+    assert!(denied.get("error").is_some(), "unguarded account execution must fail: {denied}");
 
     let invoked = request(
         &mut stdin,
