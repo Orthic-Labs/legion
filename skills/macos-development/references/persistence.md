@@ -1,50 +1,24 @@
-# Persistence without an accidental migration
+# Persistence routing
 
-## Choose from the existing project
+Use this reference when a request touches SwiftData, Core Data, model schemas, stores, migrations, or sync. Start by inspecting shipped models, store/container configuration, supported OS versions, threading/isolation boundaries, and existing user data. Preserve the project’s persistence technology and store location; a rewrite, store reset, or CloudKit enablement requires an explicit product requirement.
 
-Inspect the current models, store/container, schema versions, threading model, and shipped
-data. Preserve SwiftData, Core Data, GRDB, SQLite, files, or another established layer unless
-a requested requirement justifies a migration. Do not infer a global user preference.
+## Route
 
-## SwiftData
+- [SwiftData](persistence/swiftdata.md): `@Model`, `ModelContainer`, `ModelContext`, `@Query`, predicates, relationships, indexes, inheritance, and SwiftData CloudKit constraints.
+- [Core Data](persistence/core-data.md): stack setup, contexts, fetch/save/batch behavior, context transfer, persistent history, model configuration, and CloudKit mirroring.
+- [Schema, migration, and cloud](persistence/migration-and-cloud.md): version inventories, lightweight/staged migration, recovery, SwiftData schemas, and CloudKit gates.
+- [Testing and diagnostics](persistence/testing-and-diagnostics.md): temporary stores, migration fixtures, concurrency/history checks, profiling, and failure triage.
 
-- Verify SDK/deployment support for each used feature. Identify container ownership,
-  configurations, store URL, model relationships, delete rules, and uniqueness assumptions.
-- Keep @Query in SwiftUI views. For background or service-layer fetching, use explicit
-  model contexts and the project's actor boundary; do not pass mutable persisted models
-  or contexts across actors casually. Transfer stable identifiers or value snapshots.
-- Define fetch predicates, sorting, limits, and pagination at the data boundary; avoid
-  loading an entire store to filter or sort repeatedly in a view.
-- Test insertion, update, relationship deletion, save failure, and reopening a real
-  temporary store. In-memory tests can miss persistence and migration failures.
+## Triage
 
-## Core Data
+1. Record macOS deployment target and SDK, framework, store URLs/configurations, model versions, and whether CloudKit/history is enabled.
+2. Identify the owning context/actor for every read/write. Transfer IDs or value snapshots across isolation boundaries; never pass mutable persisted objects casually.
+3. Keep predicates, sorting, limits, batching, relationship prefetching, and indexes at the data boundary.
+4. For schema changes, enumerate every supported starting model and test representative copies in temporary locations before changing production handling.
+5. Treat cloud sync as eventual and separately qualified. Do not add entitlements, access personal records, upload fixtures, or reset a user store as a local fix.
 
-- Respect context queue confinement. Use context perform APIs and transfer object IDs
-  or value data across queues; do not share managed objects as ordinary thread-safe values.
-- Inspect merge policies, background saves, history/notification handling, and faulting
-  before repairing stale UI. A main-context refresh is not a substitute for an ownership fix.
-- Measure fetch counts and faults; use bounded fetches, indexes, batching, and relationship
-  prefetching only where the actual workload benefits.
-- Retain existing model versions and mapping policies. Establish whether an intended
-  schema change supports lightweight migration rather than assuming it does.
+## Evidence bar
 
-## Schema and store changes
+Claim a persistence change only after reading back resulting model/container behavior and relevant tests or fixtures. A successful local save does not prove migration, multi-context merge, or CloudKit behavior.
 
-1. Identify every supported starting schema and the desired result; use representative
-   prior-version fixtures without real user data.
-2. Test opening/migrating each relevant old store, data invariants, relationships, and
-   interrupted/failed migration recovery. Check the platform/cloud-sync constraints.
-3. Define backup/recovery and rollback limitations before a destructive transformation.
-   Downgrading an app binary does not necessarily downgrade an already migrated store.
-4. Isolate all tests to temporary app-data/store paths. Never reset, delete, or seed the
-   user's production store to make tests green without explicit authorization.
-
-## Cloud and privacy
-
-CloudKit/iCloud behavior needs account, entitlement, conflict, offline, and synchronization
-evidence beyond local persistence tests. Do not enable cloud capabilities, access personal
-records, or upload fixtures merely to validate a local change. Record untested coverage.
-
-Primary documentation: https://developer.apple.com/documentation/swiftdata
-and https://developer.apple.com/documentation/coredata
+Primary references: [SwiftData](https://developer.apple.com/documentation/swiftdata), [Core Data](https://developer.apple.com/documentation/coredata), [Core Data migration](https://developer.apple.com/documentation/coredata/migrating-your-data-model-automatically), and [Core Data persistent history](https://developer.apple.com/documentation/coredata/persistent-history).

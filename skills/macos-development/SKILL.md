@@ -32,7 +32,7 @@ This adds platform expertise to Legion; it does not replace its runtime or autho
 2. Preserve SwiftUI/AppKit, Rust/Tauri/Cargo, web UI, XCTest, and current persistence choices.
    A Mac feature is not a mandate to rewrite the app in Swift. Choose APIs against the
    actual SDK/deployment target rather than a blanket newest-version assumption.
-3. For execution or tool-dependent work, run the mandatory [tool setup lifecycle](references/tool-setup.md):
+3. For execution or tool-dependent work, start with native [Apple CLI/MCP routing](references/tool-setup.md#native-first-lifecycle), then run mandatory setup lifecycle:
    detect → select → reuse → authorized setup only when missing → verify → continue.
    The agent owns finding and proposing the needed tools; the user should not hunt for them.
    Then load only the relevant references:
@@ -47,6 +47,10 @@ This adds platform expertise to Legion; it does not replace its runtime or autho
    - Measured build, launch, rendering, memory improvements: [Performance](references/performance.md)
    - Signing, sandbox, notarization, distribution preparation: [Release](references/release.md)
    - Cross-language implementation and host preservation: [Rust/Tauri interop](references/tauri-rust-interop.md)
+   - Native Mac workflow router & deep workflows: [macOS workflows](references/macos-workflows.md), [AppKit interop](references/macos-workflows/appkit-interop.md), [windows](references/macos-workflows/windows.md), [scenes](references/macos-workflows/swiftui-scenes.md), [build/run/debug](references/macos-workflows/build-run-debug.md), [signing/packaging](references/macos-workflows/signing-packaging.md)
+   - iOS workflow guidance for multiplatform targets in this bundle: [iOS workflows](references/ios-workflows.md), [simulator debugging](references/ios-workflows/simulator-debugging.md)
+   - Build analysis & measured optimization: [Build optimization](references/build-optimization.md), [benchmarking](references/build-optimization/benchmarking.md), [compilation analysis](references/build-optimization/compilation-analysis.md)
+   - Profiling capture & interpretation: [Profiling](references/profiling.md), [capture](references/profiling/capture.md), [hotspots](references/profiling/hotspots.md), [export](references/profiling/export.md)
 4. Implement the bounded change and verify at its actual layer. Swift unit tests, Cargo
    tests, browser tests, native app behavior, and signed distribution each prove different
    things. Use the project's existing checks; exercise native behavior when implicated.

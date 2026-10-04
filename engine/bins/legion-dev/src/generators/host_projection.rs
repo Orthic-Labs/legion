@@ -84,6 +84,20 @@ fn requirement_details(registry: &Value, ids: &[String]) -> Result<Vec<Value>, S
 pub fn build_projection(root: &Path) -> Result<Value, String> {
     let skills_dir = root.join("skills");
     let registry = load_capability_registry(root)?;
+    let mcp_schema: Value = serde_json::from_str(
+        &fs::read_to_string(root.join("src/registry/mcp-tools.json")).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| format!("src/registry/mcp-tools.json: {e}"))?;
+    if mcp_schema.get("schemaVersion").and_then(Value::as_u64) != Some(1)
+        || mcp_schema.get("kind").and_then(Value::as_str) != Some("legion-mcp-tool-schema")
+    {
+        return Err("src/registry/mcp-tools.json has unsupported schema identity".to_string());
+    }
+    let mcp_tools = mcp_schema
+        .get("tools")
+        .and_then(Value::as_array)
+        .cloned()
+        .ok_or_else(|| "src/registry/mcp-tools.json tools must be an array".to_string())?;
 
     let mut skill_ids: Vec<String> = fs::read_dir(&skills_dir)
         .map_err(|e| e.to_string())?
@@ -229,12 +243,14 @@ pub fn build_projection(root: &Path) -> Result<Value, String> {
                 "src/roster/*.md",
                 "src/config/model-tiers.json",
                 "src/registry/capabilities.json",
+                "src/registry/mcp-tools.json",
             ]
             .iter()
             .map(|s| Value::from(*s))
             .collect(),
         ),
     );
+    out.insert("mcpTools".into(), mcp_tools);
     out.insert("capabilities".into(), Value::Array(capabilities));
     out.insert("roles".into(), Value::Array(roles));
     out.insert("modelTiers".into(), model_tiers);

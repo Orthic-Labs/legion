@@ -26,6 +26,8 @@ pub struct Cli {
 }
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Native Apple tools, documentation, diagnostics & App Store Connect.
+    Apple(commands::apple::AppleArgs),
     /// Report the native M1 installed-release status.
     Status(M1ConfigArgs),
     /// Serve the Legion MCP server over stdio for a plugin host.
@@ -1498,6 +1500,7 @@ async fn dispatch(cli: Cli, cancellation: CancellationToken) -> commands::Comman
         };
     }
     let result: CommandResult = match command {
+        Command::Apple(args) => commands::apple::run(args, cancellation.clone()).await,
         Command::Status(args) => native_m1_status(args).await,
         Command::Serve(args) => native_m1_serve(args).await,
         Command::Catalog(args) => commands::catalog::run(args),

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/legion-apple",
     "crates/legion-application",
     "crates/legion-arcane",
     "crates/legion-audit",
@@ -51,6 +52,7 @@ regex = "1.13.1"
 walkdir = "2.5.0"
 clap = { version = "4.6.7", features = ["derive"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "rustls", "stream", "query", "form"] }
+jsonwebtoken = { version = "11", features = ["rust_crypto"] }
 futures-util = "0.3.34"
 secrecy = "0.10.3"
 rusqlite = { version = "0.40.2", features = ["bundled"] }

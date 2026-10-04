@@ -3,6 +3,8 @@ mod generators;
 mod native_cli_gate;
 mod repo;
 mod shared;
+#[cfg(test)]
+mod apple_skill_integrity;
 
 use clap::{Parser, Subcommand};
 use std::process::ExitCode;

@@ -1,5 +1,17 @@
 # Toolchain and task-selected adapters
 
+Native route first: use `legion apple catalog --input '{}'` to discover operations,
+`legion apple preflight --input '{"list":true}'` for read-only PATH inventory, or MCP
+`legion_apple` with `operation`, `arguments` and optional `policyContext`. Plans do not
+execute until `execute: true` is requested within existing authorization. Native routes
+cover `project.*`, `swiftpm.*`, `simulator.*`, `device.*`, `debug.batch`, `profile.record`,
+`build-analysis`, `flamegraph`, `memgraph`, `build-log` & `app-store`. Compatibility
+adapters below remain optional fallbacks.
+
+Profile recording accepts `template` & `output`, with optional `bundle_id` or
+`device_id`; project build/test accepts project or workspace, scheme & optional
+destination. Keep these JSON arguments intact across CLI & MCP.
+
 Read [tool setup](tool-setup.md) before execution. It contains official acquisition recipes,
 reusable client configuration and verification. Optional means task-selected, not undiscoverable.
 
@@ -22,7 +34,8 @@ runtime for platform claims. Preserve the project's Cargo/Tauri build path when 
 |---|---|---|---|
 | Xcode command-line tools | Native build/test/archive is required | Developer directory, xcodebuild version, SDKs, schemes, destination, build settings | Continue source review; mark Apple build/test unrun |
 | SwiftPM | Existing Swift package needs build/test | Installed Swift version, manifest/tools version, target platform, project command | Mark package checks unrun; do not substitute app validation |
-| XcodeBuildMCP / MobileBuildMCP | An existing configured server exposes the needed Apple operation | Actual server version, tool listing and schemas, repository pin, session/default target | Use approved project CLI if available; otherwise report the blocked operation |
+| Legion Apple CLI/MCP | Native typed Apple operation is available | Legion binary or MCP registration, catalog/schema, host authorization | Use selected project CLI or existing adapter; report missing native host capability |
+| XcodeBuildMCP / MobileBuildMCP | An existing configured server exposes the needed Apple operation | Actual server version, tool listing and schemas, repository pin, session/default target | Use Legion Apple or approved project CLI if available; otherwise report blocked operation |
 | AXe | The available version supports the required simulator UI action | Executable/version/help, simulator identity, accessibility output, permission state | Use existing XCTest/UI tooling or report unrun UI evidence |
 | DocSetQuery | Local Apple documentation is available through it | Version, selected Xcode/docsets, SDK availability | Use official Apple/Swift documentation; distinguish online docs from installed SDK |
 | xcbeautify | Existing build logs need formatting | Version, pipeline failure semantics, raw output retention | Keep raw output; formatter absence never blocks a build |
@@ -31,7 +44,8 @@ runtime for platform claims. Preserve the project's Cargo/Tauri build path when 
 | AppStoreConnectCLI | Authorized account/release operation needs the existing CLI | Version/help, authentication mechanism, exact app/team/action | Return local release preparation and the missing capability |
 | CodexMonitor / agent-scripts | The user's existing development workflow explicitly uses them | Repository setup and exact approved operation | Keep the current agent/terminal workflow; no new orchestration dependency |
 
-This matrix selects capabilities; [tool setup](tool-setup.md) supplies their setup path.
+This matrix selects capabilities; [tool setup](tool-setup.md) supplies native-first setup
+& optional adapter paths.
 Only selected workflows/adapters bind host capabilities in [route resources](route-resources.json).
 Never infer that a tool is installed or connected; detect and reuse before proposing setup.
 

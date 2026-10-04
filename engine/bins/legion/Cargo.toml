@@ -7,6 +7,7 @@ license.workspace = true
 name = "legion"
 path = "src/main.rs"
 [dependencies]
+legion-apple = { path = "../../crates/legion-apple" }
 clap.workspace = true
 hmac.workspace = true
 hex.workspace = true

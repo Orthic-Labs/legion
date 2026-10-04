@@ -32,7 +32,7 @@ platform expertise within Legion, not a new authority, agent harness, or permiss
 2. Keep the app's architecture and dependencies unless the request requires a change.
    Preserve UIKit, XCTest, Core Data, Tauri/Rust, and other existing choices; modern APIs
    are conditional on the target's SDK and deployment availability.
-3. For execution or tool-dependent work, run the mandatory [tool setup lifecycle](references/tool-setup.md):
+3. For execution or tool-dependent work, start with native [Apple CLI/MCP routing](references/tool-setup.md#native-first-lifecycle), then run mandatory setup lifecycle:
    detect → select → reuse → authorized setup only when missing → verify → continue.
    The agent owns finding and proposing the needed tools; the user should not hunt for them.
    Then load only the relevant references:
@@ -47,6 +47,10 @@ platform expertise within Legion, not a new authority, agent harness, or permiss
    - Measured build, launch, rendering, memory improvements: [Performance](references/performance.md)
    - Signing, archive/export, TestFlight/App Store preparation: [Release](references/release.md)
    - A cross-platform shell or native bridge: [Rust/Tauri interop](references/tauri-rust-interop.md)
+   - Native iOS workflow router & deep workflows: [iOS workflows](references/ios-workflows.md), [SwiftUI quality](references/ios-workflows/swiftui-quality.md), [simulator debugging](references/ios-workflows/simulator-debugging.md), [memory evidence](references/ios-workflows/memory-evidence.md), [performance evidence](references/ios-workflows/performance-evidence.md)
+   - Mac workflow guidance for multiplatform targets in this bundle: [macOS workflows](references/macos-workflows.md), [AppKit interop](references/macos-workflows/appkit-interop.md)
+   - Build analysis & measured optimization: [Build optimization](references/build-optimization.md), [benchmarking](references/build-optimization/benchmarking.md), [compilation analysis](references/build-optimization/compilation-analysis.md)
+   - Profiling capture & interpretation: [Profiling](references/profiling.md), [capture](references/profiling/capture.md), [hotspots](references/profiling/hotspots.md), [export](references/profiling/export.md)
 4. Make the smallest coherent change, then run the existing focused checks and the actual
    platform build/runtime checks required by the changed behavior. Fix observed failures
    within scope; distinguish simulator success from device or distribution validation.

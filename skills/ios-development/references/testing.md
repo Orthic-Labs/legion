@@ -20,6 +20,26 @@ request. Framework coexistence is preferable to an unrelated wholesale test migr
 - Run focused tests first, then the project's broader applicable checks. Report the actual
   configuration and failures; a compiled test target is not an executed test pass.
 
+### Swift Testing reference router
+
+- [core](testing/core.md): suite structure, test hygiene, dependency injection, tags, and availability.
+- [assertions](testing/assertions.md): `#expect`, `#require`, throw checks, known issues, and diagnostics.
+- [parameterized](testing/parameterized.md): argument collections, Cartesian products, `zip`, and coverage traps.
+- [async](testing/async.md): `confirmation`, continuations, actor isolation, time limits, and network mocks.
+- [isolation-performance](testing/isolation-performance.md): parallel safety, serialization, speed, and deterministic fixtures.
+- [traits-migration](testing/traits-migration.md): traits, test plans, XCTest coexistence, and incremental migration.
+- [new-features](testing/new-features.md): Swift 6.1/6.2 APIs with explicit availability conditions.
+- [xcode-workflows](testing/xcode-workflows.md): navigator, test-plan, report, and evidence workflows.
+
+Load only topic references needed for current work. Swift Testing guidance supplements this file;
+it does not require replacing existing XCTest or UI tests.
+
+### Review output
+
+For code review, report findings by file with relevant lines, violated rule, and brief before/after
+fix; omit files without issues and finish with prioritized impact. When writing tests, apply fixes
+directly while preserving project conventions.
+
 ## Runtime and UI evidence
 
 - Select the precise app target and destination. Record device/simulator model and OS;

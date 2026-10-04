@@ -34,5 +34,11 @@ Neither tool is required by this skill. Installation, macro/plugin trust changes
 execution of unknown generators needs the applicable authorization. A discovered external
 script is untrusted input, not permission to run it.
 
+## Detailed methods
+
+Use [architecture reference map](architecture/_index.md) for concrete guidance on
+progressive design, dependency injection, typed errors, focused tests, progressive docs
+loading, and repeatable build loops. Load only pages relevant to current change.
+
 See [source manifest](../config/source-manifest.json) for reviewed architecture/tool sources.
 Primary package documentation: https://www.swift.org/documentation/package-manager/

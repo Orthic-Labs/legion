@@ -1,5 +1,7 @@
 # App Intents and system-facing features
 
+For concrete iOS recipes in a multiplatform target, use [iOS workflows: App Intents](../../ios-development/references/ios-workflows/app-intents.md).
+
 Use this reference when the requested feature participates in Shortcuts, Siri, Spotlight,
 widgets, sharing, or another system surface. Inspect existing extensions/integrations and
 the supported SDK/deployment targets before choosing an API or adding a target.
@@ -18,6 +20,13 @@ the supported SDK/deployment targets before choosing an API or adding a target.
   unrestricted background work, present any UI, or access resources held by the app.
 - Keep titles, parameter descriptions, localization, and returned errors meaningful for
   the system surface. Avoid leaking private data into suggestions, logs, or public results.
+
+Start with a small set of user-valued verbs. Keep system-facing entities narrower than
+Mac persistence models, use `AppEnum` for fixed choices, and scope dependent queries
+with `@IntentParameterDependency`. Inline intents should complete through shared domain
+services and return useful dialog/snippet feedback; open-app intents should enqueue one
+central handoff payload for the native scene. Reuse parameter/entity models for widgets,
+controls, Spotlight, Siri, and Shortcuts when behavior matches.
 
 ## Integrate proportionately
 
@@ -39,6 +48,11 @@ the feature promises. Record the OS, target, and observed result.
 Without a suitable simulator/device or Mac, return code and source-level checks with the
 system-surface verification explicitly unrun. Do not claim Siri/Shortcuts/Spotlight works
 because unit tests or an in-app button passed.
+
+Validate stale entities, denied access, cancellation, repeated invocation, locked or
+background execution, open-app routing, and destructive-action safeguards. File intent
+parameters must balance security-scoped URL access. Validate iOS and Mac targets
+separately; Mac success does not prove iOS behavior.
 
 Primary documentation: https://developer.apple.com/documentation/appintents
 and https://developer.apple.com/documentation/widgetkit

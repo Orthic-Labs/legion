@@ -42,24 +42,15 @@ control sources.
 
 ## Apple development methodology and references
 
-The `ios-development` and `macos-development` bundles contain original Legion guidance
-reconciled from the public SwiftUI, concurrency, testing, SwiftData/Core Data, Xcode build
-optimization, and profiling material listed in their pinned source manifests. MIT
-methodological inputs from Paul Hudson (`twostraws`), Antoine van der Lee (`AvdLee`), and
-Peter Steinberger (`steipete/agent-scripts`) retain their copyright and permission notices
-inside each self-contained bundle:
+`ios-development` and `macos-development` contain original Legion guidance with substantive rules, decision branches, and examples adapted from pinned public sources. Each bundle carries its own [source manifest](../skills/ios-development/config/source-manifest.json) or [source manifest](../skills/macos-development/config/source-manifest.json), [third-party notice](../skills/ios-development/references/third-party-notices.md) or [third-party notice](../skills/macos-development/references/third-party-notices.md), and exact local license snapshots under `skills/*-development/references/licenses/`.
 
-- [iOS source manifest](../skills/ios-development/config/source-manifest.json) and [notices](../skills/ios-development/references/third-party-notices.md)
-- [macOS source manifest](../skills/macos-development/config/source-manifest.json) and [notices](../skills/macos-development/references/third-party-notices.md)
+Adapted MIT inputs include Paul Hudson's four `twostraws` skills, Antoine van der Lee's SwiftUI, concurrency, testing, Core Data, and Xcode build skills, Peter Steinberger's profiling guidance, Krzysztof Zabłocki's Inject and Sourcery boundaries, Paul Solt's DocSetQuery lookup method, Charles Pisciotta's xcbeautify workflow, and Rudrank Riyam's App Store Connect skill rules. Local notices preserve copyright and permission text from each inspected pin; upstream code, scripts, binaries, assets, installers, plugin metadata, credentials, and live MCP configuration are excluded.
 
-OpenAI's Apple plugins are coverage references only: their inspected manifests declare MIT,
-but accompanying license text was not present at the reviewed pin. No OpenAI skill text,
-scripts, metadata, or assets are vendored. Public Zablocki guidance and commercial RocketSim
-material are reference-only; gated AppCreator, paid-course, and Point-Free subscription
-content are excluded. MobileBuildMCP (formerly XcodeBuildMCP), AXe, DocSetQuery, xcbeautify,
-Inject, Sourcery, CodexMonitor, and App Store Connect tools remain optional external
-capabilities. Their binaries, configuration, credentials, and dependencies are not shipped.
-Tool reference does not authorize installation, telemetry, account changes, or publishing.
+Xopoko's `AppStoreConnectCLI` is Apache-2.0 at pinned commit `2af677324e72d7c1684f9d75d57599e64f8c582a`. Only ascctl contract guidance is rewritten into local release guidance. The complete Apache-2.0 text is bundled in each Apple skill's notices. No Xopoko source or generated client is distributed, so no modified upstream file or change annotation is shipped. Its separately listed Apache-licensed dependencies (`swift-argument-parser` and `swift-crypto`) are not bundled.
+
+MobileBuildMCP's pinned license is MIT, not Apache-2.0; AXe, DocSetQuery, xcbeautify, and CodexMonitor also have verified MIT snapshots. MobileBuildMCP, AXe, and CodexMonitor remain reference-only. DocSetQuery and xcbeautify contribute rewritten method rules; Legion's native Rust docset reader is an independent implementation, and no donor tool code or Apple documentation is redistributed. OpenAI's inventoried Apple plugin manifests declare MIT, but no LICENSE text exists inside either Apple plugin directory; only ledger-marked independent Legion workflows are represented, with no OpenAI text, code, scripts, metadata, or assets copied. Public Zablocki guidance, commercial RocketSim, gated AppCreator payloads, paid courses, Point-Free subscription material, and Swift Evolution specification text are excluded.
+
+Tool reference does not authorize installation, telemetry, credentials, account changes, publishing, or network services. Apple documentation remains subject to its own terms; DocSetQuery's MIT license does not license documentation it processes. Detailed per-file and per-rule dispositions remain in `docs/apple-absorption/*.json`; the companion trace [README](apple-absorption/README.md) explains coverage and deliberate exclusions.
 
 ## Rule packs and fixtures
 

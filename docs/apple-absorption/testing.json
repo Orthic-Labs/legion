@@ -1,0 +1,1918 @@
+{
+  "schemaVersion": 1,
+  "lane": "testing",
+  "sources": [
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/SKILL.md",
+          "sha256": "ad4f1bff44b5b7fce20b282481e651876efce024d13b16cb969bc433036ac059",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                10,
+                18
+              ],
+              "summary": "Review routing loads core, hygiene, async, newer-feature, or migration topic guidance as needed.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Swift Testing reference router",
+                "skills/macos-development/references/testing.md#Swift Testing reference router"
+              ],
+              "reason": "Merged into Legion router while keeping selective topic loading."
+            },
+            {
+              "sourceLines": [
+                25,
+                28
+              ],
+              "summary": "Use Swift 6.2+ modern concurrency conditionally; keep Swift Testing for new unit/integration tests and XCTest for UI tests.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Scope and framework choice",
+                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+              ],
+              "reason": "Merged with donor and existing platform framework guidance; no blanket migration. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                29,
+                29
+              ],
+              "summary": "Use feature-oriented project structure determined by the app.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Scope and framework choice",
+                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+              ],
+              "reason": "Merged with donor and existing platform framework guidance; no blanket migration. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                30,
+                32
+              ],
+              "summary": "Expect Swift Testing API evolution and treat installed toolchain as authoritative when donor documentation or training data is stale.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Scope and framework choice",
+                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+              ],
+              "reason": "Merged with donor and existing platform framework guidance; no blanket migration. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                35,
+                45
+              ],
+              "summary": "Reviews report file/line, rule, before/after fix, omit clean files, and prioritize impact; writing requests apply fixes directly.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Review output",
+                "skills/macos-development/references/testing.md#Review output"
+              ],
+              "reason": "Operational review contract retained."
+            },
+            {
+              "sourceLines": [
+                91,
+                97
+              ],
+              "summary": "Reference topics cover core, writing, async, new features, migration, and latest API caution.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Swift Testing reference router",
+                "skills/macos-development/references/testing.md#Swift Testing reference router"
+              ],
+              "reason": "Merged into linked Legion topic references."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/references/core-rules.md",
+          "sha256": "2271efdca6c2b7b3365501172147884b6e786bcee7bef680fb4f4718929d6180",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                7,
+                10
+              ],
+              "summary": "Keep UI tests on XCTest; prefer struct suites and add @Suite only for names or traits.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Scope and framework choice",
+                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+              ],
+              "reason": "Merged with AvdLee suite/framework rules and retained XCTest UI boundary."
+            },
+            {
+              "sourceLines": [
+                11,
+                27
+              ],
+              "summary": "Use init/deinit or scopes instead of setUp/tearDown; require zero-argument suite initialization; async/throwing suites and tests are valid.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Preserved concrete suite initialization mechanics."
+            },
+            {
+              "sourceLines": [
+                28,
+                29
+              ],
+              "summary": "Use Testing assertions for unit/integration tests and omit XCTestCase/XCTAssert plus test-name prefixes.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
+                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+              ],
+              "reason": "Merged with parallel, parameterization, availability, and known-issue references. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                30,
+                31
+              ],
+              "summary": "Assume random parallel execution and account for two-collection Cartesian parameterization.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
+                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+              ],
+              "reason": "Merged with parallel, parameterization, availability, and known-issue references. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                32,
+                32
+              ],
+              "summary": "Apply @available to individual test functions, never suites.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
+                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+              ],
+              "reason": "Merged with parallel, parameterization, availability, and known-issue references. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                33,
+                34
+              ],
+              "summary": "A test with no reached expectation passes; use withKnownIssue and its intermittent semantics for tracked defects.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
+                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+              ],
+              "reason": "Merged with parallel, parameterization, availability, and known-issue references. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                35,
+                52
+              ],
+              "summary": "Do not negate Boolean expressions with ! inside macros; define/apply custom tags at test or suite scope.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
+                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+              ],
+              "reason": "Concrete macro diagnostic and tag mechanics retained."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/references/writing-better-tests.md",
+          "sha256": "25da3455f6cec4f10d3dff0bf3e8e1372568c75691916541b4d517f451cb8bf1",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                8,
+                25
+              ],
+              "summary": "Apply FIRST hygiene and cover happy, boundary, invalid, and relevant concurrency cases.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
+                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+              ],
+              "reason": "Preserved test-quality heuristics."
+            },
+            {
+              "sourceLines": [
+                30,
+                36
+              ],
+              "summary": "Avoid direct SwiftUI view tests; test view models or observable state and suggest extraction rather than applying it automatically.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
+                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+              ],
+              "reason": "Preserved platform-specific testing boundary."
+            },
+            {
+              "sourceLines": [
+                39,
+                43
+              ],
+              "summary": "For new tests, mirror feature-oriented production layout; preserve existing layout unless reorganization is requested.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Merged with suite and parameterization guidance; preserves existing organization. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                45,
+                47
+              ],
+              "summary": "Keep related suites and fixtures discoverable and use domain tags such as networking, slow, edgeCase, and smoke.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Merged with suite and parameterization guidance; preserves existing organization. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                48,
+                50
+              ],
+              "summary": "Add useful assertion messages, parameterize repetition, and keep one behavior per test.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Merged with suite and parameterization guidance; preserves existing organization. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                53,
+                55
+              ],
+              "summary": "Avoid hidden dependencies such as UserDefaults or URLSession in production code under test.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
+                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+              ],
+              "reason": "Concrete dependency-injection and cleanup rule retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                57,
+                101
+              ],
+              "summary": "Inject URLSession defaults or a narrow protocol so tests can use mocks without changing production call sites.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
+                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+              ],
+              "reason": "Concrete dependency-injection and cleanup rule retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                103,
+                115
+              ],
+              "summary": "Use isolated UserDefaults suites with cleanup and control time/randomness for deterministic tests.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
+                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+              ],
+              "reason": "Concrete dependency-injection and cleanup rule retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                118,
+                141
+              ],
+              "summary": "Use #require as throwing guard for prerequisites and optional unwrapping; use #expect for behavior assertions.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Expectations",
+                "skills/macos-development/references/testing/assertions.md#Expectations"
+              ],
+              "reason": "Merged with AvdLee assertion guidance."
+            },
+            {
+              "sourceLines": [
+                144,
+                158
+              ],
+              "summary": "Attach bug IDs or URLs with .bug to regression tests.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Known issues",
+                "skills/macos-development/references/testing/assertions.md#Known issues"
+              ],
+              "reason": "Retained traceability rule."
+            },
+            {
+              "sourceLines": [
+                161,
+                180
+              ],
+              "summary": "Use Issue.record with do/catch when exact error branches need custom diagnostics.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Errors and failures",
+                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+              ],
+              "reason": "Concrete throw mechanics retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                182,
+                202
+              ],
+              "summary": "Prefer narrow #expect(throws:) and Never.self for expected and forbidden errors.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Errors and failures",
+                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+              ],
+              "reason": "Concrete throw mechanics retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                205,
+                234
+              ],
+              "summary": "Use test-target CustomTestStringConvertible for readable diagnostics, never production-only conformance.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Errors and failures",
+                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+              ],
+              "reason": "Retained diagnostic boundary."
+            },
+            {
+              "sourceLines": [
+                237,
+                254
+              ],
+              "summary": "Pass SourceLocation defaulted to #_sourceLocation through verification helpers and into nested macros.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Errors and failures",
+                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+              ],
+              "reason": "Retained source-location mechanics."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/references/async-tests.md",
+          "sha256": "bc6e0eabd10377b5796e9e554a4965a78b7d1aaba8f11021c2a63b6e8a9e669a",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                1,
+                12
+              ],
+              "summary": "Apply .serialized to parameterized test cases or suites; it has no effect on ordinary non-parameterized tests.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Time limits and serialization",
+                "skills/macos-development/references/testing/async.md#Time limits and serialization"
+              ],
+              "reason": "Retained explicit trait scope distinction."
+            },
+            {
+              "sourceLines": [
+                15,
+                19
+              ],
+              "summary": "confirmation requires all tested work to finish before its closure returns.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
+                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+              ],
+              "reason": "Concrete confirmation completion semantics retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                21,
+                63
+              ],
+              "summary": "Prefer async production APIs and confirm after awaited work completes.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
+                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+              ],
+              "reason": "Concrete confirmation completion semantics retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                65,
+                97
+              ],
+              "summary": "If async conversion is unavailable, return/await internal Task; expectedCount 0 verifies absence.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
+                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+              ],
+              "reason": "Concrete confirmation completion semantics retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                100,
+                117
+              ],
+              "summary": "Use @Test .timeLimit(.minutes(...)); shorter nested limit wins and suite limit applies per test.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Time limits and serialization",
+                "skills/macos-development/references/testing/async.md#Time limits and serialization"
+              ],
+              "reason": "Retained .minutes spelling and precedence."
+            },
+            {
+              "sourceLines": [
+                120,
+                144
+              ],
+              "summary": "Use @MainActor or another global actor on tests/suites when code requires actor isolation.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Swift Testing async work",
+                "skills/macos-development/references/testing/async.md#Swift Testing async work"
+              ],
+              "reason": "Merged with AvdLee actor-isolation guidance. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                146,
+                157
+              ],
+              "summary": "Use confirmation or withKnownIssue isolation for one closure and inspect target default actor isolation.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Swift Testing async work",
+                "skills/macos-development/references/testing/async.md#Swift Testing async work"
+              ],
+              "reason": "Merged with AvdLee actor-isolation guidance. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                160,
+                205
+              ],
+              "summary": "Bridge callback APIs with checked continuations, wait for completion before asserting, and avoid production modernization without scope.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
+                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+              ],
+              "reason": "Concrete continuation mechanics retained."
+            },
+            {
+              "sourceLines": [
+                208,
+                252
+              ],
+              "summary": "Mock URLSession through a narrow protocol and injected fixture/error data; avoid live networking in unit tests.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Networking boundaries",
+                "skills/macos-development/references/testing/async.md#Networking boundaries"
+              ],
+              "reason": "Concrete networking mock preserved."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/references/new-features.md",
+          "sha256": "988df5cb556893c789f9aecdc4c8773fdbbda787ab1dad766bf1182a7b9a4819",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                9,
+                57
+              ],
+              "summary": "Swift 6.2 raw identifiers produce readable test names and may combine with arguments; suggest rather than surprise-adopt them.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
+                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+              ],
+              "reason": "Availability and adoption caution retained."
+            },
+            {
+              "sourceLines": [
+                60,
+                90
+              ],
+              "summary": "Swift 6.1 confirmation supports inclusive bounded/lower ranges; upper-only ranges are disallowed.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/new-features.md#Swift 6.1+",
+                "skills/macos-development/references/testing/new-features.md#Swift 6.1+"
+              ],
+              "reason": "Exact range semantics retained."
+            },
+            {
+              "sourceLines": [
+                93,
+                153
+              ],
+              "summary": "Swift 6.1 TestTrait/TestScoping can safely provide TaskLocal configuration; scopes compose in listed order and later values overwrite.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/new-features.md#Swift 6.1+",
+                "skills/macos-development/references/testing/new-features.md#Swift 6.1+"
+              ],
+              "reason": "Concrete scope protocol and ordering mechanics retained."
+            },
+            {
+              "sourceLines": [
+                156,
+                184
+              ],
+              "summary": "Swift 6.2 process-exit tests use awaited #expect(processExitsWith:) for fatalError/precondition behavior.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
+                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+              ],
+              "reason": "Dedicated-process and await requirement retained."
+            },
+            {
+              "sourceLines": [
+                187,
+                228
+              ],
+              "summary": "Swift 6.2 attachments use Attachable and Attachment.record for String, Data, or Encodable diagnostic values.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
+                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+              ],
+              "reason": "Attachment capability and limitation retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                228,
+                230
+              ],
+              "summary": "Attachment image support depends on toolchain and attachments have no XCTest lifetime controls.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
+                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+              ],
+              "reason": "Attachment capability and limitation retained. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                233,
+                264
+              ],
+              "summary": "Swift 6.2 ConditionTrait.evaluate() evaluates test conditions from non-test code.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
+                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+              ],
+              "reason": "Concrete evaluate mechanism retained."
+            },
+            {
+              "sourceLines": [
+                268,
+                318
+              ],
+              "summary": "Swift 6.1 throws expectations return typed errors; migrate from deprecated trailing validation closures.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/new-features.md#Swift 6.1+",
+                "skills/macos-development/references/testing/new-features.md#Swift 6.1+"
+              ],
+              "reason": "Typed return and migration mechanic retained."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/references/migrating-from-xctest.md",
+          "sha256": "35b64812402ad1d15b496993e1721daaf4e80672bf9cce47078f772fd271f93f",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                3,
+                12
+              ],
+              "summary": "Do not rewrite existing XCTest without request; retain UI boundary and map common assertions to Testing macros.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Merged into incremental coexistence and mapping table."
+            },
+            {
+              "sourceLines": [
+                16,
+                24
+              ],
+              "summary": "Use Swift Numerics approximate comparison for float tolerance only when dependency already exists; do not add it implicitly.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Dependency and permission constraint retained."
+            },
+            {
+              "sourceLines": [
+                27,
+                34
+              ],
+              "summary": "Migrate broad structure first, then assertions, parameterization, preconditions, and traits.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Merged with AvdLee migration order."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/SKILL.md",
+          "sha256": "d039eb55cfbaa379d308ff42c1e459dea355edb869ec0a4d6f488759d2156aec",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                10,
+                10
+              ],
+              "summary": "Prioritize readable tests, robust parallel execution, clear diagnostics, and incremental XCTest migration.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Scope and framework choice",
+                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+              ],
+              "reason": "Merged with Twostraws and existing platform guidance. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                14,
+                16
+              ],
+              "summary": "Prefer Testing for unit/integration; retain XCTest for UI, performance metrics, and Objective-C-only cases; fix isolation before serialization.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Scope and framework choice",
+                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+              ],
+              "reason": "Merged with Twostraws and existing platform guidance. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                17,
+                21
+              ],
+              "summary": "Prefer traits and parameterization, apply function-level availability, migrate incrementally, and import Testing only in test targets.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Scope and framework choice",
+                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+              ],
+              "reason": "Merged with Twostraws and existing platform guidance. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                23,
+                30
+              ],
+              "summary": "Triage by goal, toolchain/platform, framework mix, failure determinism, and shared resources.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Swift Testing reference router",
+                "skills/macos-development/references/testing.md#Swift Testing reference router"
+              ],
+              "reason": "Operational triage retained in router usage. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                31,
+                35
+              ],
+              "summary": "Route repetition to parameters, flakiness to isolation/known issues, migration to coexistence, and callback complexity to continuations.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Swift Testing reference router",
+                "skills/macos-development/references/testing.md#Swift Testing reference router"
+              ],
+              "reason": "Operational triage retained in router usage. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                37,
+                43
+              ],
+              "summary": "Route suite/assertion/trait/parameter/isolation topics to focused references.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Swift Testing reference router",
+                "skills/macos-development/references/testing.md#Swift Testing reference router"
+              ],
+              "reason": "Mapped to shared topic files. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                44,
+                47
+              ],
+              "summary": "Route performance, async, migration, Xcode workflows, and index navigation to focused references.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Swift Testing reference router",
+                "skills/macos-development/references/testing.md#Swift Testing reference router"
+              ],
+              "reason": "Mapped to shared topic files. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                50,
+                54
+              ],
+              "summary": "Common fixes: parameterize repetition, require prerequisites, isolate shared databases, and serialize only as transition.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
+                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+              ],
+              "reason": "Merged into topic guidance. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                55,
+                57
+              ],
+              "summary": "Use withKnownIssue for temporary failures, CustomTestStringConvertible for diagnostics, and tags for plan filtering.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
+                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+              ],
+              "reason": "Merged into topic guidance. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                59,
+                66
+              ],
+              "summary": "Verify behavior focus, prerequisites, parameterization, parallel safety, awaited callbacks, and XCTest-only retention.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Review output",
+                "skills/macos-development/references/testing.md#Review output"
+              ],
+              "reason": "Retained as review checklist via base and linked topics."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/_index.md",
+          "sha256": "623f23b0e14d363928bfc6b8ed54c89c6d420fde809ee79c0f6e37ed2c4aa965",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                1,
+                11
+              ],
+              "summary": "Index maps all Swift Testing topics to focused references and workflows.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Swift Testing reference router",
+                "skills/macos-development/references/testing.md#Swift Testing reference router"
+              ],
+              "reason": "Mapped to Legion router links."
+            },
+            {
+              "sourceLines": [
+                12,
+                12
+              ],
+              "summary": "README resources note is packaging navigation and points to absent donor README content.",
+              "disposition": "excluded",
+              "destinations": [],
+              "reason": "Metadata-only pointer; no independent operational rule in destination."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/fundamentals.md",
+          "sha256": "ad3af7d6ce9a31c2f8222a88baf9a5631de6443d2ad671764e2d183bba7019f3",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                7,
+                14
+              ],
+              "summary": "Import Testing only in test targets; use @Test, struct/actor/class suites, prefer structs, use @Suite for names/traits, and nest suites by feature.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Merged with Twostraws suite rules."
+            },
+            {
+              "sourceLines": [
+                16,
+                16
+              ],
+              "summary": "Use global functions, suites, and nested suites to express feature behavior.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Examples condensed into operational guidance while retaining mechanics. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                70,
+                78
+              ],
+              "summary": "Keep tests small, descriptive, locally initialized, free of hidden globals, and selectively actor/availability gated.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Examples condensed into operational guidance while retaining mechanics. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                80,
+                85
+              ],
+              "summary": "Group by feature behavior, promote universal tags to suite scope, and separate unrelated suites.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Examples condensed into operational guidance while retaining mechanics. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                80,
+                85
+              ],
+              "summary": "Group by behavior, promote shared tags only when universal, and keep unrelated suites separate.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Organization guidance retained."
+            },
+            {
+              "sourceLines": [
+                87,
+                91
+              ],
+              "summary": "Require zero-argument init path and never annotate suite availability.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Suites and test declarations",
+                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+              ],
+              "reason": "Merged exact suite constraints."
+            },
+            {
+              "sourceLines": [
+                129,
+                141
+              ],
+              "summary": "Review suite focus, display names, execution-order independence, import boundary, suite type, init path, and availability placement.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing.md#Review output",
+                "skills/macos-development/references/testing.md#Review output"
+              ],
+              "reason": "Review checks preserved across linked topics."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/expectations.md",
+          "sha256": "e3d4a57b5d162f49e8f7135e2a020eb1c2af0301782d31c1e4ac3d51a9a0dac5",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                7,
+                12
+              ],
+              "summary": "Use expressive #expect natural expressions and captured diagnostics; avoid XCTest assertions.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Expectations",
+                "skills/macos-development/references/testing/assertions.md#Expectations"
+              ],
+              "reason": "Merged with Twostraws assertion rules."
+            },
+            {
+              "sourceLines": [
+                30,
+                45
+              ],
+              "summary": "Use throwing #require for prerequisites and optional unwrapping.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Expectations",
+                "skills/macos-development/references/testing/assertions.md#Expectations"
+              ],
+              "reason": "Merged exact early-stop semantics."
+            },
+            {
+              "sourceLines": [
+                49,
+                56
+              ],
+              "summary": "For expected failures, choose any throw, concrete type, or concrete case; direct success paths and custom do/catch remain valid.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Errors and failures",
+                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+              ],
+              "reason": "Merged with detailed Issue.record mechanics. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                58,
+                81
+              ],
+              "summary": "Use #expect(throws:) for expected errors and Never.self for no-throw.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Errors and failures",
+                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+              ],
+              "reason": "Merged with detailed Issue.record mechanics. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                85,
+                105
+              ],
+              "summary": "Use narrow withKnownIssue wrappers and remove them once fixed.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Known issues",
+                "skills/macos-development/references/testing/assertions.md#Known issues"
+              ],
+              "reason": "Merged semantics."
+            },
+            {
+              "sourceLines": [
+                107,
+                110
+              ],
+              "summary": "Use test-only CustomTestStringConvertible for concise diagnostics.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/assertions.md#Errors and failures",
+                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+              ],
+              "reason": "Merged diagnostic rule."
+            },
+            {
+              "sourceLines": [
+                127,
+                145
+              ],
+              "summary": "Keep XCTest mapping and assertion hygiene visible.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Mapped into migration table and assertions."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/traits-and-tags.md",
+          "sha256": "17dd0b7182f0abdf51f538a6bcc139ef6d501325575476c63a6d5f933312b49e",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                7,
+                11
+              ],
+              "summary": "Classify informational, conditional, and behavioral traits including time limits and serialization.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Swift Testing traits and XCTest migration",
+                "skills/macos-development/references/testing/traits-migration.md#Swift Testing traits and XCTest migration"
+              ],
+              "reason": "Merged trait taxonomy."
+            },
+            {
+              "sourceLines": [
+                29,
+                35
+              ],
+              "summary": "Use enabled/disabled conditions with actionable reasons and bug links.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Swift Testing traits and XCTest migration",
+                "skills/macos-development/references/testing/traits-migration.md#Swift Testing traits and XCTest migration"
+              ],
+              "reason": "Retained conditional trait mechanics."
+            },
+            {
+              "sourceLines": [
+                51,
+                61
+              ],
+              "summary": "Apply function-level availability for OS-gated behavior instead of inline checks or suite availability.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
+                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+              ],
+              "reason": "Merged with exact suite constraint."
+            },
+            {
+              "sourceLines": [
+                65,
+                70
+              ],
+              "summary": "Define tags for cross-suite grouping and filtering; keep labels meaningful and distinct from suite structure.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
+                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+              ],
+              "reason": "Merged with Twostraws tag rules and workflow filtering. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                72,
+                92
+              ],
+              "summary": "Declare/apply tags at test or suite scope and use them for navigator/test-plan filters.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
+                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+              ],
+              "reason": "Merged with Twostraws tag rules and workflow filtering. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                97,
+                114
+              ],
+              "summary": "Traits cascade from suites; keep scope explicit, disabled reasons actionable, and serialization narrow.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
+                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+              ],
+              "reason": "Merged with Twostraws tag rules and workflow filtering. Split into an independent rule group."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/parameterized-testing.md",
+          "sha256": "852ea45d5cae37f3e687050be2cb728370a635129786928cadef4a9dcc8d2c09",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                5,
+                11
+              ],
+              "summary": "Parameterize identical behavior, replace loops/copy-paste, and keep one responsibility.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
+                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+              ],
+              "reason": "Merged with Twostraws parameter rules."
+            },
+            {
+              "sourceLines": [
+                33,
+                59
+              ],
+              "summary": "Single collections create independent cases; max two direct collections form Cartesian product and can explode.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
+                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+              ],
+              "reason": "Concrete collection semantics retained."
+            },
+            {
+              "sourceLines": [
+                80,
+                128
+              ],
+              "summary": "Use zip for aligned pairs but account for silent truncation and CaseIterable order fragility.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
+                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+              ],
+              "reason": "Preserved coverage traps."
+            },
+            {
+              "sourceLines": [
+                130,
+                189
+              ],
+              "summary": "Prefer tuple arrays/dictionaries; InlineArray same-length zip is optional Swift 6.2 helper, not standard library.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
+                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+              ],
+              "reason": "Concrete alternatives and availability retained."
+            },
+            {
+              "sourceLines": [
+                193,
+                223
+              ],
+              "summary": "Use readable parameters and allCases only for property tests, not hard-coded mappings.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
+                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+              ],
+              "reason": "Merged output and allCases guidance."
+            },
+            {
+              "sourceLines": [
+                225,
+                247
+              ],
+              "summary": "Avoid derived expected values that mask bugs; use concrete literals and independent data.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
+                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+              ],
+              "reason": "Preserved independence and diagnostics rules. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                247,
+                270
+              ],
+              "summary": "Do not mirror production branching inside parameterized tests; split special cases and use argument-level diagnostics.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
+                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+              ],
+              "reason": "Preserved independence and diagnostics rules. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                271,
+                284
+              ],
+              "summary": "Avoid in-test loops, huge combinations, mixed concerns, and hidden argument arrays; keep argument data readable and reviewable.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
+                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+              ],
+              "reason": "Preserved independence and diagnostics rules. Split into an independent rule group."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/parallelization-and-isolation.md",
+          "sha256": "209cd458d3fbc8a2830265252714f5ac09abe93100b3b2582034fa7ea1a0568c",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                7,
+                11
+              ],
+              "summary": "Parallel and randomized execution applies to sync and async tests.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Merged with Twostraws execution model."
+            },
+            {
+              "sourceLines": [
+                33,
+                44
+              ],
+              "summary": "Use parallel safety to expose hidden dependencies; isolate per test, avoid globals/singletons, and use deterministic setup.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Retained rationale and fixes."
+            },
+            {
+              "sourceLines": [
+                63,
+                70
+              ],
+              "summary": "Use suite .serialized narrowly as transitional targeted tool; unrelated suites may remain parallel.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Time limits and serialization",
+                "skills/macos-development/references/testing/async.md#Time limits and serialization"
+              ],
+              "reason": "Merged with parameterized serialization distinction."
+            },
+            {
+              "sourceLines": [
+                82,
+                95
+              ],
+              "summary": "Choose fresh backing state, in-memory substitutes, or separate serial plans for shared DB/files/services.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Retained resource decision branches."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/performance-and-best-practices.md",
+          "sha256": "3ecd3da92d2676935863942894e5e9ef649a24b5e56f20f65fc81899297b49c2",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                7,
+                12
+              ],
+              "summary": "Prefer deterministic, synchronous, independent tests; treat serialization as temporary compromise.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Merged core performance principles."
+            },
+            {
+              "sourceLines": [
+                14,
+                58
+              ],
+              "summary": "Keep sync tests sync and avoid unnecessary MainActor isolation.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Retained speed/isolation decisions."
+            },
+            {
+              "sourceLines": [
+                59,
+                97
+              ],
+              "summary": "Remove shared mutable state and reset/isolate dependencies per invocation.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Merged shared-state guidance."
+            },
+            {
+              "sourceLines": [
+                97,
+                135
+              ],
+              "summary": "Use in-memory fakes, parameterization, and argument-level diagnostics for fast paths.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Retained performance patterns."
+            },
+            {
+              "sourceLines": [
+                137,
+                154
+              ],
+              "summary": "Build expensive fixtures only when needed, keep readonly setup cheap, and avoid irrelevant network/filesystem setup.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Merged practical checklist. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                159,
+                171
+              ],
+              "summary": "Use narrow serialization with removal context after dependencies are isolated.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Merged practical checklist. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                173,
+                187
+              ],
+              "summary": "Use deterministic fixtures, controllable clocks/randomness, no sleeps/order reliance, and narrow known-issue wrappers.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
+                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+              ],
+              "reason": "Merged practical checklist. Split into an independent rule group."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/async-testing-and-waiting.md",
+          "sha256": "e5f7d016a95d976774d7f26a80be07acf204306aa874f60d6f501aec141c6ceb",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                7,
+                12
+              ],
+              "summary": "Prefer native async/await, structured concurrency, and confirmations for non-awaitable events.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Swift Testing async work",
+                "skills/macos-development/references/testing/async.md#Swift Testing async work"
+              ],
+              "reason": "Merged with Twostraws async rules."
+            },
+            {
+              "sourceLines": [
+                30,
+                52
+              ],
+              "summary": "Bridge completion handlers with checked continuations and keep wrappers minimal.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
+                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+              ],
+              "reason": "Merged exact callback bridge."
+            },
+            {
+              "sourceLines": [
+                56,
+                75
+              ],
+              "summary": "Use confirmation for event counts with explicit exact/lower-bound semantics and closed scope.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
+                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+              ],
+              "reason": "Merged count semantics."
+            },
+            {
+              "sourceLines": [
+                77,
+                99
+              ],
+              "summary": "Use actors/AsyncSequence/thread-safe containers for repeated callbacks; verify count/order.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
+                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+              ],
+              "reason": "Retained concurrency-safe callback rule."
+            },
+            {
+              "sourceLines": [
+                101,
+                125
+              ],
+              "summary": "Do not return before callbacks finish or use sleep as synchronization; use deterministic await points and selective actor isolation.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/async.md#Swift Testing async work",
+                "skills/macos-development/references/testing/async.md#Swift Testing async work"
+              ],
+              "reason": "Merged anti-pattern and actor guidance."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/migration-from-xctest.md",
+          "sha256": "f94a3bc08fb59358689a84d9d6a2838154dc96904e53457e068d00df5b0671ef",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                7,
+                15
+              ],
+              "summary": "Allow XCTest/Testing coexistence; migrate incrementally and retain UI, performance, and Objective-C-only XCTest.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Merged direct coexistence boundary."
+            },
+            {
+              "sourceLines": [
+                24,
+                30
+              ],
+              "summary": "Migration order is assertions, @Test/naming, suite organization, parameterization, then traits/tags.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Retained exact order."
+            },
+            {
+              "sourceLines": [
+                49,
+                69
+              ],
+              "summary": "Map assertions, optionals, early-stop, and Issue.record; preserve narrow error semantics.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Common mappings",
+                "skills/macos-development/references/testing/traits-migration.md#Common mappings"
+              ],
+              "reason": "Merged mapping table."
+            },
+            {
+              "sourceLines": [
+                73,
+                79
+              ],
+              "summary": "Understand suite/setup/teardown and XCTest main-actor versus Swift Testing arbitrary-task differences.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Merged suite and actor differences."
+            },
+            {
+              "sourceLines": [
+                99,
+                105
+              ],
+              "summary": "Migrate async APIs with await, checked continuations, and confirmations for event streams.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Retained migration hygiene. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                117,
+                121
+              ],
+              "summary": "Keep migration mechanical/reviewable and avoid mixing XCTest assertions with Swift Testing assertions.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Retained migration hygiene. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                123,
+                127
+              ],
+              "summary": "Avoid all-at-once migration, stale continueAfterFailure, and blanket MainActor annotations.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+              ],
+              "reason": "Retained migration hygiene. Split into an independent rule group."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avdlee-swift-testing-agent-skill",
+      "repository": "https://github.com/AvdLee/Swift-Testing-Agent-Skill",
+      "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
+      "files": [
+        {
+          "path": "swift-testing-expert/references/xcode-workflows.md",
+          "sha256": "f43407527c30bc1e346d32e4f54a5105a9c61bd071abfbfaa7b91107b4451c94",
+          "kind": "guidance",
+          "review": "complete",
+          "rules": [
+            {
+              "sourceLines": [
+                7,
+                17
+              ],
+              "summary": "Run navigator tests at function/suite/tag/argument scope and rerun only failing parameterized cases.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+              ],
+              "reason": "Retained focused rerun workflow."
+            },
+            {
+              "sourceLines": [
+                19,
+                30
+              ],
+              "summary": "Use stable tag filters/grouping and domain conventions for core, integration, regression, and flaky coverage.",
+              "disposition": "merged",
+              "destinations": [
+                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+              ],
+              "reason": "Merged tag workflow."
+            },
+            {
+              "sourceLines": [
+                32,
+                45
+              ],
+              "summary": "Configure any/all tag filters and separate core/integration/optional/release plans.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+              ],
+              "reason": "Retained test-plan branches."
+            },
+            {
+              "sourceLines": [
+                47,
+                58
+              ],
+              "summary": "Triage report clusters by tag/bug/destination, inspect representative failures, and remove known issues after root fixes.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+              ],
+              "reason": "Retained report triage. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                60,
+                64
+              ],
+              "summary": "Keep expectations, argument/type descriptions, and bug links diagnostic and actionable.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+              ],
+              "reason": "Retained report triage. Split into an independent rule group."
+            },
+            {
+              "sourceLines": [
+                66,
+                70
+              ],
+              "summary": "Keep tags/plans consistent and rerun argument-level before broad reruns.",
+              "disposition": "kept",
+              "destinations": [
+                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+              ],
+              "reason": "Retained checklist."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/.claude-plugin/plugin.json",
+          "sha256": "ce277427d557d776102a6768d85432fbfdc4a6930ee20ddef0a9418fe9351f84",
+          "kind": "metadata",
+          "review": "excluded",
+          "rules": [
+            {
+              "sourceLines": [
+                1,
+                10
+              ],
+              "summary": "Plugin manifest metadata declares packaging identity and does not add Swift Testing operating rules.",
+              "disposition": "rejected",
+              "destinations": [],
+              "reason": "Packaging metadata only; excluded from semantic guidance while inventory coverage is recorded."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/agents/openai.yaml",
+          "sha256": "f7a35b0befd4eb136cf87047543379a63efebb4f0f7eb4490489325d09383c4f",
+          "kind": "metadata",
+          "review": "excluded",
+          "rules": [
+            {
+              "sourceLines": [
+                1,
+                10
+              ],
+              "summary": "Agent host metadata configures packaging/runtime presentation and does not add test mechanics.",
+              "disposition": "rejected",
+              "destinations": [],
+              "reason": "Packaging metadata only; excluded from semantic guidance while inventory coverage is recorded."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/assets/swift-testing-pro-icon.png",
+          "sha256": "13cbe2849191cc3fda400fc065d5fe6afa5b78f09e347d783bfa2b6d852a2b66",
+          "kind": "metadata",
+          "review": "excluded",
+          "rules": [
+            {
+              "sourceLines": [
+                1,
+                9
+              ],
+              "summary": "Binary plugin icon asset has no test guidance.",
+              "disposition": "rejected",
+              "destinations": [],
+              "reason": "Binary branding asset; excluded from semantic guidance while inventory coverage is recorded."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/assets/swift-testing-pro-icon.svg",
+          "sha256": "92d3d0b2855da2404beaacd3ea574b79a26535c9d99a0739edfd5e35d764a9e0",
+          "kind": "metadata",
+          "review": "excluded",
+          "rules": [
+            {
+              "sourceLines": [
+                1,
+                28
+              ],
+              "summary": "SVG plugin icon asset has no test guidance.",
+              "disposition": "rejected",
+              "destinations": [],
+              "reason": "Branding asset; excluded from semantic guidance while inventory coverage is recorded."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/skills/swift-testing-pro/SKILL.md",
+          "sha256": "36e6c3d59bbec2f8b4ce95644df8519f2c66dcbff55138964be4ad9d60c07781",
+          "kind": "metadata",
+          "review": "excluded",
+          "rules": [
+            {
+              "sourceLines": [
+                1,
+                98
+              ],
+              "summary": "Packaged SKILL variant repeats top skill behavior with argument-hint and path interpolation metadata.",
+              "disposition": "rejected",
+              "destinations": [],
+              "reason": "Packaging derivative of top skill; its distinct metadata/path substitutions add no independent testing rule. Top SKILL is the canonical semantic source."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twostraws-swift-testing-agent-skill",
+      "repository": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
+      "files": [
+        {
+          "path": "swift-testing-pro/skills/swift-testing-pro/references",
+          "sha256": "d84a57d48c4cba98ffbc1be656c61626ab6c8fb6bbe0642f63903f48eec1f8b5",
+          "kind": "symlink",
+          "review": "excluded",
+          "readlink": "../../references",
+          "bytes": 16,
+          "rules": [
+            {
+              "sourceLines": [
+                1,
+                1
+              ],
+              "summary": "Symlink exposes the canonical references directory to packaged skill.",
+              "disposition": "rejected",
+              "destinations": [],
+              "reason": "Packaging symlink; readlink target ../../references and 16-byte link are recorded; canonical reference files carry all semantic rules, so no independent rule."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

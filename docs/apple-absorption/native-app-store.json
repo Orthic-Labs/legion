@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "lane": "native-app-store-connect-adapter",
+  "review": "full for listed files",
+  "purpose": "Source ledger for native Rust App Store Connect transport, operation discovery, aliases, pagination, and credential handling.",
+  "destination": "engine/crates/legion-apple/src/app_store.rs",
+  "nativeRules": [
+    {"sourceLines": [1, 99], "destinationLines": [30, 99], "summary": "Offline discovery catalog exposes request, pagination, template/dry-run, aliases, payload limits, credential inputs, and concrete App Store Connect routes.", "disposition": "merged"},
+    {"sourceLines": [102, 137], "destinationLines": [102, 137], "summary": "JSON action dispatch keeps discover local and makes execute an explicit caller field; unknown actions fail before transport.", "disposition": "merged"},
+    {"sourceLines": [1, 84], "destinationLines": [142, 263], "summary": "Native aliases resolve apps, builds, TestFlight beta groups/testers/pre-release versions, metadata localizations, submissions, and signing resources to API relationship routes.", "disposition": "merged"},
+    {"sourceLines": [1, 84], "destinationLines": [323, 413], "summary": "Request planning validates method/path/query/body shape, fixed HTTPS origin, deterministic query encoding, and bounded JSON bodies.", "disposition": "merged"},
+    {"sourceLines": [1, 84], "destinationLines": [266, 321], "summary": "Pagination follows only bounded same-origin links.next GET requests and stops on the first HTTP failure without following its next link.", "disposition": "merged"},
+    {"sourceLines": [1, 84], "destinationLines": [450, 500], "summary": "ASC token or issuer/key/private-key credentials use redacted bearer transport and bounded private-key/env reads; ES256 JWT uses App Store Connect audience and 18-minute expiry.", "disposition": "merged"},
+    {"sourceLines": [1, 84], "destinationLines": [531, 617], "summary": "Transport disables redirects, bounds Content-Length and streamed response bytes, preserves exact status/data, extracts links.next and processing state, and rejects non-443 or foreign origins.", "disposition": "merged"},
+    {"sourceLines": [1, 84], "destinationLines": [620, 710], "summary": "Local tests cover catalog, dry-run redaction, path/origin restrictions, query ordering, pagination bounds, aliases, fixture status/state parsing, and unknown actions.", "disposition": "merged"}
+  ],
+  "operationMapping": [
+    {"alias": "apps", "operations": ["list", "view", "create", "update", "delete"], "routes": ["/v1/apps", "/v1/apps/{id}"], "destinationLines": [191, 208]},
+    {"alias": "builds", "operations": ["list", "view"], "routes": ["/v1/builds", "/v1/builds/{id}"], "destinationLines": [201, 208], "note": "Binary upload and processing remain distinct API/workflow stages; transport success never claims publication."},
+    {"alias": "testflight", "operations": ["list", "view", "create", "update", "delete"], "resources": ["group", "tester", "prerelease"], "routes": ["/v1/betaGroups", "/v1/apps/{id}/betaGroups", "/v1/betaGroups/{id}/betaTesters", "/v1/betaTesters/{id}", "/v1/preReleaseVersions", "/v1/preReleaseVersions/{id}"], "destinationLines": [191, 227]},
+    {"alias": "metadata", "operations": ["list", "view", "create", "update", "delete"], "resources": ["version", "localization", "appinfo"], "routes": ["/v1/appStoreVersions", "/v1/appStoreVersions/{id}/appStoreVersionLocalizations", "/v1/appStoreVersionLocalizations/{id}", "/v1/appInfos/{id}/appInfoLocalizations", "/v1/appInfoLocalizations/{id}"], "destinationLines": [191, 227]},
+    {"alias": "submission", "operations": ["list", "view", "submit"], "routes": ["/v1/appStoreVersionSubmissions", "/v1/appStoreVersionSubmissions/{id}", "/v1/appStoreVersions/{id}/appStoreVersionSubmission"], "destinationLines": [191, 227]},
+    {"alias": "signing", "operations": ["list", "view", "create", "update", "delete"], "resources": ["bundleid", "certificate", "profile"], "routes": ["/v1/bundleIds", "/v1/bundleIds/{id}", "/v1/certificates", "/v1/certificates/{id}", "/v1/profiles", "/v1/profiles/{id}"], "destinationLines": [191, 208]}
+  ],
+  "sources": [
+    {
+      "repository": "rorkai-app-store-connect-cli-skills",
+      "commit": "9a093fa52177d1b784fcbb06f9abfef4974e7701",
+      "files": [
+        {"path": "skills/asc-cli-usage/SKILL.md", "lines": [1, 84], "sha256": "c9576c7aee6143b090e7932eae1f216af0a16c716c8c12bc6aa46f3e12446415", "ruleGroups": ["operation discovery", "JSON/exit-code/dry-run contract"], "disposition": "merged"},
+        {"path": "skills/asc-id-resolver/SKILL.md", "lines": [1, 77], "sha256": "0b988ee48f1fbfb94674c9fd1ec79d4637d5717782a0b6aacacc11478a830f75", "ruleGroups": ["resource identity and relationship lookup"], "disposition": "merged"},
+        {"path": "skills/asc-build-lifecycle/SKILL.md", "lines": [1, 38], "sha256": "254f4f1c7d51616d8de46a46ba60a262983c869994c908c5102682016fb7d6dc", "ruleGroups": ["build processing states"], "disposition": "merged"},
+        {"path": "skills/asc-metadata-sync/SKILL.md", "lines": [1, 173], "sha256": "1a4b5b2dfc42a6fa95541f5ceff3b1a484c3b4f02eef2f0693237fbd927d9e1a", "ruleGroups": ["version/localization routes", "metadata state"], "disposition": "merged"},
+        {"path": "skills/asc-release-flow/SKILL.md", "lines": [1, 163], "sha256": "864995a3cf354b47714ba309c70556e4d8dadeed902c33710d7a35dcb21e735e", "ruleGroups": ["release state boundaries", "submission transport"], "disposition": "merged"},
+        {"path": "skills/asc-xcode-build/SKILL.md", "lines": [1, 230], "sha256": "41e3504f7b4c054e12873989ac784fafb8129458ee2c35aa59e3cda552841224", "ruleGroups": ["build/upload boundary"], "disposition": "merged"},
+        {"path": "skills/asc-testflight-orchestration/SKILL.md", "lines": [1, 44], "sha256": "1cf2ca07e46d7d845a03fd64ba69a17376a9973d91d7ea6ab92908a49c9fd311", "ruleGroups": ["beta group/tester routes"], "disposition": "merged"},
+        {"path": "skills/asc-submission-health/SKILL.md", "lines": [1, 174], "sha256": "64ca677b6fafe7cd6b7ba1ed79e1679cf8444dbd37f21beaadfba7c7e3c1ae93", "ruleGroups": ["submission readiness and processing states"], "disposition": "merged"},
+        {"path": "skills/asc-signing-setup/SKILL.md", "lines": [1, 168], "sha256": "7197b0780904541a62e3ae4949c89425d2dab276b2486285922775de6a81d16a", "ruleGroups": ["bundle ID/certificate/profile routes"], "disposition": "merged"},
+        {"path": "skills/asc-crash-triage/SKILL.md", "lines": [1, 69], "sha256": "3afc42be148548f93aceb411b595914ab5e945ec5407c9d63b848b681901430c", "ruleGroups": ["post-release processing boundary"], "disposition": "merged"},
+        {"path": "skills/asc-ad-hoc-distribution/SKILL.md", "lines": [1, 189], "sha256": "a090ed8e82bcdcedf3a7ac1b7676e0a298fcf8c91432b04ff9a63f0170c247aa", "ruleGroups": ["signing/distribution boundary"], "disposition": "merged"},
+        {"path": "scripts/validate-plugin-packaging.py", "lines": [1, 253], "sha256": "7bc0599f2e095eede63ece50b73f80641975a185afc51e521847bd7ccba6248d", "ruleGroups": ["packaging helper"], "disposition": "rejected", "reason": "Donor Python packaging validator is outside native Rust adapter and user forbids shipped Python/JS/shell helpers; no runtime dependency imported."}
+      ]
+    },
+    {
+      "repository": "xopoko-appstoreconnectcli",
+      "commit": "2af677324e72d7c1684f9d75d57599e64f8c582a",
+      "files": [
+        {"path": "skills/ascctl/SKILL.md", "lines": [1, 113], "sha256": "98c80ee44027fef4c4938da71d2dbe0b391b6ce2cb0052636a5918d996c9ad52", "ruleGroups": ["operation discovery", "schema/template/run flow", "pagination", "exit codes"], "disposition": "merged"},
+        {"path": "skills/ascctl/agents/openai.yaml", "lines": [1, 4], "sha256": "5d29c5b87ad147cd7c61f4c5ad0fa63ea0e38e292532ad34ea41b1669d3b4381", "ruleGroups": ["agent metadata"], "disposition": "rejected", "reason": "Foreign agent metadata does not belong in native runtime."},
+        {"path": "Sources/ascctl/OpenAPISpec.swift", "lines": [1, 191], "sha256": "35d89f793303d83aa9e06aacdb67cfe6e30928559f38d24cd8dec661e70c8a0e", "ruleGroups": ["OpenAPI operation catalog and schema discovery"], "disposition": "merged"},
+        {"path": "Sources/ascctl/OpenAPICommand.swift", "lines": [1, 1183], "sha256": "e666fc91abd1b7e69b3ed418f403b3b32f945b9d495bb3e52c228919fc492d45", "ruleGroups": ["operation list/show/template/run mapping", "request method/path/query/body"], "disposition": "merged"},
+        {"path": "Sources/ascctl/OpenAPIRunner.swift", "lines": [1, 389], "sha256": "3cd9c8267eb3d375ade22cb9b1947e88543cb908b09f370be5081ddfabf21c50", "ruleGroups": ["HTTP transport", "status/data preservation", "bounded next links"], "disposition": "merged"},
+        {"path": "Sources/ascctl/OpenAPISchemaResolver.swift", "lines": [1, 95], "sha256": "35a3c679ce1e4592d14675c49e49687ec2c17427e8a5ad4ba4e8f8fbeac4d19c", "ruleGroups": ["payload/input schema resolution"], "disposition": "merged"},
+        {"path": "README.md", "lines": [1, 211], "sha256": "2b0b82e54b4ced29c87ca26261e9b67afc7dfd9476705496b53564f441df7a14", "ruleGroups": ["Swift CLI packaging and installation"], "disposition": "rejected", "reason": "Foreign Swift executable/install packaging is not imported; adapter is native Rust reqwest with host-owned CLI/MCP wiring."}
+      ]
+    },
+    {
+      "repository": "steipete-agent-scripts",
+      "commit": "444751eadeb7dabc00634326614ba2483642984f",
+      "files": [],
+      "disposition": "out-of-scope", 
+      "reason": "Profiling sources are ledgered by release/profiling lane; no profiling helper is imported into App Store Connect transport."
+    }
+  ],
+  "dependencyDisposition": {
+    "kept": ["reqwest async transport", "serde_json", "jsonwebtoken ES256 with rust_crypto feature and standard PEM defaults"],
+    "rejected": ["asc executable", "ascctl executable", "Swift Package Manager runtime", "Python packaging validator", "foreign shell/JS helpers"],
+    "reason": "Root owns Cargo wiring and CLI/MCP integration; adapter remains native Rust and has no external CLI/runtime dependency."
+  }
+}

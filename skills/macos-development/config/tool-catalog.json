@@ -6,6 +6,42 @@
   "versionPolicy": "Reuse compatible installed/project-pinned versions. Resolve and record a supported exact release before a new install; provenance commit pins are source-review evidence, not asserted package versions. Homebrew formulas are moving releases: inspect and disclose the resolved version before approval. Never silently upgrade or reinstall.",
   "tools": [
     {
+      "id": "legion-apple",
+      "name": "Legion Apple native CLI/MCP",
+      "source": "local Legion engine/crates/legion-apple",
+      "executables": [
+        "legion"
+      ],
+      "platforms": [
+        "Darwin",
+        "Linux",
+        "Windows"
+      ],
+      "scope": "native Rust binary or MCP registration",
+      "useWhen": "typed Apple discovery, project/SwiftPM build plans, simulator/device, debugging, profiling, build analysis, docs and App Store Connect",
+      "setupRecipe": "Reuse the installed Legion binary or connected legion_apple MCP capability; do not install Python or an external adapter for native routes",
+      "verify": "legion apple catalog --input '{}'; legion apple preflight --input '{\"list\":true}'; MCP legion_apple operation=catalog",
+      "versionPolicy": "Use repository-compatible Legion binary; catalog is local and plans are dry-run until execute=true",
+      "operations": [
+        "catalog",
+        "preflight",
+        "docs",
+        "build-analysis",
+        "flamegraph",
+        "memgraph",
+        "build-log",
+        "app-store",
+        "project.*",
+        "swiftpm.*",
+        "simulator.*",
+        "device.*",
+        "debug.batch",
+        "profile.record",
+        "profile"
+      ],
+      "recipeReference": "references/tool-setup.md#native-first-lifecycle"
+    },
+    {
       "id": "mobilebuildmcp",
       "name": "MobileBuildMCP (formerly XcodeBuildMCP)",
       "source": "https://github.com/getsentry/MobileBuildMCP",
@@ -22,6 +58,32 @@
       "verify": "Before invocation set process MOBILEBUILDMCP_SENTRY_DISABLED=true and inspect higher-priority project/session overrides; mobilebuildmcp --help; mobilebuildmcp tools; inspect actual connected MCP tool schemas",
       "versionPolicy": "Preserve a compatible existing XcodeBuildMCP/server; confirm renamed interface, package version and project pin before migration.",
       "recipeReference": "references/tool-setup.md#mobilebuildmcp"
+    },
+    {
+      "id": "xcode",
+      "name": "Xcode command-line tools",
+      "source": "Apple Xcode",
+      "executables": ["xcodebuild", "xcrun"],
+      "platforms": ["Darwin"],
+      "scope": "host developer toolchain",
+      "useWhen": "Xcode project, simulator, device, archive or profiling operation is selected",
+      "setupRecipe": "Reuse selected DEVELOPER_DIR/Xcode installation; native preflight checks PATH candidate only",
+      "verify": "legion apple preflight --input '{\"tools\":[\"xcode\"],\"environment\":\"Darwin\"}'; inspect xcodebuild/xcrun versions and SDKs separately",
+      "versionPolicy": "Use project-compatible Xcode and SDK; PATH presence is not compatibility or authorization evidence.",
+      "recipeReference": "references/tool-setup.md#native-first-lifecycle"
+    },
+    {
+      "id": "swift",
+      "name": "Swift toolchain",
+      "source": "Swift/Xcode toolchain",
+      "executables": ["swift"],
+      "platforms": ["Darwin", "Linux", "Windows"],
+      "scope": "host Swift toolchain",
+      "useWhen": "SwiftPM build, test or run operation is selected",
+      "setupRecipe": "Reuse installed project-compatible Swift toolchain; native preflight checks PATH candidate only",
+      "verify": "legion apple preflight --input '{\"tools\":[\"swift\"]}'; inspect swift --version and Package.swift platform support separately",
+      "versionPolicy": "Use toolchain supported by package manifest and host; PATH presence is not build evidence.",
+      "recipeReference": "references/tool-setup.md#native-first-lifecycle"
     },
     {
       "id": "axe",
@@ -50,9 +112,9 @@
       ],
       "scope": "versioned source checkout; local docsets/cache; project docs",
       "useWhen": "local Apple documentation extraction and search",
-      "setupRecipe": "Fetch the reviewed official repository revision into an approved tools directory; inspect its Python imports and prerequisites; use tools/docset_query.py and tools/docindex.py",
-      "verify": "python3 <checkout>/tools/docset_query.py --help; python3 <checkout>/tools/docindex.py --help",
-      "versionPolicy": "No package-manager formula or MCP server is assumed. Requires a compatible local docset; inspect DOCSET_ROOT/DOCSET_CACHE_DIR and Python dependencies.",
+      "setupRecipe": "Optional compatibility path only: reuse an existing approved checkout; native legion apple docs uses local SQLite DocSet data without Python",
+      "verify": "Prefer legion apple docs catalog/query; if project-selected adapter exists, inspect its checkout and local docset/cache scope",
+      "versionPolicy": "No package-manager formula or MCP server is assumed. Native Rust docs is primary; external checkout and Python dependencies are optional.",
       "recipeReference": "references/tool-setup.md#docsetquery"
     },
     {

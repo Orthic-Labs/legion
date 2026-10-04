@@ -1,53 +1,23 @@
 # Swift concurrency and migration
 
-## Inspect the actual compilation context
+This page routes to task-specific guidance. Read the smallest matching page, then inspect
+the target's compiler/SDK, Swift language mode, strict-concurrency level, default actor
+isolation, and upcoming features before applying version-sensitive advice.
 
-Record compiler/SDK, language mode, strict-concurrency checking, default actor isolation,
-and relevant feature flags. Swift language version and compiler version are distinct;
-new defaults and annotations are not safe assumptions for every target.
+- Fundamentals, callback bridges, `async let`: [concurrency/async-await-basics.md](concurrency/async-await-basics.md) and [concurrency/foundations.md](concurrency/foundations.md)
+- Actors, reentrancy, global actors, executors and `Mutex`: [concurrency/actors.md](concurrency/actors.md)
+- `Sendable`, regions, `sending`, closures and unsafe escape hatches: [concurrency/sendable.md](concurrency/sendable.md)
+- Tasks, groups, bounded fan-out, timeout and cancellation: [concurrency/tasks.md](concurrency/tasks.md)
+- `AsyncSequence`, `AsyncStream`, buffering and teardown: [concurrency/async-sequences.md](concurrency/async-sequences.md) and [concurrency/streams.md](concurrency/streams.md)
+- Swift 6.x execution/isolation behavior and GCD migration: [concurrency/threading.md](concurrency/threading.md)
+- Diagnostics, staged migration, Core Data, observation and algorithms: [concurrency/migration.md](concurrency/migration.md), [concurrency/core-data.md](concurrency/core-data.md), [concurrency/observation.md](concurrency/observation.md), [concurrency/async-algorithms.md](concurrency/async-algorithms.md)
+- Swift Testing, deterministic cancellation and memory/lifetime checks: [concurrency/testing.md](concurrency/testing.md) and [concurrency/testing-memory.md](concurrency/testing-memory.md)
+- Performance, linting and terminology: [concurrency/performance.md](concurrency/performance.md), [concurrency/linting.md](concurrency/linting.md), [concurrency/glossary.md](concurrency/glossary.md)
 
-## Isolation and ownership
+Always prefer the smallest behavior-preserving ownership fix. `@MainActor` describes UI
+ownership, `actor` describes mutable state ownership, and `@concurrent` is conditional
+offloading; none is a blanket diagnostic suppressor. Structured children inherit lifetime
+and cancellation. Unstructured tasks require a named owner and cleanup path. `await` may
+reenter an actor, so state must be revalidated after every suspension.
 
-- Find which actor or synchronization mechanism owns each mutable value. Diagnose the
-  crossing before adding annotations. @MainActor is a UI/ownership decision, not a blanket
-  fix for every compiler error; avoid moving expensive work there accidentally.
-- Sendable describes safe transfer across isolation boundaries. Prefer immutable values
-  or isolation-safe ownership. Do not suppress genuine races with @unchecked Sendable,
-  nonisolated(unsafe), broad preconcurrency imports, or unchecked shared state.
-- Actor isolation prevents simultaneous access to isolated state, but an await permits
-  interleaving. Revalidate assumptions after suspension and avoid check-then-act races.
-- A Task can inherit actor context; detached work changes context and lifetime semantics.
-  Do not use detached tasks as a universal performance or Sendable workaround.
-- Bound concurrency to workload and resource limits. Parallelize independent I/O only
-  after identifying ordering, rate limits, and shared-state constraints.
-
-## Lifetimes, errors, and cancellation
-
-- Prefer structured child tasks for work whose lifetime belongs to the caller. For an
-  unstructured task, name its owner and cancellation/cleanup path; avoid fire-and-forget
-  work when success is required for the user's result.
-- Cancellation is cooperative. Check it before costly work and mutation, propagate it
-  where appropriate, and terminate streams/subscriptions and underlying operations.
-- Standard throwing task groups expose child errors when results are consumed. A child
-  throwing is not by itself a promise of immediate sibling cancellation. If an error
-  escapes the group body, remaining children are cancelled and then awaited.
-- Throwing discarding groups have different error behavior: a child failure cancels the
-  group automatically. Choose deliberately; verify availability and error requirements.
-- All structured group scopes await their children. Racing a sleep against an operation
-  is not a hard timeout if the losing operation ignores cancellation. Prefer the
-  operation's own timeout/cancellation support and report a non-cooperative blocker.
-- Resume a checked continuation exactly once on every completion/cancellation path.
-  Test the race between callback, cancellation, timeout, and teardown.
-- Consume AsyncSequence with a defined stop condition. A never-ending producer or a
-  captured owner can keep tasks, listeners, or resources alive indefinitely.
-
-## Migration workflow
-
-1. Reproduce diagnostics in the affected target and language mode.
-2. Fix ownership and boundary types, then isolate UI or service state where justified.
-3. Migrate one boundary at a time; retain behavior and public API compatibility.
-4. Exercise cancellation, reentrancy, ordering, and repeated/concurrent calls. Compile
-   checks prove static enforcement; they do not prove correct business ordering.
-
-Primary documentation: https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/
-and https://www.swift.org/migration/documentation/swift-6-concurrency-migration-guide/
+Primary references: Swift Book Concurrency and Swift 6 migration guide.

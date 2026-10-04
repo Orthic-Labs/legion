@@ -7,6 +7,12 @@
         "capability": "apple-xcode"
       }
     ],
+    "apple-native-cli": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "legion-apple"
+      }
+    ],
     "swift-package": [
       {
         "class": "HOST_CAPABILITY",
@@ -16,7 +22,7 @@
     "tool-preflight": [
       {
         "class": "HOST_CAPABILITY",
-        "capability": "python-runtime"
+        "capability": "legion-apple"
       }
     ]
   },
@@ -43,6 +49,12 @@
       {
         "class": "HOST_CAPABILITY",
         "capability": "apple-appstore-connect-cli"
+      }
+    ],
+    "legion-apple": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "legion-apple"
       }
     ]
   }

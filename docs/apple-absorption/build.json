@@ -1,0 +1,489 @@
+{
+  "schemaVersion": 1,
+  "lane": "build",
+  "nativeImplementation": {
+    "path": "engine/crates/legion-apple/src/build_analysis.rs",
+    "status": "implemented",
+    "api": ["pub fn invoke(arguments: &serde_json::Value) -> Result<serde_json::Value, String>", "pub fn catalog() -> serde_json::Value"],
+    "implemented": ["timing summary parsing", "benchmark statistics and cache-aware comparison", "compiler diagnostic parsing", "project settings and script I/O audit", "SPM references/linkage/pin/macro/graph checks", "recommendation/report rendering"],
+    "guidanceOnly": ["xcodebuild/SwiftPM/git execution, DerivedData cleanup, source touching, and remote tag queries remain caller-owned native operations"],
+    "donorRuntime": "No Python, JavaScript, or shell helper is shipped."
+  },
+  "sources": [
+    {
+      "id": "avdlee-xcode-build-optimization-agent-skill",
+      "repository": "https://github.com/AvdLee/Xcode-Build-Optimization-Agent-Skill",
+      "commit": "6bd7b596cd688b1127ded00e812b1b6937ec35d6",
+      "files": [
+        {
+          "path": "OPTIMIZATION-CHECKS.md",
+          "sha256": "120c1e947ad2fc5eb3c86255aafe608b3e89848d3d706682a0db4834145baa2b",
+          "kind": "reference",
+          "review": "Fully read; consolidated checks retained as operational lanes.",
+          "rules": [
+            {"sourceLines":[5,46],"summary":"Audit Debug/Release/general settings, caching, integrated driver, Clang modules, and explicit-module tradeoffs.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings","skills/macos-development/references/build-optimization/settings.md#performance-build-settings"],"reason":"Retained performance-only checklist; migration flags remain out of scope."},
+            {"sourceLines":[48,70],"summary":"Inspect script metadata, guards, timestamp churn, and parallelization.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#run-script-phases","skills/macos-development/references/build-optimization/project-analysis.md#run-script-phases"],"reason":"Preserved input/output and invalidation decisions."},
+            {"sourceLines":[72,90],"summary":"Detect compiler hotspots with warning/deep flags and typed Swift patterns.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags","skills/macos-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Preserved diagnostic flag names and source checks."},
+            {"sourceLines":[91,114],"summary":"Measure zero-change fixed phases and classify Xcode-owned App Intents cost.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#zero-change-overhead","skills/macos-development/references/build-optimization/project-analysis.md#zero-change-overhead"],"reason":"Retained phase categories and xcode-behavior actionability."},
+            {"sourceLines":[115,180],"summary":"Review target dependency order, module variants, SPM graph, pins, plugins, tests, macros, and swift-syntax.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#target-scheme-and-module-checks","skills/ios-development/references/build-optimization/spm-analysis.md#graph-and-plugin-checks","skills/macos-development/references/build-optimization/project-analysis.md#target-scheme-and-module-checks","skills/macos-development/references/build-optimization/spm-analysis.md#graph-and-plugin-checks"],"reason":"Merged overlapping graph and project audits without dropping macro or package-link checks."},
+            {"sourceLines":[181,239],"summary":"Preserve SwiftUI decomposition, asset parallelism, access control, planning/emit diagnostics, and platform multiplication.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#source-checks","skills/ios-development/references/build-optimization/project-analysis.md#assets-and-dependencies","skills/ios-development/references/build-optimization/spm-analysis.md#module-variants-and-platform-multiplication","skills/macos-development/references/build-optimization/compilation-analysis.md#source-checks","skills/macos-development/references/build-optimization/project-analysis.md#assets-and-dependencies","skills/macos-development/references/build-optimization/spm-analysis.md#module-variants-and-platform-multiplication"],"reason":"Kept all concrete checks and evidence conditions."}
+          ]
+        },
+        {
+          "path": "references/benchmark-artifacts.md",
+          "sha256": "8087ebebff618af462200af9a49f825281ea039feaa7c5d5e3dbc49afe425798",
+          "kind": "reference",
+          "review": "Fully read; duplicate of benchmark skill copy.",
+          "rules": [
+            {"sourceLines":[3,16],"summary":"Canonical .build-benchmark location; wall-clock primary and aggregate categories diagnostic.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts","skills/macos-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Preserved parallelism interpretation."},
+            {"sourceLines":[17,55],"summary":"Timestamped JSON/raw-log layout and separate clean/cached/incremental arrays.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#artifact-requirements","skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Retained exact evidence layout and build-type meanings."},
+            {"sourceLines":[56,83],"summary":"Raw-log reuse, cache warmup/DerivedData deletion, 20–40% first-run variance, median guidance.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#cache-and-variance-interpretation","skills/macos-development/references/build-optimization/benchmarking.md#cache-and-variance-interpretation"],"reason":"Preserved cache conditions and statistics."},
+            {"sourceLines":[85,94],"summary":"Consumer expectations and schema link.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts","skills/macos-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Retained source-first handoff contract."}
+          ]
+        },
+        {
+          "path": "references/build-optimization-sources.md",
+          "sha256": "5a949a1985f709529150031c82a8985ec9ba37992f0644a09c0ab21572cbec4d",
+          "kind": "reference",
+          "review": "Fully read; original source map retained as links and adapted summaries.",
+          "rules": [
+            {"sourceLines":[5,60],"summary":"Apple/SwiftLee timing, dependency, script, module, import, bridge, and compiler guidance.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/sources.md#source-and-evidence-map","skills/macos-development/references/build-optimization/sources.md#source-and-evidence-map"],"reason":"Retained citations and substantive takeaways as original prose."},
+            {"sourceLines":[62,122],"summary":"Compilation cache, explicit modules, module variants, granular cache controls, and non-cacheable task classes.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#cache-and-variance-interpretation","skills/ios-development/references/build-optimization/settings.md#performance-build-settings"],"reason":"Preserved measured cache context and availability caveats."},
+            {"sourceLines":[124,155],"summary":"Optional longitudinal monitoring plus planning, macro, swift-syntax, emit, asset, platform, and zero-change evidence.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#zero-change-overhead","skills/ios-development/references/build-optimization/spm-analysis.md#module-variants-and-platform-multiplication","skills/macos-development/references/build-optimization/project-analysis.md#zero-change-overhead","skills/macos-development/references/build-optimization/spm-analysis.md#module-variants-and-platform-multiplication"],"reason":"Kept operational evidence; version claims are conditional on installed Xcode."}
+          ]
+        },
+        {
+          "path": "references/build-settings-best-practices.md",
+          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf70bc9b8a4",
+          "kind": "reference",
+          "review": "Fully read; merged into platform-identical settings table.",
+          "rules": [
+            {"sourceLines":[1,79],"summary":"Debug settings and reasons: compilation/optimization modes, active arch, debug info, testability, conditions, eager linking.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings","skills/macos-development/references/build-optimization/settings.md#performance-build-settings"],"reason":"Preserved values, reason, and low-risk qualification."},
+            {"sourceLines":[81,125],"summary":"Release settings for whole-module/optimization, all architectures, dSYM, and testability.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings","skills/macos-development/references/build-optimization/settings.md#performance-build-settings"],"reason":"Retained distribution correctness distinction."},
+            {"sourceLines":[127,156],"summary":"Compilation cache, integrated Swift driver, Clang modules, and explicit-module benchmark requirement.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings","skills/macos-development/references/build-optimization/benchmarking.md#cache-and-variance-interpretation"],"reason":"Preserved controls, 5–14% evidence, and experimental risk."},
+            {"sourceLines":[158,191],"summary":"Project/target inheritance, module variant duplication checks, and migration settings out of scope.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings","skills/macos-development/references/build-optimization/settings.md#performance-build-settings"],"reason":"Retained cross-target option drift and exclusions."},
+            {"sourceLines":[193,216],"summary":"Checklist rendering with actual/recommended values.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/macos-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Kept checkmark/cross evidence format."}
+          ]
+        },
+        {
+          "path": "references/recommendation-format.md",
+          "sha256": "ad8eb87228be739d2dd53d0b927558fc9e68b2135e1b1eec475a981c4cd1feb2",
+          "kind": "reference",
+          "review": "Fully read; shared fields retained.",
+          "rules": [
+            {"sourceLines":[3,26],"summary":"Required recommendation fields and actionability values.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/macos-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Preserved repo-local/package-manager/xcode-behavior/upstream classification."},
+            {"sourceLines":[28,60],"summary":"Optional fields and JSON example.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/macos-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Retained scope, targets, packages, notes, risk, and evidence shape."},
+            {"sourceLines":[62,85],"summary":"Markdown field order and verification statuses.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/macos-development/references/build-optimization/orchestration.md#phase-2-implementation-and-verification"],"reason":"Preserved stable rendering and result vocabulary."}
+          ]
+        },
+        {
+          "path": "schemas/build-benchmark.schema.json",
+          "sha256": "473b377e7677bc4aeeac8cc16ea09b90b6e3ea00c23ee7f027e1f9a5c96a27ba",
+          "kind": "schema",
+          "review": "Fully read; represented by artifact contract, no schema copy vendored.",
+          "rules": [
+            {"sourceLines":[1,73],"summary":"Artifact version, timestamp, build entrypoint/context, environment fields.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts","skills/macos-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Preserved required context in original prose."},
+            {"sourceLines":[74,127],"summary":"Clean/cached/incremental arrays, summaries, and notes.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Preserved separate build types and notes."},
+            {"sourceLines":[128,230],"summary":"Per-run duration/status/command/raw log/categories and min/max/median/average statistics.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Retained raw evidence and statistics fields."}
+          ]
+        },
+        {
+          "path": "scripts/benchmark_builds.py",
+          "sha256": "efb10cb4702243a69441692d6fc49106618ad693ad26333a8b0c29f0e5425227",
+          "kind": "script",
+          "review": "Fully read; pure behavior implemented in native Rust build_analysis.rs; no donor runtime shipped or executed.",
+          "rules": [
+            {"sourceLines":[19,67],"summary":"CLI project/workspace, scheme/configuration/destination/DerivedData/output/repeats/touch/cache/extra arguments.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract","skills/macos-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Retained repeatable command inputs."},
+            {"sourceLines":[69,113],"summary":"Timing-summary parser accepts seconds variants, separators, task counts, aggregation, and ranking.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Preserved parser method and category output."},
+            {"sourceLines":[116,180],"summary":"Runs commands, computes statistics, captures raw logs and per-run timing categories.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Kept exit status, duration, log, and category evidence."},
+            {"sourceLines":[182,245],"summary":"Warmup, clean repeats, cache detection, warm cache, and DerivedData lifecycle.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract","skills/ios-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Preserved capability; cleanup now refuses non-helper temp paths and uses clean for user paths."},
+            {"sourceLines":[247,308],"summary":"Zero-change/touched incremental runs, JSON artifact and summary output.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract","skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Normalized zero-change label to schema-compatible incremental with note."}
+          ]
+        },
+        {
+          "path": "scripts/diagnose_compilation.py",
+          "sha256": "5d3783b053ae54f0e3730d40cf3931a4261625daa5893ad4a942b55303a9cdc6",
+          "kind": "script",
+          "review": "Fully read; pure behavior implemented in native Rust build_analysis.rs; no donor runtime shipped or executed.",
+          "rules": [
+            {"sourceLines":[15,30],"summary":"Regex parsers for type-check warnings and per-file timing.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags","skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Preserved parser method and locations."},
+            {"sourceLines":[31,82],"summary":"CLI flags for threshold, clean, per-file timing, stats, and extra xcodebuild args.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Retained configurable diagnostics."},
+            {"sourceLines":[85,146],"summary":"Deduplicates/sorts warning and file timing records.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Kept ranked evidence."},
+            {"sourceLines":[149,238],"summary":"Injects frontend flags, captures build/log/stats artifacts, status and summary.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags","skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Preserved warning flags and JSON evidence."},
+            {"sourceLines":[240,269],"summary":"Human-readable top-20 diagnostics and stats output.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Retained reviewable output."}
+          ]
+        },
+        {
+          "path": "scripts/check_spm_pins.py",
+          "sha256": "913fe3cb2e79f39b7790fc4afd75570dfb1d8540af59422f8e2d3ec60107809d",
+          "kind": "script",
+          "review": "Fully read; read-only behavior implemented in native Rust build_analysis.rs with branch-name parser fix; no donor runtime shipped or executed.",
+          "rules": [
+            {"sourceLines":[14,57],"summary":"Parse remote package references and branch requirements from project.pbxproj.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#pins-and-scripts","skills/ios-development/references/build-optimization/spm-analysis.md#pins-and-scripts"],"reason":"Retained project evidence; parser accepts quoted/hyphenated branch names."},
+            {"sourceLines":[60,78],"summary":"Read-only git ls-remote tag query with timeout and tag extraction.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#pins-and-scripts"],"reason":"Preserved pin feasibility check."},
+            {"sourceLines":[80,118],"summary":"Text/JSON report and missing-project handling.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#pins-and-scripts"],"reason":"Retained machine-readable and human output."}
+          ]
+        },
+        {
+          "path": "scripts/summarize_build_timing.py",
+          "sha256": "0924c00e407d87ce416b52066c471429b0f56b91309dc19c5617bdee06b076b2",
+          "kind": "script",
+          "review": "Fully read; parser/report behavior implemented in native Rust build_analysis.rs; no donor runtime shipped or executed.",
+          "rules": [
+            {"sourceLines":[9,53],"summary":"Shared timing parser and category/task aggregation.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract","skills/ios-development/references/build-optimization/benchmarking.md#artifact-requirements"],"reason":"Preserved raw-log interpretation."},
+            {"sourceLines":[56,95],"summary":"Summarize JSON artifacts or raw logs with configurable top categories.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Retained post-run evidence helper."}
+          ]
+        },
+        {
+          "path": "scripts/render_recommendations.py",
+          "sha256": "d8e8536fb27ed07ac364c034aa35c475df883e81745eda29e78139b5cbdbc2f7",
+          "kind": "script",
+          "review": "Fully read; renderer behavior implemented in native Rust build_analysis.rs and extended for wait-time field; no donor runtime shipped or executed.",
+          "rules": [
+            {"sourceLines":[8,36],"summary":"Render recommendation fields, lists, and implementation notes.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Preserved shared recommendation rendering and added wait-time impact."},
+            {"sourceLines":[39,61],"summary":"JSON input, optional Markdown output, ordered report sections.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Retained file/stdout modes."}
+          ]
+        },
+        {
+          "path": "scripts/generate_optimization_report.py",
+          "sha256": "7c03d61fbce2c7ae44eaa752fbf65ce5256ddba336690a9265976dd9c0a69a85",
+          "kind": "script",
+          "review": "Fully read; report-generator behavior implemented in native Rust build_analysis.rs; no donor runtime shipped or executed.",
+          "rules": [
+            {"sourceLines":[17,85],"summary":"Parse project and target Debug/Release build configurations from pbxproj.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/ios-development/references/build-optimization/project-analysis.md#build-settings-audit"],"reason":"Preserved project/settings I/O audit."},
+            {"sourceLines":[91,186],"summary":"Audit Debug/general/Release expectations and cross-target overrides.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/ios-development/references/build-optimization/settings.md#performance-build-settings"],"reason":"Retained checklist and drift evidence."},
+            {"sourceLines":[194,243],"summary":"Generate recommendations from failed settings checks.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Preserved evidence-bound report input."},
+            {"sourceLines":[251,461],"summary":"Render context, medians/min/max, timing categories, diagnostics, recommendations, approval metadata, and rebenchmark command.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/ios-development/references/build-optimization/orchestration.md#final-report"],"reason":"Retained artifact-driven report sections; approval is metadata rather than a foreign mandatory gate."},
+            {"sourceLines":[469,533],"summary":"CLI reads benchmark/recommendation/diagnostic artifacts and optional pbxproj, writes Markdown.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Kept optional output path and stdout behavior."}
+          ]
+        },
+        {
+          "path": ".github/scripts/sync-readme.js",
+          "sha256": "d3f122164a1a00631a724c306e6485089a7d1598b97cbcab9b7e2cb56c2a9021",
+          "kind": "metadata",
+          "review": "Fully read; packaging automation excluded.",
+          "rules": [
+            {"sourceLines":[1,70],"summary":"Donor README synchronization helper.","disposition":"rejected","destinations":[],"reason":"Packaging-only automation is outside Legion runtime guidance and would introduce foreign repository writes."}
+          ]
+        },
+        {
+          "path": "skills/spm-build-analysis/SKILL.md",
+          "sha256": "4ac9f10fac0ead182a0caa86f5e36eb11436db327f6b47c08c655ea5eb1afa48",
+          "kind": "entrypoint",
+          "review": "Fully read; six-lane package workflow absorbed.",
+          "rules": [
+            {"sourceLines":[6,15],"summary":"Evidence-first package analysis; separate package/project concerns; no unapproved manifest rewrite.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#swift-package-manager-analysis","skills/macos-development/references/build-optimization/spm-analysis.md#swift-package-manager-analysis"],"reason":"Adapted to live user authorization and shared router."},
+            {"sourceLines":[16,41],"summary":"Inspect manifests, links, plugins, binaries, graph; verify local/remote references and branch pins.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#verify-graph-membership","skills/ios-development/references/build-optimization/spm-analysis.md#pins-and-scripts"],"reason":"Retained project I/O checks and script capability."},
+            {"sourceLines":[43,73],"summary":"Graph layering, cycles, oversized/umbrella modules, macros, universal swift-syntax, platform multiplication, modular SDK caveat, option drift.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#graph-and-plugin-checks","skills/ios-development/references/build-optimization/spm-analysis.md#module-variants-and-platform-multiplication"],"reason":"Preserved all package decision branches."},
+            {"sourceLines":[75,92],"summary":"Finding report fields and handoffs to project/compilation analysis.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Merged specialist route into Legion router."}
+          ]
+        },
+        {
+          "path": "skills/spm-build-analysis/references/build-optimization-sources.md",
+          "sha256": "77abb87a6ac6608a2db1a5415559f85df8f6f33d0a4767dd5ab62db939d217e6",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate of compilation/project copies.",
+          "duplicateOf": "skills/xcode-compilation-analyzer/references/build-optimization-sources.md",
+          "rules": [{"sourceLines":[1,155],"summary":"Same source map as duplicate entries; all citations share same destinations.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/sources.md#source-and-evidence-map","skills/macos-development/references/build-optimization/sources.md#source-and-evidence-map"],"reason":"Byte duplicate; no independent content claim."}]
+        },
+        {
+          "path": "skills/spm-build-analysis/references/recommendation-format.md",
+          "sha256": "ad8eb87228be739d2dd53d0b927558fc9e68b2135e1b1eec475a981c4cd1feb2",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate of root recommendation format.",
+          "duplicateOf": "references/recommendation-format.md",
+          "rules": [{"sourceLines":[1,85],"summary":"Duplicate recommendation schema and statuses.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/macos-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/spm-build-analysis/references/spm-analysis-checks.md",
+          "sha256": "6677c6f10fe359548a8a0092f78468977d7cdd7539f61ba4b99cd1940885f94a",
+          "kind": "reference",
+          "review": "Fully read; package checklist merged.",
+          "rules": [
+            {"sourceLines":[5,39],"summary":"Package graph/plugin/reference/pin/binary/module-variant checks.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#verify-graph-membership","skills/ios-development/references/build-optimization/spm-analysis.md#graph-and-plugin-checks"],"reason":"Retained linked-package and remote-cost evidence."},
+            {"sourceLines":[41,77],"summary":"Layering, cycle, module sizing, transitive imports, interface/implementation, test isolation.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#graph-and-plugin-checks"],"reason":"Kept structural fixes and scope conditions."},
+            {"sourceLines":[78,105],"summary":"Macro rebuilds, swift-syntax architecture checks, platform multiplication, CI checks, priority bands.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#module-variants-and-platform-multiplication","skills/ios-development/references/build-optimization/orchestration.md#phase-1-evidence-and-plan"],"reason":"Retained concrete signals and wall-time ranking."}
+          ]
+        },
+        {
+          "path": "skills/spm-build-analysis/scripts/check_spm_pins.py",
+          "sha256": "913fe3cb2e79f39b7790fc4afd75570dfb1d8540af59422f8e2d3ec60107809d",
+          "kind": "script",
+          "review": "Fully read; byte duplicate of root helper; pure behavior implemented in native Rust build_analysis.rs and no donor runtime is shipped.",
+          "duplicateOf": "scripts/check_spm_pins.py",
+          "rules": [{"sourceLines":[1,118],"summary":"Duplicate SPM pin scanner with same read-only tag query and output contract.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/spm-analysis.md#pins-and-scripts"],"reason":"Byte duplicate; same adapted helper destination."}]
+        },
+        {
+          "path": "skills/xcode-build-benchmark/SKILL.md",
+          "sha256": "91b85f1b9b7344123178d23896f5cc7e0c6bcfdbb05aa670c0ba1411ba72a3bd",
+          "kind": "entrypoint",
+          "review": "Fully read; benchmark entrypoint absorbed.",
+          "rules": [
+            {"sourceLines":[6,17],"summary":"Measure-first, separate clean/incremental, stable inputs, timestamp artifact, no project edits during measurement.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#inputs-and-repeatability"],"reason":"Retained baseline contract."},
+            {"sourceLines":[18,43],"summary":"Collect project context, worktree excludes, warmup, three clean/cached/zero-change/touch runs.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#inputs-and-repeatability","skills/ios-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Preserved repeated runs and cache conditions."},
+            {"sourceLines":[46,73],"summary":"Helper command, fallback xcodebuild, required medians/spread/categories/environment/artifact and noise reporting.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#artifact-requirements"],"reason":"Retained raw evidence and statistics."},
+            {"sourceLines":[75,88],"summary":"Handoff to compilation/project/SPM/orchestration lanes and schema reference.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization.md#route-by-evidence","skills/macos-development/references/build-optimization.md#route-by-evidence"],"reason":"Mapped six source entrypoints to both platform routers."}
+          ]
+        },
+        {
+          "path": "skills/xcode-build-benchmark/references/benchmark-artifacts.md",
+          "sha256": "8087ebebff618af462200af9a49f825281ea039feaa7c5d5e3dbc49afe425798",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate of root artifact reference.",
+          "duplicateOf": "references/benchmark-artifacts.md",
+          "rules": [{"sourceLines":[1,94],"summary":"Duplicate artifact contract, cache interpretation, logs, and consumer expectations.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts","skills/ios-development/references/build-optimization/benchmarking.md#cache-and-variance-interpretation"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/xcode-build-benchmark/references/benchmarking-workflow.md",
+          "sha256": "036c6b7de76974dd6648d0edc64cf6d950b079a3a2e509b61138dba560518c9d",
+          "kind": "reference",
+          "review": "Fully read; operational contract merged.",
+          "rules": [
+            {"sourceLines":[5,16],"summary":"Trusted artifact goal, clean/incremental parity, command/environment, arrays, timing categories.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#inputs-and-repeatability"],"reason":"Retained handoff contract."},
+            {"sourceLines":[17,34],"summary":"Three-run counts, warmup, clean clearing, failure stop, incremental no-clean/edit labels.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Preserved exact run policy."},
+            {"sourceLines":[36,66],"summary":"Minimum evidence, median/min/max/range/outliers, downstream questions.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#artifact-requirements"],"reason":"Kept statistics and analysis handoff."}
+          ]
+        },
+        {
+          "path": "skills/xcode-build-benchmark/schemas/build-benchmark.schema.json",
+          "sha256": "473b377e7677bc4aeeac8cc16ea09b90b6e3ea00c23ee7f027e1f9a5c96a27ba",
+          "kind": "schema",
+          "review": "Fully read; byte duplicate of root schema.",
+          "duplicateOf": "schemas/build-benchmark.schema.json",
+          "rules": [{"sourceLines":[1,230],"summary":"Duplicate benchmark JSON schema.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Byte duplicate; same artifact contract."}]
+        },
+        {
+          "path": "skills/xcode-build-benchmark/scripts/benchmark_builds.py",
+          "sha256": "efb10cb4702243a69441692d6fc49106618ad693ad26333a8b0c29f0e5425227",
+          "kind": "script",
+          "review": "Fully read; byte duplicate of root benchmark helper; pure behavior implemented in native Rust build_analysis.rs and no donor runtime is shipped.",
+          "duplicateOf": "scripts/benchmark_builds.py",
+          "rules": [{"sourceLines":[1,308],"summary":"Duplicate benchmark helper with same parser, repeated runs, cache, logs, and JSON output.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Byte duplicate; same adapted helper destination."}]
+        },
+        {
+          "path": "skills/xcode-build-fixer/SKILL.md",
+          "sha256": "0904653e787129bdf7a2dbeb3df8928406bbf766742af961b523c14b402dde35",
+          "kind": "entrypoint",
+          "review": "Fully read; scoped fixer workflow absorbed.",
+          "rules": [
+            {"sourceLines":[6,25],"summary":"One logical fix, exact file/change report, benchmark verification, plan or explicit instruction inputs.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/fixing.md#applying-scoped-fixes"],"reason":"Adapted donor approval gate to live user authorization while keeping scope discipline."},
+            {"sourceLines":[27,84],"summary":"Build settings, script phases, source compiler fixes, SPM restructuring, pin/tag/resolution checks.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/fixing.md#settings","skills/ios-development/references/build-optimization/fixing.md#script-phases","skills/ios-development/references/build-optimization/fixing.md#source-fixes","skills/ios-development/references/build-optimization/fixing.md#spm-fixes"],"reason":"Retained concrete fixes and verification commands."},
+            {"sourceLines":[86,101],"summary":"Apply, compile, rerun same benchmark, compare medians.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/fixing.md#remeasure-and-classify"],"reason":"Preserved execution sequence."},
+            {"sourceLines":[103,142],"summary":"Interpret cache tradeoff, all build types, cumulative effects, best-practice settings, and speculative reverts.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/fixing.md#remeasure-and-classify"],"reason":"Retained cache conditions and regression decisions; mandatory donor approval rejected as foreign policy."},
+            {"sourceLines":[143,218],"summary":"Wall-clock reporting, execution statuses, blocked findings, and specialist escalation.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#final-report","skills/ios-development/references/build-optimization/fixing.md#remeasure-and-classify"],"reason":"Preserved output/status vocabulary; social PR action omitted as out of scope."}
+          ]
+        },
+        {
+          "path": "skills/xcode-build-fixer/references/build-settings-best-practices.md",
+          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf9b8a4",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate of root settings reference.",
+          "duplicateOf": "references/build-settings-best-practices.md",
+          "rules": [{"sourceLines":[1,216],"summary":"Duplicate settings reference.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/xcode-build-fixer/references/fix-patterns.md",
+          "sha256": "fe39f595180f803de46e7040155475e60681376beb039a6a666804fb3480bc9c",
+          "kind": "reference",
+          "review": "Fully read; concrete examples adapted to concise patterns.",
+          "rules": [
+            {"sourceLines":[5,50],"summary":"Before/after Debug settings for dSYM, compilation mode, cache, eager linking.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/patterns.md#settings-and-scripts"],"reason":"Retained exact setting shapes."},
+            {"sourceLines":[52,87],"summary":"Release script guard and input/output declarations.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/patterns.md#settings-and-scripts"],"reason":"Kept concrete I/O and guard examples."},
+            {"sourceLines":[89,251],"summary":"Typed intermediates, expression splitting, final/access control, SwiftUI extraction, closure returns.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/patterns.md#swift"],"reason":"Preserved code-level repair shapes and safety searches."},
+            {"sourceLines":[254,290],"summary":"Shared contract and interface/implementation package module examples.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/patterns.md#package-graph"],"reason":"Retained dependency-direction examples."}
+          ]
+        },
+        {
+          "path": "skills/xcode-build-fixer/references/recommendation-format.md",
+          "sha256": "ad8eb87228be739d2dd53d0b927558fc9e68b2135e1b1eec475a981c4cd1feb2",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate; pure behavior implemented in native Rust build_analysis.rs and no donor runtime is shipped.",
+          "duplicateOf": "references/recommendation-format.md",
+          "rules": [{"sourceLines":[1,85],"summary":"Duplicate recommendation schema.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/xcode-build-fixer/scripts/benchmark_builds.py",
+          "sha256": "efb10cb4702243a69441692d6fc49106618ad693ad26333a8b0c29f0e5425227",
+          "kind": "script",
+          "review": "Fully read; byte duplicate; pure behavior implemented in native Rust build_analysis.rs and no donor runtime is shipped.",
+          "duplicateOf": "scripts/benchmark_builds.py",
+          "rules": [{"sourceLines":[1,308],"summary":"Duplicate benchmark helper.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Byte duplicate; same adapted helper destination."}]
+        },
+        {
+          "path": "skills/xcode-build-orchestrator/SKILL.md",
+          "sha256": "e919677be70ad7ddf4b0e5be5c5d5275d4e820490233f6084ce1ab3a9555404b",
+          "kind": "entrypoint",
+          "review": "Fully read; end-to-end workflow absorbed with donor approval/orchestration policy adapted.",
+          "rules": [
+            {"sourceLines":[6,18],"summary":"Wall-clock primary, evidence trail, benchmark before change, rebenchmark after.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#end-to-end-orchestration"],"reason":"Retained outcome metric and evidence discipline."},
+            {"sourceLines":[19,50],"summary":"Two phases: context, baseline/cache validation, variance, backtraces, critical-path classification, specialist lanes, plan, implementation, verification.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#phase-1-evidence-and-plan","skills/ios-development/references/build-optimization/orchestration.md#phase-2-implementation-and-verification"],"reason":"Preserved all decision branches; foreign delegation removed."},
+            {"sourceLines":[27,29],"summary":"Cherry-pick a build fix into a worktree to reach a buildable state.","disposition":"rejected","destinations":[],"reason":"Foreign worktree/git mutation is outside this bounded reference absorption; scoped fixes remain documented without cherry-pick orchestration."},
+            {"sourceLines":[52,64],"summary":"Prioritize wall-time blockers, serial categories, planning/emit, measured reversible low-risk changes.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#phase-1-evidence-and-plan"],"reason":"Retained prioritization rules."},
+            {"sourceLines":[66,76],"summary":"Required impact statements and cache measurement context.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-impact-language"],"reason":"Preserved exact impact framing."},
+            {"sourceLines":[78,97],"summary":"Approval checklist and post-approval scoped fixer flow.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/ios-development/references/build-optimization/fixing.md#applying-scoped-fixes"],"reason":"Approval retained as report metadata; mandatory pause rejected under Legion user authorization."},
+            {"sourceLines":[99,156],"summary":"Final report, benchmark/diagnostic/report commands, and artifact references.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#final-report","skills/ios-development/references/build-optimization/benchmarking.md#inputs-and-repeatability"],"reason":"Retained operational commands and reporting."}
+          ]
+        },
+        {
+          "path": "skills/xcode-build-orchestrator/references/benchmark-artifacts.md",
+          "sha256": "ec3a5ed992db24e945255c87361ab347f925ef94b474fd3f002fde650fbd4392",
+          "kind": "reference",
+          "review": "Fully read; orchestrator-specific duplicate variant retained by section.",
+          "rules": [{"sourceLines":[1,94],"summary":"Orchestrator artifact evidence, cache, raw logs, and consumer contract.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Same artifact contract with orchestrator wording."}]
+        },
+        {
+          "path": "skills/xcode-build-orchestrator/references/build-settings-best-practices.md",
+          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf9b8a4",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate settings reference; represented in shared settings guidance.",
+          "duplicateOf": "references/build-settings-best-practices.md",
+          "rules": [{"sourceLines":[1,216],"summary":"Duplicate settings reference.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/xcode-build-orchestrator/references/orchestration-report-template.md",
+          "sha256": "78bead992d838c737088ec2f98cfba620a7a32569f1f525d281f7500c479b72e",
+          "kind": "template",
+          "review": "Fully read; report sections adapted, donor PR/social prompts excluded.",
+          "rules": [
+            {"sourceLines":[1,37],"summary":"Project context, baseline medians/min/max/runs, cached-clean and timing category interpretation.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#final-report","skills/ios-development/references/build-optimization/artifacts.md#benchmark-artifacts"],"reason":"Retained concrete report shape."},
+            {"sourceLines":[38,69],"summary":"Settings audit, cross-target consistency, and diagnostics table.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings","skills/ios-development/references/build-optimization/compilation-analysis.md#reporting"],"reason":"Preserved reviewable evidence tables."},
+            {"sourceLines":[70,91],"summary":"Prioritized recommendation fields, impact, risk, checklist, and next benchmark command.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Approval is metadata, not mandatory foreign workflow."},
+            {"sourceLines":[93,123],"summary":"Execution report statuses, cumulative results, blocked findings, follow-up.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/fixing.md#remeasure-and-classify","skills/ios-development/references/build-optimization/orchestration.md#final-report"],"reason":"Retained status and confidence output."},
+            {"sourceLines":[124,143],"summary":"Community PR/share instructions and usage notes.","disposition":"rejected","destinations":["skills/ios-development/references/build-optimization/orchestration.md#final-report"],"reason":"External publication and foreign repository mutation are outside requested absorption; evidence/report guidance retained."}
+          ]
+        },
+        {
+          "path": "skills/xcode-build-orchestrator/references/recommendation-format.md",
+          "sha256": "ad8eb87228be739d2dd53d0b927558fc9e68b2135e1b1eec475a981c4cd1feb2",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate recommendation schema; renderer behavior implemented in native Rust build_analysis.rs.",
+          "duplicateOf": "references/recommendation-format.md",
+          "rules": [{"sourceLines":[1,85],"summary":"Duplicate recommendation schema.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/xcode-build-orchestrator/scripts/benchmark_builds.py",
+          "sha256": "efb10cb4702243a69441692d6fc49106618ad693ad26333a8b0c29f0e5425227",
+          "kind": "script",
+          "review": "Fully read; byte duplicate; pure behavior implemented in native Rust build_analysis.rs and no donor runtime is shipped.",
+          "duplicateOf": "scripts/benchmark_builds.py",
+          "rules": [{"sourceLines":[1,308],"summary":"Duplicate benchmark helper.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/benchmarking.md#run-contract"],"reason":"Byte duplicate; same adapted helper destination."}]
+        },
+        {
+          "path": "skills/xcode-build-orchestrator/scripts/diagnose_compilation.py",
+          "sha256": "5d3783b053ae54f0e3730d40cf3931a4261625daa5893ad4a942b55303a9cdc6",
+          "kind": "script",
+          "review": "Fully read; byte duplicate; pure behavior implemented in native Rust build_analysis.rs and no donor runtime is shipped.",
+          "duplicateOf": "scripts/diagnose_compilation.py",
+          "rules": [{"sourceLines":[1,273],"summary":"Duplicate compiler diagnostics helper.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Byte duplicate; same helper destination."}]
+        },
+        {
+          "path": "skills/xcode-build-orchestrator/scripts/generate_optimization_report.py",
+          "sha256": "7c03d61fbce2c7ae44eaa752fbf65ce5256ddba336690a9265976dd9c0a69a85",
+          "kind": "script",
+          "review": "Fully read; byte duplicate; pure behavior implemented in native Rust build_analysis.rs and no donor runtime is shipped.",
+          "duplicateOf": "scripts/generate_optimization_report.py",
+          "rules": [{"sourceLines":[1,533],"summary":"Duplicate report generator with pbxproj audit, diagnostics, recommendations, and Markdown output.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Byte duplicate; same helper destination."}]
+        },
+        {
+          "path": "skills/xcode-compilation-analyzer/SKILL.md",
+          "sha256": "c49d8bf206d6ea2d575dbfa95cd623b1970e796c59819cc83865bd3a15f19e65",
+          "kind": "entrypoint",
+          "review": "Fully read; compiler analysis entrypoint absorbed.",
+          "rules": [
+            {"sourceLines":[6,16],"summary":"Evidence-first compilation analysis, ad hoc flags, wall-time vs parallel workload, no unapproved edits.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Preserved diagnostic-first route."},
+            {"sourceLines":[18,32],"summary":"Timing categories, emit/planning signals, warning and deep compiler flags, mixed-language surfaces.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Retained all flag names and decision thresholds."},
+            {"sourceLines":[34,50],"summary":"Diagnostic workflow, parser helper, ranked evidence, code/project separation.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Preserved script I/O and handoff."},
+            {"sourceLines":[52,84],"summary":"Typed expressions, delegates, bridges, imports, final/access, SwiftUI and ad hoc flag tactics.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#source-checks","skills/ios-development/references/build-optimization/compilation-analysis.md#reporting"],"reason":"Kept concrete source checks and recommendation fields."},
+            {"sourceLines":[85,89],"summary":"Reference routing.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization.md#route-by-evidence","skills/macos-development/references/build-optimization.md#route-by-evidence"],"reason":"Mapped into both platform routers."}
+          ]
+        },
+        {
+          "path": "skills/xcode-compilation-analyzer/references/build-optimization-sources.md",
+          "sha256": "77abb87a6ac6608a2db1a5415559f85df8f6f33d0a4767dd5ab62db939d217e6",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate.",
+          "duplicateOf": "skills/spm-build-analysis/references/build-optimization-sources.md",
+          "rules": [{"sourceLines":[1,155],"summary":"Duplicate source map.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/sources.md#source-and-evidence-map"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/xcode-compilation-analyzer/references/code-compilation-checks.md",
+          "sha256": "250c97fa472bab473b7b9e67e4f396dbaebebc13471b2dc1358252a580925019",
+          "kind": "reference",
+          "review": "Fully read; compiler checklist merged.",
+          "rules": [
+            {"sourceLines":[5,23],"summary":"Primary evidence and triage for file/type-check/bridging/module planning/emit.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags","skills/ios-development/references/build-optimization/compilation-analysis.md#triage"],"reason":"Preserved diagnostic sources and thresholds."},
+            {"sourceLines":[24,75],"summary":"Explicit typing, expression, delegate, bridge, imports, dispatch/access, value types, SwiftUI, closure chains.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#source-checks"],"reason":"Retained all source-level patterns."},
+            {"sourceLines":[76,92],"summary":"Generic constraints, module emission/planning, prefix headers.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#source-checks","skills/ios-development/references/build-optimization/compilation-analysis.md#triage"],"reason":"Kept module and mixed-language evidence."},
+            {"sourceLines":[93,106],"summary":"Impact heuristics and project-analysis escalation.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#reporting"],"reason":"Preserved confidence and handoff rules."}
+          ]
+        },
+        {
+          "path": "skills/xcode-compilation-analyzer/references/recommendation-format.md",
+          "sha256": "ad8eb87228be739d2dd53d0b927558fc9e68b2135e1b1eec475a981c4cd1feb2",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate.",
+          "duplicateOf": "references/recommendation-format.md",
+          "rules": [{"sourceLines":[1,85],"summary":"Duplicate recommendation schema.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/xcode-compilation-analyzer/scripts/diagnose_compilation.py",
+          "sha256": "5d3783b053ae54f0e3730d40cf3931a4261625daa5893ad4a942b55303a9cdc6",
+          "kind": "script",
+          "review": "Fully read; byte duplicate; pure behavior implemented in native Rust build_analysis.rs and no donor runtime is shipped.",
+          "duplicateOf": "scripts/diagnose_compilation.py",
+          "rules": [{"sourceLines":[1,273],"summary":"Duplicate compiler diagnostic helper.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/compilation-analysis.md#evidence-and-flags"],"reason":"Byte duplicate; same helper destination."}]
+        },
+        {
+          "path": "skills/xcode-project-analyzer/SKILL.md",
+          "sha256": "1fb85b5556ba85950073231c893c63db9231bb684052e4838e96a80cdd6e8866",
+          "kind": "entrypoint",
+          "review": "Fully read; project analysis entrypoint absorbed.",
+          "rules": [
+            {"sourceLines":[6,16],"summary":"Project-level recommendation-first, measured evidence, Debug/Release distinction.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#project-and-target-analysis"],"reason":"Retained project scope."},
+            {"sourceLines":[17,30],"summary":"Target/scheme/settings/scripts, modules, planning, assets, App Intents, zero-change, CocoaPods, Task Backtraces.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#target-scheme-and-module-checks","skills/ios-development/references/build-optimization/project-analysis.md#zero-change-overhead"],"reason":"Kept concrete project checks and conditional Xcode behavior."},
+            {"sourceLines":[32,57],"summary":"Settings checklist scope and Apple-derived target/script/module/asset/timestamp checks.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings","skills/ios-development/references/build-optimization/project-analysis.md#run-script-phases"],"reason":"Retained cross-target and invalidation decisions."},
+            {"sourceLines":[59,76],"summary":"Finding fields, package handoff, and resource references.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record","skills/ios-development/references/build-optimization.md#route-by-evidence","skills/macos-development/references/build-optimization.md#route-by-evidence"],"reason":"Mapped specialist boundary into both platform routers."}
+          ]
+        },
+        {
+          "path": "skills/xcode-project-analyzer/references/build-optimization-sources.md",
+          "sha256": "77abb87a6ac6608a2db1a5415559f85df8f6f33d0a4767dd5ab62db939d217e6",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate.",
+          "duplicateOf": "skills/spm-build-analysis/references/build-optimization-sources.md",
+          "rules": [{"sourceLines":[1,155],"summary":"Duplicate source map.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/sources.md#source-and-evidence-map"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/xcode-project-analyzer/references/build-settings-best-practices.md",
+          "sha256": "26f1a3a23b3fece4b067fb094ab12fb6bd7dee33e97044d515db3cf9b8a4",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate.",
+          "duplicateOf": "references/build-settings-best-practices.md",
+          "rules": [{"sourceLines":[1,216],"summary":"Duplicate settings reference.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings"],"reason":"Byte duplicate; same destinations."}]
+        },
+        {
+          "path": "skills/xcode-project-analyzer/references/project-audit-checks.md",
+          "sha256": "eb61ac8e1329eccac33e7d8b4c466003f50cca6b1a23e2be118d1f6a9af62e53",
+          "kind": "reference",
+          "review": "Fully read; project checklist merged.",
+          "rules": [
+            {"sourceLines":[5,19],"summary":"Target/scheme and script I/O/timestamp checks.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#target-scheme-and-module-checks","skills/ios-development/references/build-optimization/project-analysis.md#run-script-phases"],"reason":"Preserved script audit."},
+            {"sourceLines":[21,41],"summary":"Planning, Task Backtraces, zero-change phases, and Xcode-owned App Intents actionability.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#zero-change-overhead"],"reason":"Retained fixed-cost diagnosis."},
+            {"sourceLines":[43,48],"summary":"Asset catalog single-threaded/non-cacheable checks.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#assets-and-dependencies"],"reason":"Preserved parallelization condition."},
+            {"sourceLines":[50,80],"summary":"Settings, module/header, explicit-module and macro option checks.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/settings.md#performance-build-settings","skills/ios-development/references/build-optimization/project-analysis.md#target-scheme-and-module-checks"],"reason":"Retained settings and module evidence."},
+            {"sourceLines":[82,93],"summary":"CocoaPods scope and measured SPM migration rationale.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/project-analysis.md#assets-and-dependencies","skills/ios-development/references/build-optimization/spm-analysis.md#swift-package-manager-analysis"],"reason":"Kept migration as an explicit package-manager choice."},
+            {"sourceLines":[95,101],"summary":"Wall-time priority bands.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#phase-1-evidence-and-plan"],"reason":"Preserved high/medium/low prioritization."}
+          ]
+        },
+        {
+          "path": "skills/xcode-project-analyzer/references/recommendation-format.md",
+          "sha256": "ad8eb87228be739d2dd53d0b927558fc9e68b2135e1b1eec475a981c4cd1feb2",
+          "kind": "reference",
+          "review": "Fully read; byte duplicate.",
+          "duplicateOf": "references/recommendation-format.md",
+          "rules": [{"sourceLines":[1,85],"summary":"Duplicate recommendation schema.","disposition":"merged","destinations":["skills/ios-development/references/build-optimization/orchestration.md#recommendation-record"],"reason":"Byte duplicate; same destinations."}]
+        }
+      ]
+    }
+  ]
+}

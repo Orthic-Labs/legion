@@ -96,6 +96,8 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("foundation/validate-atom-report", foundation_validate_atom_report),
     ("handoff/transcript-handoff", handoff_transcript_handoff),
     ("handoff/validate-handoff", handoff_validate_handoff),
+    ("ios-development/tool_preflight", apple_tool_preflight),
+    ("macos-development/tool_preflight", apple_tool_preflight),
     ("qa/qa-functional", qa_qa_functional),
     ("qa/qa-shot", qa_qa_shot),
     ("seo/banana-cost-tracker", seo_banana_cost_tracker),
@@ -154,6 +156,37 @@ pub fn run(args: ScriptArgs) -> CommandResult {
 
 fn cwd() -> std::path::PathBuf {
     std::env::current_dir().unwrap_or_default()
+}
+
+fn apple_tool_preflight(args: &[String]) -> i32 {
+    let mut ids = Vec::new();
+    let mut list = false;
+    let mut index = 0;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--list" => list = true,
+            "--tool" if index + 1 < args.len() => {
+                index += 1;
+                ids.push(args[index].clone());
+            }
+            "--help" | "-h" => {
+                println!("Usage: legion script ios-development/tool_preflight --list | --tool ID [--tool ID ...]");
+                return 0;
+            }
+            other => {
+                eprintln!("unsupported preflight argument: {other}");
+                return 4;
+            }
+        }
+        index += 1;
+    }
+    match legion_apple::preflight::invoke(&json!({"list":list,"tools":ids})) {
+        Ok(value) => {
+            println!("{}", serde_json::to_string_pretty(&value).unwrap());
+            0
+        }
+        Err(error) => { eprintln!("{error}"); 4 }
+    }
 }
 
 /// Walks up from `cwd()` looking for a `skills/` directory (repo root), so ports of scripts

@@ -24,6 +24,7 @@ use crate::portable_core::{
 };
 
 const CARGO_MANIFEST_REL: &str = "engine/Cargo.toml";
+const MCP_TOOL_SCHEMA_REL: &str = "src/registry/mcp-tools.json";
 const DEFAULT_PROFILE: &str = "release";
 const LOCAL_PROVENANCE_SCHEME: &str = "local-build";
 const SIGNED_PROVENANCE_SCHEME: &str = "rightkit-release";
@@ -139,6 +140,40 @@ fn write_json(path: &Path, value: &Value) -> Result<(), String> {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     fs::write(path, format!("{}\n", serde_json::to_string_pretty(value).unwrap())).map_err(|e| e.to_string())
+}
+
+/// Validate one canonical MCP schema before it is bound into a release.
+/// Runtime adapters consume this same source, so assembly must reject drift or
+/// malformed tool entries instead of emitting a digest for an unusable surface.
+fn validate_mcp_tool_schema(schema: &Value) -> Result<(), String> {
+    if schema.get("schemaVersion").and_then(Value::as_u64) != Some(1) {
+        return Err(format!("{MCP_TOOL_SCHEMA_REL} must use schemaVersion=1"));
+    }
+    if schema.get("kind").and_then(Value::as_str) != Some("legion-mcp-tool-schema") {
+        return Err(format!("{MCP_TOOL_SCHEMA_REL} has wrong kind"));
+    }
+    let tools = schema
+        .get("tools")
+        .and_then(Value::as_array)
+        .ok_or_else(|| format!("{MCP_TOOL_SCHEMA_REL} tools must be an array"))?;
+    if tools.is_empty() {
+        return Err(format!("{MCP_TOOL_SCHEMA_REL} must declare at least one tool"));
+    }
+    let mut names = HashSet::new();
+    for tool in tools {
+        let name = tool
+            .get("name")
+            .and_then(Value::as_str)
+            .filter(|name| !name.trim().is_empty())
+            .ok_or_else(|| format!("{MCP_TOOL_SCHEMA_REL} tool name must be non-empty"))?;
+        if !names.insert(name) {
+            return Err(format!("{MCP_TOOL_SCHEMA_REL} duplicates tool {name}"));
+        }
+        if !tool.get("inputSchema").is_some_and(Value::is_object) {
+            return Err(format!("{MCP_TOOL_SCHEMA_REL} tool {name} lacks inputSchema"));
+        }
+    }
+    Ok(())
 }
 
 fn excluded_skill_artifact(path: &str) -> bool {
@@ -339,28 +374,11 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     fs::create_dir_all(native_rule_manifest_path.parent().unwrap()).map_err(|e| e.to_string())?;
     fs::copy(repository_root.join("packs/native/manifest.v1.json"), &native_rule_manifest_path).map_err(|e| e.to_string())?;
 
-    let mcp_tool_schema = json!({
-        "schemaVersion": 1,
-        "kind": "legion-mcp-tool-schema",
-        "tools": [
-            {
-                "name": "legion_m1_status",
-                "inputSchema": { "type": "object", "required": [], "additionalProperties": false, "properties": {} }
-            },
-            {
-                "name": "legion_m1_invoke",
-                "inputSchema": {
-                    "type": "object",
-                    "required": ["capabilityId", "policyContext"],
-                    "additionalProperties": false,
-                    "properties": {
-                        "capabilityId": { "type": "string", "minLength": 1 },
-                        "policyContext": {}
-                    }
-                }
-            }
-        ]
-    });
+    let mcp_tool_schema: Value = serde_json::from_str(
+        &fs::read_to_string(repository_root.join(MCP_TOOL_SCHEMA_REL)).map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| format!("invalid {MCP_TOOL_SCHEMA_REL}: {e}"))?;
+    validate_mcp_tool_schema(&mcp_tool_schema)?;
     write_json(&schema_path, &mcp_tool_schema)?;
 
     let source_policy: Value = serde_json::from_str(
@@ -625,4 +643,40 @@ fn generic_profile_re() -> Regex {
 }
 fn skill_id_re() -> Regex {
     Regex::new(r"^[a-z0-9]+(?:-[a-z0-9]+)*$").unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{validate_mcp_tool_schema, MCP_TOOL_SCHEMA_REL};
+    use serde_json::json;
+
+    #[test]
+    fn canonical_mcp_schema_contains_m1_and_apple_surfaces() {
+        let schema: serde_json::Value = serde_json::from_str(include_str!("../../../src/registry/mcp-tools.json")).unwrap();
+        validate_mcp_tool_schema(&schema).unwrap();
+        let names = schema["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|tool| tool["name"].as_str().unwrap())
+            .collect::<Vec<_>>();
+        assert!(names.contains(&"legion_m1_status"));
+        assert!(names.contains(&"legion_m1_invoke"));
+        assert!(names.contains(&"legion_apple"));
+    }
+
+    #[test]
+    fn canonical_mcp_schema_rejects_duplicate_tool_names() {
+        let duplicate = json!({
+            "schemaVersion": 1,
+            "kind": "legion-mcp-tool-schema",
+            "tools": [
+                {"name": "same", "inputSchema": {}},
+                {"name": "same", "inputSchema": {}}
+            ]
+        });
+        let error = validate_mcp_tool_schema(&duplicate).unwrap_err();
+        assert!(error.contains("duplicates tool same"), "{error}");
+        assert!(MCP_TOOL_SCHEMA_REL.ends_with("mcp-tools.json"));
+    }
 }

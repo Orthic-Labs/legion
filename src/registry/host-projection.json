@@ -6,7 +6,44 @@
     "skills/*/references/route-resources.json",
     "src/roster/*.md",
     "src/config/model-tiers.json",
-    "src/registry/capabilities.json"
+    "src/registry/capabilities.json",
+    "src/registry/mcp-tools.json"
+  ],
+  "mcpTools": [
+    {
+      "name": "legion_m1_status",
+      "inputSchema": {
+        "type": "object",
+        "required": [],
+        "additionalProperties": false,
+        "properties": {}
+      }
+    },
+    {
+      "name": "legion_m1_invoke",
+      "inputSchema": {
+        "type": "object",
+        "required": ["capabilityId", "policyContext"],
+        "additionalProperties": false,
+        "properties": {
+          "capabilityId": { "type": "string", "minLength": 1 },
+          "policyContext": {}
+        }
+      }
+    },
+    {
+      "name": "legion_apple",
+      "inputSchema": {
+        "type": "object",
+        "required": ["operation"],
+        "additionalProperties": false,
+        "properties": {
+          "operation": { "type": "string", "minLength": 1 },
+          "arguments": { "type": "object", "default": {} },
+          "policyContext": { "type": "object" }
+        }
+      }
+    }
   ],
   "capabilities": [
     {

@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 mod cli;
+mod apple_mcp;
 mod commands;
 #[tokio::main]
 async fn main() {

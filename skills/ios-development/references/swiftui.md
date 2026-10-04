@@ -1,5 +1,51 @@
 # SwiftUI implementation
 
+Use this page as router. Read only topic refs needed by request; shared refs are mirrored
+in macOS development so platform work has same state, identity, accessibility, localization,
+animation, performance, and API-migration rules. Keep existing architecture and deployment
+targets; version-specific APIs below always require availability gates and a useful fallback.
+
+## Topic router
+
+- [State & environment](swiftui/state-environment.md) — ownership, `@State`, `@Observable`,
+  bindings, focused values, `@Entry`, dependency granularity, task cancellation.
+- [Views & layout](swiftui/views-layout.md) — invalidation boundaries, extraction, builders,
+  identity, adaptive sizing, safe areas, fold/large-display regions, representables.
+- [Lists & scrolling](swiftui/lists-scroll.md) — stable IDs, unary rows, tables, reorder,
+  swipe actions, refresh, scroll position, targets, transitions.
+- [Navigation & presentation](swiftui/navigation-presentation.md) — typed stacks, split views,
+  sheets, alerts, inspectors, tabs, deep links, restoration.
+- [Accessibility & localization](swiftui/accessibility-localization.md) — Dynamic Type,
+  VoiceOver, custom controls, RTL, string catalogs, locale-aware formatting.
+- [Animation](swiftui/animation.md) — scoped implicit/explicit animations, transitions,
+  transactions, phases, keyframes, reduced motion, `@Animatable` availability.
+- [Images, web, charts & text](swiftui/media-web-charts-text.md) — `AsyncImage`, downsampling,
+  WebKit, Charts, rich `AttributedString` editing, image scale.
+- [Documents & macOS](swiftui/documents-macos.md) — `Document`/`DocumentReader`, scenes,
+  windows, menus, commands, AppKit boundaries, pasteboard and file operations.
+- [Liquid Glass](swiftui/liquid-glass.md) — iOS 26+ adoption, morphing, materials fallback,
+  accessibility, contrast, and performance.
+- [Performance & tracing](swiftui/performance-tracing.md) — invalidation diagnostics, Instruments
+  capture/analysis, trace evidence, hot-path fixes, parser helpers.
+- [API migration](swiftui/api-migrations.md) — hard/soft deprecations, conditional replacements,
+  current SDK additions, and maintenance-scan disposition.
+- [Focus, toolbars & previews](swiftui/focus-toolbars-previews.md) — keyboard focus, toolbar
+  overflow/minimization, previews, mocks, and availability.
+- [Source-aligned detail index](swiftui/donor-index.md) — full concrete Hudson/SwiftLee examples
+  routed by topic after native integration.
+
+Source-aligned detailed examples remain available for focused review in `swiftui/donor-hudson-*.md`
+and `swiftui/donor-lee-*.md`; topic files above reconcile their overlapping rules. Upstream
+Python trace helpers remain source evidence in the ledger; shipped helper behavior is described
+for root's Rust implementation.
+
+## Review posture
+
+Report genuine correctness, accessibility, lifecycle, availability, or measured performance
+issues. Soft-deprecated APIs are informational when untouched; do not bundle migrations into
+feature work. Prefer native SwiftUI, but preserve an established UIKit/AppKit bridge when it
+is the appropriate boundary. Avoid blanket current-SDK adoption or an architecture rewrite.
+
 ## Establish ownership before choosing wrappers
 
 - Keep the app's existing observation architecture. Identify the source of truth, its

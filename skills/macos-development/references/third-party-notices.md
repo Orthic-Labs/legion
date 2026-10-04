@@ -1,71 +1,40 @@
-# Apple Development Bundle: Third-Party Notices
+# Apple development bundle: third-party notices
 
-Reviewed 2026-10-04. Applies to the original consolidated `ios-development` and `macos-development` guidance. Each bundle carries its own copy of this notice and `config/source-manifest.json` so native installation remains self-contained.
+Reviewed 2026-10-05. This bundle contains original Legion guidance with substantive rules, decision branches, and examples adapted from pinned public sources. Adapted prose is rewritten for Legion ownership and safety boundaries; upstream code, scripts, binaries, plugin metadata, assets, installers, credentials, and live MCP configuration are excluded.
 
-## Composition and scope
+`config/source-manifest.json` records each source pin, disposition, inspection receipt, and local notice path. The ledger files under `docs/apple-absorption/` record per-file and per-rule keep/merge/reject decisions. Local files below are exact license text snapshots from the inspected pins; they do not imply author endorsement.
 
-The bundle uses original concise prose that adapts selected public MIT-licensed methods. It does not contain copied upstream manuals, executable scripts, binaries, assets, MCP configuration, private course material, or credentials. Donor recommendations were reconciled rather than merged verbatim: project deployment targets, architecture and data layer take precedence; cancellation and Observation caveats are corrected; optional tools carry no installation, telemetry, network, or publishing permission.
+## Adapted MIT sources
 
-## MIT-licensed methodological inputs
+- `twostraws-swiftui-agent-skill` — commit `be297ff80dddec529af1f9b1f1f114aab6c9d11c`; SwiftUI state, availability, accessibility, navigation, and performance rules. [Exact MIT notice](licenses/twostraws-MIT.txt).
+- `twostraws-swift-concurrency-agent-skill` — commit `bee3f69ba17142da148d3c5406f148ed62592b69`; ownership, isolation, Sendable, structured concurrency, and cancellation rules. [Exact MIT notice](licenses/twostraws-MIT.txt).
+- `twostraws-swift-testing-agent-skill` — commit `2d6bba14a3c8bf3694f218b92fffe617c41ae43e`; deterministic Swift Testing rules and examples. [Exact MIT notice](licenses/twostraws-MIT.txt).
+- `twostraws-swiftdata-agent-skill` — commit `922d989473a9914210b41529a1ac5636aff4b8c1`; SwiftData model, predicate, relationship, index, migration, and CloudKit rules/examples. [Exact MIT notice](licenses/twostraws-MIT.txt).
+- `avdlee-swiftui-agent-skill` — commit `9897311e3e42cc77e87603226e74bea711092fbd`; state, scenes, accessibility, decomposition, and profiling rules. [Exact MIT notice](licenses/avdlee-MIT.txt).
+- `avdlee-swift-concurrency-agent-skill` — commit `d5770817d2622e1585b1f7eaebc791a9cb0959c8`; diagnostic-first concurrency migration rules. [Exact MIT notice](licenses/avdlee-MIT.txt).
+- `avdlee-swift-testing-agent-skill` — commit `798e9b1a2bcac164d4f0c781908199e754f0bab6`; testing migration, parallelism, traits, parameterization, and async waiting. [Exact MIT notice](licenses/avdlee-MIT.txt).
+- `avdlee-core-data-agent-skill` — commit `855ca7d0df50e82b00c12881dd9cd23c19ef5f49`; Core Data context, save/fetch/batch, history, migration, store, and testing rules/examples. [Exact MIT notice](licenses/avdlee-MIT.txt).
+- `avdlee-xcode-build-optimization-agent-skill` — commit `6bd7b596cd688b1127ded00e812b1b6937ec35d6`; benchmark-first build diagnosis and evidence rules. [Exact MIT notice](licenses/avdlee-MIT.txt).
+- `steipete-agent-scripts` — commit `444751eadeb7dabc00634326614ba2483642984f`; profiling target, capture, symbolication, and evidence rules. Upstream scripts are excluded. [Exact MIT notice](licenses/steipete-MIT.txt).
+- `krzysztofzablocki-inject` — commit `67e3ee9a2b7e40d6af72d07cf1b0d5c04399e809`; debug-only hot-reload boundary and authorization rules. Framework snippets and scripts are excluded. [Exact MIT notice](licenses/inject-MIT.txt).
+- `krzysztofzablocki-sourcery` — commit `f9d80ddec1d42b83b776064162ce0a93a0289334`; generator fit, template ownership, deterministic invocation, and output traceability. [Exact MIT notice](licenses/sourcery-MIT.txt).
+- `paulsolt-docsetquery` — commit `ba68aabe2c84e907789d4c0043f97568ec8cdcfd`; local-first documentation lookup, sanitization, caching, and citation rules inform Legion's independent native Rust reader. DocSetQuery source and Apple documentation are not redistributed. [Exact MIT notice](licenses/docsetquery-MIT.txt).
+- `cpisciotta-xcbeautify` — commit `513e4b12c3f6c965d1d3b66bd5cd9d635f03112d`; optional formatter and raw-log/build-status correctness rules. Formatter code and binaries are excluded. [Exact MIT notice](licenses/xcbeautify-MIT.txt).
+- `rorkai-app-store-connect-cli-skills` — commit `9a093fa52177d1b784fcbb06f9abfef4974e7701`; release, TestFlight, signing, metadata, and notarization rules. [Exact MIT notice](licenses/rorkai-MIT.txt).
 
-- [twostraws/SwiftUI-Agent-Skill](https://github.com/twostraws/SwiftUI-Agent-Skill/tree/be297ff80dddec529af1f9b1f1f114aab6c9d11c) — SwiftUI review checklist: API availability, accessibility, navigation, state, performance. [Pinned license](https://github.com/twostraws/SwiftUI-Agent-Skill/blob/be297ff80dddec529af1f9b1f1f114aab6c9d11c/LICENSE)
-- [twostraws/Swift-Concurrency-Agent-Skill](https://github.com/twostraws/Swift-Concurrency-Agent-Skill/tree/bee3f69ba17142da148d3c5406f148ed62592b69) — Task ownership, isolation, Sendable, structured concurrency and cancellation review. [Pinned license](https://github.com/twostraws/Swift-Concurrency-Agent-Skill/blob/bee3f69ba17142da148d3c5406f148ed62592b69/LICENSE)
-- [twostraws/Swift-Testing-Agent-Skill](https://github.com/twostraws/Swift-Testing-Agent-Skill/tree/2d6bba14a3c8bf3694f218b92fffe617c41ae43e) — Swift Testing review and deterministic test design. [Pinned license](https://github.com/twostraws/Swift-Testing-Agent-Skill/blob/2d6bba14a3c8bf3694f218b92fffe617c41ae43e/LICENSE)
-- [twostraws/SwiftData-Agent-Skill](https://github.com/twostraws/SwiftData-Agent-Skill/tree/922d989473a9914210b41529a1ac5636aff4b8c1) — SwiftData modeling, predicates, relationships, schema and CloudKit constraints. [Pinned license](https://github.com/twostraws/SwiftData-Agent-Skill/blob/922d989473a9914210b41529a1ac5636aff4b8c1/LICENSE)
-- [AvdLee/SwiftUI-Agent-Skill](https://github.com/AvdLee/SwiftUI-Agent-Skill/tree/9897311e3e42cc77e87603226e74bea711092fbd) — State ownership, macOS scenes/windows/documents, accessibility, view decomposition and profiling. [Pinned license](https://github.com/AvdLee/SwiftUI-Agent-Skill/blob/9897311e3e42cc77e87603226e74bea711092fbd/LICENSE)
-- [AvdLee/Swift-Concurrency-Agent-Skill](https://github.com/AvdLee/Swift-Concurrency-Agent-Skill/tree/d5770817d2622e1585b1f7eaebc791a9cb0959c8) — Diagnostic-first concurrency repair and Swift migration verification. [Pinned license](https://github.com/AvdLee/Swift-Concurrency-Agent-Skill/blob/d5770817d2622e1585b1f7eaebc791a9cb0959c8/LICENSE)
-- [AvdLee/Swift-Testing-Agent-Skill](https://github.com/AvdLee/Swift-Testing-Agent-Skill/tree/798e9b1a2bcac164d4f0c781908199e754f0bab6) — Testing migration, parallelism, traits, parameterization and async waiting. [Pinned license](https://github.com/AvdLee/Swift-Testing-Agent-Skill/blob/798e9b1a2bcac164d4f0c781908199e754f0bab6/LICENSE)
-- [AvdLee/Core-Data-Agent-Skill](https://github.com/AvdLee/Core-Data-Agent-Skill/tree/855ca7d0df50e82b00c12881dd9cd23c19ef5f49) — Existing Core Data stack, context isolation, migrations, history and store tests. [Pinned license](https://github.com/AvdLee/Core-Data-Agent-Skill/blob/855ca7d0df50e82b00c12881dd9cd23c19ef5f49/LICENSE)
-- [AvdLee/Xcode-Build-Optimization-Agent-Skill](https://github.com/AvdLee/Xcode-Build-Optimization-Agent-Skill/tree/6bd7b596cd688b1127ded00e812b1b6937ec35d6) — Benchmark-first build-time diagnosis, scoped fixes and before/after evidence. [Pinned license](https://github.com/AvdLee/Xcode-Build-Optimization-Agent-Skill/blob/6bd7b596cd688b1127ded00e812b1b6937ec35d6/LICENSE)
-- [steipete/agent-scripts](https://github.com/steipete/agent-scripts/tree/444751eadeb7dabc00634326614ba2483642984f) — Narrow Instruments/xctrace performance workflow: target binary verification, representative workload and evidence. [Pinned license](https://github.com/steipete/agent-scripts/blob/444751eadeb7dabc00634326614ba2483642984f/LICENSE)
+## Adapted Apache source
 
-The following upstream copyright notices and shared MIT terms are retained for the adapted methods. No endorsement by these authors is implied.
+- `xopoko-appstoreconnectcli` — commit `2af677324e72d7c1684f9d75d57599e64f8c582a`; ascctl/OpenAPI-first release contract guidance is rewritten into local release guidance. [Change notice](licenses/xopoko-CHANGES.md). No source, generated client, dependencies, binaries, or packaging metadata are distributed, so no modified upstream file is shipped. [Complete Apache License 2.0 text](licenses/xopoko-Apache-2.0.txt). The upstream repository separately lists Apache-licensed `swift-argument-parser` and `swift-crypto`; those dependency texts are not bundled because no Xopoko code is bundled.
 
-Copyright (c) 2026 Paul Hudson.
-Copyright (c) 2026 Antoine van der Lee
-Copyright (c) 2026 Peter Steinberger
+## Reference-only sources
 
-MIT License
+- `getsentry-mobilebuildmcp` — commit `d13ff0c707b0681769cf31da0eb42c4f94ceafff`; pinned LICENSE is MIT, not Apache-2.0. Only capability and official-source setup references remain. [Exact MIT notice](licenses/mobilebuildmcp-MIT.txt).
+- `cameroncooke-axe` — commit `30f4bfa9bc81817906a60fadedbc913d7314b7e1`; only capability and official-source setup references remain. [Exact MIT notice](licenses/axe-MIT.txt).
+- `dimillian-codexmonitor` — commit `dd61b9abd37de5ded86e82b9fe8a83fd49d46fa5`; optional Tauri/Rust workspace reference only. [Exact MIT notice](licenses/codexmonitor-MIT.txt).
+- `openai-build-ios-apps` and `openai-build-macos-apps` — commit `5fd93af4cd0c623e020d0cc7e9ce178b4ac1f70f`; inventoried plugin manifests declare MIT, but no LICENSE text is present in either Apple plugin directory. Only ledger-marked independent Legion workflows are represented; no OpenAI prose, code, scripts, metadata, or assets are copied, and no local license notice is asserted.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## Deliberate exclusions
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+RocketSim commercial material, public unlicensed guidance, gated AppCreator payloads, paid courses, Point-Free subscription material, and Swift Evolution specification text are excluded. Tool references do not authorize installation, telemetry, credentials, account changes, publishing, or network services. Apple platform documentation remains subject to its own terms; DocSetQuery's MIT license does not license documentation it processes.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-## Reference-only sources and optional tools
-
-The manifest records the exact inspected pins and license evidence. Merely referencing an external tool does not redistribute it or authorize its execution.
-
-- [getsentry-mobilebuildmcp](https://github.com/getsentry/MobileBuildMCP): MIT. Optional detected MCP/CLI adapter for build, test, simulator/device lifecycle, log capture and debugging; renamed from XcodeBuildMCP. Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.
-- [cameroncooke-axe](https://github.com/cameroncooke/AXe): MIT. Optional iOS Simulator accessibility/HID inspection and UI evidence. Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.
-- [paulsolt-docsetquery](https://github.com/PaulSolt/DocSetQuery): MIT. Optional local docset extraction/search; tool license does not license Apple documentation it processes. Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.
-- [cpisciotta-xcbeautify](https://github.com/cpisciotta/xcbeautify): MIT. Optional xcodebuild output formatter; preserve raw log and build exit status. Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.
-- [krzysztofzablocki-inject](https://github.com/krzysztofzablocki/Inject): MIT. Optional debug-only hot reload; separate InjectionIII dependency and linker/settings changes need review. Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.
-- [krzysztofzablocki-sourcery](https://github.com/krzysztofzablocki/Sourcery): MIT. Optional deterministic code generation for existing approved template workflow. Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.
-- [xopoko-appstoreconnectcli](https://github.com/Xopoko/AppStoreConnectCLI): Apache-2.0. Optional ascctl OpenAPI-first App Store Connect adapter; distinct from asc CLI. Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.
-- [rorkai-app-store-connect-cli-skills](https://github.com/rorkai/app-store-connect-cli-skills): MIT. Optional release/TestFlight/signing metadata playbooks for asc CLI, distinct from Xopoko ascctl. Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.
-- [openai-build-ios-apps](https://github.com/openai/plugins): MIT (plugin manifest declaration only). Coverage cross-check for App Intents, simulator debugging, SwiftUI performance, ETTrace and memgraph workflows. No upstream skill text, code, scripts, metadata, or assets copied. Platform guidance is independent original prose checked against platform APIs.
-- [openai-build-macos-apps](https://github.com/openai/plugins): MIT (plugin manifest declaration only). Coverage cross-check for native scenes, AppKit, shell build/debug, SwiftPM packaging, logging, signing and notarization. No upstream skill text, code, scripts, metadata, or assets copied. Platform guidance is independent original prose checked against platform APIs.
-- [dimillian-codexmonitor](https://github.com/Dimillian/CodexMonitor): MIT, verified at dd61b9abd37de5ded86e82b9fe8a83fd49d46fa5. Optional Tauri/Rust workspace and Git/agent UI. No app code, configuration, remote daemon, session access, or network setup imported or authorized.
-- [rocketsim-cli](https://www.rocketsim.app/docs/features/agentic-development/rocketsim-cli/): redistribution-license-not-verified. Optional commercial app's version-matched simulator inspection/interaction CLI and skill; app must already be running. No proprietary skill payload or app content imported. Use only an existing licensed installation when authorized; not an Xcode build replacement.
-- [zablocki-public-guidance](https://merowing.info/posts/stop-getting-average-code-from-your-llm/): redistribution-license-not-verified. Public architectural/testing context: project-specific conventions, testable dependencies and behavior-focused tests. Original high-level synthesis only; no article prose, course templates, rule packs, or TCA framework adoption imported.
-- [swift-primary-concurrency](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0381-task-group-discard-results.md): not-imported. Primary language source for distinguishing standard throwing and throwing-discarding task-group failure semantics. No specification text or code copied.
-
-OpenAI's two Apple plugin manifests declare MIT, but neither their directories nor the repository root contained accompanying LICENSE text at the inspected commit. They are coverage references only; their text and assets are not vendored. The RocketSim app/skill, unlicensed or unverified repositories, and public articles are not presumed open licensed. Apache-2.0 applies to Xopoko's ascctl, which is referenced only; copying it later would require its full license and applicable notices/change annotations. Licenses of optional tool dependencies and of documentation processed by DocSetQuery remain separate.
-
-## Excluded material
-
-Gated AppCreator payloads, full paid courses, and Point-Free subscription material were not available and are not imported or represented as reviewed. These bundles do not grant access to them.
+Source inspection and authoring produced these notices; this file does not claim that all tests or semantic review have passed.

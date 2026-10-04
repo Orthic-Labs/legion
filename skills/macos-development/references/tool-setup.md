@@ -7,6 +7,27 @@ were checked on 2026-10-04; inspect current official instructions and the projec
 before applying them. No upstream binaries, package managers, account credentials or
 client registrations are embedded in this skill.
 
+## Native-first lifecycle
+
+For Apple work, start with Legion's native Apple capability. Discover once with
+`legion apple catalog --input '{}'`, then inspect PATH with
+`legion apple preflight --input '{"list":true}'` or a selected request such as
+`{"tools":["xcodebuild","swift"],"environment":"Darwin"}`. MCP exposes same backend
+as `legion_apple` with `{ "operation": "catalog", "arguments": {}, "policyContext": {} }`.
+Native plans are dry-run by default; pass `execute: true` only for an already authorized
+operation. Xcode, Swift SDKs, simulator/device access, network & App Store Connect
+credentials remain host requirements for selected actions.
+
+`docs` uses local SQLite DocSet data through native Rust when available; Python is not
+required. `build-analysis`, `flamegraph`, `memgraph` & `build-log` consume bounded
+supplied text/files without running tools. `project.*`, `swiftpm.*`, `simulator.*`,
+`device.*`, `debug.batch` & `profile.record` are typed native routes. Use native CLI or MCP
+before optional compatibility adapters below.
+
+Lifecycle is detect → select → reuse → authorized setup only when missing → verify.
+Existing user authorization covers scope already granted by request; do not add second
+confirmation for same scope. Host Guard still controls typed effects.
+
 ## Mandatory lifecycle
 
 1. **Detect.** Identify the execution computer, OS/architecture, agent client and config
@@ -62,21 +83,13 @@ machine/host route rather than repeatedly trying installation.
 - Existing config modified since the preview must be reread and the change recomputed.
   Never restore an old preimage over later user edits. Roll back only your own change.
 
-## Optional read-only preflight helper
+## Optional compatibility preflight
 
-From this skill's directory, with Python 3.8+ already available:
-
-```sh
-python3 scripts/tool_preflight.py --list
-python3 scripts/tool_preflight.py --tool mobilebuildmcp --tool asc
-```
-
-The helper only resolves PATH entries; it executes no discovered tool, starts no server,
-reads no client config, writes no file and performs no network request. It returns
-`installed-candidate`, `not-on-path`, `manual-check` or `unsupported-environment`, never
-"ready". The agent still verifies compatibility, MCP inventory, auth and permissions.
-Without Python, do the catalog's PATH checks directly; don't install Python just to run
-this convenience check. Python is scoped only to this helper route.
+Legacy adapter inventories remain useful only when selected by an existing workflow.
+Use native `legion apple preflight` first; it reads explicit PATH entries without
+executing candidates, reading config, using network, installing or editing projects.
+Python is not required for Apple setup. If an existing project already depends on a
+Python helper, inspect its checkout and invoke it only within that project's authorization.
 
 ## Release selection and source checks
 
@@ -177,17 +190,13 @@ simulator's identity before UI actions. Preserve packaged companion frameworks. 
 chosen MobileBuildMCP already provides working UI automation, don't install duplicate
 AXe just to satisfy a name in this catalog. Permissions/device actions remain separate.
 
-## docsetquery
+## docsetquery (optional compatibility adapter)
 
-[DocSetQuery](https://github.com/PaulSolt/DocSetQuery) is a repository of Python tools,
-not an assumed Homebrew formula or MCP server. Fetch the reviewed revision into an
-approved persistent tools directory; don't overwrite an existing checkout. Inspect
-imports/prerequisites and use an isolated environment for any approved dependencies.
-Probe `python3 <checkout>/tools/docset_query.py --help` and `docindex.py --help`.
-Use an existing compatible local docset with `--docset`/`DOCSET_ROOT`; inspect cache
-configuration before writes. The upstream defaults reference a Dash Apple docset and a
-user cache. Export/index operations write documentation/cache files, so choose their
-scope intentionally. No license to redistribute Apple documentation follows from the
+[DocSetQuery](https://github.com/PaulSolt/DocSetQuery) remains optional for projects
+already using it. Native `legion apple docs` queries local SQLite DocSet data without
+Python. If this adapter is selected, inspect its checkout, dependencies and
+`DOCSET_ROOT`/cache scope before approved query or index writes; do not install Python
+just for it. No license to redistribute Apple documentation follows from the
 tool's MIT license. If docsets are unavailable, use official web documentation.
 
 ## xcbeautify

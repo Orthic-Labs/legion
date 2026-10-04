@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "reviewedAt": "2026-10-04",
   "purpose": "Source and rights receipts for the self-contained Legion ios-development and macos-development bundles.",
-  "composition": "Original consolidated guidance with acknowledged MIT-licensed methodological inputs. This file is provenance, not executable permission.",
-  "packaging": "Each bundle includes its own references, source provenance, original read-only PATH preflight helper and official-source setup recipes; no upstream binaries, installers, credentials or live MCP client configuration are bundled.",
+  "composition": "Original Legion guidance with substantive MIT- and Apache-adapted rules, decision branches, and examples. Exact upstream notices for retained adaptations are bundled under references/licenses; this file is provenance, not executable permission.",
+  "packaging": "Each bundle includes its own references, local license notices, source provenance, original read-only PATH preflight helper, and official-source setup recipes; no upstream binaries, installers, credentials, live MCP client configuration, or unmodified source trees are bundled.",
   "permissionBoundary": "Skill availability does not authorize installation, network services, telemetry, credential or security changes, simulator erasure, device access, dependency additions, signing identity changes, uploading, notarization submissions, or release/publishing.",
   "sources": [
     {
@@ -12,14 +12,15 @@
       "commit": "be297ff80dddec529af1f9b1f1f114aab6c9d11c",
       "role": "SwiftUI review checklist: API availability, accessibility, navigation, state, performance",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise synthesis; no verbatim upstream skill manuals, code, executable scripts, agent configuration, or automatic installation copied.",
+      "contentPolicy": "Substantive review rules and examples are adapted into local guidance; exact MIT notice is retained at references/licenses/twostraws-MIT.txt. No upstream executable code, scripts, agent configuration, binaries, assets, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/twostraws/SwiftUI-Agent-Skill/blob/be297ff80dddec529af1f9b1f1f114aab6c9d11c/LICENSE",
       "licenseBlobSha": "e9f6fd1f59090753544df5af4edbd524f1aa0f32",
       "copyright": "Copyright (c) 2026 Paul Hudson.",
       "rightsReceipt": "https://github.com/twostraws/SwiftUI-Agent-Skill/blob/be297ff80dddec529af1f9b1f1f114aab6c9d11c/LICENSE",
-      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory."
+      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory.",
+      "licenseNoticePath": "references/licenses/twostraws-MIT.txt"
     },
     {
       "id": "twostraws-swift-concurrency-agent-skill",
@@ -27,14 +28,15 @@
       "commit": "bee3f69ba17142da148d3c5406f148ed62592b69",
       "role": "Task ownership, isolation, Sendable, structured concurrency and cancellation review",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise synthesis; no verbatim upstream skill manuals, code, executable scripts, agent configuration, or automatic installation copied.",
+      "contentPolicy": "Substantive isolation, ownership, cancellation, and Sendable rules are adapted into local guidance; exact MIT notice is retained at references/licenses/twostraws-MIT.txt. No upstream executable code, scripts, agent configuration, binaries, assets, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/twostraws/Swift-Concurrency-Agent-Skill/blob/bee3f69ba17142da148d3c5406f148ed62592b69/LICENSE",
       "licenseBlobSha": "e9f6fd1f59090753544df5af4edbd524f1aa0f32",
       "copyright": "Copyright (c) 2026 Paul Hudson.",
       "rightsReceipt": "https://github.com/twostraws/Swift-Concurrency-Agent-Skill/blob/bee3f69ba17142da148d3c5406f148ed62592b69/LICENSE",
-      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory."
+      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory.",
+      "licenseNoticePath": "references/licenses/twostraws-MIT.txt"
     },
     {
       "id": "twostraws-swift-testing-agent-skill",
@@ -42,14 +44,15 @@
       "commit": "2d6bba14a3c8bf3694f218b92fffe617c41ae43e",
       "role": "Swift Testing review and deterministic test design",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise synthesis; no verbatim upstream skill manuals, code, executable scripts, agent configuration, or automatic installation copied.",
+      "contentPolicy": "Substantive deterministic testing rules and examples are adapted into local guidance; exact MIT notice is retained at references/licenses/twostraws-MIT.txt. No upstream executable code, scripts, agent configuration, binaries, assets, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/twostraws/Swift-Testing-Agent-Skill/blob/2d6bba14a3c8bf3694f218b92fffe617c41ae43e/LICENSE",
       "licenseBlobSha": "e9f6fd1f59090753544df5af4edbd524f1aa0f32",
       "copyright": "Copyright (c) 2026 Paul Hudson.",
       "rightsReceipt": "https://github.com/twostraws/Swift-Testing-Agent-Skill/blob/2d6bba14a3c8bf3694f218b92fffe617c41ae43e/LICENSE",
-      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory."
+      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory.",
+      "licenseNoticePath": "references/licenses/twostraws-MIT.txt"
     },
     {
       "id": "twostraws-swiftdata-agent-skill",
@@ -57,14 +60,15 @@
       "commit": "922d989473a9914210b41529a1ac5636aff4b8c1",
       "role": "SwiftData modeling, predicates, relationships, schema and CloudKit constraints",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise synthesis; no verbatim upstream skill manuals, code, executable scripts, agent configuration, or automatic installation copied.",
+      "contentPolicy": "Substantive SwiftData modeling, predicate, relationship, index, migration, and CloudKit rules/examples are adapted into local guidance; exact MIT notice is retained at references/licenses/twostraws-MIT.txt. No upstream executable code, scripts, agent configuration, binaries, assets, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/twostraws/SwiftData-Agent-Skill/blob/922d989473a9914210b41529a1ac5636aff4b8c1/LICENSE",
       "licenseBlobSha": "e9f6fd1f59090753544df5af4edbd524f1aa0f32",
       "copyright": "Copyright (c) 2026 Paul Hudson.",
       "rightsReceipt": "https://github.com/twostraws/SwiftData-Agent-Skill/blob/922d989473a9914210b41529a1ac5636aff4b8c1/LICENSE",
-      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory."
+      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory.",
+      "licenseNoticePath": "references/licenses/twostraws-MIT.txt"
     },
     {
       "id": "avdlee-swiftui-agent-skill",
@@ -72,14 +76,15 @@
       "commit": "9897311e3e42cc77e87603226e74bea711092fbd",
       "role": "State ownership, macOS scenes/windows/documents, accessibility, view decomposition and profiling",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise synthesis; no verbatim upstream skill manuals, code, executable scripts, agent configuration, or automatic installation copied.",
+      "contentPolicy": "Substantive SwiftUI state, scene, accessibility, decomposition, and profiling rules are adapted into local guidance; exact MIT notice is retained at references/licenses/avdlee-MIT.txt. No upstream executable code, scripts, agent configuration, binaries, assets, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/AvdLee/SwiftUI-Agent-Skill/blob/9897311e3e42cc77e87603226e74bea711092fbd/LICENSE",
       "licenseBlobSha": "cbf908dde987497fbba144909493e3a3e96f890b",
       "copyright": "Copyright (c) 2026 Antoine van der Lee",
       "rightsReceipt": "https://github.com/AvdLee/SwiftUI-Agent-Skill/blob/9897311e3e42cc77e87603226e74bea711092fbd/LICENSE",
-      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory."
+      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory.",
+      "licenseNoticePath": "references/licenses/avdlee-MIT.txt"
     },
     {
       "id": "avdlee-swift-concurrency-agent-skill",
@@ -87,14 +92,15 @@
       "commit": "d5770817d2622e1585b1f7eaebc791a9cb0959c8",
       "role": "Diagnostic-first concurrency repair and Swift migration verification",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise synthesis; no verbatim upstream skill manuals, code, executable scripts, agent configuration, or automatic installation copied.",
+      "contentPolicy": "Substantive concurrency diagnostic and migration rules are adapted into local guidance; exact MIT notice is retained at references/licenses/avdlee-MIT.txt. No upstream executable code, scripts, agent configuration, binaries, assets, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/AvdLee/Swift-Concurrency-Agent-Skill/blob/d5770817d2622e1585b1f7eaebc791a9cb0959c8/LICENSE",
       "licenseBlobSha": "cbf908dde987497fbba144909493e3a3e96f890b",
       "copyright": "Copyright (c) 2026 Antoine van der Lee",
       "rightsReceipt": "https://github.com/AvdLee/Swift-Concurrency-Agent-Skill/blob/d5770817d2622e1585b1f7eaebc791a9cb0959c8/LICENSE",
-      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory."
+      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory.",
+      "licenseNoticePath": "references/licenses/avdlee-MIT.txt"
     },
     {
       "id": "avdlee-swift-testing-agent-skill",
@@ -102,14 +108,15 @@
       "commit": "798e9b1a2bcac164d4f0c781908199e754f0bab6",
       "role": "Testing migration, parallelism, traits, parameterization and async waiting",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise synthesis; no verbatim upstream skill manuals, code, executable scripts, agent configuration, or automatic installation copied.",
+      "contentPolicy": "Substantive testing migration, parallelism, trait, parameterization, and async-waiting rules are adapted into local guidance; exact MIT notice is retained at references/licenses/avdlee-MIT.txt. No upstream executable code, scripts, agent configuration, binaries, assets, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/AvdLee/Swift-Testing-Agent-Skill/blob/798e9b1a2bcac164d4f0c781908199e754f0bab6/LICENSE",
       "licenseBlobSha": "cbf908dde987497fbba144909493e3a3e96f890b",
       "copyright": "Copyright (c) 2026 Antoine van der Lee",
       "rightsReceipt": "https://github.com/AvdLee/Swift-Testing-Agent-Skill/blob/798e9b1a2bcac164d4f0c781908199e754f0bab6/LICENSE",
-      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory."
+      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory.",
+      "licenseNoticePath": "references/licenses/avdlee-MIT.txt"
     },
     {
       "id": "avdlee-core-data-agent-skill",
@@ -117,14 +124,15 @@
       "commit": "855ca7d0df50e82b00c12881dd9cd23c19ef5f49",
       "role": "Existing Core Data stack, context isolation, migrations, history and store tests",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise synthesis; no verbatim upstream skill manuals, code, executable scripts, agent configuration, or automatic installation copied.",
+      "contentPolicy": "Substantive Core Data context, save/fetch/batch, history, migration, model-configuration, store, and testing rules/examples are adapted into local guidance; exact MIT notice is retained at references/licenses/avdlee-MIT.txt. No upstream executable code, scripts, agent configuration, binaries, assets, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/AvdLee/Core-Data-Agent-Skill/blob/855ca7d0df50e82b00c12881dd9cd23c19ef5f49/LICENSE",
       "licenseBlobSha": "cbf908dde987497fbba144909493e3a3e96f890b",
       "copyright": "Copyright (c) 2026 Antoine van der Lee",
       "rightsReceipt": "https://github.com/AvdLee/Core-Data-Agent-Skill/blob/855ca7d0df50e82b00c12881dd9cd23c19ef5f49/LICENSE",
-      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory."
+      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory.",
+      "licenseNoticePath": "references/licenses/avdlee-MIT.txt"
     },
     {
       "id": "avdlee-xcode-build-optimization-agent-skill",
@@ -132,14 +140,15 @@
       "commit": "6bd7b596cd688b1127ded00e812b1b6937ec35d6",
       "role": "Benchmark-first build-time diagnosis, scoped fixes and before/after evidence",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise synthesis; no verbatim upstream skill manuals, code, executable scripts, agent configuration, or automatic installation copied.",
+      "contentPolicy": "Substantive benchmark-first build diagnosis and evidence rules are adapted into local guidance; exact MIT notice is retained at references/licenses/avdlee-MIT.txt. No upstream executable code, scripts, agent configuration, binaries, assets, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/AvdLee/Xcode-Build-Optimization-Agent-Skill/blob/6bd7b596cd688b1127ded00e812b1b6937ec35d6/LICENSE",
       "licenseBlobSha": "cbf908dde987497fbba144909493e3a3e96f890b",
       "copyright": "Copyright (c) 2026 Antoine van der Lee",
       "rightsReceipt": "https://github.com/AvdLee/Xcode-Build-Optimization-Agent-Skill/blob/6bd7b596cd688b1127ded00e812b1b6937ec35d6/LICENSE",
-      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory."
+      "inspection": "Pinned LICENSE; published skill entry points and relevant references, including preserved public review inventory.",
+      "licenseNoticePath": "references/licenses/avdlee-MIT.txt"
     },
     {
       "id": "getsentry-mobilebuildmcp",
@@ -147,14 +156,15 @@
       "commit": "d13ff0c707b0681769cf31da0eb42c4f94ceafff",
       "role": "Optional detected MCP/CLI adapter for build, test, simulator/device lifecycle, log capture and debugging; renamed from XcodeBuildMCP",
       "disposition": "optional-tool-reference-only",
-      "contentPolicy": "Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.",
+      "contentPolicy": "Reference-only capability and official-source setup guidance. Pinned LICENSE is MIT (not Apache-2.0) and is retained at references/licenses/mobilebuildmcp-MIT.txt. No upstream binary, dependency payload, manual, script, or live client configuration vendored.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/getsentry/MobileBuildMCP/blob/d13ff0c707b0681769cf31da0eb42c4f94ceafff/LICENSE",
       "licenseBlobSha": "b9e3624fe5a3ec9cbfff1b67b93e4838f74105dc",
       "copyright": "Copyright (c) 2025 Cameron Cooke",
       "rightsReceipt": "https://github.com/getsentry/MobileBuildMCP/blob/d13ff0c707b0681769cf31da0eb42c4f94ceafff/LICENSE",
-      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable."
+      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
+      "licenseNoticePath": "references/licenses/mobilebuildmcp-MIT.txt"
     },
     {
       "id": "cameroncooke-axe",
@@ -162,44 +172,47 @@
       "commit": "30f4bfa9bc81817906a60fadedbc913d7314b7e1",
       "role": "Optional iOS Simulator accessibility/HID inspection and UI evidence",
       "disposition": "optional-tool-reference-only",
-      "contentPolicy": "Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.",
+      "contentPolicy": "Reference-only capability and official-source setup guidance; exact MIT notice is retained at references/licenses/axe-MIT.txt. No upstream binary, dependency payload, manual, script, or live client configuration vendored.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/cameroncooke/AXe/blob/30f4bfa9bc81817906a60fadedbc913d7314b7e1/LICENSE",
       "licenseBlobSha": "b9e3624fe5a3ec9cbfff1b67b93e4838f74105dc",
       "copyright": "Copyright (c) 2025 Cameron Cooke",
       "rightsReceipt": "https://github.com/cameroncooke/AXe/blob/30f4bfa9bc81817906a60fadedbc913d7314b7e1/LICENSE",
-      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable."
+      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
+      "licenseNoticePath": "references/licenses/axe-MIT.txt"
     },
     {
       "id": "paulsolt-docsetquery",
       "repository": "https://github.com/PaulSolt/DocSetQuery",
       "commit": "ba68aabe2c84e907789d4c0043f97568ec8cdcfd",
-      "role": "Optional local docset extraction/search; tool license does not license Apple documentation it processes",
-      "disposition": "optional-tool-reference-only",
-      "contentPolicy": "Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.",
+      "role": "DocSetQuery method reference for Legion's native Rust local-docset reader; tool license does not license Apple documentation it processes",
+      "disposition": "adapted-methodology-original-prose",
+      "contentPolicy": "Substantive local-first documentation search, bounded extraction, sanitization, caching, and citation rules are adapted into architecture guidance and an independent Legion Rust port; exact MIT notice is retained at references/licenses/docsetquery-MIT.txt. DocSetQuery source and Apple documentation are not redistributed.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/PaulSolt/DocSetQuery/blob/ba68aabe2c84e907789d4c0043f97568ec8cdcfd/LICENSE",
       "licenseBlobSha": "73280c8df588ce27fbd97fcf20acbde114b9697f",
       "copyright": "Copyright (c) 2025 Paul Solt",
       "rightsReceipt": "https://github.com/PaulSolt/DocSetQuery/blob/ba68aabe2c84e907789d4c0043f97568ec8cdcfd/LICENSE",
-      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable."
+      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
+      "licenseNoticePath": "references/licenses/docsetquery-MIT.txt"
     },
     {
       "id": "cpisciotta-xcbeautify",
       "repository": "https://github.com/cpisciotta/xcbeautify",
       "commit": "513e4b12c3f6c965d1d3b66bd5cd9d635f03112d",
       "role": "Optional xcodebuild output formatter; preserve raw log and build exit status",
-      "disposition": "optional-tool-reference-only",
-      "contentPolicy": "Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.",
+      "disposition": "adapted-methodology-original-prose",
+      "contentPolicy": "Substantive optional formatter and raw-log/build-status correctness rules are adapted into architecture guidance; exact MIT notice is retained at references/licenses/xcbeautify-MIT.txt. Formatter code and binaries are not redistributed.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/cpisciotta/xcbeautify/blob/513e4b12c3f6c965d1d3b66bd5cd9d635f03112d/LICENSE",
       "licenseBlobSha": "95da8bbe017996ec9cbee5df81992af8663334ea",
       "copyright": "Copyright (c) 2026 Charles Pisciotta and other contributors",
       "rightsReceipt": "https://github.com/cpisciotta/xcbeautify/blob/513e4b12c3f6c965d1d3b66bd5cd9d635f03112d/LICENSE",
-      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable."
+      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
+      "licenseNoticePath": "references/licenses/xcbeautify-MIT.txt"
     },
     {
       "id": "steipete-agent-scripts",
@@ -207,74 +220,81 @@
       "commit": "444751eadeb7dabc00634326614ba2483642984f",
       "role": "Narrow Instruments/xctrace performance workflow: target binary verification, representative workload and evidence",
       "disposition": "adapted-methodology-original-prose",
-      "contentPolicy": "Original concise profiling guidance; no upstream scripts, personal agent rules, or unrelated skills copied.",
+      "contentPolicy": "Substantive profiling intake, target verification, capture, symbolication, and evidence rules are adapted into local guidance; exact MIT notice is retained at references/licenses/steipete-MIT.txt. Upstream scripts are excluded and no executable source is copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/steipete/agent-scripts/blob/444751eadeb7dabc00634326614ba2483642984f/LICENSE",
       "licenseBlobSha": "0ae0cb57d8c6c1417f796b39fc0d6a7f2f7c5c39",
       "copyright": "Copyright (c) 2026 Peter Steinberger",
       "rightsReceipt": "https://github.com/steipete/agent-scripts/blob/444751eadeb7dabc00634326614ba2483642984f/LICENSE",
-      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable."
+      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
+      "licenseNoticePath": "references/licenses/steipete-MIT.txt"
     },
     {
       "id": "krzysztofzablocki-inject",
       "repository": "https://github.com/krzysztofzablocki/Inject",
       "commit": "67e3ee9a2b7e40d6af72d07cf1b0d5c04399e809",
       "role": "Optional debug-only hot reload; separate InjectionIII dependency and linker/settings changes need review",
-      "disposition": "optional-tool-reference-only",
-      "contentPolicy": "Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.",
+      "disposition": "adapted-methodology-original-prose",
+      "contentPolicy": "Substantive debug-only hot-reload boundary and authorization rules are adapted into architecture guidance; exact MIT notice is retained at references/licenses/inject-MIT.txt. Framework snippets, source-rewriting scripts, binaries, and installer steps are excluded.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/krzysztofzablocki/Inject/blob/67e3ee9a2b7e40d6af72d07cf1b0d5c04399e809/LICENSE",
       "licenseBlobSha": "ab38a8ce7bbf4aa5496225f211c34ef2de1e113b",
-      "copyright": "Copyright (c) 2021 Krzysztof Zab\u0142ocki",
+      "copyright": "Copyright (c) 2021 Krzysztof Zabłocki",
       "rightsReceipt": "https://github.com/krzysztofzablocki/Inject/blob/67e3ee9a2b7e40d6af72d07cf1b0d5c04399e809/LICENSE",
-      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable."
+      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
+      "licenseNoticePath": "references/licenses/inject-MIT.txt"
     },
     {
       "id": "krzysztofzablocki-sourcery",
       "repository": "https://github.com/krzysztofzablocki/Sourcery",
       "commit": "f9d80ddec1d42b83b776064162ce0a93a0289334",
       "role": "Optional deterministic code generation for existing approved template workflow",
-      "disposition": "optional-tool-reference-only",
-      "contentPolicy": "Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.",
+      "disposition": "adapted-methodology-original-prose",
+      "contentPolicy": "Substantive generator fit, source/template ownership, deterministic invocation, and output traceability rules are adapted into architecture guidance; exact MIT notice is retained at references/licenses/sourcery-MIT.txt. Installer and executable source are excluded.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/krzysztofzablocki/Sourcery/blob/f9d80ddec1d42b83b776064162ce0a93a0289334/LICENSE",
       "licenseBlobSha": "80fbc237245baa6fcac999a142c9adb1803f7a6c",
-      "copyright": "Copyright (c) 2016-2021 Krzysztof Zab\u0142ocki",
+      "copyright": "Copyright (c) 2016-2021 Krzysztof Zabłocki",
       "rightsReceipt": "https://github.com/krzysztofzablocki/Sourcery/blob/f9d80ddec1d42b83b776064162ce0a93a0289334/LICENSE",
-      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable."
+      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
+      "licenseNoticePath": "references/licenses/sourcery-MIT.txt"
     },
     {
       "id": "xopoko-appstoreconnectcli",
       "repository": "https://github.com/Xopoko/AppStoreConnectCLI",
       "commit": "2af677324e72d7c1684f9d75d57599e64f8c582a",
       "role": "Optional ascctl OpenAPI-first App Store Connect adapter; distinct from asc CLI",
-      "disposition": "optional-tool-reference-only",
-      "contentPolicy": "Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.",
+      "disposition": "adapted-methodology-original-prose",
+      "contentPolicy": "Substantive ascctl/OpenAPI-first release contract guidance is rewritten into local release guidance; the complete Apache-2.0 text is retained at references/licenses/xopoko-Apache-2.0.txt. No Xopoko source, generated client, dependency payload, binary, or packaging metadata is copied; no modified upstream file is distributed.",
       "license": "Apache-2.0",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/Xopoko/AppStoreConnectCLI/blob/2af677324e72d7c1684f9d75d57599e64f8c582a/LICENSE",
       "licenseBlobSha": "57bc88a15a0ee8266c259b2667e64608d3f7e292",
       "copyright": null,
       "rightsReceipt": "https://github.com/Xopoko/AppStoreConnectCLI/blob/2af677324e72d7c1684f9d75d57599e64f8c582a/LICENSE",
-      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable."
+      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
+      "licenseNoticePath": "references/licenses/xopoko-Apache-2.0.txt",
+      "changeNoticePath": "references/licenses/xopoko-CHANGES.md",
+      "noticeOfChanges": "No Xopoko files are redistributed or modified; only rewritten operational guidance is retained. Apache-2.0 Section 4 notice obligations would apply if source or generated code were later copied."
     },
     {
       "id": "rorkai-app-store-connect-cli-skills",
       "repository": "https://github.com/rorkai/app-store-connect-cli-skills",
       "commit": "9a093fa52177d1b784fcbb06f9abfef4974e7701",
       "role": "Optional release/TestFlight/signing metadata playbooks for asc CLI, distinct from Xopoko ascctl",
-      "disposition": "optional-tool-reference-only",
-      "contentPolicy": "Original capability and official-source setup guidance only. No upstream binary, dependency payload, manual, script, or live client configuration vendored; recipes do not grant install/enable/run authorization.",
+      "disposition": "adapted-methodology-original-prose",
+      "contentPolicy": "Substantive release, TestFlight, signing, metadata, and notarization rules are adapted into local release guidance; exact MIT notice is retained at references/licenses/rorkai-MIT.txt. No upstream executable code, scripts, plugin metadata, binaries, or installer payload copied.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/rorkai/app-store-connect-cli-skills/blob/9a093fa52177d1b784fcbb06f9abfef4974e7701/LICENSE",
       "licenseBlobSha": "92da202cf880b3c2c90ae7e5518b3e864f88fe0a",
       "copyright": "Copyright (c) 2026 Rudrank Riyam",
       "rightsReceipt": "https://github.com/rorkai/app-store-connect-cli-skills/blob/9a093fa52177d1b784fcbb06f9abfef4974e7701/LICENSE",
-      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable."
+      "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
+      "licenseNoticePath": "references/licenses/rorkai-MIT.txt"
     },
     {
       "id": "openai-build-ios-apps",
@@ -283,11 +303,11 @@
       "path": "plugins/build-ios-apps",
       "role": "Coverage cross-check for App Intents, simulator debugging, SwiftUI performance, ETTrace and memgraph workflows",
       "disposition": "reference-only",
-      "contentPolicy": "No upstream skill text, code, scripts, metadata, or assets copied. Platform guidance is independent original prose checked against platform APIs.",
+      "contentPolicy": "Only ledger sections explicitly rewritten as independent Legion workflows are represented; no upstream skill prose, code, scripts, metadata, or assets copied. The pinned plugin manifest declares MIT, but no LICENSE text is present in the inventoried plugin directory; no local license notice is asserted.",
       "license": "MIT (plugin manifest declaration only)",
       "licenseState": "metadata-declared-license-notice-text-absent",
       "licenseUrl": "https://github.com/openai/plugins/blob/5fd93af4cd0c623e020d0cc7e9ce178b4ac1f70f/plugins/build-ios-apps/.codex-plugin/plugin.json",
-      "rightsReceipt": "Pinned plugin manifest declares MIT; recursive repository tree contains no root or Apple-bundle LICENSE text. This is not a claim that reuse is prohibited; distribution avoids copying until full notice provenance is supplied.",
+      "rightsReceipt": "Pinned plugin manifest declares MIT; no LICENSE file was present inside this inventoried Apple plugin directory. This records metadata only, not a blanket reuse grant; only independent Legion workflows are represented.",
       "inspection": "Pinned README, plugin manifest, recursive tree."
     },
     {
@@ -297,11 +317,11 @@
       "path": "plugins/build-macos-apps",
       "role": "Coverage cross-check for native scenes, AppKit, shell build/debug, SwiftPM packaging, logging, signing and notarization",
       "disposition": "reference-only",
-      "contentPolicy": "No upstream skill text, code, scripts, metadata, or assets copied. Platform guidance is independent original prose checked against platform APIs.",
+      "contentPolicy": "Only ledger sections explicitly rewritten as independent Legion workflows are represented; no upstream skill prose, code, scripts, metadata, or assets copied. The pinned plugin manifest declares MIT, but no LICENSE text is present in the inventoried plugin directory; no local license notice is asserted.",
       "license": "MIT (plugin manifest declaration only)",
       "licenseState": "metadata-declared-license-notice-text-absent",
       "licenseUrl": "https://github.com/openai/plugins/blob/5fd93af4cd0c623e020d0cc7e9ce178b4ac1f70f/plugins/build-macos-apps/.codex-plugin/plugin.json",
-      "rightsReceipt": "Pinned plugin manifest declares MIT; recursive repository tree contains no root or Apple-bundle LICENSE text. This is not a claim that reuse is prohibited; distribution avoids copying until full notice provenance is supplied.",
+      "rightsReceipt": "Pinned plugin manifest declares MIT; no LICENSE file was present inside this inventoried Apple plugin directory. This records metadata only, not a blanket reuse grant; only independent Legion workflows are represented.",
       "inspection": "Pinned README, plugin manifest, recursive tree."
     },
     {
@@ -317,7 +337,8 @@
       "copyright": "Copyright (c) 2026 Thomas Ricouard",
       "contentPolicy": "No app code, configuration, daemon, network, session access, or remote-access setup imported or authorized.",
       "rightsReceipt": "https://github.com/Dimillian/CodexMonitor/blob/dd61b9abd37de5ded86e82b9fe8a83fd49d46fa5/LICENSE",
-      "inspection": "Pinned README, recursive tree, LICENSE and commit metadata; canonical identity confirmed by task owner."
+      "inspection": "Pinned README, recursive tree, LICENSE and commit metadata; canonical identity confirmed by task owner.",
+      "licenseNoticePath": "references/licenses/codexmonitor-MIT.txt"
     },
     {
       "id": "rocketsim-cli",

@@ -1,0 +1,71 @@
+name: apple-skills
+on:
+  push:
+    branches: ['codex/apple-skill-absorption']
+  pull_request:
+    paths:
+      - 'skills/ios-development/**'
+      - 'skills/macos-development/**'
+      - 'skills/manifests/*-development.json'
+      - 'docs/apple-absorption/**'
+      - 'engine/crates/legion-apple/**'
+      - 'engine/bins/legion/**'
+      - 'engine/bins/legion-dev/**'
+      - 'engine/Cargo.*'
+      - '.github/workflows/apple-skills.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: apple-skills-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  integrity:
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: engine -> target
+          shared-key: legion-rust
+          add-job-id-key: false
+          cache-on-failure: true
+      - name: Generate canonical bundle projections
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo check --manifest-path engine/Cargo.toml -p legion-apple
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-codex-skill-sidecars
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests ios-development macos-development
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- native-cli-inventory
+          git diff --binary > apple-generated.patch
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: apple-generated-${{ github.sha }}
+          path: apple-generated.patch
+          retention-days: 7
+      - name: Verify bundle closure, provenance & helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --manifest-path engine/Cargo.toml -p legion-apple
+          cargo test --locked --manifest-path engine/Cargo.toml -p legion-dev apple_skill_integrity
+          cargo test --locked --manifest-path engine/Cargo.toml -p legion --test apple_cli --test script_cli
+          cargo test --locked --manifest-path engine/Cargo.toml -p legion --bin legion apple_
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-codex-skill-sidecars --check
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog --check
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests --check ios-development macos-development
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-dependency-closure
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-native-cli-surface
+          cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity --check --structural-only
+      - name: Reject uncommitted generated drift
+        shell: bash
+        run: git diff --exit-code
