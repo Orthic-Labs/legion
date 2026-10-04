@@ -11,6 +11,8 @@ COMPILATION_CACHE_ENABLE_CACHING = NO;      →  COMPILATION_CACHE_ENABLE_CACHIN
 EAGER_LINKING absent;                       →  EAGER_LINKING = YES;
 ```
 
+Example guard for an existing project-owned Xcode Run Script phase:
+
 ```bash
 [[ "$CONFIGURATION" != "Release" ]] && exit 0
 ./scripts/upload-dsyms.sh

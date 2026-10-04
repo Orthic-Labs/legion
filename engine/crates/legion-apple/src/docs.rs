@@ -703,7 +703,7 @@ fn read_chunk(source: &Source, data_id: i64) -> Result<Vec<u8>, String> {
     {
         return Ok(bytes);
     }
-    let mut decoder = Decompressor::new(Cursor::new(bytes), 16 * 1024);
+    let decoder = Decompressor::new(Cursor::new(bytes), 16 * 1024);
     let mut output = Vec::new();
     decoder
         .take(MAX_SOURCE_CHUNK_BYTES + 1)

@@ -432,7 +432,8 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
         "mac.stop" => {
             ensure_allowed(object, &common, &["process_name"])?;
             let process = required_string(object, "process_name")?;
-            if process.len() > 128 || !process.chars().all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-')) { return Err("process_name must contain only ASCII letters, digits, '_' or '-'".to_string()); }
+            if process.starts_with('-') || process.len() > 128 || !process.chars().all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-' | '.' | ' ')) { return Err("process_name must contain only ASCII letters, digits, spaces, '.', '_' or '-' and cannot start with '-'".to_string()); }
+            let process = process.replace('.', "\\.");
             Plan::new(operation, "/usr/bin/pkill", vec!["-x".to_string(), process], cwd, vec!["terminate matching macOS app processes".to_string()])
         }
         "bundle.inspect" => {
@@ -929,6 +930,12 @@ fn validate_hex(value: &str, label: &str) -> Result<String, String> {
     Ok(value.to_string())
 }
 
+fn lldb_quote(value: &str) -> Result<String, String> {
+    if value.chars().any(|character| character.is_control() || character == '\x60') { return Err("LLDB path cannot contain control characters or backticks".to_string()); }
+    let escaped = value.replace('\\', "\\\\").replace('"', "\\\"");
+    Ok(format!("\"{escaped}\""))
+}
+
 fn required_string(object: &serde_json::Map<String, Value>, key: &str) -> Result<String, String> {
     let value = object.get(key).ok_or_else(|| format!("missing required argument: {key}"))?;
     let value = value.as_str().ok_or_else(|| format!("{key} must be a string"))?;
@@ -1150,6 +1157,21 @@ mod tests {
         assert!(args.windows(2).any(|window| window == ["--label", "Continue"]));
         assert!(args.windows(2).any(|window| window == ["--udid", "SIMULATOR-UDID"]));
         assert!(invoke("ui.tap", &json!({"cwd": env::current_dir().unwrap(), "udid": "SIMULATOR-UDID", "label": "A", "x": 1, "y": 2})).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn process_and_lldb_tokens_are_bounded() {
+        assert!(invoke("mac.stop", &json!({"process_name": ".*"})).await.is_err());
+        assert!(invoke("mac.stop", &json!({"process_name": "-Demo"})).await.is_err());
+        let process = invoke("mac.stop", &json!({"process_name": "My App"})).await.unwrap();
+        assert_eq!(process["args"][2], "My App");
+        let helper = invoke("mac.stop", &json!({"process_name": "Foo.Helper"})).await.unwrap();
+        assert_eq!(helper["args"][2], "Foo\\.Helper");
+        let value = invoke("debug.breakpoint", &json!({"pid": 1234, "action": "add", "file": "Sources/My App.swift", "line": 42})).await.unwrap();
+        let args = value["args"].as_array().unwrap().iter().map(|item| item.as_str().unwrap()).collect::<Vec<_>>();
+        assert!(args.iter().any(|arg| arg.contains("breakpoint set --file \"") && arg.contains("My App.swift\" --line 42")));
+        assert!(invoke("debug.breakpoint", &json!({"pid": 1234, "action": "add", "file": "bad\npath.swift", "line": 42})).await.is_err());
+        assert!(invoke("debug.breakpoint", &json!({"pid": 1234, "action": "add", "file": "bad\x60path.swift", "line": 42})).await.is_err());
     }
 
     #[tokio::test]

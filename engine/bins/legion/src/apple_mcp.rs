@@ -5,18 +5,22 @@
 //! therefore crosses this gate before reaching `legion_apple`.
 
 use legion_policy::{PolicyEvaluator, PolicyPack};
-use legion_policy_model::{DecisionOutcome, EffectClass, PathOperation, PolicyContext};
+use legion_policy_model::{
+    CanonicalPath, DecisionOutcome, EffectClass, PathOperation, PolicyContext,
+    SymlinkState,
+};
 use legion_runtime::RuntimeError;
 use serde_json::{json, Value};
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, path::{Path, PathBuf}};
 
 const CONFIG_ENVS: [&str; 2] = ["LEGION_M1_CONFIG_PATH", "LEGION_M1_CONFIG"];
 
 /// Invoke one canonical Apple operation from CLI or MCP request shape.
 pub async fn invoke(request: &Value) -> Result<Value, RuntimeError> {
     let (operation, arguments) = request_parts(request).map_err(RuntimeError::InvalidTask)?;
-    let effects = derive_effects(&operation, &arguments).await?;
-    let receipts = authorize(request, &effects).map_err(RuntimeError::Policy)?;
+    let (effects, plan) = derive_effects(&operation, &arguments).await?;
+    let receipts = authorize(request, &operation, &arguments, &effects, plan.as_ref())
+        .map_err(RuntimeError::Policy)?;
     let mut result = legion_apple::invoke(&operation, &arguments)
         .await
         .map_err(RuntimeError::InvalidTask)?;
@@ -34,10 +38,25 @@ pub async fn invoke(request: &Value) -> Result<Value, RuntimeError> {
 /// synchronous because `NativeApi::validate_tool_scope` runs before its async
 /// invocation hook.
 pub fn validate_scope(request: &Value) -> Result<(), String> {
-    let _ = request_parts(request)?;
     let (operation, arguments) = request_parts(request)?;
     let effects = required_effects(&operation, &arguments)?;
-    authorize(request, &effects).map(|_| ())
+    if effects.is_empty() {
+        return Ok(());
+    }
+    let context_value = request
+        .as_object()
+        .and_then(|object| object.get("policyContext"))
+        .filter(|value| !value.is_null())
+        .ok_or_else(|| "policyContext is required for Apple execution".to_string())?;
+    let context: PolicyContext = serde_json::from_value(context_value.clone())
+        .map_err(|error| format!("policyContext is invalid: {error}"))?;
+    if context.operation != PathOperation::Execute {
+        return Err("Apple execution requires policyContext operation execute".to_string());
+    }
+    if !effects.contains(&context.effect_class) {
+        return Err("policyContext effect does not match any coarse Apple effect".to_string());
+    }
+    Ok(())
 }
 
 fn request_parts(request: &Value) -> Result<(String, Value), String> {
@@ -60,7 +79,13 @@ fn request_parts(request: &Value) -> Result<(String, Value), String> {
     Ok((operation, arguments))
 }
 
-fn authorize(request: &Value, effects: &[EffectClass]) -> Result<Vec<Value>, String> {
+fn authorize(
+    request: &Value,
+    operation: &str,
+    arguments: &Value,
+    effects: &[EffectClass],
+    plan: Option<&Value>,
+) -> Result<Vec<Value>, String> {
     if effects.is_empty() {
         return Ok(Vec::new());
     };
@@ -72,6 +97,9 @@ fn authorize(request: &Value, effects: &[EffectClass]) -> Result<Vec<Value>, Str
         .ok_or_else(|| "policyContext is required for Apple execution".to_string())?;
     let context: PolicyContext = serde_json::from_value(context_value)
         .map_err(|error| format!("policyContext is invalid: {error}"))?;
+    if let Some(path) = context.path.as_ref() {
+        validate_context_path(path)?;
+    }
 
     if context.operation != PathOperation::Execute {
         return Err("Apple execution requires policyContext operation execute".to_string());
@@ -87,33 +115,258 @@ fn authorize(request: &Value, effects: &[EffectClass]) -> Result<Vec<Value>, Str
         return Err("policyContext grant does not cover all derived Apple effects".to_string());
     }
 
+    let targets = trusted_target_paths(operation, arguments, plan, &context)?;
+    let path_bound = effects.iter().any(|effect| {
+        matches!(effect, EffectClass::FileWrite | EffectClass::FileDelete)
+    });
+    if path_bound && targets.is_empty() {
+        return Err("Apple operation has a file effect but no bound target path".to_string());
+    }
+
     let evaluator = load_policy_evaluator()?;
-    let mut receipts = Vec::with_capacity(effects.len());
-    for effect in effects {
-        // Effect class is derived from operation & arguments, never trusted
-        // from caller context. Each derived class gets its own Guard decision.
-        let mut effect_context = context.clone();
-        effect_context.effect_class = *effect;
-        let decision = evaluator.evaluate(&effect_context).decision;
-        if decision.outcome != DecisionOutcome::Allow {
-            return Err(format!(
-                "Apple operation denied by canonical policy for {:?}: {:?}",
-                effect,
-                decision.outcome
-            ));
+    let path_variants: Vec<Option<CanonicalPath>> = if targets.is_empty() {
+        vec![context.path.clone()]
+    } else {
+        targets.into_iter().map(Some).collect()
+    };
+    let mut receipts = Vec::with_capacity(effects.len() * path_variants.len());
+    for target in path_variants {
+        for effect in effects {
+            // Effect class is derived from operation & arguments, never trusted
+            // from caller context. Each derived class gets its own Guard decision.
+            let mut effect_context = context.clone();
+            effect_context.effect_class = *effect;
+            if target.is_some() {
+                effect_context.path = target.clone();
+            }
+            let decision = evaluator.evaluate(&effect_context).decision;
+            if decision.outcome != DecisionOutcome::Allow {
+                return Err(format!(
+                    "Apple operation denied by canonical policy for {:?}: {:?}",
+                    effect,
+                    decision.outcome
+                ));
+            }
+            receipts.push(json!({
+                "effectClass": effect,
+                "path": effect_context.path,
+                "decision": decision,
+            }));
         }
-        receipts.push(json!({
-            "effectClass": effect,
-            "decision": decision,
-        }));
     }
     Ok(receipts)
 }
 
-async fn derive_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClass>, RuntimeError> {
+/// Extract filesystem targets only after the native adapter has accepted the
+/// typed request & produced its dry plan. Relative targets use canonical
+/// policy classification; absolute targets must remain below host context's
+/// canonical path. Network identifiers (ASC paths/app IDs) are not converted
+/// into fake filesystem paths.
+fn trusted_target_paths(
+    operation: &str,
+    arguments: &Value,
+    plan: Option<&Value>,
+    context: &PolicyContext,
+) -> Result<Vec<CanonicalPath>, String> {
+    let canonical = plan
+        .and_then(|value| value.get("operation"))
+        .and_then(Value::as_str)
+        .unwrap_or_else(|| canonical_operation(operation));
+    let object = arguments
+        .as_object()
+        .ok_or_else(|| "Apple arguments must be an object".to_string())?;
+    let mut raw_targets = Vec::new();
+
+    let upload = operation == "app-store"
+        && (object
+            .get("action")
+            .and_then(Value::as_str)
+            .is_some_and(|action| action.eq_ignore_ascii_case("upload"))
+            || (object
+                .get("action")
+                .and_then(Value::as_str)
+                .is_some_and(|action| action.eq_ignore_ascii_case("builds"))
+                && object
+                    .get("operation")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| value.eq_ignore_ascii_case("upload"))));
+    if upload {
+        for key in ["artifact", "filePath", "file_path", "ipa", "pkg", "path"] {
+            if let Some(value) = object.get(key).and_then(Value::as_str) {
+                raw_targets.push(value);
+                break;
+            }
+        }
+    } else {
+        let keys: &[&str] = match canonical {
+            "project.build" | "project.test" => &[
+                "project",
+                "project_path",
+                "workspace",
+                "workspace_path",
+                "derived_data_path",
+                "result_bundle_path",
+            ],
+            "project.clean" => &["project", "project_path", "workspace", "workspace_path"],
+            "swiftpm.clean" => &["package_path"],
+            "project.archive" => &[
+                "project",
+                "project_path",
+                "workspace",
+                "workspace_path",
+                "archive_path",
+            ],
+            "project.export" => &["archive_path", "export_path", "export_options_plist"],
+            "swiftpm.build" | "swiftpm.test" | "swiftpm.run" => &["package_path"],
+            "simulator.install" | "device.install" => &["app_path"],
+            "simulator.screenshot" | "simulator.record_video" => &["output", "path"],
+            "profile" => &["output"],
+            "profile.export" => &["output_path"],
+            _ => &[],
+        };
+        for key in keys {
+            if let Some(value) = object.get(*key).and_then(Value::as_str) {
+                raw_targets.push(value);
+            }
+        }
+        if raw_targets.is_empty()
+            && matches!(
+                canonical,
+                "project.build"
+                    | "project.test"
+                    | "project.clean"
+                    | "swiftpm.clean"
+                    | "swiftpm.build"
+                    | "swiftpm.test"
+                    | "swiftpm.run"
+            )
+        {
+            if let Some(cwd) = plan.and_then(|value| value.get("cwd")).and_then(Value::as_str) {
+                raw_targets.push(cwd);
+            }
+        }
+    }
+    if raw_targets.is_empty() {
+        return Ok(Vec::new());
+    }
+    let base = context
+        .path
+        .as_ref()
+        .ok_or_else(|| "Apple target requires policyContext.path".to_string())?;
+    let trusted_cwd = plan
+        .and_then(|value| value.get("cwd"))
+        .and_then(Value::as_str);
+    raw_targets
+        .into_iter()
+        .map(|raw| {
+            if matches!(raw.trim(), "." | "./") {
+                if let Some(cwd) = plan.and_then(|value| value.get("cwd")).and_then(Value::as_str) {
+                    return canonical_target_with_cwd(cwd, base, trusted_cwd);
+                }
+            }
+            canonical_target_with_cwd(raw, base, trusted_cwd)
+        })
+        .collect()
+}
+
+fn canonical_target(raw: &str, base: &CanonicalPath) -> Result<CanonicalPath, String> {
+    canonical_target_with_cwd(raw, base, None)
+}
+
+fn canonical_target_with_cwd(
+    raw: &str,
+    base: &CanonicalPath,
+    cwd: Option<&str>,
+) -> Result<CanonicalPath, String> {
+    let input = PathBuf::from(raw);
+    let absolute = if input.is_absolute()
+        || (raw.len() >= 3
+            && raw.as_bytes()[1] == b':'
+            && matches!(raw.as_bytes()[2], b'/' | b'\\'))
+    {
+        input
+    } else {
+        let root = cwd
+            .map(PathBuf::from)
+            .or_else(|| env::current_dir().ok())
+            .ok_or_else(|| "Apple target has no trusted working directory".to_string())?;
+        root.join(input)
+    };
+    let resolved = resolve_existing_target(&absolute)?;
+    let resolved_string = host_path_string(&resolved);
+    let candidate = CanonicalPath::new(
+        base.root_identity.clone(),
+        base.scope.clone(),
+        &resolved_string,
+        SymlinkState::Resolved {
+            target: resolved_string.clone(),
+        },
+    )
+    .map_err(|error| format!("Apple target path is invalid: {error}"))?;
+    if base.root_identity != candidate.root_identity
+        || base.scope != candidate.scope
+        || !(candidate.normalized_absolute_path == base.normalized_absolute_path
+            || candidate
+                .normalized_absolute_path
+                .starts_with(&(base.normalized_absolute_path.clone() + "/")))
+    {
+        return Err("Apple target path is outside policyContext.path".to_string());
+    }
+    Ok(candidate)
+}
+
+fn resolve_existing_target(path: &Path) -> Result<PathBuf, String> {
+    let mut missing = Vec::new();
+    let mut cursor = path;
+    while fs::symlink_metadata(cursor).is_err() {
+        let name = cursor
+            .file_name()
+            .ok_or_else(|| "Apple target has no existing parent".to_string())?;
+        missing.push(name.to_os_string());
+        cursor = cursor
+            .parent()
+            .ok_or_else(|| "Apple target has no existing parent".to_string())?;
+    }
+    let mut resolved = fs::canonicalize(cursor)
+        .map_err(|error| format!("Apple target parent cannot be canonicalized: {error}"))?;
+    for component in missing.iter().rev() {
+        resolved.push(component);
+    }
+    Ok(resolved)
+}
+
+fn host_path_string(path: &Path) -> String {
+    let value = path.to_string_lossy().replace('\\', "/");
+    if let Some(rest) = value.strip_prefix("//?/UNC/") {
+        return format!("/{rest}");
+    }
+    value
+        .strip_prefix("//?/")
+        .map(str::to_owned)
+        .unwrap_or(value)
+}
+
+fn validate_context_path(path: &CanonicalPath) -> Result<(), String> {
+    let rebuilt = CanonicalPath::new(
+        path.root_identity.clone(),
+        path.scope.clone(),
+        &path.normalized_absolute_path,
+        path.symlink.clone(),
+    )
+    .map_err(|error| format!("policyContext.path is invalid: {error}"))?;
+    if rebuilt.normalized_relative_path != path.normalized_relative_path {
+        return Err("policyContext.path absolute and relative forms disagree".to_string());
+    }
+    Ok(())
+}
+
+async fn derive_effects(
+    operation: &str,
+    arguments: &Value,
+) -> Result<(Vec<EffectClass>, Option<Value>), RuntimeError> {
     let coarse = required_effects(operation, arguments).map_err(RuntimeError::InvalidTask)?;
     if !arguments.get("execute").and_then(Value::as_bool).unwrap_or(false) {
-        return Ok(coarse);
+        return Ok((coarse, None));
     }
     let mut dry_arguments = arguments.clone();
     if let Some(object) = dry_arguments.as_object_mut() {
@@ -125,7 +378,7 @@ async fn derive_effects(operation: &str, arguments: &Value) -> Result<Vec<Effect
             // Native memgraph capture intentionally rejects dry-run because
             // its plan is the bounded `/usr/bin/leaks` process itself.
             let _ = error;
-            return Ok(coarse);
+            return Ok((coarse, None));
         }
         Err(error) => {
             return Err(RuntimeError::InvalidTask(format!(
@@ -133,7 +386,7 @@ async fn derive_effects(operation: &str, arguments: &Value) -> Result<Vec<Effect
             )))
         }
     };
-    Ok(effects_from_plan(operation, arguments, &plan, coarse))
+    Ok((effects_from_plan(operation, arguments, &plan, coarse), Some(plan)))
 }
 
 fn effects_from_plan(
@@ -146,7 +399,14 @@ fn effects_from_plan(
         .get("operation")
         .and_then(Value::as_str)
         .unwrap_or(operation);
-    let mut effects = required_effects(canonical, arguments).unwrap_or(coarse);
+    // App Store upload plans expose `build-upload`, which is an adapter plan
+    // name rather than a policy operation. Keep coarse ASC credential/network
+    // effects when plan metadata uses such a name.
+    let mut effects = if canonical == "build-upload" {
+        coarse.clone()
+    } else {
+        required_effects(canonical, arguments).unwrap_or(coarse)
+    };
     if let Some(classifications) = plan
         .get("effectClassification")
         .and_then(|value| value.get("classifications"))
@@ -183,9 +443,27 @@ fn effects_from_plan(
             });
         }
     }
+    if operation == "app-store" && is_upload_request(arguments) {
+        effects.push(EffectClass::CredentialAccess);
+        effects.push(EffectClass::NetworkEgress);
+        effects.push(EffectClass::ExternalSideEffect);
+    }
     effects.sort();
     effects.dedup();
     effects
+}
+
+fn is_upload_request(arguments: &Value) -> bool {
+    let Some(object) = arguments.as_object() else {
+        return false;
+    };
+    let action = object.get("action").and_then(Value::as_str).unwrap_or("");
+    action.eq_ignore_ascii_case("upload")
+        || (action.eq_ignore_ascii_case("builds")
+            && object
+                .get("operation")
+                .and_then(Value::as_str)
+                .is_some_and(|value| value.eq_ignore_ascii_case("upload")))
 }
 
 fn effect_from_classification(classification: &str) -> Option<EffectClass> {
@@ -226,6 +504,17 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
             return Ok(Vec::new());
         }
         let mut effects = vec![EffectClass::CredentialAccess, EffectClass::NetworkEgress];
+        let is_build_upload = action == "upload"
+            || (action == "builds"
+                && object
+                    .get("operation")
+                    .and_then(Value::as_str)
+                    .is_some_and(|value| value.eq_ignore_ascii_case("upload")));
+        if is_build_upload {
+            // Upload plans intentionally report an empty classification during
+            // dry-run, but reservation, transfer & commit always mutate ASC.
+            effects.push(EffectClass::ExternalSideEffect);
+        }
         let method = object
             .get("method")
             .and_then(Value::as_str)
@@ -466,5 +755,42 @@ mod tests {
         let effects = required_effects("tap", &json!({"execute": true})).unwrap();
         assert!(effects.contains(&EffectClass::ProcessSpawn));
         assert!(effects.contains(&EffectClass::ExternalSideEffect));
+    }
+
+    #[test]
+    fn upload_keeps_external_effect_when_dry_plan_has_no_classifications() {
+        let arguments = json!({
+            "action": "upload",
+            "artifact": "build/Demo.ipa",
+            "execute": true
+        });
+        let coarse = required_effects("app-store", &arguments).unwrap();
+        let plan = json!({
+            "operation": "build-upload",
+            "effectClassification": {"classifications": []}
+        });
+        let effects = effects_from_plan("app-store", &arguments, &plan, coarse);
+        assert!(effects.contains(&EffectClass::CredentialAccess));
+        assert!(effects.contains(&EffectClass::NetworkEgress));
+        assert!(effects.contains(&EffectClass::ExternalSideEffect));
+    }
+
+    #[test]
+    fn absolute_target_cannot_escape_canonical_context() {
+        let root = env::current_dir().unwrap();
+        let base = CanonicalPath::new(
+            "root",
+            legion_policy_model::PathScope {
+                repository: "repo".into(),
+                worktree: "main".into(),
+            },
+            &host_path_string(&root),
+            SymlinkState::Unknown,
+        )
+        .unwrap();
+        let outside = root.parent().unwrap().join("apple-mcp-outside");
+        assert!(canonical_target(&host_path_string(&outside), &base).is_err());
+        assert!(canonical_target("../outside", &base).is_err());
+        assert!(canonical_target("build/Products", &base).is_ok());
     }
 }

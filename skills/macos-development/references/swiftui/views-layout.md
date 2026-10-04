@@ -2,8 +2,10 @@
 
 ## Source-aligned detail
 
-For detailed composition, adaptive layout, and bridge examples, read [view structure](donor-lee-view-structure.md),
+For detailed composition and adaptive layout, read [view structure](donor-lee-view-structure.md),
 [layout](donor-lee-layout-best-practices.md), [large-display guidance](donor-lee-iphone-duo.md), and [Hudson views](donor-hudson-views.md).
+For AppKit bridge examples, use [macOS views](donor-lee-macos-views.md#appkit-interop); UIKit
+`UIViewRepresentable` examples in shared donor material are iOS-only.
 
 ## Composition and identity
 

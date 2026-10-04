@@ -9455,8 +9455,8 @@
               "summary": "Operational SwiftUI rule group: ## UIViewRepresentable Essentials",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/views-layout.md#composition-and-identity",
-                "skills/macos-development/references/swiftui/views-layout.md#composition-and-identity"
+                "skills/ios-development/references/swiftui/donor-lee-view-structure.md#uiviewrepresentable-essentials",
+                "skills/macos-development/references/swiftui/donor-lee-macos-views.md#appkit-interop"
               ],
               "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
             },

@@ -17,6 +17,7 @@ const MAX_UPLOAD_OPERATIONS: usize = 2_000;
 const MAX_OPERATION_BYTES: usize = 64 * 1024 * 1024;
 const MAX_UPLOAD_RESPONSE_BYTES: usize = 1024 * 1024;
 const MAX_STRING_BYTES: usize = 4 * 1024;
+const MAX_UPLOAD_DURATION: std::time::Duration = std::time::Duration::from_secs(900);
 
 pub async fn invoke(arguments: &Value) -> Result<Value, String> {
     let object = arguments
@@ -70,8 +71,13 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
         return Err(format!("App Store Connect reserved file size {expected_size} differs from local file size {}", file.size));
     }
     let operations = parse_operations(attributes.get("uploadOperations"))?;
-    let mut source = open_artifact(&artifact, file.size)?;
-    upload_operations(&mut source, &operations, file.size).await?;
+    let mut source = file
+        .source
+        .try_clone()
+        .map_err(|_| "could not clone inspected upload artifact handle".to_string())?;
+    tokio::time::timeout(MAX_UPLOAD_DURATION, upload_operations(&mut source, &operations, file.size))
+        .await
+        .map_err(|_| "presigned upload exceeded total deadline".to_string())??;
     let checksums = attributes.get("sourceFileChecksums").cloned();
     let computed = if let Some(expected) = checksums.as_ref() {
         Some(verify_checksums(&mut source, expected, file.size)?)
@@ -158,11 +164,12 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
     }))
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Artifact {
     name: String,
     size: u64,
     uti: &'static str,
+    source: File,
 }
 
 fn artifact_path(object: &Map<String, Value>) -> Result<String, String> {
@@ -187,6 +194,15 @@ fn inspect_artifact(path: &str) -> Result<Artifact, String> {
     if size == 0 || size > MAX_ARTIFACT_BYTES {
         return Err(format!("upload artifact size must be between 1 and {MAX_ARTIFACT_BYTES} bytes"));
     }
+    let source = open_without_following_links(path)
+        .map_err(|_| "could not open upload artifact without following links".to_string())?;
+    let source_metadata = source.metadata().map_err(|_| "could not stat upload artifact".to_string())?;
+    if source_metadata.file_type().is_symlink()
+        || !source_metadata.is_file()
+        || source_metadata.len() != size
+    {
+        return Err("upload artifact handle is not the inspected regular file".to_string());
+    }
     let name = path_ref
         .file_name()
         .and_then(|name| name.to_str())
@@ -200,20 +216,23 @@ fn inspect_artifact(path: &str) -> Result<Artifact, String> {
     if name.len() > MAX_STRING_BYTES {
         return Err("upload artifact filename exceeds limit".to_string());
     }
-    Ok(Artifact {name: name.to_string(), size, uti})
+    Ok(Artifact {name: name.to_string(), size, uti, source})
 }
 
-fn open_artifact(path: &str, expected_size: u64) -> Result<File, String> {
-    let file = OpenOptions::new().read(true).open(path).map_err(|_| "could not open upload artifact".to_string())?;
-    let link_metadata = fs::symlink_metadata(path).map_err(|_| "could not inspect upload artifact".to_string())?;
-    if link_metadata.file_type().is_symlink() {
-        return Err("upload artifact became a symlink before upload".to_string());
+fn open_without_following_links(path: &str) -> std::io::Result<File> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        return OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(path);
     }
-    let metadata = file.metadata().map_err(|_| "could not stat upload artifact".to_string())?;
-    if !metadata.is_file() || metadata.len() != expected_size {
-        return Err("upload artifact changed size before upload".to_string());
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
+        return OpenOptions::new().read(true).custom_flags(FILE_FLAG_OPEN_REPARSE_POINT).open(path);
     }
-    Ok(file)
+    #[allow(unreachable_code)]
+    OpenOptions::new().read(true).open(path)
 }
 
 fn required_string(object: &Map<String, Value>, keys: &[&str]) -> Result<String, String> {

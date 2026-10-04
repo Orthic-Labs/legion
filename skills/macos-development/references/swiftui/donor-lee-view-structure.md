@@ -20,7 +20,7 @@
 - [Reusable Styling with ViewModifier](#reusable-styling-with-viewmodifier)
 - [Skeleton Loading with Redacted Views](#skeleton-loading-with-redacted-views)
 - [AnyView](#anyview)
-- [UIViewRepresentable Essentials](#uiviewrepresentable-essentials)
+- [UIViewRepresentable Essentials (iOS only)](#uiviewrepresentable-essentials-ios-only)
 - [Troubleshooting](#troubleshooting)
 - [Summary Checklist](#summary-checklist)
 
@@ -668,7 +668,12 @@ Because `AnyView` erases type information, SwiftUI loses some optimization oppor
 
 Use `AnyView` only when type erasure is truly necessary for API design.
 
-## UIViewRepresentable Essentials
+## UIViewRepresentable Essentials (iOS only)
+
+This section applies to iOS targets that import UIKit. Do not copy `UIViewRepresentable`,
+`makeUIView`, or `MKMapView` examples into macOS code. For AppKit controls on macOS, use
+[NSViewRepresentable](donor-lee-macos-views.md#appkit-interop) with `makeNSView` and
+`updateNSView`.
 
 When bridging UIKit views into SwiftUI:
 
@@ -792,5 +797,3 @@ Ways to fix it:
 - [ ] In `UIViewRepresentable`, keep heavy work out of struct init
 - [ ] Use `_printChanges()` / `_logChanges()` to debug rendering behavior
 - [ ] Break up overly complex expressions when the compiler struggles
-
-
