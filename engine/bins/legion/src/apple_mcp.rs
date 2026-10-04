@@ -428,15 +428,27 @@ fn effects_from_plan(
         });
         if mutation {
             let action = arguments.get("action").and_then(Value::as_str).unwrap_or("");
+            let request = plan.get("request").and_then(Value::as_object);
+            let method = request
+                .and_then(|value| value.get("method"))
+                .and_then(Value::as_str)
+                .or_else(|| arguments.get("method").and_then(Value::as_str))
+                .unwrap_or("GET");
+            let path = request
+                .and_then(|value| value.get("url"))
+                .and_then(Value::as_str)
+                .or_else(|| arguments.get("path").and_then(Value::as_str))
+                .unwrap_or("");
+            let body = request
+                .and_then(|value| value.get("body"))
+                .or_else(|| arguments.get("body"));
             let operation_id = plan
                 .get("operationId")
                 .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_ascii_lowercase();
-            effects.push(if action.eq_ignore_ascii_case("submission")
-                || operation_id.contains("submit")
-                || operation_id.contains("submission")
-            {
+                .or_else(|| arguments.get("operationId").and_then(Value::as_str))
+                .or_else(|| arguments.get("operation").and_then(Value::as_str))
+                .unwrap_or("");
+            effects.push(if is_publish_route(action, operation_id, method, path, body) {
                 EffectClass::Publish
             } else {
                 EffectClass::ExternalSideEffect
@@ -464,6 +476,83 @@ fn is_upload_request(arguments: &Value) -> bool {
                 .get("operation")
                 .and_then(Value::as_str)
                 .is_some_and(|value| value.eq_ignore_ascii_case("upload")))
+}
+
+fn is_publish_route(
+    action: &str,
+    operation: &str,
+    method: &str,
+    raw_path: &str,
+    body: Option<&Value>,
+) -> bool {
+    if method.eq_ignore_ascii_case("GET") {
+        return false;
+    }
+    if action.eq_ignore_ascii_case("submission")
+        || matches!(
+            operation.to_ascii_lowercase().as_str(),
+            "submit" | "submission" | "release" | "review"
+        )
+    {
+        return true;
+    }
+    let path = route_path(raw_path).to_ascii_lowercase();
+    if [
+        "submission",
+        "submit",
+        "release",
+        "reviewsubmission",
+        "releaserequest",
+    ]
+    .iter()
+    .any(|segment| path.contains(segment))
+    {
+        return true;
+    }
+    let operation = operation.to_ascii_lowercase();
+    if ["submit", "submission", "release", "review"]
+        .iter()
+        .any(|label| operation.contains(label))
+    {
+        return true;
+    }
+    body_implies_publish(body)
+}
+
+fn route_path(raw: &str) -> &str {
+    let Some(scheme_end) = raw.find("://") else {
+        return raw;
+    };
+    raw[scheme_end + 3..]
+        .find('/')
+        .map(|offset| &raw[scheme_end + 3 + offset..])
+        .unwrap_or("")
+}
+
+fn body_implies_publish(body: Option<&Value>) -> bool {
+    let Some(value) = body else {
+        return false;
+    };
+    match value {
+        Value::Object(object) => object.iter().any(|(key, value)| {
+            let key = key.to_ascii_lowercase();
+            let signal = matches!(
+                key.as_str(),
+                "publish"
+                    | "release"
+                    | "releasenow"
+                    | "submit"
+                    | "submitted"
+                    | "submitforreview"
+                    | "sendforreview"
+                    | "reviewsubmission"
+            );
+            (signal && !matches!(value, Value::Bool(false) | Value::Null))
+                || body_implies_publish(Some(value))
+        }),
+        Value::Array(values) => values.iter().any(|value| body_implies_publish(Some(value))),
+        _ => false,
+    }
 }
 
 fn effect_from_classification(classification: &str) -> Option<EffectClass> {
@@ -525,8 +614,25 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
             .and_then(Value::as_str)
             .unwrap_or("list")
             .to_ascii_lowercase();
+        let operation_id = object
+            .get("operationId")
+            .or_else(|| object.get("operation_id"))
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        let publish_operation = if operation_id.is_empty() {
+            operation_name.as_str()
+        } else {
+            operation_id
+        };
+        let path = object.get("path").and_then(Value::as_str).unwrap_or("");
         if method != "GET" || matches!(operation_name.as_str(), "create" | "update" | "delete" | "submit") {
-            effects.push(if action == "submission" || operation_name == "submit" {
+            effects.push(if is_publish_route(
+                &action,
+                publish_operation,
+                &method,
+                path,
+                object.get("body"),
+            ) {
                 EffectClass::Publish
             } else {
                 EffectClass::ExternalSideEffect
@@ -543,6 +649,7 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
             // operation. Keep mutation coverage conservative; async dispatch
             // replaces it with resolved dry-run metadata before execution.
             effects.push(EffectClass::ExternalSideEffect);
+            effects.push(EffectClass::Publish);
         }
         return Ok(effects);
     }
@@ -568,6 +675,13 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
         effects.push(EffectClass::FileDelete);
     }
     if matches!(operation, "swiftpm.resolve" | "swiftpm.update") {
+        effects.push(EffectClass::NetworkEgress);
+    }
+    if matches!(operation, "swiftpm.build" | "swiftpm.test" | "swiftpm.run") {
+        // SwiftPM may write .build products & resolve package dependencies
+        // during an ordinary build/test/run; no disable-resolution control is
+        // exposed by native adapter, so both effects stay explicit.
+        effects.push(EffectClass::FileWrite);
         effects.push(EffectClass::NetworkEgress);
     }
     if matches!(operation,
@@ -751,6 +865,14 @@ mod tests {
     }
 
     #[test]
+    fn swiftpm_build_covers_products_and_dependency_resolution() {
+        let effects = required_effects("swiftpm.build", &json!({"execute": true})).unwrap();
+        assert!(effects.contains(&EffectClass::ProcessSpawn));
+        assert!(effects.contains(&EffectClass::FileWrite));
+        assert!(effects.contains(&EffectClass::NetworkEgress));
+    }
+
+    #[test]
     fn aliases_keep_ui_mutation_effects() {
         let effects = required_effects("tap", &json!({"execute": true})).unwrap();
         assert!(effects.contains(&EffectClass::ProcessSpawn));
@@ -773,6 +895,48 @@ mod tests {
         assert!(effects.contains(&EffectClass::CredentialAccess));
         assert!(effects.contains(&EffectClass::NetworkEgress));
         assert!(effects.contains(&EffectClass::ExternalSideEffect));
+    }
+
+    #[test]
+    fn release_request_is_publish_even_without_submission_alias() {
+        let effects = required_effects(
+            "app-store",
+            &json!({
+                "action": "request",
+                "method": "POST",
+                "path": "/v1/appStoreVersionReleaseRequests",
+                "execute": true
+            }),
+        )
+        .unwrap();
+        assert!(effects.contains(&EffectClass::Publish));
+        assert!(!effects.contains(&EffectClass::ExternalSideEffect));
+    }
+
+    #[test]
+    fn resolved_openapi_release_route_is_publish() {
+        let arguments = json!({
+            "action": "openapi",
+            "method": "POST",
+            "execute": true
+        });
+        let plan = json!({
+            "request": {
+                "method": "POST",
+                "url": "https://api.appstoreconnect.apple.com/v1/appStoreVersionSubmissions",
+                "body": {"data": {"type": "appStoreVersionSubmissions"}}
+            },
+            "mutation": true,
+            "operationId": "createSubmission"
+        });
+        let effects = effects_from_plan(
+            "app-store",
+            &arguments,
+            &plan,
+            vec![EffectClass::CredentialAccess, EffectClass::NetworkEgress],
+        );
+        assert!(effects.contains(&EffectClass::Publish));
+        assert!(!effects.contains(&EffectClass::ExternalSideEffect));
     }
 
     #[test]

@@ -85,7 +85,7 @@ pub fn catalog() -> Value {
             },
             "upload": {
                 "required": ["artifact", "appId", "version", "buildNumber"],
-                "artifact": {"extensions": [".ipa", ".pkg"], "maxBytes": 8589934592},
+                "artifact": {"extensions": [".ipa", ".pkg"], "maxBytes": 8589934592_u64},
                 "platform": {"enum": ["IOS", "MAC_OS", "TV_OS", "VISION_OS"]},
                 "execute": {"type": "boolean", "default": false},
                 "notes": ["Apple API reserves upload operations before presigned transfer", "processing remains separate from publication"]
