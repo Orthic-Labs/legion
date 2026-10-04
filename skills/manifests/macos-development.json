@@ -204,7 +204,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://macos-development/SKILL.md",
-      "digest": "sha256:04324bbc9c9e57c49af75c36f11d730db5e871124569b6ace3a5e3245728c2c6"
+      "digest": "sha256:63e085e3702f2f821ff70413e5d6e9db5627679498d879d0b3d7f1a208d1c8cc"
     },
     {
       "path": "agents/openai.yaml",
@@ -429,7 +429,7 @@
     {
       "path": "references/ios-workflows.md",
       "uri": "legion-skill://macos-development/references/ios-workflows.md",
-      "digest": "sha256:acd41b02a956b735591fa329534156f0b2cbeec0dafd0d526eff9caef1c5dfc0"
+      "digest": "sha256:39ada3133874fdc69469d306528a7c9d665a5c1ab58b9ba3c1e86d7356b818f6"
     },
     {
       "path": "references/licenses/avdlee-MIT.txt",

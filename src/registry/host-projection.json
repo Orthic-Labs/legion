@@ -631,10 +631,7 @@
           "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
           "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
           "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
-          "probe": {
-            "kind": "command",
-            "command": "legion"
-          }
+          "probe": null
         },
         {
           "scope": "workflow:apple-native-cli",
@@ -644,10 +641,7 @@
           "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
           "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
           "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
-          "probe": {
-            "kind": "command",
-            "command": "legion"
-          }
+          "probe": null
         },
         {
           "scope": "workflow:swift-package",
@@ -670,10 +664,7 @@
           "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
           "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
           "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
-          "probe": {
-            "kind": "command",
-            "command": "legion"
-          }
+          "probe": null
         },
         {
           "scope": "workflow:xcode-build-test",
@@ -756,10 +747,7 @@
           "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
           "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
           "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
-          "probe": {
-            "kind": "command",
-            "command": "legion"
-          }
+          "probe": null
         },
         {
           "scope": "workflow:apple-native-cli",
@@ -769,10 +757,7 @@
           "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
           "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
           "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
-          "probe": {
-            "kind": "command",
-            "command": "legion"
-          }
+          "probe": null
         },
         {
           "scope": "workflow:swift-package",
@@ -795,10 +780,7 @@
           "summary": "Native Rust Apple CLI/MCP backend for typed Apple discovery, plans, diagnostics, project tooling, and App Store Connect operations.",
           "degradation": "Report the selected native Apple operation as unavailable; catalog and source guidance may continue, but do not claim native execution or verification.",
           "remedy": "Install the repository-compatible Legion native release so `legion apple` and its `legion_apple` MCP capability are available; do not substitute an external Apple adapter for the native route.",
-          "probe": {
-            "kind": "command",
-            "command": "legion"
-          }
+          "probe": null
         },
         {
           "scope": "workflow:xcode-build-test",

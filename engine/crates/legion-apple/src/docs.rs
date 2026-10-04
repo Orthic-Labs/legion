@@ -549,13 +549,15 @@ fn render_read(
         .take(max_chunks)
     {
         let mut text = String::new();
-        collect_text(section, &mut text, max_bytes.saturating_sub(used));
+        let collected_truncated =
+            collect_text(section, &mut text, max_bytes.saturating_sub(used));
         let text = text.trim().to_string();
         if text.is_empty() {
             continue;
         }
         let available = max_bytes.saturating_sub(used);
-        let (text, truncated) = truncate_utf8(&text, available);
+        let (text, utf8_truncated) = truncate_utf8(&text, available);
+        let truncated = collected_truncated || utf8_truncated;
         used = used.saturating_add(text.len());
         chunks.push(json!({
             "index": index,
@@ -826,23 +828,26 @@ fn bounded_text(value: Option<&Value>, limit: usize) -> String {
     truncate_utf8(text.trim(), limit).0.to_owned()
 }
 
-fn collect_text(value: &Value, output: &mut String, limit: usize) {
+fn collect_text(value: &Value, output: &mut String, limit: usize) -> bool {
     if output.len() >= limit {
-        return;
+        return true;
     }
     match value {
         Value::String(text) => {
-            let (text, _) = truncate_utf8(text, limit.saturating_sub(output.len()));
+            let (text, truncated) = truncate_utf8(text, limit.saturating_sub(output.len()));
             output.push_str(text);
-            output.push(' ');
+            if !truncated && !text.is_empty() && output.len() < limit {
+                output.push(' ');
+            }
+            truncated
         }
         Value::Array(items) => {
             for item in items {
-                collect_text(item, output, limit);
-                if output.len() >= limit {
-                    break;
+                if collect_text(item, output, limit) {
+                    return true;
                 }
             }
+            false
         }
         Value::Object(object) => {
             for key in [
@@ -855,14 +860,14 @@ fn collect_text(value: &Value, output: &mut String, limit: usize) {
                 "abstract",
             ] {
                 if let Some(value) = object.get(key) {
-                    collect_text(value, output, limit);
-                    if output.len() >= limit {
-                        break;
+                    if collect_text(value, output, limit) {
+                        return true;
                     }
                 }
             }
+            false
         }
-        _ => {}
+        _ => false,
     }
 }
 

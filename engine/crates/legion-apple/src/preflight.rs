@@ -267,14 +267,17 @@ mod tests {
 
     #[test]
     fn list_is_offline_and_catalog_preserves_order() {
-        assert_eq!(invoke(&json!({"list":true})).unwrap()["tools"][0], "mobilebuildmcp");
+        assert_eq!(invoke(&json!({"list":true})).unwrap()["tools"][0], "legion-apple");
     }
 
     #[test]
     fn selection_deduplicates_and_reports_path_candidate_without_execution() {
         let root = std::env::temp_dir().join(format!("legion-preflight-{}", std::process::id()));
         let _ = fs::create_dir_all(&root);
-        let file = root.join("asc");
+        #[cfg(windows)]
+        let (system, file) = ("Windows", root.join("asc.EXE"));
+        #[cfg(not(windows))]
+        let (system, file) = ("Darwin", root.join("asc"));
         fs::write(&file, b"this is not executable code").unwrap();
         #[cfg(unix)] {
             use std::os::unix::fs::PermissionsExt;
@@ -282,7 +285,7 @@ mod tests {
             permissions.set_mode(0o755);
             fs::set_permissions(&file, permissions).unwrap();
         }
-        let result = inspect_selected(&fixture_catalog(), &["asc".into(), "asc".into()], "Darwin", &root.to_string_lossy()).unwrap();
+        let result = inspect_selected(&fixture_catalog(), &["asc".into(), "asc".into()], system, &root.to_string_lossy()).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0]["state"], "installed-candidate");
         let _ = fs::remove_file(file);
@@ -295,8 +298,13 @@ mod tests {
         assert_eq!(error, "Unknown tool ids: a, z");
         let manual = inspect_selected(&fixture_catalog(), &["manual".into()], "Darwin", "").unwrap();
         assert_eq!(manual[0]["state"], "manual-check");
-        let unsupported = inspect_selected(&fixture_catalog(), &["asc".into()], "Windows", "").unwrap();
-        assert_eq!(unsupported[0]["state"], "installed-candidate");
+        let root = std::env::temp_dir().join(format!("legion-preflight-windows-{}", std::process::id()));
+        let _ = fs::create_dir_all(&root);
+        fs::write(root.join("asc.EXE"), b"not executed").unwrap();
+        let installed = inspect_selected(&fixture_catalog(), &["asc".into()], "Windows", &root.to_string_lossy()).unwrap();
+        assert_eq!(installed[0]["state"], "installed-candidate");
+        let _ = fs::remove_file(root.join("asc.EXE"));
+        let _ = fs::remove_dir(root);
         let unsupported = inspect_selected(&fixture_catalog(), &["manual".into()], "Linux", "").unwrap();
         assert_eq!(unsupported[0]["state"], "unsupported-environment");
     }

@@ -120,10 +120,14 @@ fn anchors(path: &Path) -> HashSet<String> {
 fn local_links(path: &Path) -> Vec<(PathBuf, String)> {
     let text = fs::read_to_string(path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
     let text = prose(&text);
+    let code_spans = inline_code_spans(&text);
     let links = Regex::new(r"\[[^\]]+\]\(([^)\s]+)").unwrap();
     links
         .captures_iter(&text)
         .filter_map(|capture| {
+            if code_spans.iter().any(|span| span.contains(&capture.get(0).unwrap().start())) {
+                return None;
+            }
             let raw = capture[1].trim_start_matches('<').trim_end_matches('>');
             if raw.contains("://") || raw.starts_with('#') {
                 return None;
@@ -139,23 +143,57 @@ fn local_links(path: &Path) -> Vec<(PathBuf, String)> {
         .collect()
 }
 
-fn assert_reference_closure(root: &Path, bundle: &str) {
+fn inline_code_spans(text: &str) -> Vec<std::ops::Range<usize>> {
+    let bytes = text.as_bytes();
+    let mut spans = Vec::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] != b'`' { index += 1; continue; }
+        let start = index;
+        while index < bytes.len() && bytes[index] == b'`' { index += 1; }
+        let width = index - start;
+        let mut cursor = index;
+        while cursor < bytes.len() {
+            if bytes[cursor] != b'`' { cursor += 1; continue; }
+            let close = cursor;
+            while cursor < bytes.len() && bytes[cursor] == b'`' { cursor += 1; }
+            if cursor - close == width {
+                spans.push(start..cursor);
+                index = cursor;
+                break;
+            }
+        }
+    }
+    spans
+}
+
+fn reference_closure_issues(root: &Path, bundle: &str) -> Vec<String> {
     let bundle_root = root.join("skills").join(bundle).canonicalize().unwrap();
     let entry = bundle_root.join("SKILL.md");
     let mut queue = VecDeque::from([entry]);
     let mut visited = HashSet::new();
+    let mut issues = Vec::new();
     while let Some(path) = queue.pop_front() {
         let path = path.canonicalize().unwrap_or_else(|error| panic!("{bundle}: missing {}: {error}", path.display()));
         if !visited.insert(path.clone()) {
             continue;
         }
         for (target, fragment) in local_links(&path) {
-            let resolved = target
-                .canonicalize()
-                .unwrap_or_else(|error| panic!("{bundle}: unresolved link {}: {error}", target.display()));
-            assert!(resolved == bundle_root || resolved.starts_with(&bundle_root), "{bundle}: link escapes bundle: {}", target.display());
+            let resolved = match target.canonicalize() {
+                Ok(resolved) => resolved,
+                Err(error) => {
+                    issues.push(format!("unresolved link {} in {}: {error}", target.display(), path.display()));
+                    continue;
+                }
+            };
+            if !resolved.starts_with(&bundle_root) {
+                issues.push(format!("link escapes bundle: {} in {}", target.display(), path.display()));
+                continue;
+            }
             if !fragment.is_empty() && resolved.extension().and_then(|extension| extension.to_str()) == Some("md") {
-                assert!(anchors(&resolved).contains(&fragment), "{bundle}: broken anchor {}#{fragment}", resolved.display());
+                if !anchors(&resolved).contains(&fragment) {
+                    issues.push(format!("broken anchor {}#{fragment} in {}", resolved.display(), path.display()));
+                }
             }
             if resolved.extension().and_then(|extension| extension.to_str()) == Some("md") {
                 queue.push_back(resolved);
@@ -165,11 +203,16 @@ fn assert_reference_closure(root: &Path, bundle: &str) {
 
     for entry in walkdir::WalkDir::new(&bundle_root) {
         let entry = entry.unwrap();
-        assert!(!entry.file_type().is_symlink(), "symlinks cannot ship in {bundle}");
+        if entry.file_type().is_symlink() {
+            issues.push(format!("symlink cannot ship: {}", entry.path().display()));
+        }
         if entry.path().extension().and_then(|extension| extension.to_str()) == Some("md") {
-            assert!(visited.contains(&entry.path().canonicalize().unwrap()), "{bundle}: unreachable Markdown reference {}", entry.path().display());
+            if !visited.contains(&entry.path().canonicalize().unwrap()) {
+                issues.push(format!("unreachable Markdown reference {}", entry.path().display()));
+            }
         }
     }
+    issues.into_iter().map(|issue| format!("{bundle}: {issue}")).collect()
 }
 
 fn relative_files(path: &Path) -> HashSet<String> {
@@ -449,11 +492,23 @@ mod tests {
     use crate::shared::skill_frontmatter::parse_skill_frontmatter_map;
 
     #[test]
+    fn inline_code_is_not_a_document_link_but_code_link_labels_remain_links() {
+        let text = "`Text(\"^[count item](inflect: true)\")` & [`guide`](guide.md) & ``[sample](fake.md)``";
+        let spans = inline_code_spans(text);
+        assert_eq!(spans.len(), 3);
+        assert!(spans.iter().any(|span| span.contains(&text.find("[count").unwrap())));
+        assert!(!spans.iter().any(|span| span.contains(&text.find("[`guide").unwrap())));
+        assert!(spans.iter().any(|span| span.contains(&text.find("[sample").unwrap())));
+    }
+
+    #[test]
     fn apple_references_form_standalone_closures_with_valid_anchors() {
         let root = repository_root();
+        let mut issues = Vec::new();
         for bundle in APPLE_SKILLS {
-            assert_reference_closure(&root, bundle);
+            issues.extend(reference_closure_issues(&root, bundle));
         }
+        assert!(issues.is_empty(), "Apple reference closure:\n{}", issues.join("\n"));
     }
 
     #[test]

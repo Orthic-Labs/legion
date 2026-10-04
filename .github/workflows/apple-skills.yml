@@ -33,8 +33,10 @@ jobs:
         with:
           workspaces: engine -> target
           shared-key: legion-rust
+          key: apple-workspace
           add-job-id-key: false
           cache-on-failure: true
+          cache-workspace-crates: true
       - name: Generate canonical bundle projections
         shell: bash
         run: |
@@ -45,7 +47,7 @@ jobs:
           generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-codex-skill-sidecars
           generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog
           generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection
-          generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests ios-development macos-development
+          generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests ios-development macos-development oracle
           generate cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- native-cli-inventory
           git diff --binary > apple-generated.patch
           exit "$result"
@@ -55,24 +57,46 @@ jobs:
           name: apple-generated-${{ github.sha }}
           path: apple-generated.patch
           retention-days: 7
-      - name: Verify bundle closure, provenance & helpers
+      - name: Test native Apple backend
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: cargo test --locked --manifest-path engine/Cargo.toml -p legion-apple
+      - name: Verify source provenance & bundle closure
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: cargo test --locked --manifest-path engine/Cargo.toml -p legion-dev apple_skill_integrity
+      - name: Test native CLI, MCP & policy integration
         if: ${{ !cancelled() }}
         shell: bash
         run: |
           set -uo pipefail
           result=0
           verify() { "$@" || result=1; }
-          verify cargo test --locked --manifest-path engine/Cargo.toml -p legion-apple
-          verify cargo test --locked --manifest-path engine/Cargo.toml -p legion-dev apple_skill_integrity
           verify cargo test --locked --manifest-path engine/Cargo.toml -p legion --test apple_cli --test script_cli --test m1_vertical_slice --no-fail-fast
           verify cargo test --locked --manifest-path engine/Cargo.toml -p legion --bin legion apple_
+          exit "$result"
+      - name: Verify MCP schema & authority bindings
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          result=0
+          verify() { "$@" || result=1; }
           verify cargo test --locked --manifest-path engine/Cargo.toml -p xtask canonical_mcp_schema
           verify cargo test --locked --manifest-path engine/Cargo.toml -p legion-runtime --test role_host_binding
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-authority-parity
+          exit "$result"
+      - name: Verify generated files & native packaging
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          result=0
+          verify() { "$@" || result=1; }
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-codex-skill-sidecars --check
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-skill-catalog --check
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check
-          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests --check ios-development macos-development
+          verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests --check ios-development macos-development oracle
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-dependency-closure
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- check-native-cli-surface --phase enforce
           verify cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- verify-plugin-parity --check --structural-only

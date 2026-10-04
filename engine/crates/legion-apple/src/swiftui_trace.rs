@@ -660,7 +660,7 @@ mod tests {
         let value = invoke(&json!({"operation":"analyze","xml":xml,"top":5})).unwrap();
         assert_eq!(value["status"], "ok");
         assert_eq!(value["lanes"][0]["status"], "ok");
-        assert_eq!(value["lanes"][2]["status"], "no_evidence");
+        assert_eq!(value["lanes"][1]["status"], "no_evidence");
     }
 
     #[test]

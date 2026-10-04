@@ -1131,7 +1131,9 @@ mod tests {
     async fn non_macos_execute_fails_closed() {
         if cfg!(target_os = "macos") { return; }
         let cwd = env::current_dir().unwrap();
-        let args = json!({"project": "Demo.xcodeproj", "scheme": "Demo", "cwd": cwd, "execute": true});
+        // Execute-mode validates input paths before applying host capability
+        // gating, so use an existing portable directory as fixture input.
+        let args = json!({"project": cwd.clone(), "scheme": "Demo", "cwd": cwd, "execute": true});
         let error = invoke("project.build", &args).await.unwrap_err();
         assert!(error.contains("requires macOS"));
     }

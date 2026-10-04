@@ -1,6 +1,6 @@
 # App Intents and system-facing features
 
-For concrete iOS recipes in a multiplatform target, use [iOS workflows: App Intents](../../ios-development/references/ios-workflows/app-intents.md).
+For concrete iOS recipes in a multiplatform target, select `ios-development` & its App Intents workflow through this bundle's [iOS workflow boundary](ios-workflows.md).
 
 Use this reference when the requested feature participates in Shortcuts, Siri, Spotlight,
 widgets, sharing, or another system surface. Inspect existing extensions/integrations and
