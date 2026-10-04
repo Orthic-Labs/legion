@@ -175,6 +175,34 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 - **Host requirements:** `blueprint-graph`. See [its declared absence behavior](#host-capability-degradation).
 - **Discoverability:** `public`
 
+### `ios-development`
+
+- **Manifest:** [ios-development.json](../../skills/manifests/ios-development.json)
+- **Kind / class / domain:** `capability` / `domain` / `engineering`
+- **Purpose:** Implement, debug, test, and optimize iOS/iPadOS apps and native components while preserving the consuming project's UI, persistence, deployment, and cross-platform host choices.
+- **Operations:** `analyze`, `diagnose`, `decide`, `produce`, `evaluate`, `execute`
+- **Effects:** `source-read`, `repository-write`, `artifact-write`, `process-exec`, `network-request`
+- **Host requirements:** None globally. Xcode, SwiftPM, and selected optional adapters are [route-scoped](../../skills/ios-development/references/route-resources.json), with absence behavior in the capability registry. Each bundle includes a tool catalog, official setup recipes, and a read-only PATH preflight helper; agents own detection, reuse, authorized setup and verification.
+- **Discoverability:** `public`; deterministic explicit invocation is `/ios-development`.
+
+### `macos-development`
+
+- **Manifest:** [macos-development.json](../../skills/manifests/macos-development.json)
+- **Kind / class / domain:** `capability` / `domain` / `engineering`
+- **Purpose:** Implement, debug, test, and optimize macOS apps and native components, including windows, menus, sandbox/privacy behavior, and Rust/Tauri integration without a Swift rewrite.
+- **Operations:** `analyze`, `diagnose`, `decide`, `produce`, `evaluate`, `execute`
+- **Effects:** `source-read`, `repository-write`, `artifact-write`, `process-exec`, `network-request`
+- **Host requirements:** None globally. Xcode, SwiftPM, and selected optional adapters are [route-scoped](../../skills/macos-development/references/route-resources.json), with absence behavior in the capability registry. Each bundle includes a tool catalog, official setup recipes, and a read-only PATH preflight helper; agents own detection, reuse, authorized setup and verification.
+- **Discoverability:** `public`; deterministic explicit invocation is `/macos-development`.
+
+Both bundles ship their own on-demand references, source manifests, license notices, and
+evaluation cases. They use the existing catalog, native manifest, and host-projection
+generators. They do not depend on a sibling `_shared` directory or alter host installers.
+Read-only work remains useful without Apple tooling; unavailable native checks stay unrun.
+Optional tools, accounts, signing, uploads, and publishing retain existing authorization
+boundaries. Architect, Debugger, QA, Designer, and the authority roles retain ownership of
+their general methods; platform expertise composes with them rather than replacing them.
+
 ### `qa`
 
 - **Manifest:** [qa.json](../../skills/manifests/qa.json)

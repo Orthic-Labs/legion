@@ -1,0 +1,6 @@
+interface:
+  display_name: "Macos Development"
+  short_description: "Build, change, debug, test, or optimize macOS apps and Apple-native components. Use for SwiftUI/AppKit, windows and menus, Swift concurrency, persistence, Xcode/SwiftPM, native permissions, and release preparation; preserve existing Rust/Tauri/Cargo hosts."
+  default_prompt: "Use $macos-development when this request matches: Build, change, debug, test, or optimize macOS apps and Apple-native components. Use for SwiftUI/AppKit, windows and menus, Swift concurrency, persistence, Xcode/SwiftPM, native permissions, and release preparation; preserve existing Rust/Tauri/Cargo hosts."
+policy:
+  allow_implicit_invocation: true

@@ -40,6 +40,27 @@ Donor concepts never override current Google/Bing/platform documentation,
 Legion authority/effect controls, or the user-supplied SEO implementation and
 control sources.
 
+## Apple development methodology and references
+
+The `ios-development` and `macos-development` bundles contain original Legion guidance
+reconciled from the public SwiftUI, concurrency, testing, SwiftData/Core Data, Xcode build
+optimization, and profiling material listed in their pinned source manifests. MIT
+methodological inputs from Paul Hudson (`twostraws`), Antoine van der Lee (`AvdLee`), and
+Peter Steinberger (`steipete/agent-scripts`) retain their copyright and permission notices
+inside each self-contained bundle:
+
+- [iOS source manifest](../skills/ios-development/config/source-manifest.json) and [notices](../skills/ios-development/references/third-party-notices.md)
+- [macOS source manifest](../skills/macos-development/config/source-manifest.json) and [notices](../skills/macos-development/references/third-party-notices.md)
+
+OpenAI's Apple plugins are coverage references only: their inspected manifests declare MIT,
+but accompanying license text was not present at the reviewed pin. No OpenAI skill text,
+scripts, metadata, or assets are vendored. Public Zablocki guidance and commercial RocketSim
+material are reference-only; gated AppCreator, paid-course, and Point-Free subscription
+content are excluded. MobileBuildMCP (formerly XcodeBuildMCP), AXe, DocSetQuery, xcbeautify,
+Inject, Sourcery, CodexMonitor, and App Store Connect tools remain optional external
+capabilities. Their binaries, configuration, credentials, and dependencies are not shipped.
+Tool reference does not authorize installation, telemetry, account changes, or publishing.
+
 ## Rule packs and fixtures
 
 The benchmark fixture corpus (`bench/fixtures/`) and SEO regression fixtures under

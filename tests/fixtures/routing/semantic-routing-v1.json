@@ -520,6 +520,78 @@
       "effects": ["source-read"],
       "attachedAuthorities": [],
       "forbiddenSelections": ["commit", "coder"]
+    },
+    {
+      "id": "public-ios-development",
+      "concerns": ["public-discovery", "apple-platform", "capability-composition"],
+      "prompt": "Implement an accessible settings screen in this existing UIKit iOS app.",
+      "source": "semantic",
+      "expectedCapabilities": ["ios-development"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "execute", "produce"],
+      "effects": ["source-read", "repository-write", "process-exec"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": []
+    },
+    {
+      "id": "public-macos-development",
+      "concerns": ["public-discovery", "apple-platform", "capability-composition"],
+      "prompt": "Add a native File menu action to this existing macOS SwiftUI app.",
+      "source": "semantic",
+      "expectedCapabilities": ["macos-development"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "execute", "produce"],
+      "effects": ["source-read", "repository-write", "process-exec"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": []
+    },
+    {
+      "id": "public-apple-platform-composition",
+      "concerns": ["public-discovery", "apple-platform", "capability-composition"],
+      "prompt": "Add a shared Swift model change and adapt both the iOS and macOS app targets.",
+      "source": "semantic",
+      "expectedCapabilities": ["ios-development", "macos-development"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "execute", "produce"],
+      "effects": ["source-read", "repository-write", "process-exec"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": []
+    },
+    {
+      "id": "public-macos-tauri-preservation",
+      "concerns": ["public-discovery", "apple-platform", "capability-composition"],
+      "prompt": "Add an Apple-native bridge to our existing Rust/Tauri Mac app without changing its host architecture.",
+      "source": "semantic",
+      "expectedCapabilities": ["macos-development"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "execute", "produce"],
+      "effects": ["source-read", "repository-write", "process-exec"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": []
+    },
+    {
+      "id": "public-apple-app-commercial-negative",
+      "concerns": ["public-discovery", "apple-platform", "capability-composition"],
+      "prompt": "Plan the marketing launch campaign for our iOS and macOS app.",
+      "source": "semantic",
+      "expectedCapabilities": ["marketing"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "produce"],
+      "effects": ["source-read", "artifact-write"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": ["ios-development", "macos-development"]
+    },
+    {
+      "id": "public-ios-debugger-composition",
+      "concerns": ["public-discovery", "apple-platform", "capability-composition"],
+      "prompt": "Diagnose and repair this iOS simulator crash with a reproducible root-cause hypothesis.",
+      "source": "semantic",
+      "expectedCapabilities": ["debugger", "ios-development"],
+      "expectedEntrypoints": [],
+      "operations": ["analyze", "diagnose", "execute", "produce"],
+      "effects": ["source-read", "repository-write", "process-exec"],
+      "attachedAuthorities": [],
+      "forbiddenSelections": ["audit"]
     }
   ]
 }

@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "id": "ios-development",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://ios-development/",
+  "provenance": "legion-authored-synthesis-with-attributed-methodology",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "original-synthesis-and-attributed-permissive-methodology",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4",
+    "sourceManifest": "config/source-manifest.json",
+    "thirdPartyNotices": "references/third-party-notices.md",
+    "note": "Original Legion prose; MIT method attributions and notices retained. Reference-only sources, tools and gated content are not vendored."
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/ios-development",
+      "Build, change, debug, test, or optimize iOS and iPadOS apps and their Apple-native components. Use for SwiftUI/UIKit, Swift concurrency, SwiftData/Core Data, Xcode builds, simulator/device behavior, and release preparation; preserve an existing cross-platform host."
+    ],
+    "outputs": [
+      "references/architecture.md",
+      "references/concurrency.md",
+      "references/ios-platform.md",
+      "references/performance.md",
+      "references/persistence.md",
+      "references/release.md",
+      "references/route-resources.json",
+      "references/swiftui.md",
+      "references/system-integration.md",
+      "references/tauri-rust-interop.md",
+      "references/testing.md",
+      "references/third-party-notices.md",
+      "references/tool-setup.md",
+      "references/toolchain.md"
+    ],
+    "scripts": [
+      "scripts/tool_preflight.py"
+    ],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://ios-development/SKILL.md",
+      "digest": "sha256:b2f9aec0245b8783c533358985ce41dcd774b52f974f614bc11341e78d160c36"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://ios-development/agents/openai.yaml",
+      "digest": "sha256:bd3617b0f23bc270ba9e49548d8f22b525f77163b3f6ed514f9f83b89935a9fc"
+    },
+    {
+      "path": "config/source-manifest.json",
+      "uri": "legion-skill://ios-development/config/source-manifest.json",
+      "digest": "sha256:95c23a689ecf3b994b711d3a929584a56d340d27ce8541e3acfdc818acc93313"
+    },
+    {
+      "path": "config/tool-catalog.json",
+      "uri": "legion-skill://ios-development/config/tool-catalog.json",
+      "digest": "sha256:6cb717addba5e2a2dd1fe3b67806f8962eb50f1006ea802531ae16ffb58c3201"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://ios-development/dependencies.json",
+      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://ios-development/evals/evals.json",
+      "digest": "sha256:e6eff1fbf631da8878f5036e8d714bb725bbbad6a8aa91627630f44134152b55"
+    },
+    {
+      "path": "references/architecture.md",
+      "uri": "legion-skill://ios-development/references/architecture.md",
+      "digest": "sha256:5639b666966e529ca45d5eb279270fde523205500183eaea35e5be21f6c86b65"
+    },
+    {
+      "path": "references/concurrency.md",
+      "uri": "legion-skill://ios-development/references/concurrency.md",
+      "digest": "sha256:4aea007645eef47aa728408de14a25d5db0fe47482bfad4bc777faf4f2af0940"
+    },
+    {
+      "path": "references/ios-platform.md",
+      "uri": "legion-skill://ios-development/references/ios-platform.md",
+      "digest": "sha256:a031968169b25b3f820ebce2a6cd85fb930500c9b73b0d21ea9713eb6164e7d0"
+    },
+    {
+      "path": "references/performance.md",
+      "uri": "legion-skill://ios-development/references/performance.md",
+      "digest": "sha256:3786712d7064eaa9c08fc41402dcbe522a77af22e55963e43778672ef4611c7c"
+    },
+    {
+      "path": "references/persistence.md",
+      "uri": "legion-skill://ios-development/references/persistence.md",
+      "digest": "sha256:bd53f7701316774fe310490225b1e70b5cfa3686f1efc7b78a7c362637a7b495"
+    },
+    {
+      "path": "references/release.md",
+      "uri": "legion-skill://ios-development/references/release.md",
+      "digest": "sha256:0fe4f611883601a0922b552799364859ad20e4a7c5bd1fb857106c12f6b15e3d"
+    },
+    {
+      "path": "references/route-resources.json",
+      "uri": "legion-skill://ios-development/references/route-resources.json",
+      "digest": "sha256:2b863ccd2df9eaafa34ed9dbb10ff89db6571bbf146c07d9cd4875a1aaba5a53"
+    },
+    {
+      "path": "references/swiftui.md",
+      "uri": "legion-skill://ios-development/references/swiftui.md",
+      "digest": "sha256:5e1906433360e31319694c05c5533cf5d9d5a4ada2a96a5e8e86dfec18049fc4"
+    },
+    {
+      "path": "references/system-integration.md",
+      "uri": "legion-skill://ios-development/references/system-integration.md",
+      "digest": "sha256:8f6561980d058a4023b9d72f005551905162fecf6dc6cce5854f85404ff4209b"
+    },
+    {
+      "path": "references/tauri-rust-interop.md",
+      "uri": "legion-skill://ios-development/references/tauri-rust-interop.md",
+      "digest": "sha256:82b7e91557111b6744fd66b96dafc089cbcfca02386d209e70d5ca0980239344"
+    },
+    {
+      "path": "references/testing.md",
+      "uri": "legion-skill://ios-development/references/testing.md",
+      "digest": "sha256:d8fb0737dc4c025be934597fcdf71e957155c31f570d86cea67f012cbb4b4b69"
+    },
+    {
+      "path": "references/third-party-notices.md",
+      "uri": "legion-skill://ios-development/references/third-party-notices.md",
+      "digest": "sha256:7bebb9c7e7212c019d2ea55cefd60d650ae3a1056a30a4e19132b5c2ddb4ad90"
+    },
+    {
+      "path": "references/tool-setup.md",
+      "uri": "legion-skill://ios-development/references/tool-setup.md",
+      "digest": "sha256:a69abde94b6982c82194fe5b4b159bcda304cf94e7308ef9926a249b1bbe8737"
+    },
+    {
+      "path": "references/toolchain.md",
+      "uri": "legion-skill://ios-development/references/toolchain.md",
+      "digest": "sha256:a9b1fc9269f14a1026273e751b523e4db9b6baaba8f4c2ff8efef9d32721db1e"
+    },
+    {
+      "path": "scripts/tool_preflight.py",
+      "uri": "legion-skill://ios-development/scripts/tool_preflight.py",
+      "digest": "sha256:01173e87427821ef655d3840ee832d6cfc09920f0df528894179ef16fb1a73a7"
+    }
+  ]
+}
