@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "kind": "legion-plugin-surface",
   "version": "0.3.21",
-  "digest": "sha256:bfe33d454e36c74a7189e456af5d730097df7cda6581b0161339cb59b19e9d93",
+  "digest": "sha256:1998cff6111c6a18dbde58aee74d0bc46036476b48d81c3d98ebab9301b4cf9c",
   "counts": {
-    "skills": 27,
+    "skills": 29,
     "agents": 4,
     "mcpServers": 1,
     "hookEvents": 9
@@ -29,6 +29,8 @@
       "foundation",
       "gotchas",
       "handoff",
+      "ios-development",
+      "macos-development",
       "marketing",
       "oracle",
       "qa",

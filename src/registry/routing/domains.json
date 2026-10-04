@@ -69,6 +69,12 @@
           "id": "foundation"
         },
         {
+          "id": "ios-development"
+        },
+        {
+          "id": "macos-development"
+        },
+        {
           "id": "qa"
         }
       ]

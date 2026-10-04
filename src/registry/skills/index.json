@@ -640,6 +640,204 @@
       "manifest": "skills/manifests/handoff.json"
     },
     {
+      "id": "ios-development",
+      "name": "ios-development",
+      "description": "Build, change, debug, test, or optimize iOS and iPadOS apps and their Apple-native components. Use for SwiftUI/UIKit, Swift concurrency, SwiftData/Core Data, Xcode builds, simulator/device behavior, and release preparation; preserve an existing cross-platform host.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "diagnose",
+        "decide",
+        "produce",
+        "evaluate",
+        "execute"
+      ],
+      "effects": [
+        "source-read",
+        "repository-write",
+        "artifact-write",
+        "process-exec",
+        "network-request"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [
+        {
+          "scope": "adapter:apple-build-mcp",
+          "scopeKind": "adapter",
+          "id": "apple-build-mcp",
+          "kind": "mcp-server",
+          "summary": "Optional configured XcodeBuildMCP or MobileBuildMCP adapter, selected through the installed server version and actual tool schemas.",
+          "degradation": "Skip this adapter; use an authorized project-native CLI route if available, otherwise report the exact Apple operation as unrun.",
+          "remedy": "Use a compatible already configured server or the project CLI; configuring a new persistent integration requires applicable authorization.",
+          "probe": null
+        },
+        {
+          "scope": "adapter:appstore-connect-cli",
+          "scopeKind": "adapter",
+          "id": "apple-appstore-connect-cli",
+          "kind": "command-line-tool",
+          "summary": "Optional AppStoreConnectCLI adapter for specifically authorized App Store Connect operations.",
+          "degradation": "Return local release preparation and name the unperformed account/upload/submission operation; never install, authenticate, or publish automatically.",
+          "remedy": "Use an existing compatible authorized CLI/account workflow; credentials and consequential actions remain governed by live permission.",
+          "probe": null
+        },
+        {
+          "scope": "adapter:axe",
+          "scopeKind": "adapter",
+          "id": "apple-axe",
+          "kind": "command-line-tool",
+          "summary": "Optional AXe simulator UI adapter for an explicitly selected native UI validation route.",
+          "degradation": "Use the project's available XCTest/UI tooling or report simulator UI validation unrun; no screenshot or click implies a pass.",
+          "remedy": "Use an authorized Mac with a compatible installed AXe and selected simulator, or retain the existing UI test workflow.",
+          "probe": {
+            "kind": "command",
+            "command": "axe"
+          }
+        },
+        {
+          "scope": "adapter:docsetquery",
+          "scopeKind": "adapter",
+          "id": "apple-docsetquery",
+          "kind": "tool",
+          "summary": "Optional local Apple documentation query adapter selected for installed-SDK documentation lookup.",
+          "degradation": "Read current official Apple/Swift documentation and disclose that installed-SDK docset evidence was unavailable.",
+          "remedy": "Use an existing compatible DocSetQuery integration and local docsets, or official documentation.",
+          "probe": null
+        },
+        {
+          "scope": "workflow:swift-package",
+          "scopeKind": "workflow",
+          "id": "swift-toolchain",
+          "kind": "language-runtime",
+          "summary": "Project-compatible Swift compiler and Swift Package Manager for the selected package build/test route.",
+          "degradation": "Swift package build/test checks remain unrun; do not substitute them for Apple app verification.",
+          "remedy": "Use an authorized environment with the project-compatible Swift toolchain; no automatic installation or language-mode upgrade.",
+          "probe": {
+            "kind": "command",
+            "command": "swift"
+          }
+        },
+        {
+          "scope": "workflow:xcode-build-test",
+          "scopeKind": "workflow",
+          "id": "apple-xcode",
+          "kind": "command-line-tool",
+          "summary": "Selected macOS Xcode SDK and command-line build/test tools used only by Apple build, simulator, or release-preparation routes.",
+          "degradation": "Apple build, test, simulator, and archive checks remain unrun; source review and implementation can continue without claiming native verification.",
+          "remedy": "Use an authorized Mac with the project-compatible Xcode SDK and destination; this skill does not install or select Xcode automatically.",
+          "probe": {
+            "kind": "command",
+            "command": "xcodebuild"
+          }
+        }
+      ],
+      "source": "skills/ios-development/SKILL.md",
+      "manifest": "skills/manifests/ios-development.json"
+    },
+    {
+      "id": "macos-development",
+      "name": "macos-development",
+      "description": "Build, change, debug, test, or optimize macOS apps and Apple-native components. Use for SwiftUI/AppKit, windows and menus, Swift concurrency, persistence, Xcode/SwiftPM, native permissions, and release preparation; preserve existing Rust/Tauri/Cargo hosts.",
+      "kind": "capability",
+      "capabilityClass": "domain",
+      "discoverability": "public",
+      "domain": "engineering",
+      "operations": [
+        "analyze",
+        "diagnose",
+        "decide",
+        "produce",
+        "evaluate",
+        "execute"
+      ],
+      "effects": [
+        "source-read",
+        "repository-write",
+        "artifact-write",
+        "process-exec",
+        "network-request"
+      ],
+      "hostRequirements": [],
+      "hostRequirementDetails": [],
+      "scopedRequirementDetails": [
+        {
+          "scope": "adapter:apple-build-mcp",
+          "scopeKind": "adapter",
+          "id": "apple-build-mcp",
+          "kind": "mcp-server",
+          "summary": "Optional configured XcodeBuildMCP or MobileBuildMCP adapter, selected through the installed server version and actual tool schemas.",
+          "degradation": "Skip this adapter; use an authorized project-native CLI route if available, otherwise report the exact Apple operation as unrun.",
+          "remedy": "Use a compatible already configured server or the project CLI; configuring a new persistent integration requires applicable authorization.",
+          "probe": null
+        },
+        {
+          "scope": "adapter:appstore-connect-cli",
+          "scopeKind": "adapter",
+          "id": "apple-appstore-connect-cli",
+          "kind": "command-line-tool",
+          "summary": "Optional AppStoreConnectCLI adapter for specifically authorized App Store Connect operations.",
+          "degradation": "Return local release preparation and name the unperformed account/upload/submission operation; never install, authenticate, or publish automatically.",
+          "remedy": "Use an existing compatible authorized CLI/account workflow; credentials and consequential actions remain governed by live permission.",
+          "probe": null
+        },
+        {
+          "scope": "adapter:axe",
+          "scopeKind": "adapter",
+          "id": "apple-axe",
+          "kind": "command-line-tool",
+          "summary": "Optional AXe simulator UI adapter for an explicitly selected native UI validation route.",
+          "degradation": "Use the project's available XCTest/UI tooling or report simulator UI validation unrun; no screenshot or click implies a pass.",
+          "remedy": "Use an authorized Mac with a compatible installed AXe and selected simulator, or retain the existing UI test workflow.",
+          "probe": {
+            "kind": "command",
+            "command": "axe"
+          }
+        },
+        {
+          "scope": "adapter:docsetquery",
+          "scopeKind": "adapter",
+          "id": "apple-docsetquery",
+          "kind": "tool",
+          "summary": "Optional local Apple documentation query adapter selected for installed-SDK documentation lookup.",
+          "degradation": "Read current official Apple/Swift documentation and disclose that installed-SDK docset evidence was unavailable.",
+          "remedy": "Use an existing compatible DocSetQuery integration and local docsets, or official documentation.",
+          "probe": null
+        },
+        {
+          "scope": "workflow:swift-package",
+          "scopeKind": "workflow",
+          "id": "swift-toolchain",
+          "kind": "language-runtime",
+          "summary": "Project-compatible Swift compiler and Swift Package Manager for the selected package build/test route.",
+          "degradation": "Swift package build/test checks remain unrun; do not substitute them for Apple app verification.",
+          "remedy": "Use an authorized environment with the project-compatible Swift toolchain; no automatic installation or language-mode upgrade.",
+          "probe": {
+            "kind": "command",
+            "command": "swift"
+          }
+        },
+        {
+          "scope": "workflow:xcode-build-test",
+          "scopeKind": "workflow",
+          "id": "apple-xcode",
+          "kind": "command-line-tool",
+          "summary": "Selected macOS Xcode SDK and command-line build/test tools used only by Apple build, simulator, or release-preparation routes.",
+          "degradation": "Apple build, test, simulator, and archive checks remain unrun; source review and implementation can continue without claiming native verification.",
+          "remedy": "Use an authorized Mac with the project-compatible Xcode SDK and destination; this skill does not install or select Xcode automatically.",
+          "probe": {
+            "kind": "command",
+            "command": "xcodebuild"
+          }
+        }
+      ],
+      "source": "skills/macos-development/SKILL.md",
+      "manifest": "skills/manifests/macos-development.json"
+    },
+    {
       "id": "marketing",
       "name": "marketing",
       "description": "Route positioning, offers, packaging, guarantees, launches, validation, growth, analytics, pricing, CRO, retention, and commercial ideation. Use for Grand Slam Offers or what, whom, why, and how to market; route execution to Ads, SEO, Social, Research, or Writing.",

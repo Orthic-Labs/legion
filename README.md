@@ -41,8 +41,23 @@ Current catalog uses these optional discovery groups, not routing authorities or
 - **Research** — general, scientific, & market evidence
 - **Editorial** — writing & editorial work
 - **Design** — interface, visual, & brand-identity work
+- **Engineering** — architecture, diagnosis, QA, and platform development
 
 Skills supply reusable methods. Legion owns semantic selection, work graph, evidence, & delivery state across all groups.
+
+### Apple development
+
+Use `/ios-development` for iOS/iPadOS and `/macos-development` for Mac applications or
+their Apple-native components. Both are automatically discoverable engineering capabilities
+with short entrypoints and task-selected references for SwiftUI, concurrency, testing,
+persistence, performance, system integration, and release preparation. They preserve the
+project's deployment targets, architecture, data layer, and any Rust/Tauri/Cargo host.
+
+Each bundle is self-contained for native skill projection. Xcode, SwiftPM, and optional
+build/UI/documentation/release adapters are checked only for the selected workflow; the
+skills install nothing and grant no account, signing, telemetry, upload, or publishing
+permission. See [packaged skills](docs/architecture/skills.md) and
+[third-party notices](docs/THIRD_PARTY_NOTICES.md) for provenance and tool boundaries.
 
 ## Harnesses & fidelity
 

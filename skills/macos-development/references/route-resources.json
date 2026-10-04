@@ -1,0 +1,43 @@
+{
+  "schema_version": 2,
+  "workflows": {
+    "xcode-build-test": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "apple-xcode"
+      }
+    ],
+    "swift-package": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "swift-toolchain"
+      }
+    ]
+  },
+  "adapters": {
+    "apple-build-mcp": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "apple-build-mcp"
+      }
+    ],
+    "axe": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "apple-axe"
+      }
+    ],
+    "docsetquery": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "apple-docsetquery"
+      }
+    ],
+    "appstore-connect-cli": [
+      {
+        "class": "HOST_CAPABILITY",
+        "capability": "apple-appstore-connect-cli"
+      }
+    ]
+  }
+}

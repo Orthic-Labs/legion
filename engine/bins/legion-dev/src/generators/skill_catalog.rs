@@ -246,3 +246,106 @@ pub fn run(root: &Path, check: bool) -> bool {
     println!("wrote {OUT_INDEX} ({bundles_len} bundles) and {OUT_DOMAINS} ({groups_len} groups)");
     true
 }
+
+#[cfg(test)]
+mod apple_skill_tests {
+    use super::*;
+    use crate::generators::{codex_skill_sidecars, host_projection, refresh_local_skill_manifests};
+    use regex::Regex;
+
+    const APPLE_SKILLS: [&str; 2] = ["ios-development", "macos-development"];
+
+    fn repository_root() -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..").canonicalize().unwrap()
+    }
+
+    #[test]
+    fn apple_skills_are_public_with_workflow_scoped_tools() {
+        let root = repository_root();
+        let (catalog, domains) = build_skill_catalog(&root).unwrap();
+        let projection = host_projection::build_projection(&root).unwrap();
+        let sidecars = codex_skill_sidecars::expected_codex_sidecars(&root).unwrap();
+        let engineering = domains["domains"].as_array().unwrap().iter()
+            .find(|domain| domain["id"] == "engineering").unwrap();
+        for id in APPLE_SKILLS {
+            let skill = catalog["bundles"].as_array().unwrap().iter()
+                .find(|skill| skill["id"] == id).unwrap();
+            assert_eq!(skill["kind"], "capability");
+            assert_eq!(skill["discoverability"], "public");
+            assert!(skill["hostRequirements"].as_array().unwrap().is_empty());
+            assert!(engineering["children"].as_array().unwrap().iter()
+                .any(|child| child["id"] == id));
+            let scoped = skill["scopedRequirementDetails"].as_array().unwrap();
+            assert!(scoped.iter().any(|item| item["scope"] == "workflow:xcode-build-test"
+                && item["id"] == "apple-xcode"));
+            assert!(scoped.iter().any(|item| item["scope"] == "adapter:apple-build-mcp"));
+            assert!(scoped.iter().all(|item| item["degradation"].as_str()
+                .is_some_and(|value| !value.is_empty())));
+            let host = projection["capabilities"].as_array().unwrap().iter()
+                .find(|skill| skill["id"] == id).unwrap();
+            assert_eq!(host["invocation"]["user"], true);
+            assert_eq!(host["invocation"]["model"], true);
+            let (_, text) = sidecars.iter().find(|(name, _)| name == id).unwrap();
+            assert!(text.contains("allow_implicit_invocation: true"));
+        }
+    }
+
+    #[test]
+    fn apple_skills_resolve_references_after_standalone_copy() {
+        let root = repository_root();
+        let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+            .unwrap().as_nanos();
+        let temporary = std::env::temp_dir().join(format!("legion-apple-skills-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(&temporary).unwrap();
+        let links = Regex::new(r"\[[^\]]+\]\(([^)]+)\)").unwrap();
+        for id in APPLE_SKILLS {
+            let source = root.join("skills").join(id);
+            let destination = temporary.join(id);
+            for entry in walkdir::WalkDir::new(&source) {
+                let entry = entry.unwrap();
+                assert!(!entry.file_type().is_symlink(), "symlinks cannot ship in {id}");
+                let target = destination.join(entry.path().strip_prefix(&source).unwrap());
+                if entry.file_type().is_dir() {
+                    fs::create_dir_all(&target).unwrap();
+                } else {
+                    fs::copy(entry.path(), &target).unwrap();
+                }
+            }
+            let package_root = destination.canonicalize().unwrap();
+            for entry in walkdir::WalkDir::new(&destination) {
+                let entry = entry.unwrap();
+                if entry.path().extension().and_then(|ext| ext.to_str()) != Some("md") {
+                    continue;
+                }
+                let text = fs::read_to_string(entry.path()).unwrap();
+                for capture in links.captures_iter(&text) {
+                    let link = &capture[1];
+                    if link.contains("://") || link.starts_with('#') {
+                        continue;
+                    }
+                    let path = link.split('#').next().unwrap();
+                    let resolved = entry.path().parent().unwrap().join(path).canonicalize()
+                        .unwrap_or_else(|error| panic!("{id}: unresolved {link}: {error}"));
+                    assert!(resolved.starts_with(&package_root), "{id}: link escapes bundle: {link}");
+                }
+            }
+        }
+        fs::remove_dir_all(&temporary).unwrap();
+    }
+
+    #[test]
+    fn apple_skill_manifests_bind_current_files_and_source_notices() {
+        let root = repository_root();
+        for id in APPLE_SKILLS {
+            let generated = refresh_local_skill_manifests::build_local_skill_manifest(&root, id).unwrap();
+            let current = read_json(&generated.manifest_path).unwrap();
+            assert_eq!(current, generated.manifest);
+            assert_eq!(current["licenseState"], "licensed");
+            assert_eq!(current["rightsReceipt"]["sourceManifest"], "config/source-manifest.json");
+            let files = current["files"].as_array().unwrap();
+            for required in ["config/source-manifest.json", "references/third-party-notices.md", "evals/evals.json"] {
+                assert!(files.iter().any(|file| file["path"] == required));
+            }
+        }
+    }
+}

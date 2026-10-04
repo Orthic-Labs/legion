@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ios Development"
+  short_description: "Build, change, debug, test, or optimize iOS and iPadOS apps and their Apple-native components. Use for SwiftUI/UIKit, Swift concurrency, SwiftData/Core Data, Xcode builds, simulator/device behavior, and release preparation; preserve an existing cross-platform host."
+  default_prompt: "Use $ios-development when this request matches: Build, change, debug, test, or optimize iOS and iPadOS apps and their Apple-native components. Use for SwiftUI/UIKit, Swift concurrency, SwiftData/Core Data, Xcode builds, simulator/device behavior, and release preparation; preserve an existing cross-platform host."
+policy:
+  allow_implicit_invocation: true

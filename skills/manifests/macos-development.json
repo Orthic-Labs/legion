@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "id": "macos-development",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "rootUri": "legion-skill://macos-development/",
+  "provenance": "legion-authored-synthesis-with-attributed-methodology",
+  "licenseState": "licensed",
+  "rightsReceipt": {
+    "kind": "legion-rights-receipt",
+    "basis": "original-synthesis-and-attributed-permissive-methodology",
+    "license": "LICENSE",
+    "licenseDigest": "sha256:6519936585434711b6d5971a3081fbd8b499438a39b6a08cc2191d33443926b4",
+    "sourceManifest": "config/source-manifest.json",
+    "thirdPartyNotices": "references/third-party-notices.md",
+    "note": "Original Legion prose; MIT method attributions and notices retained. Reference-only sources, tools and gated content are not vendored."
+  },
+  "profiles": {
+    "audit": {
+      "mutation": false,
+      "publish": false
+    },
+    "authoring": {
+      "mutation": true,
+      "publish": false,
+      "externalOnly": true
+    }
+  },
+  "parity": {
+    "triggers": [
+      "/macos-development",
+      "Build, change, debug, test, or optimize macOS apps and Apple-native components. Use for SwiftUI/AppKit, windows and menus, Swift concurrency, persistence, Xcode/SwiftPM, native permissions, and release preparation; preserve existing Rust/Tauri/Cargo hosts."
+    ],
+    "outputs": [
+      "references/architecture.md",
+      "references/concurrency.md",
+      "references/macos-platform.md",
+      "references/performance.md",
+      "references/persistence.md",
+      "references/release.md",
+      "references/route-resources.json",
+      "references/swiftui.md",
+      "references/system-integration.md",
+      "references/tauri-rust-interop.md",
+      "references/testing.md",
+      "references/third-party-notices.md",
+      "references/toolchain.md"
+    ],
+    "scripts": [],
+    "templates": [],
+    "schemas": [],
+    "receipts": [],
+    "evals": [
+      "evals/evals.json"
+    ],
+    "consumers": [
+      "src/registry/skills/index.json",
+      "src/registry/routing/domains.json"
+    ]
+  },
+  "files": [
+    {
+      "path": "SKILL.md",
+      "uri": "legion-skill://macos-development/SKILL.md",
+      "digest": "sha256:dc45978a7c54985fea7c86eeff0b6d1690df4a338bb563fdbd712787394858a6"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "uri": "legion-skill://macos-development/agents/openai.yaml",
+      "digest": "sha256:12b9d1a294aa6d3b09690251430f43e0cf0f8cc8ef07fe6a2bde4d42afdc9347"
+    },
+    {
+      "path": "config/source-manifest.json",
+      "uri": "legion-skill://macos-development/config/source-manifest.json",
+      "digest": "sha256:2e8b34afa792b3576a4a091646ad892d2aa889759456b87b018bcc28e6d5a748"
+    },
+    {
+      "path": "dependencies.json",
+      "uri": "legion-skill://macos-development/dependencies.json",
+      "digest": "sha256:d40678f7c62f0461a8a1d8aff05b1a8c46ed071db0ac5da710d89ae3e660c968"
+    },
+    {
+      "path": "evals/evals.json",
+      "uri": "legion-skill://macos-development/evals/evals.json",
+      "digest": "sha256:cdb2bdfda0ed71fa1cd52144d86b1bdffd9a2005c368377aea4a0e0c7f63fa0e"
+    },
+    {
+      "path": "references/architecture.md",
+      "uri": "legion-skill://macos-development/references/architecture.md",
+      "digest": "sha256:5639b666966e529ca45d5eb279270fde523205500183eaea35e5be21f6c86b65"
+    },
+    {
+      "path": "references/concurrency.md",
+      "uri": "legion-skill://macos-development/references/concurrency.md",
+      "digest": "sha256:4aea007645eef47aa728408de14a25d5db0fe47482bfad4bc777faf4f2af0940"
+    },
+    {
+      "path": "references/macos-platform.md",
+      "uri": "legion-skill://macos-development/references/macos-platform.md",
+      "digest": "sha256:73a96f6dc3278926b32ccd6f74afc74d4e1d6e50ba1184ca07b7a3e52d9177b2"
+    },
+    {
+      "path": "references/performance.md",
+      "uri": "legion-skill://macos-development/references/performance.md",
+      "digest": "sha256:3786712d7064eaa9c08fc41402dcbe522a77af22e55963e43778672ef4611c7c"
+    },
+    {
+      "path": "references/persistence.md",
+      "uri": "legion-skill://macos-development/references/persistence.md",
+      "digest": "sha256:bd53f7701316774fe310490225b1e70b5cfa3686f1efc7b78a7c362637a7b495"
+    },
+    {
+      "path": "references/release.md",
+      "uri": "legion-skill://macos-development/references/release.md",
+      "digest": "sha256:3dce940240d1068bd7724f226dbe868514cbc6b38ab724835173e41a5ce9de2c"
+    },
+    {
+      "path": "references/route-resources.json",
+      "uri": "legion-skill://macos-development/references/route-resources.json",
+      "digest": "sha256:a91f6a5cc5b08c8624166ed53fe28b06e6e07cd142b2488587542a9a036bb69f"
+    },
+    {
+      "path": "references/swiftui.md",
+      "uri": "legion-skill://macos-development/references/swiftui.md",
+      "digest": "sha256:5e1906433360e31319694c05c5533cf5d9d5a4ada2a96a5e8e86dfec18049fc4"
+    },
+    {
+      "path": "references/system-integration.md",
+      "uri": "legion-skill://macos-development/references/system-integration.md",
+      "digest": "sha256:8f6561980d058a4023b9d72f005551905162fecf6dc6cce5854f85404ff4209b"
+    },
+    {
+      "path": "references/tauri-rust-interop.md",
+      "uri": "legion-skill://macos-development/references/tauri-rust-interop.md",
+      "digest": "sha256:6eb8da8b72a0d2ff6e349c75d366239d45dc01a9d971adc274fd5b7404774e0d"
+    },
+    {
+      "path": "references/testing.md",
+      "uri": "legion-skill://macos-development/references/testing.md",
+      "digest": "sha256:d8fb0737dc4c025be934597fcdf71e957155c31f570d86cea67f012cbb4b4b69"
+    },
+    {
+      "path": "references/third-party-notices.md",
+      "uri": "legion-skill://macos-development/references/third-party-notices.md",
+      "digest": "sha256:e88cf6ac7292366c1090d1b07156bf6e0429e3ed1cf81c1891d8e39d27c9754b"
+    },
+    {
+      "path": "references/toolchain.md",
+      "uri": "legion-skill://macos-development/references/toolchain.md",
+      "digest": "sha256:6f3302534d203f529733b4c7b1d902ebd0a7f57e9701844ae0c41f5003e832c4"
+    }
+  ]
+}
