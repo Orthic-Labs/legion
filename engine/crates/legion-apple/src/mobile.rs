@@ -287,6 +287,14 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
             args.push(operation.strip_prefix("project.").unwrap().to_string());
             Plan::new(operation, XCODEBUILD, args, cwd, vec![if operation == "project.build" { "compile project" } else { "run project tests" }.to_string()])
         }
+        "project.clean" => {
+            ensure_allowed(object, &common, &["project", "project_path", "workspace", "workspace_path", "scheme", "configuration"])?;
+            let mut args = xcode_context(object, &cwd, execute)?;
+            if let Some(scheme) = optional_string(object, "scheme")? { args.extend(["-scheme".to_string(), scheme]); }
+            optional_arg(&mut args, object, "configuration", "-configuration")?;
+            args.push("clean".to_string());
+            Plan::new(operation, XCODEBUILD, args, cwd, vec!["FileDelete".to_string(), "delete Xcode build artifacts".to_string()])
+        }
         "project.archive" => {
             ensure_allowed(object, &common, &["project", "project_path", "workspace", "workspace_path", "scheme", "configuration", "destination", "archive_path"])?;
             let mut args = xcode_context(object, &cwd, execute)?;
@@ -309,7 +317,7 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
         }
         "swiftpm.build" | "swiftpm.test" | "swiftpm.run" => {
             ensure_allowed(object, &common, &["package_path", "product", "configuration"])?;
-            let package = optional_path_arg_value(&cwd, object, "package_path", execute, false)?.unwrap_or_else(|| cwd.clone());
+            let package = optional_path_arg_value(&PathBuf::from(&cwd), object, "package_path", execute, false)?.unwrap_or_else(|| cwd.clone());
             let mut args = vec![operation.strip_prefix("swiftpm.").unwrap().to_string(), "--package-path".to_string(), package.clone()];
             optional_arg(&mut args, object, "configuration", "-c")?;
             if operation == "swiftpm.run" {
@@ -318,6 +326,11 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
                 }
             }
             Plan::new(operation, SWIFT, args, cwd, vec![format!("run SwiftPM {}", operation.strip_prefix("swiftpm.").unwrap())])
+        }
+        "swiftpm.clean" => {
+            ensure_allowed(object, &common, &["package_path"])?;
+            let package = optional_path_arg_value(&PathBuf::from(&cwd), object, "package_path", execute, false)?.unwrap_or_else(|| cwd.clone());
+            Plan::new(operation, SWIFT, vec!["package".to_string(), "clean".to_string(), "--package-path".to_string(), package], cwd, vec!["FileDelete".to_string(), "delete SwiftPM build artifacts".to_string()])
         }
         "simulator.list" => {
             ensure_allowed(object, &common, &[])?;
@@ -350,7 +363,7 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
             let output = optional_string(object, "output")?.or(optional_string(object, "path")?).ok_or_else(|| "missing output or path".to_string())?;
             validate_output_path(&cwd, &output, execute)?;
             let action = if operation == "simulator.screenshot" { "screenshot" } else { "recordVideo" };
-            Plan::new(operation, XCRUN, vec!["simctl".to_string(), "io".to_string(), id, action.to_string(), resolve_path(&cwd, &output).display().to_string()], cwd, vec![if operation == "simulator.screenshot" { "write simulator screenshot" } else { "record simulator video" }.to_string()])
+            Plan::new(operation, XCRUN, vec!["simctl".to_string(), "io".to_string(), id, action.to_string(), resolve_path(&PathBuf::from(&cwd), &output).display().to_string()], cwd, vec![if operation == "simulator.screenshot" { "write simulator screenshot" } else { "record simulator video" }.to_string()])
         }
         "simulator.location" => {
             ensure_allowed(object, &common, &["simulator_id", "latitude", "longitude"])?;
@@ -358,6 +371,11 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
             let latitude = coordinate(object, "latitude")?;
             let longitude = coordinate(object, "longitude")?;
             Plan::new(operation, XCRUN, vec!["simctl".to_string(), "location".to_string(), id, "set".to_string(), latitude, longitude], cwd, vec!["change simulator location".to_string()])
+        }
+        "simulator.location_reset" => {
+            ensure_allowed(object, &common, &["simulator_id"])?;
+            let id = required_id(object, "simulator_id", "simulator")?;
+            Plan::new(operation, XCRUN, vec!["simctl".to_string(), "location".to_string(), id, "clear".to_string()], cwd, vec!["external:simulator state mutation".to_string(), "clear simulator location".to_string()])
         }
         "simulator.appearance" => {
             ensure_allowed(object, &common, &["simulator_id", "appearance"])?;
@@ -414,7 +432,7 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
         "mac.stop" => {
             ensure_allowed(object, &common, &["process_name"])?;
             let process = required_string(object, "process_name")?;
-            if process.contains('/') || process.contains('.') { return Err("process_name must be a plain process name".to_string()); }
+            if process.len() > 128 || !process.chars().all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-')) { return Err("process_name must contain only ASCII letters, digits, '_' or '-'".to_string()); }
             Plan::new(operation, "/usr/bin/pkill", vec!["-x".to_string(), process], cwd, vec!["terminate matching macOS app processes".to_string()])
         }
         "bundle.inspect" => {
@@ -431,6 +449,66 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
             let container = optional_string(object, "container")?.unwrap_or_else(|| "app".to_string());
             if !matches!(container.as_str(), "app" | "data" | "groups") { return Err("container must be app, data, or groups".to_string()); }
             Plan::new(operation, XCRUN, vec!["simctl".to_string(), "get_app_container".to_string(), id, bundle, container], cwd, vec!["read simulator app container path".to_string()])
+        }
+        "ui.button" => {
+            ensure_allowed(object, &common, &["axe_path", "simulator_id", "udid", "button", "duration"])?;
+            let axe = axe_executable(object, execute)?;
+            let id = required_simulator_id(object)?;
+            let button = required_string(object, "button")?;
+            if !matches!(button.as_str(), "home" | "lock" | "side-button" | "siri" | "apple-pay") { return Err("button must be home, lock, side-button, siri, or apple-pay".to_string()); }
+            let mut args = vec!["button".to_string(), button];
+            optional_bounded_float_arg(&mut args, object, "duration", 0.01, 30.0)?;
+            args.extend(["--udid".to_string(), id]);
+            Plan::new(operation, &axe, args, cwd, vec!["send simulator button event".to_string()])
+        }
+        "ui.drag" => {
+            ensure_allowed(object, &common, &["axe_path", "simulator_id", "udid", "start_x", "start_y", "end_x", "end_y", "duration", "steps"])?;
+            let axe = axe_executable(object, execute)?;
+            let id = required_simulator_id(object)?;
+            let mut args = vec!["drag".to_string(), "--start-x".to_string(), coordinate_value(object, "start_x", 0.0, 100_000.0)?, "--start-y".to_string(), coordinate_value(object, "start_y", 0.0, 100_000.0)?, "--end-x".to_string(), coordinate_value(object, "end_x", 0.0, 100_000.0)?, "--end-y".to_string(), coordinate_value(object, "end_y", 0.0, 100_000.0)?];
+            optional_bounded_float_arg(&mut args, object, "duration", 0.01, 30.0)?;
+            if object.contains_key("steps") { let steps = required_positive_u64(object, "steps")?; if steps > 10_000 { return Err("steps must be 1..10000".to_string()); } args.extend(["--steps".to_string(), steps.to_string()]); }
+            args.extend(["--udid".to_string(), id]);
+            Plan::new(operation, &axe, args, cwd, vec!["send simulator drag".to_string()])
+        }
+        "ui.gesture" => {
+            ensure_allowed(object, &common, &["axe_path", "simulator_id", "udid", "gesture", "duration", "delta"])?;
+            let axe = axe_executable(object, execute)?;
+            let id = required_simulator_id(object)?;
+            let gesture = required_string(object, "gesture")?;
+            if !matches!(gesture.as_str(), "scroll-up" | "scroll-down" | "scroll-left" | "scroll-right" | "swipe-from-left-edge" | "swipe-from-right-edge" | "swipe-from-top-edge" | "swipe-from-bottom-edge") { return Err("unsupported gesture preset".to_string()); }
+            let mut args = vec!["gesture".to_string(), gesture];
+            optional_bounded_float_arg(&mut args, object, "duration", 0.01, 30.0)?;
+            optional_bounded_float_arg(&mut args, object, "delta", 0.0, 10_000.0)?;
+            args.extend(["--udid".to_string(), id]);
+            Plan::new(operation, &axe, args, cwd, vec!["send simulator gesture".to_string()])
+        }
+        "ui.key_sequence" => {
+            ensure_allowed(object, &common, &["axe_path", "simulator_id", "udid", "keycodes", "delay"])?;
+            let axe = axe_executable(object, execute)?;
+            let id = required_simulator_id(object)?;
+            let keycodes = object.get("keycodes").and_then(Value::as_array).ok_or_else(|| "keycodes must be an array".to_string())?;
+            if keycodes.is_empty() { return Err("keycodes must not be empty".to_string()); }
+            let mut values = Vec::new();
+            for keycode in keycodes { let keycode = keycode.as_u64().ok_or_else(|| "keycodes must be positive integers".to_string())?; if keycode > 255 { return Err("keycodes must be 1..255".to_string()); } values.push(keycode.to_string()); }
+            let mut args = vec!["key-sequence".to_string(), "--keycodes".to_string(), values.join(",")];
+            optional_bounded_float_arg(&mut args, object, "delay", 0.0, 30.0)?;
+            args.extend(["--udid".to_string(), id]);
+            Plan::new(operation, &axe, args, cwd, vec!["send simulator key sequence".to_string()])
+        }
+        "ui.touch" | "ui.long_press" => {
+            ensure_allowed(object, &common, &["axe_path", "simulator_id", "udid", "x", "y", "down", "up", "delay"])?;
+            let axe = axe_executable(object, execute)?;
+            let id = required_simulator_id(object)?;
+            let mut args = vec!["touch".to_string(), "-x".to_string(), coordinate_value(object, "x", 0.0, 100_000.0)?, "-y".to_string(), coordinate_value(object, "y", 0.0, 100_000.0)?];
+            let down = optional_bool(object, "down")?.unwrap_or(operation == "ui.long_press");
+            let up = optional_bool(object, "up")?.unwrap_or(operation == "ui.long_press");
+            if !down && !up { return Err("touch requires down or up".to_string()); }
+            if down { args.push("--down".to_string()); }
+            if up { args.push("--up".to_string()); }
+            optional_bounded_float_arg(&mut args, object, "delay", 0.0, 30.0)?;
+            args.extend(["--udid".to_string(), id]);
+            Plan::new(operation, &axe, args, cwd, vec!["send simulator touch event".to_string()])
         }
         "ui.read" => {
             ensure_allowed(object, &common, &["axe_path", "simulator_id", "udid", "point"])?;
@@ -459,7 +537,7 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
             let axe = axe_executable(object, execute)?;
             let id = required_simulator_id(object)?;
             let text = optional_string(object, "text")?;
-            let file = optional_path_arg_value(&cwd, object, "file", execute, false)?;
+            let file = optional_path_arg_value(&PathBuf::from(&cwd), object, "file", execute, false)?;
             if text.is_some() == file.is_some() { return Err("type requires exactly one text or file".to_string()); }
             let mut args = vec!["type".to_string()];
             if let Some(text) = text { args.push(text); } else { args.extend(["--file".to_string(), file.unwrap()]); }
@@ -518,7 +596,7 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
                 "add" => {
                     let file = required_path_arg(&cwd, object, "file", execute, false)?;
                     let line = required_positive_u64(object, "line")?;
-                    format!("breakpoint set --file {} --line {line}", file)
+                    format!("breakpoint set --file {} --line {line}", lldb_quote(&file)?)
                 }
                 "remove" => format!("breakpoint delete {}", required_positive_u64(object, "breakpoint_id")?),
                 _ => return Err("breakpoint action must be add or remove".to_string()),
@@ -527,7 +605,7 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
         }
         "swiftpm.list" => {
             ensure_allowed(object, &common, &["package_path"])?;
-            let package = optional_path_arg_value(&cwd, object, "package_path", execute, false)?.unwrap_or_else(|| cwd.clone());
+            let package = optional_path_arg_value(&PathBuf::from(&cwd), object, "package_path", execute, false)?.unwrap_or_else(|| cwd.clone());
             Plan::new(operation, SWIFT, vec!["package".to_string(), "describe".to_string(), "--type".to_string(), "json".to_string(), "--package-path".to_string(), package], cwd, vec!["read SwiftPM package graph".to_string()])
         }
         "swiftpm.stop" => {
@@ -576,7 +654,7 @@ fn build_plan(operation: &str, arguments: &Value, execute: bool) -> Result<Plan,
             ensure_allowed(object, &common, &["template", "output", "bundle_id", "device_id"])?;
             let template = required_string(object, "template")?;
             let output = required_path_arg(&cwd, object, "output", execute, true)?;
-            let mut args = vec!["xctrace".to_string(), "record".to_string(), "--template".to_string(), template, "--output".to_string(), resolve_path(&cwd, &output).display().to_string()];
+            let mut args = vec!["xctrace".to_string(), "record".to_string(), "--template".to_string(), template, "--output".to_string(), resolve_path(&PathBuf::from(&cwd), &output).display().to_string()];
             if let Some(bundle) = optional_string(object, "bundle_id")? { args.extend(["--launch".to_string(), bundle]); }
             if let Some(device) = optional_string(object, "device_id")? { args.extend(["--device".to_string(), device]); }
             Plan::new(operation, XCRUN, args, cwd, vec!["write bounded xctrace profile".to_string()])
@@ -603,6 +681,7 @@ fn canonical_operation(operation: &str) -> Result<&str, String> {
         "list_destinations" => "project.destinations",
         "build" => "project.build",
         "test" => "project.test",
+        "clean" => "project.clean",
         "build_sim" | "build_device" | "build_macos" => "project.build",
         "test_sim" | "test_device" | "test_macos" => "project.test",
         "archive" => "project.archive",
@@ -610,6 +689,7 @@ fn canonical_operation(operation: &str) -> Result<&str, String> {
         "swift_package_build" => "swiftpm.build",
         "swift_package_test" => "swiftpm.test",
         "swift_package_run" => "swiftpm.run",
+        "swift_package_clean" => "swiftpm.clean",
         "simulator.list_devices" => "simulator.list",
         "simulator.list_sims" => "simulator.list",
         "simulator.install_app" => "simulator.install",
@@ -618,6 +698,7 @@ fn canonical_operation(operation: &str) -> Result<&str, String> {
         "simulator.set_location" => "simulator.location",
         "simulator.set_appearance" => "simulator.appearance",
         "simulator.set_statusbar" => "simulator.statusbar",
+        "reset_sim_location" => "simulator.location_reset",
         "set_sim_location" => "simulator.location",
         "set_sim_appearance" => "simulator.appearance",
         "sim_statusbar" => "simulator.statusbar",
@@ -642,6 +723,12 @@ fn canonical_operation(operation: &str) -> Result<&str, String> {
         "type_text" => "ui.type",
         "swipe" => "ui.swipe",
         "key_press" => "ui.key",
+        "button" => "ui.button",
+        "drag" => "ui.drag",
+        "gesture" => "ui.gesture",
+        "key_sequence" => "ui.key_sequence",
+        "long_press" => "ui.long_press",
+        "touch" => "ui.touch",
         "snapshot_ui" => "ui.read",
         "get_app_bundle_id" | "get_mac_bundle_id" => "bundle.inspect",
         "get_sim_app_path" => "simulator.app_container",
@@ -896,11 +983,13 @@ pub fn catalog() -> Value {
         operation_schema("project.destinations", "xcodebuild -showdestinations", &[("project|workspace", "string path", true), ("scheme", "string", true)], json!({"project": "Demo.xcodeproj", "scheme": "Demo"}), &["read"]),
         operation_schema("project.build", "xcodebuild build", &[("project|workspace", "string path", true), ("scheme", "string", true), ("destination", "string", false)], json!({"project": "Demo.xcodeproj", "scheme": "Demo", "destination": "platform=iOS Simulator,name=iPhone 16"}), &["write build products"]),
         operation_schema("project.test", "xcodebuild test", &[("project|workspace", "string path", true), ("scheme", "string", true), ("destination", "string", false)], json!({"project": "Demo.xcodeproj", "scheme": "Demo", "destination": "platform=iOS Simulator,name=iPhone 16"}), &["write test products", "run tests"]),
+        operation_schema("project.clean", "xcodebuild clean", &[("project|workspace", "string path", true), ("scheme", "string", false)], json!({"project": "Demo.xcodeproj", "scheme": "Demo"}), &["FileDelete", "delete build artifacts"]),
         operation_schema("project.archive", "xcodebuild archive", &[("project|workspace", "string path", true), ("scheme", "string", true), ("archive_path", "string path", true)], json!({"project": "Demo.xcodeproj", "scheme": "Demo", "archive_path": "build/Demo.xcarchive"}), &["write archive"]),
         operation_schema("project.export", "xcodebuild -exportArchive", &[("archive_path", "string path", true), ("export_path", "string path", true), ("export_options_plist", "string path", true)], json!({"archive_path": "build/Demo.xcarchive", "export_path": "build/export", "export_options_plist": "ExportOptions.plist"}), &["write exported products"]),
         operation_schema("swiftpm.build", "swift build", &[("package_path", "string path", false)], json!({"package_path": "."}), &["write SwiftPM products"]),
         operation_schema("swiftpm.test", "swift test", &[("package_path", "string path", false)], json!({"package_path": "."}), &["write SwiftPM products", "run tests"]),
         operation_schema("swiftpm.run", "swift run", &[("package_path", "string path", false), ("product", "string", false)], json!({"package_path": ".", "product": "Demo"}), &["run package product"]),
+        operation_schema("swiftpm.clean", "swift package clean", &[("package_path", "string path", false)], json!({"package_path": "."}), &["FileDelete", "delete package artifacts"]),
         operation_schema("simulator.list", "xcrun simctl list devices -j", &[], json!({}), &["read"]),
         operation_schema("simulator.boot", "xcrun simctl boot", &[("simulator_id", "string identifier", true)], json!({"simulator_id": "SIMULATOR-UDID"}), &["change simulator state"]),
         operation_schema("simulator.bootstatus", "xcrun simctl bootstatus -b", &[("simulator_id", "string identifier", true)], json!({"simulator_id": "SIMULATOR-UDID"}), &["read", "wait"]),
@@ -910,6 +999,7 @@ pub fn catalog() -> Value {
         operation_schema("simulator.screenshot", "xcrun simctl io screenshot", &[("simulator_id", "string identifier", true), ("output|path", "string path", true)], json!({"simulator_id": "SIMULATOR-UDID", "output": "artifacts/screen.png"}), &["write screenshot"]),
         operation_schema("simulator.record_video", "xcrun simctl io recordVideo", &[("simulator_id", "string identifier", true), ("output|path", "string path", true)], json!({"simulator_id": "SIMULATOR-UDID", "output": "artifacts/screen.mov"}), &["write video"]),
         operation_schema("simulator.location", "xcrun simctl location set", &[("simulator_id", "string identifier", true), ("latitude", "number -90..90", true), ("longitude", "number -180..180", true)], json!({"simulator_id": "SIMULATOR-UDID", "latitude": 37.3349, "longitude": -122.0090}), &["change simulator state"]),
+        operation_schema("simulator.location_reset", "xcrun simctl location clear", &[("simulator_id", "string identifier", true)], json!({"simulator_id": "SIMULATOR-UDID"}), &["external:simulator state mutation"]),
         operation_schema("simulator.appearance", "xcrun simctl ui appearance", &[("simulator_id", "string identifier", true), ("appearance", "light|dark", true)], json!({"simulator_id": "SIMULATOR-UDID", "appearance": "dark"}), &["change simulator state"]),
         operation_schema("simulator.statusbar", "xcrun simctl status_bar override", &[("simulator_id", "string identifier", true), ("time", "digits and colons", false)], json!({"simulator_id": "SIMULATOR-UDID", "time": "09:41"}), &["change simulator state"]),
         operation_schema("simulator.logs", "xcrun simctl spawn log show --last", &[("simulator_id", "string identifier", true), ("duration", "bounded interval string", false), ("predicate", "string", false)], json!({"simulator_id": "SIMULATOR-UDID", "duration": "30s"}), &["read bounded logs"]),
@@ -926,6 +1016,11 @@ pub fn catalog() -> Value {
         operation_schema("ui.type", "axe type", &[("simulator_id|udid", "string identifier", true), ("text|file", "exactly one", true), ("axe_path", "absolute executable path", false)], json!({"udid": "SIMULATOR-UDID", "text": "Hello"}), &["send UI event"]),
         operation_schema("ui.swipe", "axe swipe", &[("simulator_id|udid", "string identifier", true), ("start_x", "number", true), ("start_y", "number", true), ("end_x", "number", true), ("end_y", "number", true), ("duration", "number", false), ("delta", "number", false)], json!({"udid": "SIMULATOR-UDID", "start_x": 100, "start_y": 300, "end_x": 300, "end_y": 100}), &["send UI event"]),
         operation_schema("ui.key", "axe key", &[("simulator_id|udid", "string identifier", true), ("keycode", "1..255", true), ("duration", "number", false)], json!({"udid": "SIMULATOR-UDID", "keycode": 40}), &["send UI event"]),
+        operation_schema("ui.button", "axe button", &[("simulator_id|udid", "string identifier", true), ("button", "home|lock|side-button|siri|apple-pay", true), ("duration", "number", false)], json!({"udid": "SIMULATOR-UDID", "button": "home"}), &["send UI event"]),
+        operation_schema("ui.drag", "axe drag", &[("simulator_id|udid", "string identifier", true), ("start_x", "number", true), ("start_y", "number", true), ("end_x", "number", true), ("end_y", "number", true), ("duration", "number", false), ("steps", "1..10000", false)], json!({"udid": "SIMULATOR-UDID", "start_x": 100, "start_y": 300, "end_x": 300, "end_y": 100}), &["send UI event"]),
+        operation_schema("ui.gesture", "axe gesture", &[("simulator_id|udid", "string identifier", true), ("gesture", "bounded preset", true), ("duration", "number", false), ("delta", "number", false)], json!({"udid": "SIMULATOR-UDID", "gesture": "scroll-up"}), &["send UI event"]),
+        operation_schema("ui.key_sequence", "axe key-sequence", &[("simulator_id|udid", "string identifier", true), ("keycodes", "array 1..255", true), ("delay", "number", false)], json!({"udid": "SIMULATOR-UDID", "keycodes": [11, 8, 15]}), &["send UI event"]),
+        operation_schema("ui.touch", "axe touch", &[("simulator_id|udid", "string identifier", true), ("x", "number", true), ("y", "number", true), ("down", "boolean", false), ("up", "boolean", false), ("delay", "number", false)], json!({"udid": "SIMULATOR-UDID", "x": 150, "y": 250, "down": true, "up": true}), &["send UI event"]),
         operation_schema("debug.batch", "lldb --batch", &[("pid", "positive integer", true), ("actions", "array of bounded action names", true)], json!({"pid": 1234, "actions": ["backtrace", "variables"]}), &["read process state", "continue is stateful; expressions are unsupported"]),
         operation_schema("debug.breakpoint", "lldb --batch", &[("pid", "positive integer", true), ("action", "add|remove", true), ("file|breakpoint_id", "validated path or positive integer", true)], json!({"pid": 1234, "action": "add", "file": "Sources/Demo.swift", "line": 42}), &["change scoped breakpoint state"]),
         operation_schema("swiftpm.list", "swift package describe --type json", &[("package_path", "string path", false)], json!({"package_path": "."}), &["read package graph"]),
@@ -939,43 +1034,34 @@ pub fn catalog() -> Value {
         operation_schema("symbolicate", "atos", &[("binary_path", "string path", true), ("arch", "string", true), ("load_address", "hex address", true), ("addresses", "array of hex addresses", true)], json!({"binary_path": "Demo.app/Demo", "arch": "arm64", "load_address": "0x100000000", "addresses": ["0x100001000"]}), &["read symbols"]),
     ];
     let ported = [
-        "list_schemes", "show_build_settings", "build_sim", "test_sim", "build_device", "test_device", "build_macos", "test_macos", "list_sims", "boot_sim", "install_app_sim", "launch_app_sim", "stop_app_sim", "screenshot", "record_sim_video", "set_sim_location", "set_sim_appearance", "sim_statusbar", "list_devices", "install_app_device", "launch_app_device", "stop_app_device", "launch_mac_app", "stop_mac_app", "swift_package_build", "swift_package_test", "swift_package_run", "swift_package_list", "swift_package_stop", "debug_stack", "debug_variables", "debug_continue", "debug_breakpoint_add", "debug_breakpoint_remove", "get_app_bundle_id", "get_mac_bundle_id", "get_sim_app_path", "tap", "type_text", "swipe", "key_press", "snapshot_ui",
+        "list_schemes", "show_build_settings", "build_sim", "test_sim", "build_device", "test_device", "build_macos", "test_macos", "list_sims", "boot_sim", "install_app_sim", "launch_app_sim", "stop_app_sim", "screenshot", "record_sim_video", "set_sim_location", "set_sim_appearance", "sim_statusbar", "reset_sim_location", "list_devices", "install_app_device", "launch_app_device", "stop_app_device", "launch_mac_app", "stop_mac_app", "swift_package_build", "swift_package_test", "swift_package_run", "swift_package_list", "swift_package_stop", "swift_package_clean", "clean", "debug_stack", "debug_variables", "debug_continue", "debug_breakpoint_add", "debug_breakpoint_remove", "get_app_bundle_id", "get_mac_bundle_id", "get_sim_app_path", "tap", "type_text", "swipe", "key_press", "snapshot_ui", "button", "drag", "gesture", "key_sequence", "long_press", "touch",
     ];
     let composed = ["discover_projs", "build_run_sim", "build_run_device", "build_run_macos"];
     let mapped = [
         "get_device_app_path", "get_mac_app_path", "get_coverage_report", "get_file_coverage",
     ];
     let excluded = [
-        "batch", "button", "clean", "debug_attach_sim", "debug_detach", "debug_lldb_command", "doctor", "drag", "erase_sims", "gesture", "key_sequence", "long_press", "manage_workflows", "open_sim", "reset_sim_location", "scaffold_ios_project", "scaffold_macos_project", "session_clear_defaults", "session_set_defaults", "session_show_defaults", "session_use_defaults_profile", "swift_package_clean", "sync_xcode_defaults", "toggle_connect_hardware_keyboard", "toggle_software_keyboard", "touch", "wait_for_ui", "xcode_ide_call_tool", "xcode_ide_list_tools", "xcode_tools_bridge_disconnect", "xcode_tools_bridge_status", "xcode_tools_bridge_sync",
+        "batch", "debug_attach_sim", "debug_detach", "debug_lldb_command", "doctor", "erase_sims", "manage_workflows", "open_sim", "scaffold_ios_project", "scaffold_macos_project", "session_clear_defaults", "session_set_defaults", "session_show_defaults", "session_use_defaults_profile", "sync_xcode_defaults", "toggle_connect_hardware_keyboard", "toggle_software_keyboard", "wait_for_ui", "xcode_ide_call_tool", "xcode_ide_list_tools", "xcode_tools_bridge_disconnect", "xcode_tools_bridge_status", "xcode_tools_bridge_sync",
     ];
     let excluded_reasons = [
         ("batch", "generic batch semantics would allow unbounded composition"),
-        ("button", "requires optional Cameron Cooke axe executable and Accessibility permission"),
-        ("clean", "deletes build artifacts; outside non-destructive native scope"),
         ("debug_attach_sim", "requires PID discovery and debugger session ownership"),
         ("debug_detach", "debugger session lifecycle is not owned by bounded batch"),
         ("debug_lldb_command", "upstream accepts arbitrary LLDB commands; native surface is bounded actions only"),
         ("doctor", "upstream daemon/environment probe rather than one native operation"),
-        ("drag", "requires optional Cameron Cooke axe executable and Accessibility permission"),
         ("erase_sims", "destructive simulator data deletion"),
-        ("gesture", "requires optional Cameron Cooke axe executable and Accessibility permission"),
-        ("key_sequence", "requires optional Cameron Cooke axe executable and Accessibility permission"),
-        ("long_press", "requires optional Cameron Cooke axe executable and Accessibility permission"),
         ("manage_workflows", "mutates upstream daemon workflow state"),
         ("open_sim", "desktop activation is outside simulator device control"),
-        ("reset_sim_location", "clears simulator state without a scoped value"),
         ("scaffold_ios_project", "file generation is outside native build control"),
         ("scaffold_macos_project", "file generation is outside native build control"),
         ("session_clear_defaults", "mutates hidden upstream session state"),
         ("session_set_defaults", "mutates hidden upstream session state"),
         ("session_show_defaults", "depends on upstream daemon session state"),
         ("session_use_defaults_profile", "mutates hidden upstream session state"),
-        ("swift_package_clean", "deletes package build artifacts"),
         ("sync_xcode_defaults", "mutates IDE defaults outside selected project"),
         ("toggle_connect_hardware_keyboard", "requires simulator UI preference mutation"),
         ("toggle_software_keyboard", "requires simulator UI preference mutation"),
-        ("touch", "requires optional Cameron Cooke axe executable and Accessibility permission"),
-        ("wait_for_ui", "requires optional Cameron Cooke axe executable and Accessibility permission"),
+        ("wait_for_ui", "AXe exposes waiting only as a batch selector precondition; no standalone read-only wait operation"),
         ("xcode_ide_call_tool", "depends on upstream IDE bridge daemon"),
         ("xcode_ide_list_tools", "depends on upstream IDE bridge daemon"),
         ("xcode_tools_bridge_disconnect", "depends on upstream IDE bridge daemon"),
@@ -985,11 +1071,11 @@ pub fn catalog() -> Value {
     json!({
         "native": true,
         "source": {"name": "MobileBuildMCP", "commit": SOURCE_COMMIT, "daemon": false},
-        "optional_dependencies": {"axe": {"binary": "axe", "provider": "Cameron Cooke", "commit": "30f4bfa9bc81817906a60fadedbc913d7314b7e1", "required_for": ["ui.read", "ui.tap", "ui.type", "ui.swipe", "ui.key"], "status": "optional; native core never auto-installs and reports missing executable"}},
+        "optional_dependencies": {"axe": {"binary": "axe", "provider": "Cameron Cooke", "commit": "30f4bfa9bc81817906a60fadedbc913d7314b7e1", "required_for": ["ui.read", "ui.tap", "ui.type", "ui.swipe", "ui.key", "ui.button", "ui.drag", "ui.gesture", "ui.key_sequence", "ui.long_press", "ui.touch"], "status": "optional; native core never auto-installs and reports missing executable"}},
         "execution": {"plan_by_default": true, "non_macos": "plan_only", "shell": false, "process_group_cleanup": "best_effort_with_status", "max_timeout_ms": MAX_TIMEOUT_MS, "max_output_bytes": MAX_OUTPUT_BYTES},
         "common_args": {"cwd": {"type": "absolute directory", "required": false}, "developer_dir": {"type": "absolute directory", "required": false}, "execute": {"type": "boolean", "required": false, "default": false}, "timeout_ms": {"type": "integer", "required": false, "max": MAX_TIMEOUT_MS}, "max_output_bytes": {"type": "integer", "required": false, "max": MAX_OUTPUT_BYTES}},
         "operations": operations,
-        "upstream": {"ported": ported, "composed": composed, "mapped": mapped, "excluded": excluded, "mapping_note": "Composed entries retain workflow semantics through multiple native operations; mapped entries have only a partial native route and are not claimed absorbed.", "excluded_reasons": excluded_reasons.iter().map(|(name, reason)| json!({"name": name, "reason": reason})).collect::<Vec<_>>()},
+        "upstream": {"ported": ported.as_slice(), "composed": composed.as_slice(), "mapped": mapped.as_slice(), "excluded": excluded.as_slice(), "mapping_note": "Composed entries retain workflow semantics through multiple native operations; mapped entries have only a partial native route and are not claimed absorbed.", "excluded_reasons": excluded_reasons.iter().map(|(name, reason)| json!({"name": name, "reason": reason})).collect::<Vec<_>>()},
     })
 }
 

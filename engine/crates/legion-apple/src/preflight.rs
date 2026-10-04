@@ -161,7 +161,7 @@ pub fn inspect_selected(
     }
     unique_ids
         .iter()
-        .map(|id| inspect_tool(indexed[id], system, path))
+        .map(|id| inspect_tool(indexed[id.as_str()], system, path))
         .collect()
 }
 

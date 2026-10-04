@@ -7,18 +7,15 @@ of actions they'll perform interactively.
 Native Legion `profile` operation plans `xcrun xctrace record` with:
 
 - The **SwiftUI** template by default (override with `--template`).
-- **Manual stop** via Ctrl+C, a stop-file, or `--time-limit`.
+- Manual stop via host transport or `--time-limit`.
 - JSON discovery for devices and templates.
 - Typed argv, host policy gating, bounded output, and explicit execution.
-- An explicit acknowledgement gate for system-wide recordings.
+- App/target-scoped capture; system-wide capture is outside current `profile` scope.
 
 ## Privacy and consent
 
-Prefer `--attach` or `--launch`, which limits collection to the app being
-diagnosed. A system-wide recording can capture activity and metadata from
-unrelated applications. Before using `--all-processes`, explain that scope to
-the user and obtain their explicit approval. Then pass
-`--allow-system-wide-recording` to record that acknowledgement in the command.
+Prefer app/target-scoped capture with typed `profile` fields. Native catalog
+support must add typed system-wide fields before that capture scope is available.
 
 Values passed through `--env KEY=VALUE` are forwarded to `xctrace`, but the
 wrapper redacts each value from its displayed command. Avoid placing secrets on
@@ -43,10 +40,10 @@ legion apple profile --input '{"template":"SwiftUI","output":"artifacts/launch.t
 
 Useful for diagnosing cold-start hitches and view-creation cost.
 
-### C) Agent-driven: start in background, stop via stop-file
+### C) Agent-driven: bounded timeout
 
 For bounded native execution, pass explicit template/output/device/bundle fields
-to `profile`; stop/timeout behavior remains owned by host process transport:
+to `profile`; timeout and cleanup remain owned by host process transport:
 
 ```bash
 # Start recording (background)
@@ -93,7 +90,7 @@ Decision flow:
 | Target                                       | Template to pass     |
 |----------------------------------------------|----------------------|
 | Physical iOS/iPadOS device (connected)       | `SwiftUI` (default)  |
-| Host Mac (macOS app, `--all-processes`, etc.)| `SwiftUI` (default)  |
+| Host Mac (macOS app, target-scoped)         | `SwiftUI` (default)  |
 | iOS / iPadOS / watchOS / tvOS Simulator      | `Time Profiler`      |
 
 Confirm target kind with `--list-devices` before starting a recording: entries under

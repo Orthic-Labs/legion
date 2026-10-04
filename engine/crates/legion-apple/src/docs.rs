@@ -102,11 +102,11 @@ impl Source {
         let supplied = string_argument(arguments, "docset_path")
             .or_else(|| string_argument(arguments, "docsetPath"));
         let root = if let Some(path) = supplied {
-            expand_path(path)
+            expand_path(&path)
         } else if let Some(path) = string_argument(arguments, "xcode_path")
             .or_else(|| string_argument(arguments, "xcodePath"))
         {
-            find_docset_under(&expand_path(path))?.ok_or_else(|| {
+            find_docset_under(&expand_path(&path))?.ok_or_else(|| {
                 format!("unsupported Apple docs source: no .docset found under {path}")
             })?
         } else {
@@ -823,7 +823,7 @@ fn bounded_text(value: Option<&Value>, limit: usize) -> String {
     if let Some(value) = value {
         collect_text(value, &mut text, limit);
     }
-    truncate_utf8(text.trim(), limit).0
+    truncate_utf8(text.trim(), limit).0.to_owned()
 }
 
 fn collect_text(value: &Value, output: &mut String, limit: usize) {

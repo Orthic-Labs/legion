@@ -49,7 +49,10 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
         .get("execute")
         .and_then(Value::as_bool)
         .unwrap_or(false);
-    let mut result = super::invoke(&request).await?;
+    let request = request
+        .as_object()
+        .ok_or_else(|| "OpenAPI request planner returned a non-object".to_string())?;
+    let mut result = super::invoke_request(request).await?;
     if let Some(map) = result.as_object_mut() {
         map.insert("operationId".into(), Value::String(operation.operation_id));
         map.insert("specPath".into(), Value::String(spec_path.to_string()));
@@ -374,7 +377,7 @@ fn resolve(value: &Value, root: &Value, stack: &mut Vec<String>, depth: usize, r
     }
 }
 
-fn pointer(root: &Value, reference: &str) -> Option<&Value> {
+fn pointer<'a>(root: &'a Value, reference: &str) -> Option<&'a Value> {
     let mut value = root;
     for segment in reference.strip_prefix("#/")?.split('/') {
         let segment = segment.replace("~1", "/").replace("~0", "~");

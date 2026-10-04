@@ -93,11 +93,12 @@ fn authorize(request: &Value, effects: &[EffectClass]) -> Result<Vec<Value>, Str
         // Effect class is derived from operation & arguments, never trusted
         // from caller context. Each derived class gets its own Guard decision.
         let mut effect_context = context.clone();
-        effect_context.effect_class = effect;
+        effect_context.effect_class = *effect;
         let decision = evaluator.evaluate(&effect_context).decision;
         if decision.outcome != DecisionOutcome::Allow {
             return Err(format!(
-                "Apple operation denied by canonical policy for {effect:?}: {:?}",
+                "Apple operation denied by canonical policy for {:?}: {:?}",
+                effect,
                 decision.outcome
             ));
         }
@@ -161,16 +162,26 @@ fn effects_from_plan(
             effects.extend(planned);
         }
     }
-    if plan.get("mutation").and_then(Value::as_bool) == Some(true)
-        && !effects.contains(&EffectClass::ExternalSideEffect)
-        && !effects.contains(&EffectClass::Publish)
-    {
-        let action = arguments.get("action").and_then(Value::as_str).unwrap_or("");
-        effects.push(if action.eq_ignore_ascii_case("submission") {
-            EffectClass::Publish
-        } else {
-            EffectClass::ExternalSideEffect
+    if let Some(mutation) = plan.get("mutation").and_then(Value::as_bool) {
+        effects.retain(|effect| {
+            !matches!(effect, EffectClass::ExternalSideEffect | EffectClass::Publish)
         });
+        if mutation {
+            let action = arguments.get("action").and_then(Value::as_str).unwrap_or("");
+            let operation_id = plan
+                .get("operationId")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            effects.push(if action.eq_ignore_ascii_case("submission")
+                || operation_id.contains("submit")
+                || operation_id.contains("submission")
+            {
+                EffectClass::Publish
+            } else {
+                EffectClass::ExternalSideEffect
+            });
+        }
     }
     effects.sort();
     effects.dedup();
@@ -206,11 +217,11 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
             .and_then(Value::as_str)
             .unwrap_or("discover")
             .to_ascii_lowercase();
-        if matches!(action.as_str(), "discover" | "catalog" | "template" | "dry-run")
-            || (matches!(action.as_str(), "openapi" | "operations")
-                && !["operationId", "operation_id", "operation", "method", "path"]
-                    .iter()
-                    .any(|key| object.contains_key(*key)))
+        let has_selector = ["operationId", "operation_id", "operation", "method", "path"]
+            .iter()
+            .any(|key| object.contains_key(*key));
+        if matches!(action.as_str(), "catalog" | "template" | "dry-run")
+            || (matches!(action.as_str(), "discover" | "openapi" | "operations") && !has_selector)
         {
             return Ok(Vec::new());
         }
@@ -232,6 +243,18 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
                 EffectClass::ExternalSideEffect
             });
         }
+        if matches!(action.as_str(), "openapi" | "operations")
+            && ["operationId", "operation_id", "operation", "method", "path"]
+                .iter()
+                .any(|key| object.contains_key(*key))
+            && !effects.contains(&EffectClass::ExternalSideEffect)
+            && !effects.contains(&EffectClass::Publish)
+        {
+            // Synchronous MCP scope validation cannot resolve local OpenAPI
+            // operation. Keep mutation coverage conservative; async dispatch
+            // replaces it with resolved dry-run metadata before execution.
+            effects.push(EffectClass::ExternalSideEffect);
+        }
         return Ok(effects);
     }
     if matches!(operation, "catalog" | "preflight" | "docs" | "build-analysis" | "flamegraph" | "flamegraph-json" | "build-log" | "build_log" | "memgraph.parse" | "memgraph-text" | "profile.parse" | "swiftui-trace") {
@@ -241,7 +264,7 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
     if operation == "ui.read" {
         return Ok(vec![EffectClass::ProcessSpawn]);
     }
-    if matches!(operation, "tap" | "type" | "swipe" | "key" | "key_press" | "key_sequence") {
+    if matches!(operation, "ui.tap" | "ui.type" | "ui.swipe" | "ui.key" | "ui.key_sequence" | "ui.button" | "ui.drag" | "ui.gesture" | "ui.long_press" | "ui.touch") {
         return Ok(vec![EffectClass::ProcessSpawn, EffectClass::ExternalSideEffect]);
     }
     let mut effects = vec![EffectClass::ProcessSpawn];
@@ -252,7 +275,7 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
     ) {
         effects.push(EffectClass::FileWrite);
     }
-    if matches!(operation, "project.clean") {
+    if matches!(operation, "project.clean" | "swiftpm.clean") {
         effects.push(EffectClass::FileDelete);
     }
     if matches!(operation, "swiftpm.resolve" | "swiftpm.update") {
@@ -261,7 +284,7 @@ fn required_effects(operation: &str, arguments: &Value) -> Result<Vec<EffectClas
     if matches!(operation,
         "simulator.boot" | "simulator.install" | "simulator.launch"
         | "simulator.terminate" | "simulator.location" | "simulator.appearance"
-        | "simulator.statusbar" | "device.install" | "device.launch"
+        | "simulator.location_reset" | "simulator.statusbar" | "device.install" | "device.launch"
         | "device.terminate" | "mac.launch" | "mac.stop" | "debug.breakpoint"
         | "swiftpm.stop" | "debug.batch"
     ) {
@@ -279,9 +302,16 @@ fn canonical_operation(operation: &str) -> &str {
         "show_build_settings" => "project.settings",
         "list_destinations" => "project.destinations",
         "build" => "project.build",
+        "build_sim" | "build_device" | "build_macos" => "project.build",
         "test" => "project.test",
+        "test_sim" | "test_device" | "test_macos" => "project.test",
         "archive" => "project.archive",
         "export" => "project.export",
+        "swift_package_build" => "swiftpm.build",
+        "swift_package_test" => "swiftpm.test",
+        "swift_package_run" => "swiftpm.run",
+        "clean" => "project.clean",
+        "swift_package_clean" => "swiftpm.clean",
         "simulator.list_devices" | "simulator.list_sims" => "simulator.list",
         "simulator.install_app" => "simulator.install",
         "simulator.launch_app" => "simulator.launch",
@@ -289,15 +319,40 @@ fn canonical_operation(operation: &str) -> &str {
         "simulator.set_location" => "simulator.location",
         "simulator.set_appearance" => "simulator.appearance",
         "simulator.set_statusbar" => "simulator.statusbar",
+        "set_sim_location" => "simulator.location",
+        "set_sim_appearance" => "simulator.appearance",
+        "sim_statusbar" => "simulator.statusbar",
+        "reset_sim_location" => "simulator.location_reset",
+        "record_sim_video" => "simulator.record_video",
+        "boot_sim" => "simulator.boot",
+        "list_sims" => "simulator.list",
+        "install_app_sim" => "simulator.install",
+        "launch_app_sim" => "simulator.launch",
+        "stop_app_sim" => "simulator.terminate",
         "device.list_devices" => "device.list",
         "device.install_app" => "device.install",
         "device.launch_app" => "device.launch",
         "device.stop_app" | "stop_app_device" => "device.terminate",
+        "install_app_device" => "device.install",
+        "launch_app_device" => "device.launch",
         "launch_mac_app" => "mac.launch",
         "stop_mac_app" => "mac.stop",
         "swift_package_list" => "swiftpm.list",
         "swift_package_stop" => "swiftpm.stop",
+        "tap" => "ui.tap",
+        "type_text" | "type" => "ui.type",
+        "swipe" => "ui.swipe",
+        "key_press" | "key" => "ui.key",
+        "key_sequence" => "ui.key_sequence",
+        "button" => "ui.button",
+        "drag" => "ui.drag",
+        "gesture" => "ui.gesture",
+        "long_press" => "ui.long_press",
+        "touch" => "ui.touch",
+        "snapshot_ui" => "ui.read",
         "symbolicate.atos" => "symbolicate",
+        "debug_breakpoint_add" => "debug.breakpoint.add",
+        "debug_breakpoint_remove" => "debug.breakpoint.remove",
         other => other,
     }
 }
@@ -404,5 +459,12 @@ mod tests {
         let effects = required_effects("project.build", &json!({"execute": true})).unwrap();
         assert!(effects.contains(&EffectClass::ProcessSpawn));
         assert!(effects.contains(&EffectClass::FileWrite));
+    }
+
+    #[test]
+    fn aliases_keep_ui_mutation_effects() {
+        let effects = required_effects("tap", &json!({"execute": true})).unwrap();
+        assert!(effects.contains(&EffectClass::ProcessSpawn));
+        assert!(effects.contains(&EffectClass::ExternalSideEffect));
     }
 }

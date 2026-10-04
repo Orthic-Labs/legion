@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "lane": "native-app-store-connect-adapter",
   "review": "full for listed files",
-  "purpose": "Source ledger for native Rust App Store Connect transport, operation discovery, aliases, pagination, and credential handling.",
-  "destination": ["engine/crates/legion-apple/src/app_store.rs", "engine/crates/legion-apple/src/app_store_openapi.rs"],
+  "purpose": "Source ledger for native Rust App Store Connect CLI/MCP transport, operation discovery, aliases, pagination, credential handling, and build upload.",
+  "destination": ["engine/crates/legion-apple/src/app_store.rs", "engine/crates/legion-apple/src/app_store_openapi.rs", "engine/crates/legion-apple/src/app_store_upload.rs"],
   "nativeRules": [
     {"sourceLines": [1, 99], "destinationLines": [30, 99], "summary": "Offline discovery catalog exposes request, pagination, template/dry-run, aliases, payload limits, credential inputs, and concrete App Store Connect routes.", "disposition": "merged"},
     {"sourceLines": [102, 137], "destinationLines": [102, 137], "summary": "JSON action dispatch keeps discover local and makes execute an explicit caller field; unknown actions fail before transport.", "disposition": "merged"},
@@ -14,7 +14,7 @@
     {"sourceLines": [1, 84], "destinationLines": [531, 617], "summary": "Transport disables redirects, bounds Content-Length and streamed response bytes, preserves exact status/data, extracts links.next and processing state, and rejects non-443 or foreign origins.", "disposition": "merged"},
     {"sourceLines": [1, 84], "destinationLines": [620, 710], "summary": "Local tests cover catalog, dry-run redaction, path/origin restrictions, query ordering, pagination bounds, aliases, fixture status/state parsing, and unknown actions.", "disposition": "merged"},
     {"sourceLines": [1, 174], "destinationLines": [1, 407], "summary": "Bounded local OpenAPI JSON discovery indexes operationId/method/path, resolves local refs with cycle/depth/count limits, validates path/query/body inputs, and delegates fixed-origin template/run transport.", "disposition": "merged"},
-    {"sourceLines": [1, 398], "destinationLines": [1, 380], "summary": "Native build upload reserves Apple build/upload-file resources, validates exact IPA/PKG size and contiguous operations, streams bounded presigned chunks without ASC credentials, verifies SHA-256/MD5 checksums, commits uploaded state, and reports processing separately from publication.", "disposition": "merged"}
+    {"sourceLines": [1, 398], "destinationLines": [1, 520], "summary": "Native build upload reserves Apple build/upload-file resources, validates exact IPA/PKG size and contiguous operations, streams bounded presigned chunks without ASC credentials, verifies Apple SHA_256/MD5 checksums, commits uploaded state, reconciles one ambiguous commit via parent state, redacts presigned response fields, and reports processing separately from publication.", "disposition": "merged"}
   ],
   "operationMapping": [
     {"alias": "apps", "operations": ["list", "view", "create", "update", "delete"], "routes": ["/v1/apps", "/v1/apps/{id}"], "destinationLines": [191, 208]},

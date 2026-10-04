@@ -9705,10 +9705,11 @@
               "summary": "Trace helper behavior: lines 1-120",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/donor-lee-trace-analysis.md#native-operations"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9718,10 +9719,11 @@
               "summary": "Trace helper behavior: lines 121-240",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/donor-lee-trace-analysis.md#native-operations"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9731,10 +9733,11 @@
               "summary": "Trace helper behavior: lines 241-301",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/donor-lee-trace-analysis.md#native-operations"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -9752,10 +9755,11 @@
               "summary": "Trace helper behavior: lines 1-1",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -9773,10 +9777,11 @@
               "summary": "Trace helper behavior: # Metadata nodes render as space-separated field dumps (\"A gray icon n/a n/a\").",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9786,10 +9791,11 @@
               "summary": "Trace helper behavior: # We aggregate on the full fmt string so callers can spot specific edges like",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9799,10 +9805,11 @@
               "summary": "Trace helper behavior: # \"@AppStorage TextStyleModifier.fontOption\", but also expose the short head",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9812,10 +9819,11 @@
               "summary": "Trace helper behavior: # (\"@AppStorage\", \"Creation of App\", ...) for coarser grouping.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -9833,10 +9841,11 @@
               "summary": "Trace helper behavior: # --- Internal -------------------------------------------------------------",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -9854,10 +9863,11 @@
               "summary": "Trace helper behavior: lines 1-120",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9867,10 +9877,11 @@
               "summary": "Trace helper behavior: lines 121-240",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9880,10 +9891,11 @@
               "summary": "Trace helper behavior: lines 241-291",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -9901,10 +9913,11 @@
               "summary": "Trace helper behavior: lines 1-108",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -9922,10 +9935,11 @@
               "summary": "Trace helper behavior: lines 1-120",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9935,10 +9949,11 @@
               "summary": "Trace helper behavior: lines 121-145",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -9956,10 +9971,11 @@
               "summary": "Trace helper behavior: lines 1-120",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9969,10 +9985,11 @@
               "summary": "Trace helper behavior: lines 121-240",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -9982,10 +9999,11 @@
               "summary": "Trace helper behavior: lines 241-243",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -10003,10 +10021,11 @@
               "summary": "Trace helper behavior: # Ongoing / unterminated updates carry a sentinel duration (≈ UINT64_MAX-ish).",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -10016,10 +10035,11 @@
               "summary": "Trace helper behavior: # Any duration longer than an hour is almost certainly that sentinel and would",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -10029,10 +10049,11 @@
               "summary": "Trace helper behavior: # break aggregates + the correlation overlap check.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -10050,10 +10071,11 @@
               "summary": "Trace helper behavior: lines 1-120",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -10063,10 +10085,11 @@
               "summary": "Trace helper behavior: lines 121-135",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -10084,10 +10107,11 @@
               "summary": "Trace helper behavior: lines 1-117",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -10105,10 +10129,11 @@
               "summary": "Trace helper behavior: # --- Extraction helpers ---------------------------------------------------",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/swiftui_trace.rs#invoke",
+                "skills/ios-development/references/swiftui/performance-tracing.md#trace-helper-contract",
+                "skills/macos-development/references/swiftui/performance-tracing.md#trace-helper-contract"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         },
@@ -10126,10 +10151,11 @@
               "summary": "Trace helper behavior: lines 1-120",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/mobile.rs#build_plan",
+                "skills/ios-development/references/swiftui/donor-lee-trace-recording.md#typical-flows",
+                "skills/macos-development/references/swiftui/donor-lee-trace-recording.md#typical-flows"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -10139,10 +10165,10 @@
               "summary": "Trace helper behavior: lines 121-240",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/mobile.rs#build_plan",
+                "skills/macos-development/references/swiftui/donor-lee-trace-recording.md#typical-flows"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             },
             {
               "sourceLines": [
@@ -10152,10 +10178,10 @@
               "summary": "Trace helper behavior: lines 241-288",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/swiftui/performance-tracing.md#evidence-first-workflow",
-                "skills/macos-development/references/swiftui/performance-tracing.md#evidence-first-workflow"
+                "engine/crates/legion-apple/src/mobile.rs#build_plan",
+                "skills/macos-development/references/swiftui/donor-lee-trace-recording.md#typical-flows"
               ],
-              "reason": "Upstream helper fully read; procedural behavior retained in performance-tracing guidance. Python implementation excluded because shipped helpers must be Rust; root owns native port."
+              "reason": "Merged into native bounded Rust operations; Python source retained only as evidence; no shipped Python helper."
             }
           ]
         }

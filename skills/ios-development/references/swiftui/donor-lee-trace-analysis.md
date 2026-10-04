@@ -27,8 +27,8 @@ view names and symbols the trace reveals.
 ## Native operations
 
 Export first with `legion apple profile.export`, then pass XML to
-`legion apple swiftui-trace`. Input stays JSON; no Python, shell wrapper,
-or unbounded trace parser is part of this route.
+`legion apple swiftui-trace`. Input stays JSON; this route uses bounded native
+Rust parsing without an unbounded trace wrapper.
 
 ### 1. Full analysis (default)
 
@@ -47,7 +47,7 @@ legion apple swiftui-trace --input-file analysis.json
 - Use `operation:"list-runs"` before selecting a run when exported XML
   contains multiple sessions; absent run metadata is reported explicitly.
 
-### 2. `--list-logs` — find os_log timestamps
+### 2. `list-logs` — find os_log timestamps
 
 ```json
 {"operation":"list-logs","xml":"<exported-trace-xml>","subsystem":"com.myapp.net","category":"Network","messageContains":"loaded feed","top":10}
@@ -57,7 +57,7 @@ Returns bounded entries with `subsystem`, `category`, `process`, event type,
 message, and time fields. Filters are AND-combined; no matches return
 `status:"no_evidence"`.
 
-### 3. `--list-signposts` — find signpost intervals
+### 3. `list-signposts` — find signpost intervals
 
 ```json
 {"operation":"list-signposts","xml":"<exported-trace-xml>","nameContains":"ImageDecode","subsystem":"com.myapp.feed","category":"Rendering"}
@@ -67,7 +67,7 @@ Returns bounded interval/point entries with name, subsystem, category,
 process, event type, and time fields. Unpaired points remain evidence;
 no matches return `status:"no_evidence"`.
 
-### 4. `--fanin-for` — who keeps invalidating this view?
+### 4. `fanin-for` — who keeps invalidating this view?
 
 ```json
 {"operation":"fanin-for","xml":"<exported-trace-xml>","destinationContains":"TextStyleModifier","top":10}

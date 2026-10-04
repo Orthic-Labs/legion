@@ -23,16 +23,15 @@ that invalidates an expensive view (wide environment/defaults observers often do
 symbols to source and report evidence, impact, and smallest fix. Do not claim a screenshot or
 preview proves runtime performance.
 
-Trace capture chooses `SwiftUI` template on a real device/host Mac and `Time Profiler` on iOS
- Simulator, after listing devices. Attach/launch/record scope must be explicit. Use stop-file
-recording only when operator controls the end; wait for finalization before analysis. Upstream
-Python helpers are source evidence only; port required trace capture/parser behavior to Rust
-under root-owned tooling.
+Trace capture uses native `legion apple profile` with explicit template, output, device, bundle,
+and timeout fields after `legion apple device.list`. Export uses `legion apple profile.export`;
+pure XML analysis uses `legion apple swiftui-trace` with `parse`, `analyze`, `list-runs`,
+`list-logs`, `list-signposts`, `fanin-for`, or `summary`. Upstream helper code is source
+evidence; shipped parsing is bounded Rust in `engine/crates/legion-apple/src/swiftui_trace.rs`.
 
-Rust port must preserve these helper boundaries: target/template selection and device listing;
-safe `xctrace` command construction with explicit run/window/stop-file handling; trace TOC and
-schema export; XML column/row resolution, typed value conversion, process/thread/backtrace
-extraction, symbol selection, time-window predicates, and interval overlap; independent lanes
+Rust port preserves these helper boundaries for exported XML: XML column/row resolution, typed
+value conversion, process/thread/backtrace extraction, symbol selection, time-window predicates,
+and interval overlap; independent lanes
 for Time Profiler, hangs, animation hitches, SwiftUI updates, signposts, and cause/fan-in
 analysis; correlation of hitch/signpost intervals with hot symbols and SwiftUI overlaps; and
 stable text/JSON summaries that identify skipped lanes, evidence counts, units, and truncation.

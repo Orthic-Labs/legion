@@ -178,8 +178,9 @@ ForEach(items.enumerated(), id: \.element.id) { index, item in
 ```
 
 The direct `ForEach(items.enumerated(), id: \.element.id)` form requires a compiler and target
-stdlib that provide `EnumeratedSequence`'s collection conformance. Confirm that availability
-for each deployment target before using it. For older iOS/macOS toolchains, use
+stdlib that provide `EnumeratedSequence`'s collection conformance (the Swift stdlib 6.2
+conformance is not implied by an iOS 17 or macOS 14 deployment target). Confirm compiler,
+stdlib, and platform SDK availability before using it. For older iOS/macOS toolchains, use
 `ForEach(Array(items.enumerated()), id: \.element.id)`; use `ForEach(items)` when index is not
 needed. Avoid unconditional direct-enumerated guidance in shared iOS 17/macOS 14 code.
 

@@ -18,9 +18,11 @@ Reviewed 2026-10-05. This bundle contains original Legion guidance with substant
 - `steipete-agent-scripts` — commit `444751eadeb7dabc00634326614ba2483642984f`; profiling target, capture, symbolication, and evidence rules. Upstream scripts are excluded. [Exact MIT notice](licenses/steipete-MIT.txt).
 - `krzysztofzablocki-inject` — commit `67e3ee9a2b7e40d6af72d07cf1b0d5c04399e809`; debug-only hot-reload boundary and authorization rules. Framework snippets and scripts are excluded. [Exact MIT notice](licenses/inject-MIT.txt).
 - `krzysztofzablocki-sourcery` — commit `f9d80ddec1d42b83b776064162ce0a93a0289334`; generator fit, template ownership, deterministic invocation, and output traceability. [Exact MIT notice](licenses/sourcery-MIT.txt).
+- `getsentry-mobilebuildmcp` — commit `d13ff0c707b0681769cf31da0eb42c4f94ceafff`; bounded build/test, simulator/device, debugging, and profiling rules implemented in Legion's native Rust Apple CLI/MCP. [Exact MIT notice](licenses/mobilebuildmcp-MIT.txt).
 - `paulsolt-docsetquery` — commit `ba68aabe2c84e907789d4c0043f97568ec8cdcfd`; local-first documentation lookup, sanitization, caching, and citation rules inform Legion's independent native Rust reader. DocSetQuery source and Apple documentation are not redistributed. [Exact MIT notice](licenses/docsetquery-MIT.txt).
 - `cpisciotta-xcbeautify` — commit `513e4b12c3f6c965d1d3b66bd5cd9d635f03112d`; optional formatter and raw-log/build-status correctness rules. Formatter code and binaries are excluded. [Exact MIT notice](licenses/xcbeautify-MIT.txt).
 - `rorkai-app-store-connect-cli-skills` — commit `9a093fa52177d1b784fcbb06f9abfef4974e7701`; release, TestFlight, signing, metadata, and notarization rules. [Exact MIT notice](licenses/rorkai-MIT.txt).
+- `rorkai-app-store-connect-cli` — commit `107242d3087360c7b54f2691656e2c6d70acfb9b`; Go CLI operation lookup, bounded uploads, checksum verification, redaction, and processing-state rules implemented in Legion's native Rust App Store Connect adapter. [Exact MIT notice](licenses/rorkai-app-store-connect-cli-MIT.txt).
 
 ## Adapted Apache source
 
@@ -28,7 +30,6 @@ Reviewed 2026-10-05. This bundle contains original Legion guidance with substant
 
 ## Reference-only sources
 
-- `getsentry-mobilebuildmcp` — commit `d13ff0c707b0681769cf31da0eb42c4f94ceafff`; pinned LICENSE is MIT, not Apache-2.0. Only capability and official-source setup references remain. [Exact MIT notice](licenses/mobilebuildmcp-MIT.txt).
 - `cameroncooke-axe` — commit `30f4bfa9bc81817906a60fadedbc913d7314b7e1`; only capability and official-source setup references remain. [Exact MIT notice](licenses/axe-MIT.txt).
 - `dimillian-codexmonitor` — commit `dd61b9abd37de5ded86e82b9fe8a83fd49d46fa5`; optional Tauri/Rust workspace reference only. [Exact MIT notice](licenses/codexmonitor-MIT.txt).
 - `openai-build-ios-apps` and `openai-build-macos-apps` — commit `5fd93af4cd0c623e020d0cc7e9ce178b4ac1f70f`; inventoried plugin manifests declare MIT, but no LICENSE text is present in either Apple plugin directory. Only ledger-marked independent Legion workflows are represented; no OpenAI prose, code, scripts, metadata, or assets are copied, and no local license notice is asserted.

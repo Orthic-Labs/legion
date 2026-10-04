@@ -365,8 +365,8 @@ fn visit_node(node: &Value, totals: &mut FlamegraphTotals, depth: usize) -> Resu
     };
     let mut children_weight = 0.0;
     let mut child_active = 0.0;
-    for child in child_values {
-        let (child_weight, child_active_weight) = visit_node(child, totals, depth + 1)?;
+    for child in &child_values {
+        let (child_weight, child_active_weight) = visit_node(*child, totals, depth + 1)?;
         children_weight += child_weight;
         child_active += child_active_weight;
     }

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-04",
-  "purpose": "Source and rights receipts for the self-contained Legion ios-development and macos-development bundles.",
-  "composition": "Original Legion guidance with substantive MIT- and Apache-adapted rules, decision branches, and examples. Exact upstream notices for retained adaptations are bundled under references/licenses; this file is provenance, not executable permission.",
+  "reviewedAt": "2026-10-05",
+  "purpose": "Source and rights receipts for the self-contained Legion ios-development and macos-development bundles and native Apple CLI/MCP adapters.",
+  "composition": "Original Legion guidance with substantive MIT- and Apache-adapted rules, decision branches, and examples, plus native Rust implementations of bounded MobileBuildMCP and App Store Connect CLI behavior. Exact upstream notices for retained adaptations are bundled under references/licenses; this file is provenance, not executable permission.",
   "packaging": "Each bundle includes its own references, local license notices, source provenance, original read-only PATH preflight helper, and official-source setup recipes; no upstream binaries, installers, credentials, live MCP client configuration, or unmodified source trees are bundled.",
   "permissionBoundary": "Skill availability does not authorize installation, network services, telemetry, credential or security changes, simulator erasure, device access, dependency additions, signing identity changes, uploading, notarization submissions, or release/publishing.",
   "sources": [
@@ -154,9 +154,9 @@
       "id": "getsentry-mobilebuildmcp",
       "repository": "https://github.com/getsentry/MobileBuildMCP",
       "commit": "d13ff0c707b0681769cf31da0eb42c4f94ceafff",
-      "role": "Optional detected MCP/CLI adapter for build, test, simulator/device lifecycle, log capture and debugging; renamed from XcodeBuildMCP",
-      "disposition": "optional-tool-reference-only",
-      "contentPolicy": "Reference-only capability and official-source setup guidance. Pinned LICENSE is MIT (not Apache-2.0) and is retained at references/licenses/mobilebuildmcp-MIT.txt. No upstream binary, dependency payload, manual, script, or live client configuration vendored.",
+      "role": "Native Rust CLI/MCP implementation of bounded build, test, simulator/device lifecycle, log capture, profiling, and debugging operations",
+      "disposition": "adapted-native-implementation",
+      "contentPolicy": "Bounded MobileBuildMCP operation semantics are implemented in engine/crates/legion-apple/src/mobile.rs with typed argv, plan-by-default execution, bounded output, and host-owned effect handling. Pinned LICENSE is MIT (not Apache-2.0) and is retained at references/licenses/mobilebuildmcp-MIT.txt. No upstream binary, dependency payload, manual, script, or live client configuration is vendored.",
       "license": "MIT",
       "licenseState": "license-text-verified",
       "licenseUrl": "https://github.com/getsentry/MobileBuildMCP/blob/d13ff0c707b0681769cf31da0eb42c4f94ceafff/LICENSE",
@@ -164,7 +164,8 @@
       "copyright": "Copyright (c) 2025 Cameron Cooke",
       "rightsReceipt": "https://github.com/getsentry/MobileBuildMCP/blob/d13ff0c707b0681769cf31da0eb42c4f94ceafff/LICENSE",
       "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
-      "licenseNoticePath": "references/licenses/mobilebuildmcp-MIT.txt"
+      "licenseNoticePath": "references/licenses/mobilebuildmcp-MIT.txt",
+      "nativeDestinations": ["engine/crates/legion-apple/src/mobile.rs", "engine/crates/legion-apple/src/lib.rs"]
     },
     {
       "id": "cameroncooke-axe",
@@ -284,7 +285,7 @@
       "id": "rorkai-app-store-connect-cli-skills",
       "repository": "https://github.com/rorkai/app-store-connect-cli-skills",
       "commit": "9a093fa52177d1b784fcbb06f9abfef4974e7701",
-      "role": "Optional release/TestFlight/signing metadata playbooks for asc CLI, distinct from Xopoko ascctl",
+      "role": "Release/TestFlight/signing metadata playbooks for asc CLI, distinct from the Go CLI source and Xopoko ascctl",
       "disposition": "adapted-methodology-original-prose",
       "contentPolicy": "Substantive release, TestFlight, signing, metadata, and notarization rules are adapted into local release guidance; exact MIT notice is retained at references/licenses/rorkai-MIT.txt. No upstream executable code, scripts, plugin metadata, binaries, or installer payload copied.",
       "license": "MIT",
@@ -295,6 +296,23 @@
       "rightsReceipt": "https://github.com/rorkai/app-store-connect-cli-skills/blob/9a093fa52177d1b784fcbb06f9abfef4974e7701/LICENSE",
       "inspection": "Pinned repository tree and LICENSE; relevant published README/skill evidence where applicable.",
       "licenseNoticePath": "references/licenses/rorkai-MIT.txt"
+    },
+    {
+      "id": "rorkai-app-store-connect-cli",
+      "repository": "https://github.com/rorkai/app-store-connect-cli",
+      "commit": "107242d3087360c7b54f2691656e2c6d70acfb9b",
+      "role": "Native Rust App Store Connect CLI/MCP implementation of operation lookup, uploads, checksums, redaction, and processing-state handling",
+      "disposition": "adapted-native-implementation",
+      "contentPolicy": "Go CLI operation lookup and bounded upload semantics are implemented in engine/crates/legion-apple/src/app_store.rs, app_store_openapi.rs, and app_store_upload.rs. Exact MIT notice is retained at references/licenses/rorkai-app-store-connect-cli-MIT.txt. No upstream Go source, binary, dependency payload, generated client, script, or packaging metadata is vendored.",
+      "license": "MIT",
+      "licenseState": "license-text-verified",
+      "licenseUrl": "https://github.com/rorkai/app-store-connect-cli/blob/107242d3087360c7b54f2691656e2c6d70acfb9b/LICENSE",
+      "licenseBlobSha": "4086b6eaf6b058ed679f1c8a9448330196e84dfe",
+      "copyright": "Copyright (c) 2026 Rudrank Riyam",
+      "rightsReceipt": "https://github.com/rorkai/app-store-connect-cli/blob/107242d3087360c7b54f2691656e2c6d70acfb9b/LICENSE",
+      "inspection": "Pinned Go repository tree and LICENSE; native source ledger at docs/apple-absorption/native/app-store.json.",
+      "licenseNoticePath": "references/licenses/rorkai-app-store-connect-cli-MIT.txt",
+      "nativeDestinations": ["engine/crates/legion-apple/src/app_store.rs", "engine/crates/legion-apple/src/app_store_openapi.rs", "engine/crates/legion-apple/src/app_store_upload.rs"]
     },
     {
       "id": "openai-build-ios-apps",

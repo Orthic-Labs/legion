@@ -16,7 +16,7 @@ conditional fallbacks and preserve working soft-deprecated APIs outside the edit
 - You can fill and stroke a shape with two chained modifiers; you do *not* need an overlay for the stroke. The overlay was required previously, but this is fixed in iOS 17 and later.
 - When referencing images from an asset catalog, prefer the generated symbol asset API when the project is configured to use them: `Image(.avatar)` rather than `Image("avatar")`.
 - When targeting iOS 26 and later, SwiftUI has a native `WebView` view type that replaces almost all uses of hand-wrapped `WKWebView` inside `UIViewRepresentable`. To use it, make sure to include `import WebKit`.
-- For `ForEach` over `enumerated()`, use the direct form only when compiler and target stdlib expose the collection conformance: `ForEach(items.enumerated(), id: \.element.id)`. On older iOS/macOS toolchains, retain `ForEach(Array(items.enumerated()), id: \.element.id)`; use `ForEach(items)` when index is unnecessary.
+- For `ForEach` over `enumerated()`, use the direct form only when compiler, target stdlib, and platform SDK expose `EnumeratedSequence`'s collection conformance (Swift stdlib 6.2; do not infer it from iOS 17/macOS 14): `ForEach(items.enumerated(), id: \.element.id)`. On older iOS/macOS toolchains, retain `ForEach(Array(items.enumerated()), id: \.element.id)`; use `ForEach(items)` when index is unnecessary.
 - When hiding scroll indicators, use `.scrollIndicators(.hidden)` rather than `showsIndicators: false` in the initializer.
 - Avoid `Text` concatenation with `+`; interpolation or a composed `Text` value preserves localization and styling.
 

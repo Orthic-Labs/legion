@@ -51,14 +51,16 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
         "/v1/buildUploads",
         json!({"data":{"type":"buildUploads","attributes":{"cfBundleShortVersionString":version,"cfBundleVersion":build_number,"platform":platform},"relationships":{"app":{"data":{"type":"apps","id":app_id}}}}}),
     )
-    .await?;
+    .await
+    .map_err(api_failure_text)?;
     let upload_id = data_id(&reservation)?;
     let file_reservation = api_json(
         "POST",
         "/v1/buildUploadFiles",
-        json!({"data":{"type":"buildUploadFiles","attributes":{"fileName":file.name,"fileSize":file.size,"uti":file.uti},"relationships":{"buildUpload":{"data":{"type":"buildUploads","id":upload_id}}}}}),
+        json!({"data":{"type":"buildUploadFiles","attributes":{"fileName":file.name,"fileSize":file.size,"uti":file.uti,"assetType":"ASSET"},"relationships":{"buildUpload":{"data":{"type":"buildUploads","id":upload_id}}}}}),
     )
-    .await?;
+    .await
+    .map_err(api_failure_text)?;
     let file_id = data_id(&file_reservation)?;
     let attributes = resource_data(&file_reservation)
         .and_then(|data| data.get("attributes"))
@@ -80,12 +82,61 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
         Some(checksums) => json!({"uploaded": true, "sourceFileChecksums": checksums}),
         None => json!({"uploaded": true}),
     };
-    let committed = api_json(
+    let commit_attempt = api_json(
         "PATCH",
         &format!("/v1/buildUploadFiles/{file_id}"),
         json!({"data":{"type":"buildUploadFiles","id":file_id,"attributes":commit_attributes}}),
     )
-    .await?;
+    .await;
+    let (committed, commit_outcome, reconciled_parent, state_readback_error) = match commit_attempt {
+        Ok(value) => {
+            match api_json("GET", &format!("/v1/buildUploads/{upload_id}"), Value::Null).await {
+                Ok(parent) => (value, "confirmed", Some(parent), None),
+                Err(error) => (value, "confirmed", None, Some(error.message)),
+            }
+        }
+        Err(error) if error.is_ambiguous() => {
+            let parent = match api_json("GET", &format!("/v1/buildUploads/{upload_id}"), Value::Null).await {
+                Ok(value) => value,
+                Err(reconciliation_error) => {
+                    return Ok(unknown_commit_result(
+                        &effect,
+                        &file,
+                        platform,
+                        &reservation,
+                        &file_reservation,
+                        &reconciliation_error.message,
+                    ));
+                }
+            };
+            match parent_state(&parent).as_deref() {
+                Some("PROCESSING") | Some("COMPLETE") => {
+                    (json!({"reconciled": true}), "reconciled", Some(parent), None)
+                }
+                Some(state) => {
+                    return Ok(unknown_commit_result(
+                        &effect,
+                        &file,
+                        platform,
+                        &reservation,
+                        &file_reservation,
+                        &format!("commit outcome unknown after reconciliation state {state}"),
+                    ));
+                }
+                None => {
+                    return Ok(unknown_commit_result(
+                        &effect,
+                        &file,
+                        platform,
+                        &reservation,
+                        &file_reservation,
+                        "commit outcome unknown after reconciliation returned no state",
+                    ));
+                }
+            }
+        }
+        Err(error) => return Err(api_failure_text(error)),
+    };
     Ok(json!({
         "ok": true,
         "dryRun": false,
@@ -94,10 +145,13 @@ pub async fn invoke(arguments: &Value) -> Result<Value, String> {
         "fileId": file_id,
         "artifact": {"fileName": file.name, "fileSize": file.size, "platform": platform},
         "uploaded": true,
-        "processingState": processing_state(&committed),
-        "reservation": reservation,
-        "fileReservation": file_reservation,
-        "commit": committed,
+        "processingState": reconciled_parent.as_ref().and_then(parent_state_value).unwrap_or_else(|| processing_state(&committed)),
+        "reservation": redacted_api_result(&reservation),
+        "fileReservation": redacted_api_result(&file_reservation),
+        "commit": redacted_api_result(&committed),
+        "commitOutcome": commit_outcome,
+        "reconciledParent": reconciled_parent.as_ref().map(redacted_api_result),
+        "stateReadbackError": state_readback_error,
         "effects": effect.clone(),
         "effectClassification": effect.clone(),
         "published": false
@@ -291,13 +345,38 @@ async fn consume_upload_response(mut response: reqwest::Response) -> Result<(), 
     Ok(())
 }
 
-async fn api_json(method: &str, path: &str, body: Value) -> Result<Value, String> {
-    let request = json!({"action":"request","method":method,"path":path,"body":body,"execute":true});
-    let result = super::invoke(&request).await?;
+#[derive(Debug)]
+struct ApiFailure {
+    status: Option<u16>,
+    message: String,
+}
+
+impl ApiFailure {
+    fn is_ambiguous(&self) -> bool {
+        matches!(self.status, None | Some(408) | Some(500..))
+    }
+}
+
+async fn api_json(method: &str, path: &str, body: Value) -> Result<Value, ApiFailure> {
+    let mut request = json!({"action":"request","method":method,"path":path,"execute":true});
+    if method != "GET" {
+        request["body"] = body;
+    }
+    let request = request
+        .as_object()
+        .ok_or_else(|| ApiFailure {status: None, message: "upload API request plan is not an object".to_string()})?;
+    let result = super::invoke_request(request).await.map_err(|message| ApiFailure {status: None, message})?;
     if !result.get("ok").and_then(Value::as_bool).unwrap_or(false) {
-        return Err(format!("App Store Connect upload API returned HTTP {}", result.get("status").and_then(Value::as_u64).unwrap_or(0)));
+        return Err(ApiFailure {
+            status: result.get("status").and_then(Value::as_u64).and_then(|status| u16::try_from(status).ok()),
+            message: format!("App Store Connect upload API returned HTTP {}", result.get("status").and_then(Value::as_u64).unwrap_or(0)),
+        });
     }
     Ok(result)
+}
+
+fn api_failure_text(error: ApiFailure) -> String {
+    error.message
 }
 
 fn data_id(value: &Value) -> Result<String, String> {
@@ -322,7 +401,7 @@ fn verify_checksums(file: &mut File, expected: &Value, size: u64) -> Result<Valu
         if expected_hash.is_empty() { return Err("App Store Connect checksum hash is missing".to_string()); }
         file.seek(SeekFrom::Start(0)).map_err(|_| "could not seek artifact for checksum".to_string())?;
         let actual = match algorithm.as_str() {
-            "SHA256" => {
+            "SHA_256" => {
                 let mut hasher = Sha256::new();
                 read_hash_input(file, size, |chunk| hasher.update(chunk))?;
                 hex::encode(hasher.finalize())
@@ -336,6 +415,9 @@ fn verify_checksums(file: &mut File, expected: &Value, size: u64) -> Result<Valu
         };
         if !actual.eq_ignore_ascii_case(expected_hash) { return Err(format!("{key} checksum mismatch")); }
         result.insert(key.to_string(), json!({"hash": actual, "algorithm": algorithm}));
+    }
+    if result.is_empty() {
+        return Err("App Store Connect provided no checksum algorithms".to_string());
     }
     Ok(Value::Object(result))
 }
@@ -358,6 +440,67 @@ fn processing_state(value: &Value) -> Value {
         .cloned()
         .or_else(|| resource_data(value).and_then(|data| data.pointer("/attributes/state/state")).cloned())
         .unwrap_or(Value::Null)
+}
+
+fn parent_state(value: &Value) -> Option<String> {
+    parent_state_value(value).and_then(|state| state.as_str().map(str::to_string))
+}
+
+fn parent_state_value(value: &Value) -> Option<Value> {
+    let data = resource_data(value)?;
+    data.pointer("/attributes/state/state")
+        .cloned()
+        .or_else(|| data.pointer("/attributes/state").cloned())
+        .or_else(|| data.pointer("/attributes/assetDeliveryState/state").cloned())
+}
+
+/// Keep useful resource IDs, attributes, status, and processing state while
+/// removing presigned URLs and transient upload headers from CLI/MCP output.
+fn redacted_api_result(value: &Value) -> Value {
+    match value {
+        Value::Object(object) => {
+            let mut result = Map::new();
+            for (key, child) in object {
+                let lower = key.to_ascii_lowercase();
+                if matches!(lower.as_str(), "url" | "uploadoperations" | "requestheaders" | "headers") {
+                    continue;
+                }
+                if lower == "authorization" {
+                    result.insert(key.clone(), Value::String("<redacted>".to_string()));
+                    continue;
+                }
+                result.insert(key.clone(), redacted_api_result(child));
+            }
+            Value::Object(result)
+        }
+        Value::Array(values) => Value::Array(values.iter().map(redacted_api_result).collect()),
+        other => other.clone(),
+    }
+}
+
+fn unknown_commit_result(
+    effect: &Value,
+    file: &Artifact,
+    platform: &str,
+    reservation: &Value,
+    file_reservation: &Value,
+    message: &str,
+) -> Value {
+    json!({
+        "ok": false,
+        "dryRun": false,
+        "operation": "build-upload",
+        "artifact": {"fileName": file.name, "fileSize": file.size, "platform": platform},
+        "uploaded": Value::Null,
+        "commitOutcome": "unknown",
+        "commitError": message,
+        "reservation": redacted_api_result(reservation),
+        "fileReservation": redacted_api_result(file_reservation),
+        "processingState": Value::Null,
+        "effects": effect.clone(),
+        "effectClassification": effect.clone(),
+        "published": false
+    })
 }
 
 fn effect_classification(execute: bool) -> Value {
@@ -384,5 +527,26 @@ mod tests {
         let url = Url::parse("https://uploads.example.invalid/chunk").unwrap();
         let operation = UploadOperation {method: Method::PUT, url, offset: 0, length: 2, headers: Vec::new()};
         assert!(validate_operations(&[operation], 3).is_err());
+    }
+
+    #[test]
+    fn ambiguous_commit_status_is_reconciled_once() {
+        assert!(ApiFailure {status: None, message: String::new()}.is_ambiguous());
+        assert!(ApiFailure {status: Some(500), message: String::new()}.is_ambiguous());
+        assert!(!ApiFailure {status: Some(422), message: String::new()}.is_ambiguous());
+    }
+
+    #[test]
+    fn parent_fixture_preserves_processing_state_without_upload_urls() {
+        let fixture = json!({
+            "data": {"data": {"id": "upload-1", "attributes": {
+                "state": {"state": "PROCESSING"},
+                "uploadOperations": [{"url": "https://signed.invalid/token"}]
+            }}}
+        });
+        assert_eq!(parent_state(&fixture).as_deref(), Some("PROCESSING"));
+        let redacted = redacted_api_result(&fixture);
+        assert!(redacted.to_string().find("signed.invalid").is_none());
+        assert_eq!(redacted.pointer("/data/data/id").and_then(Value::as_str), Some("upload-1"));
     }
 }

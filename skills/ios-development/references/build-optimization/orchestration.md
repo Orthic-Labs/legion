@@ -34,7 +34,7 @@ Each finding carries:
 - `benchmark_verification_status`: `Not yet verified`, `Queued for verification`, `Verified improvement`, `No measurable improvement`, or `Inconclusive due to benchmark noise`
 - optional scope, affected files/targets/packages, implementation notes, risk
 
-Render same order in Markdown. Port donor render/report behavior to Legion's native Rust tooling for JSON → Markdown, project audit, timing, diagnostics, recommendation, checklist, and next-command sections. Keep generated report evidence-bound.
+Render same order with native Rust `build-analysis` operations: `recommendations.render` or `report.summarize` consumes supplied JSON, while `project.audit`, `timing.parse`, and `compiler.parse` provide evidence sections. Keep generated report evidence-bound.
 
 ## Final report
 

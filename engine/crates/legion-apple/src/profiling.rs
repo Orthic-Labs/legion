@@ -40,7 +40,9 @@ fn profile_symbols(object: &Map<String, Value>) -> Result<Value, String> {
     let addresses = if let Some(xml) = object.get("xml").and_then(Value::as_str) {
         parse_time_sample_addresses(xml)?
     } else {
-        object.get("addresses").and_then(Value::as_array).ok_or_else(|| "xml or addresses is required".to_string())?.iter().map(|value| parse_hex_address(value.as_str().ok_or_else(|| "addresses must contain strings".to_string())?)).collect::<Result<Vec<_>, _>>()?
+        let values = object.get("addresses").and_then(Value::as_array).ok_or_else(|| "xml or addresses is required".to_string())?;
+        if values.len() > MAX_ADDRESSES { return Err(format!("addresses exceed {MAX_ADDRESSES}")); }
+        values.iter().map(|value| parse_hex_address(value.as_str().ok_or_else(|| "addresses must contain strings".to_string())?)).collect::<Result<Vec<_>, _>>()?
     };
     let rows = rank_addresses(&addresses, base, vmsize, top);
     let binary = object.get("binary_path").or_else(|| object.get("binary")).and_then(Value::as_str).unwrap_or("");
@@ -100,9 +102,14 @@ pub fn parse_time_sample_addresses(xml: &str) -> Result<Vec<u64>, String> {
     let mut references = Vec::new();
     let mut active_definition: Option<String> = None;
     let mut text_capture_start = None;
+    let mut row_depth = 0_usize;
     let mut cursor = 0;
     while let Some((tag, start, after)) = next_xml_tag(xml, &mut cursor)? {
-        if tag.name == "text-addresses" && !tag.closing {
+        if tag.name == "row" && !tag.closing && !tag.self_closing {
+            row_depth = row_depth.saturating_add(1);
+        } else if tag.name == "row" && tag.closing {
+            row_depth = row_depth.saturating_sub(1);
+        } else if tag.name == "text-addresses" && !tag.closing {
             text_capture_start = Some(after);
         } else if tag.name == "text-addresses" && tag.closing {
             if let (Some(id), Some(content_start)) = (active_definition.as_ref(), text_capture_start.take()) {
@@ -114,6 +121,9 @@ pub fn parse_time_sample_addresses(xml: &str) -> Result<Vec<u64>, String> {
             }
             if let Some(id) = tag.attrs.get("id") {
                 active_definition = Some(id.clone());
+                if row_depth > 0 && tag.attrs.get("ref").is_none() {
+                    references.push(id.clone());
+                }
             }
             if tag.self_closing {
                 active_definition = None;
@@ -124,7 +134,12 @@ pub fn parse_time_sample_addresses(xml: &str) -> Result<Vec<u64>, String> {
     }
     let mut addresses = Vec::new();
     for reference in references {
-        if let Some(values) = definitions.get(&reference) { addresses.extend(values); }
+        if let Some(values) = definitions.get(&reference) {
+            if values.len() > MAX_ADDRESSES.saturating_sub(addresses.len()) {
+                return Err(format!("sample addresses exceed {MAX_ADDRESSES}"));
+            }
+            addresses.extend(values);
+        }
     }
     if addresses.len() > MAX_ADDRESSES { return Err(format!("sample addresses exceed {MAX_ADDRESSES}")); }
     Ok(addresses)
@@ -238,9 +253,9 @@ mod tests {
 
     #[test]
     fn parses_referenced_kperf_addresses_and_filters_range() {
-        let xml = r#"<?xml version="1.0"?><root><kperf-bt id="a"><text-addresses>4096 8192</text-addresses></kperf-bt><row><kperf-bt ref="a"/></row><row><kperf-bt ref="a"/></row></root>"#;
+        let xml = r#"<?xml version="1.0"?><root><kperf-bt id="a"><text-addresses>4096 8192</text-addresses></kperf-bt><row><kperf-bt ref="a"/></row><row><kperf-bt ref="a"/></row><row><kperf-bt id="inline"><text-addresses>12288</text-addresses></kperf-bt></row></root>"#;
         let addresses = parse_time_sample_addresses(xml).unwrap();
-        assert_eq!(addresses, vec![4096, 8192, 4096, 8192]);
+        assert_eq!(addresses, vec![4096, 8192, 4096, 8192, 12288]);
         assert_eq!(rank_addresses(&addresses, 4096, 1, 10), vec![(4096, 2)]);
     }
 
