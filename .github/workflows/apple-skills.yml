@@ -1,7 +1,17 @@
 name: apple-skills
 on:
   push:
-    branches: ['codex/apple-skill-absorption']
+    branches: ['main', 'codex/apple-skill-absorption']
+    paths:
+      - 'skills/ios-development/**'
+      - 'skills/macos-development/**'
+      - 'skills/manifests/*-development.json'
+      - 'docs/apple-absorption/**'
+      - 'engine/crates/legion-apple/**'
+      - 'engine/bins/legion/**'
+      - 'engine/bins/legion-dev/**'
+      - 'engine/Cargo.*'
+      - '.github/workflows/apple-skills.yml'
   pull_request:
     paths:
       - 'skills/ios-development/**'

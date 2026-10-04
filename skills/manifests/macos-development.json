@@ -324,12 +324,12 @@
     {
       "path": "references/build-optimization.md",
       "uri": "legion-skill://macos-development/references/build-optimization.md",
-      "digest": "sha256:93c7f72cc2ebfbd8d331f1817aa0b79bae72dc4dd534eb7bb8307e58c7e94c6c"
+      "digest": "sha256:6265108a28a0e6651c3042659bddcd1d9498d7a93b7ec469fbd9382598c3ba82"
     },
     {
       "path": "references/concurrency/_index.md",
       "uri": "legion-skill://macos-development/references/concurrency/_index.md",
-      "digest": "sha256:7e9e076d885ef05402a67aa8a84b83e63a3c29b3d005816f6acb4c30b6d76531"
+      "digest": "sha256:db8cb57d0ff7c3de8243b6e8c5accc4f510fcc2cad00a7c0c2aafc91810643c7"
     },
     {
       "path": "references/concurrency/actors.md",
@@ -424,7 +424,7 @@
     {
       "path": "references/concurrency.md",
       "uri": "legion-skill://macos-development/references/concurrency.md",
-      "digest": "sha256:d4b09014352d7c0371ed243d20694c8f2cb872ba7de79cecc00783406375c8d0"
+      "digest": "sha256:9ff73bea9dfa58503b26e9acd460d054a42c00ee448e8796f7287a08f74c4939"
     },
     {
       "path": "references/ios-workflows.md",

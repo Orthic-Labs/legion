@@ -21,8 +21,8 @@
               "summary": "Review routing loads core, hygiene, async, newer-feature, or migration topic guidance as needed.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing.md#Swift Testing reference router",
-                "skills/macos-development/references/testing.md#Swift Testing reference router"
+                "skills/ios-development/references/testing.md#swift-testing-reference-router",
+                "skills/macos-development/references/testing.md#swift-testing-reference-router"
               ],
               "reason": "Merged into Legion router while keeping selective topic loading."
             },
@@ -34,8 +34,8 @@
               "summary": "Use Swift 6.2+ modern concurrency conditionally; keep Swift Testing for new unit/integration tests and XCTest for UI tests.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Scope and framework choice",
-                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+                "skills/ios-development/references/testing/core.md#scope-and-framework-choice",
+                "skills/macos-development/references/testing/core.md#scope-and-framework-choice"
               ],
               "reason": "Merged with donor and existing platform framework guidance; no blanket migration. Split into an independent rule group."
             },
@@ -47,8 +47,8 @@
               "summary": "Use feature-oriented project structure determined by the app.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Scope and framework choice",
-                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+                "skills/ios-development/references/testing/core.md#scope-and-framework-choice",
+                "skills/macos-development/references/testing/core.md#scope-and-framework-choice"
               ],
               "reason": "Merged with donor and existing platform framework guidance; no blanket migration. Split into an independent rule group."
             },
@@ -60,8 +60,8 @@
               "summary": "Expect Swift Testing API evolution and treat installed toolchain as authoritative when donor documentation or training data is stale.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Scope and framework choice",
-                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+                "skills/ios-development/references/testing/core.md#scope-and-framework-choice",
+                "skills/macos-development/references/testing/core.md#scope-and-framework-choice"
               ],
               "reason": "Merged with donor and existing platform framework guidance; no blanket migration. Split into an independent rule group."
             },
@@ -73,8 +73,8 @@
               "summary": "Reviews report file/line, rule, before/after fix, omit clean files, and prioritize impact; writing requests apply fixes directly.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing.md#Review output",
-                "skills/macos-development/references/testing.md#Review output"
+                "skills/ios-development/references/testing.md#review-output",
+                "skills/macos-development/references/testing.md#review-output"
               ],
               "reason": "Operational review contract retained."
             },
@@ -86,8 +86,8 @@
               "summary": "Reference topics cover core, writing, async, new features, migration, and latest API caution.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing.md#Swift Testing reference router",
-                "skills/macos-development/references/testing.md#Swift Testing reference router"
+                "skills/ios-development/references/testing.md#swift-testing-reference-router",
+                "skills/macos-development/references/testing.md#swift-testing-reference-router"
               ],
               "reason": "Merged into linked Legion topic references."
             }
@@ -114,8 +114,8 @@
               "summary": "Keep UI tests on XCTest; prefer struct suites and add @Suite only for names or traits.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Scope and framework choice",
-                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+                "skills/ios-development/references/testing/core.md#scope-and-framework-choice",
+                "skills/macos-development/references/testing/core.md#scope-and-framework-choice"
               ],
               "reason": "Merged with AvdLee suite/framework rules and retained XCTest UI boundary."
             },
@@ -127,8 +127,8 @@
               "summary": "Use init/deinit or scopes instead of setUp/tearDown; require zero-argument suite initialization; async/throwing suites and tests are valid.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Preserved concrete suite initialization mechanics."
             },
@@ -140,8 +140,8 @@
               "summary": "Use Testing assertions for unit/integration tests and omit XCTestCase/XCTAssert plus test-name prefixes.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
-                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+                "skills/ios-development/references/testing/core.md#execution-availability-and-tags",
+                "skills/macos-development/references/testing/core.md#execution-availability-and-tags"
               ],
               "reason": "Merged with parallel, parameterization, availability, and known-issue references. Split into an independent rule group."
             },
@@ -153,8 +153,8 @@
               "summary": "Assume random parallel execution and account for two-collection Cartesian parameterization.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
-                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+                "skills/ios-development/references/testing/core.md#execution-availability-and-tags",
+                "skills/macos-development/references/testing/core.md#execution-availability-and-tags"
               ],
               "reason": "Merged with parallel, parameterization, availability, and known-issue references. Split into an independent rule group."
             },
@@ -166,8 +166,8 @@
               "summary": "Apply @available to individual test functions, never suites.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
-                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+                "skills/ios-development/references/testing/core.md#execution-availability-and-tags",
+                "skills/macos-development/references/testing/core.md#execution-availability-and-tags"
               ],
               "reason": "Merged with parallel, parameterization, availability, and known-issue references. Split into an independent rule group."
             },
@@ -179,8 +179,8 @@
               "summary": "A test with no reached expectation passes; use withKnownIssue and its intermittent semantics for tracked defects.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
-                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+                "skills/ios-development/references/testing/core.md#execution-availability-and-tags",
+                "skills/macos-development/references/testing/core.md#execution-availability-and-tags"
               ],
               "reason": "Merged with parallel, parameterization, availability, and known-issue references. Split into an independent rule group."
             },
@@ -192,8 +192,8 @@
               "summary": "Do not negate Boolean expressions with ! inside macros; define/apply custom tags at test or suite scope.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
-                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+                "skills/ios-development/references/testing/core.md#execution-availability-and-tags",
+                "skills/macos-development/references/testing/core.md#execution-availability-and-tags"
               ],
               "reason": "Concrete macro diagnostic and tag mechanics retained."
             }
@@ -220,8 +220,8 @@
               "summary": "Apply FIRST hygiene and cover happy, boundary, invalid, and relevant concurrency cases.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
-                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+                "skills/ios-development/references/testing/core.md#test-hygiene-and-boundaries",
+                "skills/macos-development/references/testing/core.md#test-hygiene-and-boundaries"
               ],
               "reason": "Preserved test-quality heuristics."
             },
@@ -233,8 +233,8 @@
               "summary": "Avoid direct SwiftUI view tests; test view models or observable state and suggest extraction rather than applying it automatically.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
-                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+                "skills/ios-development/references/testing/core.md#test-hygiene-and-boundaries",
+                "skills/macos-development/references/testing/core.md#test-hygiene-and-boundaries"
               ],
               "reason": "Preserved platform-specific testing boundary."
             },
@@ -246,8 +246,8 @@
               "summary": "For new tests, mirror feature-oriented production layout; preserve existing layout unless reorganization is requested.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Merged with suite and parameterization guidance; preserves existing organization. Split into an independent rule group."
             },
@@ -259,8 +259,8 @@
               "summary": "Keep related suites and fixtures discoverable and use domain tags such as networking, slow, edgeCase, and smoke.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Merged with suite and parameterization guidance; preserves existing organization. Split into an independent rule group."
             },
@@ -272,8 +272,8 @@
               "summary": "Add useful assertion messages, parameterize repetition, and keep one behavior per test.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Merged with suite and parameterization guidance; preserves existing organization. Split into an independent rule group."
             },
@@ -285,8 +285,8 @@
               "summary": "Avoid hidden dependencies such as UserDefaults or URLSession in production code under test.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
-                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+                "skills/ios-development/references/testing/core.md#test-hygiene-and-boundaries",
+                "skills/macos-development/references/testing/core.md#test-hygiene-and-boundaries"
               ],
               "reason": "Concrete dependency-injection and cleanup rule retained. Split into an independent rule group."
             },
@@ -298,8 +298,8 @@
               "summary": "Inject URLSession defaults or a narrow protocol so tests can use mocks without changing production call sites.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
-                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+                "skills/ios-development/references/testing/core.md#test-hygiene-and-boundaries",
+                "skills/macos-development/references/testing/core.md#test-hygiene-and-boundaries"
               ],
               "reason": "Concrete dependency-injection and cleanup rule retained. Split into an independent rule group."
             },
@@ -311,8 +311,8 @@
               "summary": "Use isolated UserDefaults suites with cleanup and control time/randomness for deterministic tests.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
-                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+                "skills/ios-development/references/testing/core.md#test-hygiene-and-boundaries",
+                "skills/macos-development/references/testing/core.md#test-hygiene-and-boundaries"
               ],
               "reason": "Concrete dependency-injection and cleanup rule retained. Split into an independent rule group."
             },
@@ -324,8 +324,8 @@
               "summary": "Use #require as throwing guard for prerequisites and optional unwrapping; use #expect for behavior assertions.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Expectations",
-                "skills/macos-development/references/testing/assertions.md#Expectations"
+                "skills/ios-development/references/testing/assertions.md#expectations",
+                "skills/macos-development/references/testing/assertions.md#expectations"
               ],
               "reason": "Merged with AvdLee assertion guidance."
             },
@@ -337,8 +337,8 @@
               "summary": "Attach bug IDs or URLs with .bug to regression tests.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Known issues",
-                "skills/macos-development/references/testing/assertions.md#Known issues"
+                "skills/ios-development/references/testing/assertions.md#known-issues",
+                "skills/macos-development/references/testing/assertions.md#known-issues"
               ],
               "reason": "Retained traceability rule."
             },
@@ -350,8 +350,8 @@
               "summary": "Use Issue.record with do/catch when exact error branches need custom diagnostics.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Errors and failures",
-                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+                "skills/ios-development/references/testing/assertions.md#errors-and-failures",
+                "skills/macos-development/references/testing/assertions.md#errors-and-failures"
               ],
               "reason": "Concrete throw mechanics retained. Split into an independent rule group."
             },
@@ -363,8 +363,8 @@
               "summary": "Prefer narrow #expect(throws:) and Never.self for expected and forbidden errors.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Errors and failures",
-                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+                "skills/ios-development/references/testing/assertions.md#errors-and-failures",
+                "skills/macos-development/references/testing/assertions.md#errors-and-failures"
               ],
               "reason": "Concrete throw mechanics retained. Split into an independent rule group."
             },
@@ -376,8 +376,8 @@
               "summary": "Use test-target CustomTestStringConvertible for readable diagnostics, never production-only conformance.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Errors and failures",
-                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+                "skills/ios-development/references/testing/assertions.md#errors-and-failures",
+                "skills/macos-development/references/testing/assertions.md#errors-and-failures"
               ],
               "reason": "Retained diagnostic boundary."
             },
@@ -389,8 +389,8 @@
               "summary": "Pass SourceLocation defaulted to #_sourceLocation through verification helpers and into nested macros.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Errors and failures",
-                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+                "skills/ios-development/references/testing/assertions.md#errors-and-failures",
+                "skills/macos-development/references/testing/assertions.md#errors-and-failures"
               ],
               "reason": "Retained source-location mechanics."
             }
@@ -417,8 +417,8 @@
               "summary": "Apply .serialized to parameterized test cases or suites; it has no effect on ordinary non-parameterized tests.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Time limits and serialization",
-                "skills/macos-development/references/testing/async.md#Time limits and serialization"
+                "skills/ios-development/references/testing/async.md#time-limits-and-serialization",
+                "skills/macos-development/references/testing/async.md#time-limits-and-serialization"
               ],
               "reason": "Retained explicit trait scope distinction."
             },
@@ -430,8 +430,8 @@
               "summary": "confirmation requires all tested work to finish before its closure returns.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
-                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+                "skills/ios-development/references/testing/async.md#confirmations-and-callbacks",
+                "skills/macos-development/references/testing/async.md#confirmations-and-callbacks"
               ],
               "reason": "Concrete confirmation completion semantics retained. Split into an independent rule group."
             },
@@ -443,8 +443,8 @@
               "summary": "Prefer async production APIs and confirm after awaited work completes.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
-                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+                "skills/ios-development/references/testing/async.md#confirmations-and-callbacks",
+                "skills/macos-development/references/testing/async.md#confirmations-and-callbacks"
               ],
               "reason": "Concrete confirmation completion semantics retained. Split into an independent rule group."
             },
@@ -456,8 +456,8 @@
               "summary": "If async conversion is unavailable, return/await internal Task; expectedCount 0 verifies absence.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
-                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+                "skills/ios-development/references/testing/async.md#confirmations-and-callbacks",
+                "skills/macos-development/references/testing/async.md#confirmations-and-callbacks"
               ],
               "reason": "Concrete confirmation completion semantics retained. Split into an independent rule group."
             },
@@ -469,8 +469,8 @@
               "summary": "Use @Test .timeLimit(.minutes(...)); shorter nested limit wins and suite limit applies per test.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Time limits and serialization",
-                "skills/macos-development/references/testing/async.md#Time limits and serialization"
+                "skills/ios-development/references/testing/async.md#time-limits-and-serialization",
+                "skills/macos-development/references/testing/async.md#time-limits-and-serialization"
               ],
               "reason": "Retained .minutes spelling and precedence."
             },
@@ -482,8 +482,8 @@
               "summary": "Use @MainActor or another global actor on tests/suites when code requires actor isolation.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Swift Testing async work",
-                "skills/macos-development/references/testing/async.md#Swift Testing async work"
+                "skills/ios-development/references/testing/async.md#swift-testing-async-work",
+                "skills/macos-development/references/testing/async.md#swift-testing-async-work"
               ],
               "reason": "Merged with AvdLee actor-isolation guidance. Split into an independent rule group."
             },
@@ -495,8 +495,8 @@
               "summary": "Use confirmation or withKnownIssue isolation for one closure and inspect target default actor isolation.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Swift Testing async work",
-                "skills/macos-development/references/testing/async.md#Swift Testing async work"
+                "skills/ios-development/references/testing/async.md#swift-testing-async-work",
+                "skills/macos-development/references/testing/async.md#swift-testing-async-work"
               ],
               "reason": "Merged with AvdLee actor-isolation guidance. Split into an independent rule group."
             },
@@ -508,8 +508,8 @@
               "summary": "Bridge callback APIs with checked continuations, wait for completion before asserting, and avoid production modernization without scope.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
-                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+                "skills/ios-development/references/testing/async.md#confirmations-and-callbacks",
+                "skills/macos-development/references/testing/async.md#confirmations-and-callbacks"
               ],
               "reason": "Concrete continuation mechanics retained."
             },
@@ -521,8 +521,8 @@
               "summary": "Mock URLSession through a narrow protocol and injected fixture/error data; avoid live networking in unit tests.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Networking boundaries",
-                "skills/macos-development/references/testing/async.md#Networking boundaries"
+                "skills/ios-development/references/testing/async.md#networking-boundaries",
+                "skills/macos-development/references/testing/async.md#networking-boundaries"
               ],
               "reason": "Concrete networking mock preserved."
             }
@@ -549,8 +549,8 @@
               "summary": "Swift 6.2 raw identifiers produce readable test names and may combine with arguments; suggest rather than surprise-adopt them.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
-                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+                "skills/ios-development/references/testing/new-features.md#swift-62",
+                "skills/macos-development/references/testing/new-features.md#swift-62"
               ],
               "reason": "Availability and adoption caution retained."
             },
@@ -562,8 +562,8 @@
               "summary": "Swift 6.1 confirmation supports inclusive bounded/lower ranges; upper-only ranges are disallowed.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/new-features.md#Swift 6.1+",
-                "skills/macos-development/references/testing/new-features.md#Swift 6.1+"
+                "skills/ios-development/references/testing/new-features.md#swift-61",
+                "skills/macos-development/references/testing/new-features.md#swift-61"
               ],
               "reason": "Exact range semantics retained."
             },
@@ -575,8 +575,8 @@
               "summary": "Swift 6.1 TestTrait/TestScoping can safely provide TaskLocal configuration; scopes compose in listed order and later values overwrite.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/new-features.md#Swift 6.1+",
-                "skills/macos-development/references/testing/new-features.md#Swift 6.1+"
+                "skills/ios-development/references/testing/new-features.md#swift-61",
+                "skills/macos-development/references/testing/new-features.md#swift-61"
               ],
               "reason": "Concrete scope protocol and ordering mechanics retained."
             },
@@ -588,8 +588,8 @@
               "summary": "Swift 6.2 process-exit tests use awaited #expect(processExitsWith:) for fatalError/precondition behavior.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
-                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+                "skills/ios-development/references/testing/new-features.md#swift-62",
+                "skills/macos-development/references/testing/new-features.md#swift-62"
               ],
               "reason": "Dedicated-process and await requirement retained."
             },
@@ -601,8 +601,8 @@
               "summary": "Swift 6.2 attachments use Attachable and Attachment.record for String, Data, or Encodable diagnostic values.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
-                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+                "skills/ios-development/references/testing/new-features.md#swift-62",
+                "skills/macos-development/references/testing/new-features.md#swift-62"
               ],
               "reason": "Attachment capability and limitation retained. Split into an independent rule group."
             },
@@ -614,8 +614,8 @@
               "summary": "Attachment image support depends on toolchain and attachments have no XCTest lifetime controls.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
-                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+                "skills/ios-development/references/testing/new-features.md#swift-62",
+                "skills/macos-development/references/testing/new-features.md#swift-62"
               ],
               "reason": "Attachment capability and limitation retained. Split into an independent rule group."
             },
@@ -627,8 +627,8 @@
               "summary": "Swift 6.2 ConditionTrait.evaluate() evaluates test conditions from non-test code.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/new-features.md#Swift 6.2+",
-                "skills/macos-development/references/testing/new-features.md#Swift 6.2+"
+                "skills/ios-development/references/testing/new-features.md#swift-62",
+                "skills/macos-development/references/testing/new-features.md#swift-62"
               ],
               "reason": "Concrete evaluate mechanism retained."
             },
@@ -640,8 +640,8 @@
               "summary": "Swift 6.1 throws expectations return typed errors; migrate from deprecated trailing validation closures.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/new-features.md#Swift 6.1+",
-                "skills/macos-development/references/testing/new-features.md#Swift 6.1+"
+                "skills/ios-development/references/testing/new-features.md#swift-61",
+                "skills/macos-development/references/testing/new-features.md#swift-61"
               ],
               "reason": "Typed return and migration mechanic retained."
             }
@@ -668,8 +668,8 @@
               "summary": "Do not rewrite existing XCTest without request; retain UI boundary and map common assertions to Testing macros.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Merged into incremental coexistence and mapping table."
             },
@@ -681,8 +681,8 @@
               "summary": "Use Swift Numerics approximate comparison for float tolerance only when dependency already exists; do not add it implicitly.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Dependency and permission constraint retained."
             },
@@ -694,8 +694,8 @@
               "summary": "Migrate broad structure first, then assertions, parameterization, preconditions, and traits.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Merged with AvdLee migration order."
             }
@@ -722,8 +722,8 @@
               "summary": "Prioritize readable tests, robust parallel execution, clear diagnostics, and incremental XCTest migration.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Scope and framework choice",
-                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+                "skills/ios-development/references/testing/core.md#scope-and-framework-choice",
+                "skills/macos-development/references/testing/core.md#scope-and-framework-choice"
               ],
               "reason": "Merged with Twostraws and existing platform guidance. Split into an independent rule group."
             },
@@ -735,8 +735,8 @@
               "summary": "Prefer Testing for unit/integration; retain XCTest for UI, performance metrics, and Objective-C-only cases; fix isolation before serialization.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Scope and framework choice",
-                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+                "skills/ios-development/references/testing/core.md#scope-and-framework-choice",
+                "skills/macos-development/references/testing/core.md#scope-and-framework-choice"
               ],
               "reason": "Merged with Twostraws and existing platform guidance. Split into an independent rule group."
             },
@@ -748,8 +748,8 @@
               "summary": "Prefer traits and parameterization, apply function-level availability, migrate incrementally, and import Testing only in test targets.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Scope and framework choice",
-                "skills/macos-development/references/testing/core.md#Scope and framework choice"
+                "skills/ios-development/references/testing/core.md#scope-and-framework-choice",
+                "skills/macos-development/references/testing/core.md#scope-and-framework-choice"
               ],
               "reason": "Merged with Twostraws and existing platform guidance. Split into an independent rule group."
             },
@@ -761,8 +761,8 @@
               "summary": "Triage by goal, toolchain/platform, framework mix, failure determinism, and shared resources.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing.md#Swift Testing reference router",
-                "skills/macos-development/references/testing.md#Swift Testing reference router"
+                "skills/ios-development/references/testing.md#swift-testing-reference-router",
+                "skills/macos-development/references/testing.md#swift-testing-reference-router"
               ],
               "reason": "Operational triage retained in router usage. Split into an independent rule group."
             },
@@ -774,8 +774,8 @@
               "summary": "Route repetition to parameters, flakiness to isolation/known issues, migration to coexistence, and callback complexity to continuations.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing.md#Swift Testing reference router",
-                "skills/macos-development/references/testing.md#Swift Testing reference router"
+                "skills/ios-development/references/testing.md#swift-testing-reference-router",
+                "skills/macos-development/references/testing.md#swift-testing-reference-router"
               ],
               "reason": "Operational triage retained in router usage. Split into an independent rule group."
             },
@@ -787,8 +787,8 @@
               "summary": "Route suite/assertion/trait/parameter/isolation topics to focused references.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing.md#Swift Testing reference router",
-                "skills/macos-development/references/testing.md#Swift Testing reference router"
+                "skills/ios-development/references/testing.md#swift-testing-reference-router",
+                "skills/macos-development/references/testing.md#swift-testing-reference-router"
               ],
               "reason": "Mapped to shared topic files. Split into an independent rule group."
             },
@@ -800,8 +800,8 @@
               "summary": "Route performance, async, migration, Xcode workflows, and index navigation to focused references.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing.md#Swift Testing reference router",
-                "skills/macos-development/references/testing.md#Swift Testing reference router"
+                "skills/ios-development/references/testing.md#swift-testing-reference-router",
+                "skills/macos-development/references/testing.md#swift-testing-reference-router"
               ],
               "reason": "Mapped to shared topic files. Split into an independent rule group."
             },
@@ -813,8 +813,8 @@
               "summary": "Common fixes: parameterize repetition, require prerequisites, isolate shared databases, and serialize only as transition.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
-                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+                "skills/ios-development/references/testing/core.md#test-hygiene-and-boundaries",
+                "skills/macos-development/references/testing/core.md#test-hygiene-and-boundaries"
               ],
               "reason": "Merged into topic guidance. Split into an independent rule group."
             },
@@ -826,8 +826,8 @@
               "summary": "Use withKnownIssue for temporary failures, CustomTestStringConvertible for diagnostics, and tags for plan filtering.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Test hygiene and boundaries",
-                "skills/macos-development/references/testing/core.md#Test hygiene and boundaries"
+                "skills/ios-development/references/testing/core.md#test-hygiene-and-boundaries",
+                "skills/macos-development/references/testing/core.md#test-hygiene-and-boundaries"
               ],
               "reason": "Merged into topic guidance. Split into an independent rule group."
             },
@@ -839,8 +839,8 @@
               "summary": "Verify behavior focus, prerequisites, parameterization, parallel safety, awaited callbacks, and XCTest-only retention.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing.md#Review output",
-                "skills/macos-development/references/testing.md#Review output"
+                "skills/ios-development/references/testing.md#review-output",
+                "skills/macos-development/references/testing.md#review-output"
               ],
               "reason": "Retained as review checklist via base and linked topics."
             }
@@ -867,8 +867,8 @@
               "summary": "Index maps all Swift Testing topics to focused references and workflows.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing.md#Swift Testing reference router",
-                "skills/macos-development/references/testing.md#Swift Testing reference router"
+                "skills/ios-development/references/testing.md#swift-testing-reference-router",
+                "skills/macos-development/references/testing.md#swift-testing-reference-router"
               ],
               "reason": "Mapped to Legion router links."
             },
@@ -878,7 +878,7 @@
                 12
               ],
               "summary": "README resources note is packaging navigation and points to absent donor README content.",
-              "disposition": "excluded",
+              "disposition": "rejected",
               "destinations": [],
               "reason": "Metadata-only pointer; no independent operational rule in destination."
             }
@@ -905,8 +905,8 @@
               "summary": "Import Testing only in test targets; use @Test, struct/actor/class suites, prefer structs, use @Suite for names/traits, and nest suites by feature.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Merged with Twostraws suite rules."
             },
@@ -918,8 +918,8 @@
               "summary": "Use global functions, suites, and nested suites to express feature behavior.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Examples condensed into operational guidance while retaining mechanics. Split into an independent rule group."
             },
@@ -931,8 +931,8 @@
               "summary": "Keep tests small, descriptive, locally initialized, free of hidden globals, and selectively actor/availability gated.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Examples condensed into operational guidance while retaining mechanics. Split into an independent rule group."
             },
@@ -944,8 +944,8 @@
               "summary": "Group by feature behavior, promote universal tags to suite scope, and separate unrelated suites.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Examples condensed into operational guidance while retaining mechanics. Split into an independent rule group."
             },
@@ -957,8 +957,8 @@
               "summary": "Group by behavior, promote shared tags only when universal, and keep unrelated suites separate.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Organization guidance retained."
             },
@@ -970,8 +970,8 @@
               "summary": "Require zero-argument init path and never annotate suite availability.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Suites and test declarations",
-                "skills/macos-development/references/testing/core.md#Suites and test declarations"
+                "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
+                "skills/macos-development/references/testing/core.md#suites-and-test-declarations"
               ],
               "reason": "Merged exact suite constraints."
             },
@@ -983,8 +983,8 @@
               "summary": "Review suite focus, display names, execution-order independence, import boundary, suite type, init path, and availability placement.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing.md#Review output",
-                "skills/macos-development/references/testing.md#Review output"
+                "skills/ios-development/references/testing.md#review-output",
+                "skills/macos-development/references/testing.md#review-output"
               ],
               "reason": "Review checks preserved across linked topics."
             }
@@ -1011,8 +1011,8 @@
               "summary": "Use expressive #expect natural expressions and captured diagnostics; avoid XCTest assertions.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Expectations",
-                "skills/macos-development/references/testing/assertions.md#Expectations"
+                "skills/ios-development/references/testing/assertions.md#expectations",
+                "skills/macos-development/references/testing/assertions.md#expectations"
               ],
               "reason": "Merged with Twostraws assertion rules."
             },
@@ -1024,8 +1024,8 @@
               "summary": "Use throwing #require for prerequisites and optional unwrapping.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Expectations",
-                "skills/macos-development/references/testing/assertions.md#Expectations"
+                "skills/ios-development/references/testing/assertions.md#expectations",
+                "skills/macos-development/references/testing/assertions.md#expectations"
               ],
               "reason": "Merged exact early-stop semantics."
             },
@@ -1037,8 +1037,8 @@
               "summary": "For expected failures, choose any throw, concrete type, or concrete case; direct success paths and custom do/catch remain valid.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Errors and failures",
-                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+                "skills/ios-development/references/testing/assertions.md#errors-and-failures",
+                "skills/macos-development/references/testing/assertions.md#errors-and-failures"
               ],
               "reason": "Merged with detailed Issue.record mechanics. Split into an independent rule group."
             },
@@ -1050,8 +1050,8 @@
               "summary": "Use #expect(throws:) for expected errors and Never.self for no-throw.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Errors and failures",
-                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+                "skills/ios-development/references/testing/assertions.md#errors-and-failures",
+                "skills/macos-development/references/testing/assertions.md#errors-and-failures"
               ],
               "reason": "Merged with detailed Issue.record mechanics. Split into an independent rule group."
             },
@@ -1063,8 +1063,8 @@
               "summary": "Use narrow withKnownIssue wrappers and remove them once fixed.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Known issues",
-                "skills/macos-development/references/testing/assertions.md#Known issues"
+                "skills/ios-development/references/testing/assertions.md#known-issues",
+                "skills/macos-development/references/testing/assertions.md#known-issues"
               ],
               "reason": "Merged semantics."
             },
@@ -1076,8 +1076,8 @@
               "summary": "Use test-only CustomTestStringConvertible for concise diagnostics.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/assertions.md#Errors and failures",
-                "skills/macos-development/references/testing/assertions.md#Errors and failures"
+                "skills/ios-development/references/testing/assertions.md#errors-and-failures",
+                "skills/macos-development/references/testing/assertions.md#errors-and-failures"
               ],
               "reason": "Merged diagnostic rule."
             },
@@ -1089,8 +1089,8 @@
               "summary": "Keep XCTest mapping and assertion hygiene visible.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Mapped into migration table and assertions."
             }
@@ -1117,8 +1117,8 @@
               "summary": "Classify informational, conditional, and behavioral traits including time limits and serialization.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Swift Testing traits and XCTest migration",
-                "skills/macos-development/references/testing/traits-migration.md#Swift Testing traits and XCTest migration"
+                "skills/ios-development/references/testing/traits-migration.md#swift-testing-traits-and-xctest-migration",
+                "skills/macos-development/references/testing/traits-migration.md#swift-testing-traits-and-xctest-migration"
               ],
               "reason": "Merged trait taxonomy."
             },
@@ -1130,8 +1130,8 @@
               "summary": "Use enabled/disabled conditions with actionable reasons and bug links.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Swift Testing traits and XCTest migration",
-                "skills/macos-development/references/testing/traits-migration.md#Swift Testing traits and XCTest migration"
+                "skills/ios-development/references/testing/traits-migration.md#swift-testing-traits-and-xctest-migration",
+                "skills/macos-development/references/testing/traits-migration.md#swift-testing-traits-and-xctest-migration"
               ],
               "reason": "Retained conditional trait mechanics."
             },
@@ -1143,8 +1143,8 @@
               "summary": "Apply function-level availability for OS-gated behavior instead of inline checks or suite availability.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
-                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+                "skills/ios-development/references/testing/core.md#execution-availability-and-tags",
+                "skills/macos-development/references/testing/core.md#execution-availability-and-tags"
               ],
               "reason": "Merged with exact suite constraint."
             },
@@ -1156,8 +1156,8 @@
               "summary": "Define tags for cross-suite grouping and filtering; keep labels meaningful and distinct from suite structure.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
-                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+                "skills/ios-development/references/testing/core.md#execution-availability-and-tags",
+                "skills/macos-development/references/testing/core.md#execution-availability-and-tags"
               ],
               "reason": "Merged with Twostraws tag rules and workflow filtering. Split into an independent rule group."
             },
@@ -1169,8 +1169,8 @@
               "summary": "Declare/apply tags at test or suite scope and use them for navigator/test-plan filters.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
-                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+                "skills/ios-development/references/testing/core.md#execution-availability-and-tags",
+                "skills/macos-development/references/testing/core.md#execution-availability-and-tags"
               ],
               "reason": "Merged with Twostraws tag rules and workflow filtering. Split into an independent rule group."
             },
@@ -1182,8 +1182,8 @@
               "summary": "Traits cascade from suites; keep scope explicit, disabled reasons actionable, and serialization narrow.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/core.md#Execution, availability, and tags",
-                "skills/macos-development/references/testing/core.md#Execution, availability, and tags"
+                "skills/ios-development/references/testing/core.md#execution-availability-and-tags",
+                "skills/macos-development/references/testing/core.md#execution-availability-and-tags"
               ],
               "reason": "Merged with Twostraws tag rules and workflow filtering. Split into an independent rule group."
             }
@@ -1210,8 +1210,8 @@
               "summary": "Parameterize identical behavior, replace loops/copy-paste, and keep one responsibility.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
-                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+                "skills/ios-development/references/testing/parameterized.md#swift-testing-parameterized-tests",
+                "skills/macos-development/references/testing/parameterized.md#swift-testing-parameterized-tests"
               ],
               "reason": "Merged with Twostraws parameter rules."
             },
@@ -1223,8 +1223,8 @@
               "summary": "Single collections create independent cases; max two direct collections form Cartesian product and can explode.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
-                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+                "skills/ios-development/references/testing/parameterized.md#swift-testing-parameterized-tests",
+                "skills/macos-development/references/testing/parameterized.md#swift-testing-parameterized-tests"
               ],
               "reason": "Concrete collection semantics retained."
             },
@@ -1236,8 +1236,8 @@
               "summary": "Use zip for aligned pairs but account for silent truncation and CaseIterable order fragility.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
-                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+                "skills/ios-development/references/testing/parameterized.md#swift-testing-parameterized-tests",
+                "skills/macos-development/references/testing/parameterized.md#swift-testing-parameterized-tests"
               ],
               "reason": "Preserved coverage traps."
             },
@@ -1249,8 +1249,8 @@
               "summary": "Prefer tuple arrays/dictionaries; InlineArray same-length zip is optional Swift 6.2 helper, not standard library.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
-                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+                "skills/ios-development/references/testing/parameterized.md#swift-testing-parameterized-tests",
+                "skills/macos-development/references/testing/parameterized.md#swift-testing-parameterized-tests"
               ],
               "reason": "Concrete alternatives and availability retained."
             },
@@ -1262,8 +1262,8 @@
               "summary": "Use readable parameters and allCases only for property tests, not hard-coded mappings.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
-                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+                "skills/ios-development/references/testing/parameterized.md#swift-testing-parameterized-tests",
+                "skills/macos-development/references/testing/parameterized.md#swift-testing-parameterized-tests"
               ],
               "reason": "Merged output and allCases guidance."
             },
@@ -1275,8 +1275,8 @@
               "summary": "Avoid derived expected values that mask bugs; use concrete literals and independent data.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
-                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+                "skills/ios-development/references/testing/parameterized.md#swift-testing-parameterized-tests",
+                "skills/macos-development/references/testing/parameterized.md#swift-testing-parameterized-tests"
               ],
               "reason": "Preserved independence and diagnostics rules. Split into an independent rule group."
             },
@@ -1288,8 +1288,8 @@
               "summary": "Do not mirror production branching inside parameterized tests; split special cases and use argument-level diagnostics.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
-                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+                "skills/ios-development/references/testing/parameterized.md#swift-testing-parameterized-tests",
+                "skills/macos-development/references/testing/parameterized.md#swift-testing-parameterized-tests"
               ],
               "reason": "Preserved independence and diagnostics rules. Split into an independent rule group."
             },
@@ -1301,8 +1301,8 @@
               "summary": "Avoid in-test loops, huge combinations, mixed concerns, and hidden argument arrays; keep argument data readable and reviewable.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/parameterized.md#Swift Testing parameterized tests",
-                "skills/macos-development/references/testing/parameterized.md#Swift Testing parameterized tests"
+                "skills/ios-development/references/testing/parameterized.md#swift-testing-parameterized-tests",
+                "skills/macos-development/references/testing/parameterized.md#swift-testing-parameterized-tests"
               ],
               "reason": "Preserved independence and diagnostics rules. Split into an independent rule group."
             }
@@ -1329,8 +1329,8 @@
               "summary": "Parallel and randomized execution applies to sync and async tests.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Merged with Twostraws execution model."
             },
@@ -1342,8 +1342,8 @@
               "summary": "Use parallel safety to expose hidden dependencies; isolate per test, avoid globals/singletons, and use deterministic setup.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Retained rationale and fixes."
             },
@@ -1355,8 +1355,8 @@
               "summary": "Use suite .serialized narrowly as transitional targeted tool; unrelated suites may remain parallel.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Time limits and serialization",
-                "skills/macos-development/references/testing/async.md#Time limits and serialization"
+                "skills/ios-development/references/testing/async.md#time-limits-and-serialization",
+                "skills/macos-development/references/testing/async.md#time-limits-and-serialization"
               ],
               "reason": "Merged with parameterized serialization distinction."
             },
@@ -1368,8 +1368,8 @@
               "summary": "Choose fresh backing state, in-memory substitutes, or separate serial plans for shared DB/files/services.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Retained resource decision branches."
             }
@@ -1396,8 +1396,8 @@
               "summary": "Prefer deterministic, synchronous, independent tests; treat serialization as temporary compromise.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Merged core performance principles."
             },
@@ -1409,8 +1409,8 @@
               "summary": "Keep sync tests sync and avoid unnecessary MainActor isolation.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Retained speed/isolation decisions."
             },
@@ -1422,8 +1422,8 @@
               "summary": "Remove shared mutable state and reset/isolate dependencies per invocation.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Merged shared-state guidance."
             },
@@ -1435,8 +1435,8 @@
               "summary": "Use in-memory fakes, parameterization, and argument-level diagnostics for fast paths.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Retained performance patterns."
             },
@@ -1448,8 +1448,8 @@
               "summary": "Build expensive fixtures only when needed, keep readonly setup cheap, and avoid irrelevant network/filesystem setup.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Merged practical checklist. Split into an independent rule group."
             },
@@ -1461,8 +1461,8 @@
               "summary": "Use narrow serialization with removal context after dependencies are isolated.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Merged practical checklist. Split into an independent rule group."
             },
@@ -1474,8 +1474,8 @@
               "summary": "Use deterministic fixtures, controllable clocks/randomness, no sleeps/order reliance, and narrow known-issue wrappers.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/isolation-performance.md#Swift Testing isolation and performance",
-                "skills/macos-development/references/testing/isolation-performance.md#Swift Testing isolation and performance"
+                "skills/ios-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance",
+                "skills/macos-development/references/testing/isolation-performance.md#swift-testing-isolation-and-performance"
               ],
               "reason": "Merged practical checklist. Split into an independent rule group."
             }
@@ -1502,8 +1502,8 @@
               "summary": "Prefer native async/await, structured concurrency, and confirmations for non-awaitable events.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Swift Testing async work",
-                "skills/macos-development/references/testing/async.md#Swift Testing async work"
+                "skills/ios-development/references/testing/async.md#swift-testing-async-work",
+                "skills/macos-development/references/testing/async.md#swift-testing-async-work"
               ],
               "reason": "Merged with Twostraws async rules."
             },
@@ -1515,8 +1515,8 @@
               "summary": "Bridge completion handlers with checked continuations and keep wrappers minimal.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
-                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+                "skills/ios-development/references/testing/async.md#confirmations-and-callbacks",
+                "skills/macos-development/references/testing/async.md#confirmations-and-callbacks"
               ],
               "reason": "Merged exact callback bridge."
             },
@@ -1528,8 +1528,8 @@
               "summary": "Use confirmation for event counts with explicit exact/lower-bound semantics and closed scope.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
-                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+                "skills/ios-development/references/testing/async.md#confirmations-and-callbacks",
+                "skills/macos-development/references/testing/async.md#confirmations-and-callbacks"
               ],
               "reason": "Merged count semantics."
             },
@@ -1541,8 +1541,8 @@
               "summary": "Use actors/AsyncSequence/thread-safe containers for repeated callbacks; verify count/order.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Confirmations and callbacks",
-                "skills/macos-development/references/testing/async.md#Confirmations and callbacks"
+                "skills/ios-development/references/testing/async.md#confirmations-and-callbacks",
+                "skills/macos-development/references/testing/async.md#confirmations-and-callbacks"
               ],
               "reason": "Retained concurrency-safe callback rule."
             },
@@ -1554,8 +1554,8 @@
               "summary": "Do not return before callbacks finish or use sleep as synchronization; use deterministic await points and selective actor isolation.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/async.md#Swift Testing async work",
-                "skills/macos-development/references/testing/async.md#Swift Testing async work"
+                "skills/ios-development/references/testing/async.md#swift-testing-async-work",
+                "skills/macos-development/references/testing/async.md#swift-testing-async-work"
               ],
               "reason": "Merged anti-pattern and actor guidance."
             }
@@ -1582,8 +1582,8 @@
               "summary": "Allow XCTest/Testing coexistence; migrate incrementally and retain UI, performance, and Objective-C-only XCTest.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Merged direct coexistence boundary."
             },
@@ -1595,8 +1595,8 @@
               "summary": "Migration order is assertions, @Test/naming, suite organization, parameterization, then traits/tags.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Retained exact order."
             },
@@ -1608,8 +1608,8 @@
               "summary": "Map assertions, optionals, early-stop, and Issue.record; preserve narrow error semantics.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Common mappings",
-                "skills/macos-development/references/testing/traits-migration.md#Common mappings"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Merged mapping table."
             },
@@ -1621,8 +1621,8 @@
               "summary": "Understand suite/setup/teardown and XCTest main-actor versus Swift Testing arbitrary-task differences.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Merged suite and actor differences."
             },
@@ -1634,8 +1634,8 @@
               "summary": "Migrate async APIs with await, checked continuations, and confirmations for event streams.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Retained migration hygiene. Split into an independent rule group."
             },
@@ -1647,8 +1647,8 @@
               "summary": "Keep migration mechanical/reviewable and avoid mixing XCTest assertions with Swift Testing assertions.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Retained migration hygiene. Split into an independent rule group."
             },
@@ -1660,8 +1660,8 @@
               "summary": "Avoid all-at-once migration, stale continueAfterFailure, and blanket MainActor annotations.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/traits-migration.md#Coexistence",
-                "skills/macos-development/references/testing/traits-migration.md#Coexistence"
+                "skills/ios-development/references/testing/traits-migration.md#coexistence",
+                "skills/macos-development/references/testing/traits-migration.md#coexistence"
               ],
               "reason": "Retained migration hygiene. Split into an independent rule group."
             }
@@ -1688,8 +1688,8 @@
               "summary": "Run navigator tests at function/suite/tag/argument scope and rerun only failing parameterized cases.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
-                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+                "skills/ios-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence"
               ],
               "reason": "Retained focused rerun workflow."
             },
@@ -1701,8 +1701,8 @@
               "summary": "Use stable tag filters/grouping and domain conventions for core, integration, regression, and flaky coverage.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
-                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+                "skills/ios-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence"
               ],
               "reason": "Merged tag workflow."
             },
@@ -1714,8 +1714,8 @@
               "summary": "Configure any/all tag filters and separate core/integration/optional/release plans.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
-                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+                "skills/ios-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence"
               ],
               "reason": "Retained test-plan branches."
             },
@@ -1727,8 +1727,8 @@
               "summary": "Triage report clusters by tag/bug/destination, inspect representative failures, and remove known issues after root fixes.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
-                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+                "skills/ios-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence"
               ],
               "reason": "Retained report triage. Split into an independent rule group."
             },
@@ -1740,8 +1740,8 @@
               "summary": "Keep expectations, argument/type descriptions, and bug links diagnostic and actionable.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
-                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+                "skills/ios-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence"
               ],
               "reason": "Retained report triage. Split into an independent rule group."
             },
@@ -1753,8 +1753,8 @@
               "summary": "Keep tags/plans consistent and rerun argument-level before broad reruns.",
               "disposition": "kept",
               "destinations": [
-                "skills/ios-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence",
-                "skills/macos-development/references/testing/xcode-workflows.md#Swift Testing Xcode workflows and evidence"
+                "skills/ios-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence",
+                "skills/macos-development/references/testing/xcode-workflows.md#swift-testing-xcode-workflows-and-evidence"
               ],
               "reason": "Retained checklist."
             }
