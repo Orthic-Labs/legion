@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-installed-native-readback",
+  "sourceRevision": "d54bea8cf41ecbacee7cfd2a626f3719e0ed3c54",
+  "fullCi": {
+    "runId": 37322449386,
+    "passed": 7336,
+    "failed": 0,
+    "ignored": 2,
+    "suites": 289
+  },
+  "macos": {
+    "sourceRevision": "d54bea8cf41ecbacee7cfd2a626f3719e0ed3c54",
+    "platform": "macos-arm64",
+    "runtimeSha256": "640e030102636ae58997dc5c0c4358bf315e088b7edc497bc9e183a0f48a02ae",
+    "declarativeAssetsSha256": "51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f",
+    "skillChecks": [
+      {
+        "root": "payload",
+        "matched": 1036
+      },
+      {
+        "root": "claude",
+        "matched": 1036
+      },
+      {
+        "root": "codex",
+        "matched": 1036
+      }
+    ],
+    "clients": {
+      "claude-code": {
+        "status": "complete",
+        "origin": "installed",
+        "stableCurrent": true
+      },
+      "codex": {
+        "status": "complete",
+        "origin": "installed",
+        "stableCurrent": true
+      }
+    },
+    "mcpChecks": [
+      {
+        "mode": "bare",
+        "responses": 5,
+        "tools": [
+          "legion_apple",
+          "legion_m1_invoke",
+          "legion_m1_status"
+        ],
+        "apple": [
+          "catalog",
+          "apps-plan",
+          "simulator-plan"
+        ]
+      },
+      {
+        "mode": "plugin-root",
+        "responses": 5,
+        "tools": [
+          "legion_apple",
+          "legion_m1_invoke",
+          "legion_m1_status"
+        ],
+        "apple": [
+          "catalog",
+          "apps-plan",
+          "simulator-plan"
+        ]
+      }
+    ],
+    "hookChecks": [
+      {
+        "tool": "mcp__Windows-MCP__Snapshot",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__Windows-MCP__Click",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__docs__query",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__files__write_file",
+        "allowed": false
+      },
+      {
+        "tool": "mcp__mail__send_message",
+        "allowed": false
+      },
+      {
+        "tool": "mcp__files__delete_file",
+        "allowed": false
+      }
+    ],
+    "minimize": {
+      "receipt": "verified",
+      "validator": "installed-rust-cli",
+      "policy": "packaged-native-policy",
+      "stagedTreeDrift": "rejected"
+    },
+    "installer": {
+      "activation": "completed",
+      "exitCode": 1,
+      "aggregateSetup": "optional-pi-baseline-defect",
+      "scopedClaudeRepairExitCode": 0,
+      "scopedCodexRepairExitCode": 0,
+      "sha256": "c182b241ffd2f49c3e5887ef4e2aed4282cb1429b735f274e903aa007640d955"
+    }
+  },
+  "windows": {
+    "mcpChecks": [
+      {
+        "tools": [
+          "legion_apple",
+          "legion_m1_invoke",
+          "legion_m1_status"
+        ],
+        "apple": [
+          "catalog",
+          "apps-plan",
+          "simulator-plan"
+        ],
+        "mode": "bare",
+        "responses": 5
+      },
+      {
+        "tools": [
+          "legion_apple",
+          "legion_m1_invoke",
+          "legion_m1_status"
+        ],
+        "apple": [
+          "catalog",
+          "apps-plan",
+          "simulator-plan"
+        ],
+        "mode": "plugin-root",
+        "responses": 5
+      }
+    ],
+    "skillChecks": [
+      {
+        "matched": 1036,
+        "root": "payload"
+      },
+      {
+        "matched": 1036,
+        "root": "codex"
+      },
+      {
+        "matched": 1036,
+        "root": "claude"
+      }
+    ],
+    "appleBackend": "legion-apple",
+    "hookChecks": [
+      {
+        "tool": "mcp__Windows-MCP__Snapshot",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__Windows-MCP__Click",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__docs__query",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__files__write_file",
+        "allowed": false
+      },
+      {
+        "tool": "mcp__mail__send_message",
+        "allowed": false
+      },
+      {
+        "tool": "mcp__files__delete_file",
+        "allowed": false
+      }
+    ],
+    "setup": {
+      "generation": "0.3.21:51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f",
+      "status": "complete",
+      "origin": "installed",
+      "stableCurrent": true
+    },
+    "minimize": {
+      "stagedTreeDrift": "rejected",
+      "policy": "packaged-native-policy",
+      "validator": "installed-rust-cli",
+      "receipt": "verified"
+    },
+    "sourceRevision": "d54bea8cf41ecbacee7cfd2a626f3719e0ed3c54",
+    "declarativeAssetsSha256": "51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f",
+    "runtimeSha256": "fa827809030976d482a20f4c05b9d690b7be014a57feb2fa8d3261f76e5a5e05",
+    "platform": "windows-x86_64",
+    "installer": {
+      "exitCode": 0,
+      "childTimeoutSeconds": 180,
+      "installerSha256": "e4f9b66d46929ce30048e5e444e8c2c0cc60a756702421f4302089790db0ce8e",
+      "officialUninstallExitCode": 0,
+      "method": "qualified-installer-after-official-uninstall",
+      "initialUpgradePluginRootFailure": "obsolete-directory-skills/alchemist/scripts",
+      "upgradeCleanupSourceFix": "pending"
+    }
+  }
+}

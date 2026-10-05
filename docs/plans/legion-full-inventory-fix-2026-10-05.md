@@ -8,7 +8,45 @@ Follow-up acceptance found `8c23e45b` advertised plugin-root transport broken on
 Assembler intentionally removes `${PLUGIN_ROOT}` arguments for Claude; validator now accepts
 only that exact argument projection while preserving every other field. Antigravity alias retains
 exact-byte validation. Qualification now probes both bare & plugin-root transports, all three
-canonical tools & Apple catalog/apps/simulator dry plans. Rebuilt installed readback is pending.
+canonical tools & Apple catalog/apps/simulator dry plans.
+
+Transport repair revision: `d54bea8cf41ecbacee7cfd2a626f3719e0ed3c54`.
+Full CI [37322449386](https://github.com/Orthic-Labs/legion/actions/runs/37322449386)
+passed: **7,336 tests, zero failures, two ignored, 289 suites**. Apple qualification
+[37322449254](https://github.com/Orthic-Labs/legion/actions/runs/37322449254) & macOS
+development qualification [37322522026](https://github.com/Orthic-Labs/legion/actions/runs/37322522026)
+passed. Windows development qualification
+[37322522844](https://github.com/Orthic-Labs/legion/actions/runs/37322522844) passed.
+
+Mac stable runtime SHA256 is
+`640e030102636ae58997dc5c0c4358bf315e088b7edc497bc9e183a0f48a02ae`; asset generation remains
+`51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f`.
+All 1,036 skill files match payload, Claude & Codex projections. Both client readbacks report
+COMPLETE, installed origin & stable current. Both real transports return five successful replies,
+three canonical tools & Apple catalog/apps/simulator plans. Six installed hook decisions pass;
+native Minimize binds installed Rust executable & packaged policy, then rejects staged-tree drift.
+Mac is ready for iOS work. Normal installer activated this runtime but exited 1 during aggregate
+setup repair because optional Pi/Baseline configuration remains defective; scoped Claude & Codex
+repairs each exited 0. Aggregate all-client installation is not certified.
+
+Windows stable runtime SHA256 is
+`fa827809030976d482a20f4c05b9d690b7be014a57feb2fa8d3261f76e5a5e05`; asset generation matches Mac.
+Qualified artifact ZIP SHA256 is
+`a0d104ecc68300489c4ae7653280df2dce0dc67d4713cfeee7cb22099b27b960`;
+installer SHA256 is `e4f9b66d46929ce30048e5e444e8c2c0cc60a756702421f4302089790db0ce8e`.
+First same-version installation exited 0 but actual plugin-root startup rejected obsolete
+`skills/alchemist/scripts` directory. Official uninstall exited 0, then exact qualified installer
+reinstall exited 0 with documented 180-second child budget. Stable setup reads COMPLETE,
+installed origin & stable current. All 1,036 skill files match payload, Claude & Codex; both MCP
+paths return five successful replies with canonical tool set & Apple dry plans. Six hook cases &
+native Minimize receipt/staged-tree-drift checks pass. Existing Windows checkout & parent staged
+work remain untouched. Same-version upgrade cleanup remains a source defect listed below.
+
+Portable readback evidence: [legion-installed-readback-d54bea8c.json](legion-installed-readback-d54bea8c.json).
+Mac artifact ZIP SHA256: `3562eaabfe20682b09dd4e42bd775e0391fa098cf1dbcf1f926f7994fc8f0971`;
+installer archive SHA256: `c182b241ffd2f49c3e5887ef4e2aed4282cb1429b735f274e903aa007640d955`.
+Both requested Claude/Codex installations now share exact production source `d54bea8c` & asset
+generation; iOS acceptance chat was informed Mac is ready before Windows delivery.
 
 This is source-bound inventory for Legion's primary checkout. Reports read:
 
@@ -18,20 +56,21 @@ This is source-bound inventory for Legion's primary checkout. Reports read:
 - `/tmp/legion-full-audit-skills-assets.md`
 
 Primary source inventory revision: `251de32200cb14882dbed794139393c2a869dadd`.
-Production repair revision: `8c23e45b49e41cc2eec3b8f5e776564d077647f0`.
+Earlier production repair revision: `8c23e45b49e41cc2eec3b8f5e776564d077647f0`.
 Full CI run [37307458066](https://github.com/Orthic-Labs/legion/actions/runs/37307458066)
 passed: **7,333 tests, zero failures, one ignored, 288 suites**. Apple qualification & macOS
 native/installer qualification passed. Windows installer qualification & stable installation passed.
 
-Mac stable installation matches qualified runtime SHA256
+Earlier Mac installation matched qualified runtime SHA256
 `bb9d303e131879eec60a308e97aeb4410e6a1f13b56d79587c9e9f4c3fe23893` & asset generation
 `51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f`.
 Claude & Codex setup repair/readback are COMPLETE, installed-origin & stable-current.
 All 29 bundles / 1,036 manifest-listed files match payload, Claude & Codex projections.
 Installed hook admits Windows-MCP Snapshot/Click & docs query without overriding host
 permissions; classified write/send/delete remain denied. Native Minimize init-review → receipt →
-verify passes in isolated Git fixture, binds installed Rust executable & shipped policy, & rejects
-staged-tree drift. Five installed MCP requests return successful responses.
+verify passed in isolated Git fixture, bound installed Rust executable & shipped policy, & rejected
+staged-tree drift. Those five MCP responses covered bare stdio only; current acceptance above
+supersedes that incomplete transport claim.
 
 Local compilation/check/test admission was unavailable, so builds & tests ran on GitHub CI.
 Exact qualified installers are used for explicitly requested stable installation. Status labels:
@@ -62,7 +101,7 @@ Exact qualified installers are used for explicitly requested stable installation
 
 ## Priority order
 
-1. **Claude/native installed path first.** Qualify `8c23e45b` through GitHub: Claude hook/MCP
+1. **Claude/native installed path first.** Qualify `d54bea8c` through GitHub: Claude hook/MCP
    permissions, native Minimize policy/validator assets, exact macOS same-version reinstall,
    then exact installed readback. Do not call source/unit coverage release completion.
 2. **Canonical MCP/runtime parity.** Choose one registry and adapter, repair or remove inert
@@ -293,6 +332,7 @@ and process diagnostics; real RightKit/GitHub/Inno/PowerShell/Apple signing/nota
 |---|---|---|---|
 | P1 | Rust subprocess timeouts are inert: blocking `Command::output()` in `qualify_windows/tree.rs`, `release/paths.rs`, and ignored `_timeout` in `native_installed_smoke.rs`. | one killable runner with timeout, process-tree kill, bounded output, diagnostic evidence; route all Rust subprocesses through it. | sleeping child terminates, nonzero result, clipped diagnostics, no false qualification. |
 | P1 | Windows activation defaults 60s while setup qualification permits 180s. | one explicit Inno → PowerShell → setup timeout contract; pass from qualification. | stalled child produces bounded failure/retry evidence; normal repair respects budget. |
+| P1 | Same-version Windows installer merges payload into existing `versions/0.3.21`; obsolete directories survive & strict plugin-root validation rejects them. Real `d54bea8c` upgrade reproduced `package contains extra directory skills/alchemist/scripts`. | stage fresh version payload, validate before activation & replace owned version tree; preserve prior current for rollback. Add upgrade qualification with obsolete files/directories present. | exact normal same-version upgrade removes obsolete package entries & both MCP transports pass without manual cleanup; forced failure restores prior current. |
 | P1 | macOS local build bypasses RightKit admission (`dev:build:mac`). | shared admission wrapper or CI-only route. | active/recent/missing inventory refuses local work and points to GitHub. |
 | P1 | Swift installer accepts `..`, `.`, slash, non-SemVer; switches `current` before setup/doctor and lacks rollback. | strict stable SemVer/path validation; stage/verify then pointer swap or durable rollback. | invalid versions cannot escape `versions`; forced setup failure restores prior current. |
 | P1 | `932d1074` fixes same-version stale payload by staging/replacing payload; macOS CI & installed readback passed at `8c23e45b`. | complete GitHub macOS installed qualification and record exact payload comparison. | second same-version install replaces stale Minimize policy and passes readback. |
@@ -494,7 +534,7 @@ is missing`, emitted no JSON-RPC response. Installed `legion serve --stdio` pass
 Standalone composition/binding repair remains P1; these transports have distinct behavior.
 
 
-## Completed Windows stable installation
+## Earlier Windows stable installation (`8c23e45b`)
 
 Windows run [37307457541](https://github.com/Orthic-Labs/legion/actions/runs/37307457541)
 passed full repository gate, whole native workspace/all targets, hook behavior, exact unsigned
@@ -514,5 +554,6 @@ write/send/delete deny. Five MCP requests succeed. Isolated native Minimize rece
 binds shipped Rust CLI/policy & rejects staged-tree drift. Parent workspace Git hook resolves this
 installed CLI; unrelated staged work & prior receipts were not recertified.
 
-Production source changes are committed in `932d1074` & `8c23e45b`; later inventory changes affect
-diagnostics/documents only. Both machines share exact repaired production source & asset generation.
+Earlier production source changes are committed in `932d1074` & `8c23e45b`.
+Transport repair `d54bea8c` supersedes those runtime installations; current delivery is recorded
+at report start. Earlier five-response transport evidence exercised bare stdio only.
