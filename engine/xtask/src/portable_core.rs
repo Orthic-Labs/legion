@@ -604,8 +604,8 @@ pub fn assemble_portable_core(params: AssembleParams) -> Result<Value, String> {
         .collect();
 
     if !closure.is_empty() || !output_findings.is_empty() || !unexpected.is_empty() {
-        if let Some(f) = closure.first() {
-            return Err(f.message.clone());
+        if !closure.is_empty() {
+            return Err(closure.iter().map(|f| f.message.as_str()).collect::<Vec<_>>().join("\n"));
         }
         if let Some(f) = output_findings.first() {
             return Err(f.message.clone());

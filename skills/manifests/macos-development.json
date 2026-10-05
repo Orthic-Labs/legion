@@ -324,7 +324,7 @@
     {
       "path": "references/build-optimization.md",
       "uri": "legion-skill://macos-development/references/build-optimization.md",
-      "digest": "sha256:6265108a28a0e6651c3042659bddcd1d9498d7a93b7ec469fbd9382598c3ba82"
+      "digest": "sha256:d8d351e71b80c6c53e5492a1e958473466bef079a5c19258798c92ac118d9c80"
     },
     {
       "path": "references/concurrency/_index.md",

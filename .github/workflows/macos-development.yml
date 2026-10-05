@@ -44,13 +44,15 @@ jobs:
         with:
           version: v0.16.0
       - run: pnpm install --frozen-lockfile
-      - name: Check whole native workspace & verify Stop behavior
+      - name: Check whole native workspace & native behavior
         run: |
           cargo check --manifest-path engine/Cargo.toml --workspace --all-targets --locked --release --target aarch64-apple-darwin
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-hook
+          cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-apple
       - name: Assemble & qualify exact unsigned native candidate
         run: |
           cargo build --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin --bins
+          engine/target/aarch64-apple-darwin/release/legion-dev refresh-local-skill-manifests --check ios-development macos-development
           xtask="$PWD/engine/target/aarch64-apple-darwin/release/xtask"
           "$xtask" assemble-native-release --profile release --platform macos --architecture arm64 --target aarch64-apple-darwin --out "$RUNNER_TEMP/legion-install"
           "$xtask" native-installed-smoke "$RUNNER_TEMP/legion-install"

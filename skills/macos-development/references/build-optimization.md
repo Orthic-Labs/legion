@@ -1,6 +1,6 @@
 # Xcode build optimization router
 
-Use this reference for measured Apple build-time diagnosis, scoped remediation, and remeasurement. Shared guidance lives under [build-optimization/](build-optimization/); platform examples below select an iOS simulator/device or macOS destination.
+Use this reference for measured Apple build-time diagnosis, scoped remediation, and remeasurement. Start with [build orchestration](build-optimization/orchestration.md); platform examples below select an iOS simulator/device or macOS destination.
 
 ## Route by evidence
 
@@ -26,17 +26,15 @@ This route covers native Xcode projects/workspaces and Swift packages used by Ap
 
 ## Platform benchmark examples
 
-Use native `project.build` for selected system-tool execution, then send captured output to pure `build-analysis`; analyzer output alone never claims a build ran.
+Use native `project.build` for selected system-tool execution, then send captured output to pure `build-analysis`; analyzer output alone never claims a build ran. Commands below inspect build plans. Execution requires `--execute` with host-authorized `--policy-context`; save returned `stdout` as raw evidence. Configure timing/diagnostic output through supported project settings or an existing authorized build command: this adapter does not accept arbitrary Xcode flags.
 
 ### iOS
 
 ```bash
 legion apple project.build \
-  --workspace App.xcworkspace --scheme MyApp --configuration Debug \
-  --destination "platform=iOS Simulator,name=iPhone 16" \
-  --show-build-timing-summary > .build-benchmark/ios-clean-1.log 2>&1
-legion apple build-analysis --operation timing.parse \
-  --input .build-benchmark/ios-clean-1.log
+  --input '{"workspace":"App.xcworkspace","scheme":"MyApp","configuration":"Debug","destination":"platform=iOS Simulator,name=iPhone 16"}'
+legion apple build-analysis \
+  --input '{"operation":"timing.parse","input_path":".build-benchmark/ios-clean-1.log"}'
 ```
 
 Use an explicit iOS device destination when device signing/build behavior is under test; do not substitute a macOS destination for an iOS result.
@@ -45,11 +43,9 @@ Use an explicit iOS device destination when device signing/build behavior is und
 
 ```bash
 legion apple project.build \
-  --workspace App.xcworkspace --scheme MyMacApp --configuration Debug \
-  --destination "platform=macOS" \
-  --show-build-timing-summary > .build-benchmark/macos-clean-1.log 2>&1
-legion apple build-analysis --operation timing.parse \
-  --input .build-benchmark/macos-clean-1.log
+  --input '{"workspace":"App.xcworkspace","scheme":"MyMacApp","configuration":"Debug","destination":"platform=macOS"}'
+legion apple build-analysis \
+  --input '{"operation":"timing.parse","input_path":".build-benchmark/macos-clean-1.log"}'
 ```
 
 Use macOS target/scheme settings and `platform=macOS`; do not route a macOS diagnosis through an iOS simulator.
@@ -60,11 +56,9 @@ Keep diagnostic flags and thresholds fixed across repeated runs, then parse supp
 
 ```bash
 legion apple project.build \
-  --project App.xcodeproj --scheme App --configuration Debug \
-  --destination "<platform-specific destination>" \
-  --show-build-timing-summary > .build-benchmark/compiler.log 2>&1
-legion apple build-analysis --operation compiler.parse \
-  --input .build-benchmark/compiler.log --threshold-ms 100
+  --input '{"project":"App.xcodeproj","scheme":"App","configuration":"Debug","destination":"<platform-specific destination>"}'
+legion apple build-analysis \
+  --input '{"operation":"compiler.parse","input_path":".build-benchmark/compiler.log","threshold_ms":100}'
 ```
 
 Apply `-Xfrontend -warn-long-function-bodies`, `-Xfrontend -warn-long-expression-type-checking`, `-Xfrontend -debug-time-compilation`, `-Xfrontend -debug-time-function-bodies`, `-Xswiftc -driver-time-compilation`, or `-Xfrontend -stats-output-dir` through selected native build operation's typed settings when supported; preserve exact flags in evidence.
