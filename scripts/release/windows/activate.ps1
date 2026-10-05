@@ -141,6 +141,8 @@ try {
   $stagedVersion = ([string](Invoke-Bounded 'staged-version' $stagedLegion @('--version'))).Trim()
   if ($stagedVersion -ne $Version) { throw "Staged payload returned version $stagedVersion" }
 
+  # Fresh staging no longer creates versions through Inno's file entries.
+  New-Item -ItemType Directory -Path (Split-Path -Parent $versionPath) -Force | Out-Null
   if ($hadCurrent) { Move-Item -LiteralPath $currentPath -Destination $backupPath; $currentBackupCreated = $true }
   if ($hadVersion) { Move-Item -LiteralPath $versionPath -Destination $versionBackupPath; $versionBackupCreated = $true }
   Move-Item -LiteralPath $payloadPath -Destination $versionPath
