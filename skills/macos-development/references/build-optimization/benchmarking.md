@@ -6,31 +6,32 @@ Benchmark before recommending a change. Primary metric is elapsed wall-clock tim
 
 Resolve workspace/project, scheme, configuration, destination, simulator/device choice, DerivedData path, Xcode/SDK/Swift versions, host, architecture, and environment overrides. Normalize one `xcodebuild` command and keep flags, target, cache state, and warm-up policy constant. Preserve command and exit status for every run. In a worktree, create missing gitignored directories named by a package `exclude:` entry (for example `__Snapshots__`) before package resolution; otherwise `xcodebuild -resolvePackageDependencies` can fail before measurement.
 
-Use native Apple build execution for each selected build, then feed captured logs/artifacts to Legion's pure Rust analyzer. A repeatable flow is:
+Use native `project.build` for ordinary builds. Its current typed schema does not accept timing-summary or arbitrary compiler flags. For a benchmark requiring those flags, use the project's existing Xcode wrapper or the native system command on its authorized build host, then pass captured logs to Legion's pure analyzer. Replace project, scheme & destination with inspected target values:
 
 ```bash
-legion apple project.build \
-  --workspace App.xcworkspace --scheme MyApp --configuration Debug \
-  --destination "platform=macOS" \
-  --show-build-timing-summary > .build-benchmark/clean-1.log 2>&1
-legion apple build-analysis --operation timing.parse \
-  --input .build-benchmark/clean-1.log
-legion apple build-analysis --operation benchmark.stats \
-  --input .build-benchmark/runs.json
+mkdir -p .build-benchmark
+xcodebuild -workspace App.xcworkspace -scheme MyApp -configuration Debug \
+  -destination "platform=macOS" build -showBuildTimingSummary \
+  > .build-benchmark/clean-1.log 2>&1
+# Check build exit status before parsing; stop if build failed.
+legion apple build-analysis \
+  --input '{"operation":"timing.parse","input_path":".build-benchmark/clean-1.log"}'
+legion apple build-analysis \
+  --input '{"operation":"benchmark.stats","input":".build-benchmark/runs.json"}'
 ```
 
-Use `--project App.xcodeproj` for a project. A macOS destination is commonly `platform=macOS`. Add `--derived-data-path` only when an owned path is known. If helper cannot run, use equivalent `xcodebuild ... build -showBuildTimingSummary` commands and retain raw output.
+Use `-project App.xcodeproj` for a project. Add `-derivedDataPath` only for an owned path. `runs.json` must contain a `runs` array with measured `duration_seconds` & `success` per run; stdout alone does not supply wall-clock duration. CLI `--input` is a JSON object, while `--input-file` reads that object from a file. Analyzer input paths belong inside JSON.
 
 ## Run contract
 
 1. Run zero or one warm-up validation build; exclude it from statistics.
 2. Run three clean builds, clearing build products between runs with the project's approved clean operation.
-3. If resolved settings contain `COMPILATION_CACHE_ENABLE_CACHING = YES`, warm compilation cache once, remove only owned DerivedData between runs, and run three cached-clean builds. Use `--no-cached-clean` only when explicitly needed.
+3. If resolved settings contain `COMPILATION_CACHE_ENABLE_CACHING = YES`, warm compilation cache once, remove only owned DerivedData between runs, and run three cached-clean builds. Skip cached-clean only when it is outside requested measurement; `--no-cached-clean` belongs to the excluded donor script, not Legion CLI.
 4. Run three no-edit builds immediately after a successful build. Label these zero-change timings: they expose dependency computation, project-description transfer, build-description creation, script phases, signing, and validation overhead.
-5. Optionally pass `--touch-file path/to/Representative.swift` to touch one representative source before each of three incremental runs; record edit strategy.
+5. For incremental runs, make one controlled representative source edit before each run & restore it afterward; record edit strategy. A timestamp-only touch measures invalidation, not a content edit. `--touch-file` belongs to the excluded donor script, not Legion CLI.
 6. Stop on failed runs rather than mixing failed and successful results.
 
-The native `project.build` runner owns `xcodebuild ... -showBuildSettings`/`build -showBuildTimingSummary` execution & raw-log capture; `build-analysis` parses category lines ending in `seconds`, `second`, or `sec`, accepts pipe or whitespace separators, extracts `(N tasks)`, aggregates duplicate category names, and computes statistics from supplied runs. It never claims execution itself.
+Native `project.settings` plans `-showBuildSettings`; native `project.build` plans an ordinary build. Timing capture above remains with the selected system command or repository wrapper; `build-analysis` parses category lines ending in `seconds`, `second`, or `sec`, accepts pipe or whitespace separators, extracts `(N tasks)`, aggregates duplicate category names, and computes statistics from supplied runs. It never claims execution itself.
 
 ## Cache and variance interpretation
 

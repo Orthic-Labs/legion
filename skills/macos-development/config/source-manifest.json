@@ -373,14 +373,16 @@
       "sourceUrls": [
         "https://merowing.info/posts/stop-getting-average-code-from-your-llm/",
         "https://merowing.info/posts/exhaustive-testing-in-tca/",
-        "https://merowing.info/posts/the-composable-architecture-best-practices/"
+        "https://merowing.info/posts/the-composable-architecture-best-practices/",
+        "https://merowing.info/assets/files/general.md",
+        "https://merowing.info/assets/files/rule-loading.md"
       ],
       "role": "Public architectural/testing context: project-specific conventions, testable dependencies and behavior-focused tests",
       "disposition": "reference-only",
       "license": null,
       "licenseState": "redistribution-license-not-verified",
       "contentPolicy": "Original high-level synthesis only; no article prose, course templates, rule packs, or TCA framework adoption imported.",
-      "rightsReceipt": "Public articles inspected. No license grant inferred from web availability."
+      "rightsReceipt": "Public articles & both publicly linked rule files inspected; individual dispositions live in docs/apple-absorption/architecture.json. No license grant inferred from web availability."
     },
     {
       "id": "swift-primary-concurrency",

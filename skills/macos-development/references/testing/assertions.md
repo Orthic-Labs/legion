@@ -36,7 +36,7 @@ do {
 } catch GameError.notPurchased {
     // expected case
 } catch {
-    Issue.record("Wrong error: \\(error)")
+    Issue.record("Wrong error: \(error)")
 }
 ```
 

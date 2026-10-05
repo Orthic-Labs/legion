@@ -12,7 +12,9 @@ client registrations are embedded in this skill.
 For Apple work, start with Legion's native Apple capability. Discover once with
 `legion apple catalog --input '{}'`, then inspect PATH with
 `legion apple preflight --input '{"list":true}'` or a selected request such as
-`{"tools":["xcodebuild","swift"],"environment":"Darwin"}`. MCP exposes same backend
+`{"tools":["xcode","swift"],"environment":"Darwin"}`. `xcode` inventories
+`xcodebuild` & `xcrun`; tool IDs come from the preflight list, not executable names.
+MCP exposes same backend
 as `legion_apple` with `{ "operation": "catalog", "arguments": {}, "policyContext": {} }`.
 Native plans are dry-run by default; pass `execute: true` only for an already authorized
 operation. Xcode, Swift SDKs, simulator/device access, network & App Store Connect

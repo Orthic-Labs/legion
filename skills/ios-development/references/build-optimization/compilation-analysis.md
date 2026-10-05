@@ -4,19 +4,22 @@ Use this lane when timing evidence points to Swift/C/Objective-C compilation. St
 
 ## Evidence and flags
 
-Inspect `SwiftCompile`, `CompileC`, `SwiftEmitModule`, and `Planning Swift module`, plus per-file compile tasks. The upstream command shape below is retained as a procedure and port contract; Legion ships no Python helper. Run equivalent diagnostics before persistent settings:
+Inspect `SwiftCompile`, `CompileC`, `SwiftEmitModule`, and `Planning Swift module`, plus per-file compile tasks. Diagnostic flags belong to the selected Xcode invocation; current native `project.build` does not expose `OTHER_SWIFT_FLAGS`. Use the repository wrapper if it owns builds, otherwise this system-command shape on the authorized host:
 
 ```bash
-legion apple project.build \
-  --project App.xcodeproj --scheme MyApp --configuration Debug \
-  --destination "platform=iOS Simulator,name=iPhone 16" \
-  --other-swift-flags "-Xfrontend -warn-long-function-bodies=100 -Xfrontend -warn-long-expression-type-checking=100" \
-  > .build-benchmark/diagnostics.log 2>&1
-legion apple build-analysis --operation compiler.parse \
-  --input .build-benchmark/diagnostics.log --threshold-ms 100
+mkdir -p .build-benchmark
+xcodebuild -project App.xcodeproj -scheme MyApp -configuration Debug \
+  -destination "platform=iOS Simulator,id=SIMULATOR-UDID" \
+  'OTHER_SWIFT_FLAGS=$(inherited) -Xfrontend -warn-long-function-bodies=100 -Xfrontend -warn-long-expression-type-checking=100' \
+  build -showBuildTimingSummary > .build-benchmark/diagnostics.log 2>&1
+# Check build exit status before parsing; stop if build failed.
+legion apple build-analysis \
+  --input '{"operation":"compiler.parse","input_path":".build-benchmark/diagnostics.log","threshold_ms":100}'
 ```
 
-The Rust port should inject `OTHER_SWIFT_FLAGS` with `-Xfrontend -warn-long-function-bodies=<ms>` and `-Xfrontend -warn-long-expression-type-checking=<ms>`, capture stdout/stderr, parse file:line:column warnings ending `took Nms to type-check`, deduplicate by location/kind, sort by duration, and write JSON plus raw log. `--per-file-timing` adds `-Xfrontend -debug-time-compilation` and parses `N seconds ... compiling FILE`; `--stats-output` adds `-Xfrontend -stats-output-dir` and records JSON-stat directory. Use `-Xfrontend -debug-time-function-bodies` for unfiltered per-function timing, and `-Xswiftc -driver-time-compilation` for driver overhead when supported; preserve exact flags and Xcode version.
+Keep existing Swift flags. Add `-Xfrontend -warn-long-function-bodies=<ms>` & `-Xfrontend -warn-long-expression-type-checking=<ms>` for an ad hoc run, capture stdout/stderr, then parse file:line:column warnings ending `took Nms to type-check`, deduplicate by location/kind & sort by duration. The parser reads supplied logs; it does not inject flags or build projects.
+
+For per-file timing add `-Xfrontend -debug-time-compilation`; parse `N seconds ... compiling FILE`. For compiler statistics add `-Xfrontend -stats-output-dir` plus an owned output directory. `--per-file-timing` & `--stats-output` are excluded donor-script options, not Legion CLI flags. Use `-Xfrontend -debug-time-function-bodies` for unfiltered per-function timing. Driver timing uses `-driver-time-compilation` in Xcode's Swift flags, or `-Xswiftc -driver-time-compilation` with SwiftPM when supported. Preserve exact flags, Xcode version, exit status & raw logs; avoid persistent build-setting changes before evidence.
 
 ## Triage
 
