@@ -105,7 +105,7 @@ Rectangle()
     .foregroundStyle(isExpanded ? .blue : .red)
     .animation(nil, value: isExpanded)  // Don't animate color
 
-// iOS 17+ scoped animation
+// macOS 14+ scoped animation
 Rectangle()
     .foregroundStyle(isExpanded ? .blue : .red)  // Not animated
     .animation(.spring) {
@@ -123,7 +123,7 @@ Rectangle()
 |-------|----------|
 | `.spring` | Interactive elements, most UI |
 | `.easeInOut` | Appearance changes |
-| `.bouncy` | Playful feedback (iOS 17+) |
+| `.bouncy` | Playful feedback (macOS 14+) |
 | `.linear` | Progress indicators only |
 
 ### Modifiers
@@ -282,5 +282,4 @@ struct AnimationDebugModifier: ViewModifier, Animatable {
 - Apply broad animations at root level
 - Use linear timing for UI (feels robotic)
 - Animate on every frame in scroll handlers
-
 

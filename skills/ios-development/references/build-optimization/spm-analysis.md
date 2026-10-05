@@ -14,7 +14,7 @@ Flag roughly 200+ file modules, “And”/“Utils” responsibilities, unnecess
 
 ## Pins and scripts
 
-Use Legion's native Rust CLI to parse remote branch requirements & emit text/JSON. A caller may supply read-only `git ls-remote --tags URL` evidence (15s timeout) for tag availability/latest tags; analyzer never invokes git. If tags exist, recommend a tag only after measuring; if none exist, use an explicit revision hash. Branch pins may force fresh network checks; revisions improve determinism but remove semver range resolution. Verify `xcodebuild -resolvePackageDependencies` through native project execution after any authorized pin.
+Use Legion's native Rust CLI to parse remote branch requirements & emit text/JSON. A caller may supply read-only `git ls-remote --tags URL` evidence (15s timeout) for tag availability/latest tags; analyzer never invokes git. A tag is a candidate only when observed & measured; do not upgrade pins automatically. If no tags exist, retain a branch when its tracking purpose is intentional, or recommend an observed revision hash for deterministic resolution. Branch pins may force fresh network checks; revisions improve determinism but remove semver range resolution. Verify `xcodebuild -resolvePackageDependencies` through native project execution after any authorized pin.
 
 ## Module variants and platform multiplication
 

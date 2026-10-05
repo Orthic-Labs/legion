@@ -112,6 +112,8 @@ Focused values let parent views (App, Scene, Commands) read state from whichever
 
 ### Declare with `@Entry`
 
+Use this macro when the project SDK/compiler provides it; retain a manual focused-value key for older SDK/compiler baselines.
+
 ```swift
 extension FocusedValues {
     @Entry var selectedDocument: Binding<Document>?

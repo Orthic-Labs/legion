@@ -13,12 +13,13 @@ an ancestor. A changing parent input must remain a `let`/`var` input, not be cop
 `@State`, unless a documented one-time seed is intended. Preserve an existing observation
 scheme when a migration is outside request scope.
 
-For iOS 17+, new observable reference models normally use `@Observable` and `@State` for
-ownership, `@Environment(Type.self)` for shared injection, and `@Bindable` for an injected
-model that needs bindings. Mark models `@MainActor` unless project-wide default isolation is
-already Main Actor. Use `ObservableObject`/`@StateObject`/`@ObservedObject`/`@EnvironmentObject`
-for legacy or integration code where changing ownership would risk behavior. Do not nest
-observable objects or recreate reference models in `body`.
+For macOS 14+ (the installed SDK exposes Observation), new observable reference models normally
+use `@Observable` and `@State` for ownership, `@Environment(Type.self)` for shared injection,
+and `@Bindable` for an injected model that needs bindings. Mark models `@MainActor` unless
+project-wide default isolation is already Main Actor. Use
+`ObservableObject`/`@StateObject`/`@ObservedObject`/`@EnvironmentObject` for legacy or
+integration code where changing ownership would risk behavior. Do not nest observable objects
+or recreate reference models in `body`.
 
 ```swift
 @Observable @MainActor
@@ -54,7 +55,9 @@ relationships optional.
 
 Read environment values near the view consuming them; do not cache size class, display scale,
 locale, or safe-area values in app/model state. Custom environment/focused/container keys use
-`@Entry` where deployment target supports it. Defaults must be stable constants: never create
+`@Entry` when the project SDK/compiler provides the macro. The installed Xcode 27 SDK declares
+`Entry` as an external macro without a runtime `@available` annotation; retain an
+`EnvironmentKey`/focused-key fallback for older SDK/compiler baselines. Defaults must be stable constants: never create
 `Model()`, `Date()`, `UUID()`, or other fresh reference/value in a default. Never store a
 closure in a custom key because it obscures dependencies and invalidates poorly; publish an
 action object or value instead. Remove unused reads and avoid high-frequency environment
@@ -84,4 +87,3 @@ Actor; choose actors/isolation for expensive work and protect mutable shared sta
 Pass only fields a child reads; a wide model/environment dependency invalidates unrelated UI.
 Separate side-effect-only dependencies from rendering inputs. Make model projections Equatable
 when it enables a meaningful update gate, but do not add `EquatableView` blindly.
-

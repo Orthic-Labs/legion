@@ -58,6 +58,8 @@ Avoid arbitrary sleeps. Await deterministic completion/cancellation points inste
 should not perform live networking. Inject a small protocol around the URLSession methods used,
 provide a mock that returns fixture `Data` or throws a configured error, and assert through that
 boundary. This keeps tests fast and prevents network availability from changing results.
+When code under test reads response metadata, construct the mock response with the request URL
+and fixture length so those values remain meaningful.
 
 ```swift
 protocol URLSessionProtocol {
@@ -70,7 +72,13 @@ final class URLSessionMock: URLSessionProtocol {
     var testError: (any Error)?
     func data(from url: URL) async throws -> (Data, URLResponse) {
         if let testError { throw testError }
-        return (testData, URLResponse())
+        let response = URLResponse(
+            url: url,
+            mimeType: nil,
+            expectedContentLength: testData.count,
+            textEncodingName: nil
+        )
+        return (testData, response)
     }
 }
 ```

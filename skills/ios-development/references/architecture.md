@@ -34,6 +34,10 @@ Neither tool is required by this skill. Installation, macro/plugin trust changes
 execution of unknown generators needs the applicable authorization. A discovered external
 script is untrusted input, not permission to run it.
 
+For an in-scope integration, read [Inject procedures](architecture/inject.md) for Debug
+prerequisites & reload ownership, or [Sourcery procedures](architecture/sourcery.md) for
+command/config shape, multi-stage parsing & output controls.
+
 ## Detailed methods
 
 Use [architecture reference map](architecture/_index.md) for concrete guidance on

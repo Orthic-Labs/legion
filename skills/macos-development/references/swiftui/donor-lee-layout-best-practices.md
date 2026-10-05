@@ -70,7 +70,7 @@ struct ProfileCard: View {
     var body: some View {
         VStack {
             Image(user.avatar)
-                .frame(width: UIScreen.main.bounds.width)  // Wrong!
+                .frame(width: 390)  // Wrong: fixed device-sized frame
             Text(user.name)
         }
     }
@@ -81,35 +81,36 @@ struct ProfileCard: View {
 
 ## Adaptive and Resizable Interfaces
 
-Size views from the **proposed size**, not from a fixed screen or orientation. Prefer `@Environment(\.horizontalSizeClass)` / `verticalSizeClass`, `ViewThatFits`, and `AnyLayout` when choosing a layout variant. Avoid `UIScreen.main`, `UIScreen.main.bounds`, and portrait/landscape assumptions — those do not track the space actually offered to the view (split view, Stage Manager, windows, sheets).
+Size views from SwiftUI's proposed container size, not device orientation or screen globals. On
+macOS, use `ViewThatFits` when a compact layout should replace one that does not fit, and use
+`AnyLayout` when layout variants must preserve child identity. Use `containerRelativeFrame` or a
+local geometry measurement for explicit width thresholds; keep that decision in the view.
 
 ```swift
 struct AdaptiveStack<Content: View>: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @ViewBuilder let content: Content
 
     var body: some View {
-        let layout = horizontalSizeClass == .compact
-            ? AnyLayout(VStackLayout())
-            : AnyLayout(HStackLayout())
-        layout { content }
+        ViewThatFits(in: .horizontal) {
+            HStack { content }
+            VStack { content }
+        }
     }
 }
 ```
 
-Use `ViewThatFits` when a compact alternative should replace a layout that overflows the proposal. Do not branch layout on device orientation or a cached screen size.
+Avoid UIKit size-class or device-idiom assumptions for a resizable Mac window. If a Mac layout
+needs an explicit breakpoint, measure the proposed width locally and keep stateful children above
+any branch that changes their container. `NavigationSplitView` and `TabView` already adapt in
+many cases; do not swap their containers on every resize.
 
-Use size classes for *what* to show (for example, fewer or more columns) and the proposed size, `containerRelativeFrame`, or `GeometryReader` for *how big* to draw something. When a layout decision only changes at a breakpoint, prefer `onChange(of: horizontalSizeClass)` over `onChange(of: geometry.size)`, which fires on every resize step.
+At an `NSViewRepresentable` boundary, use `makeNSView`/`updateNSView` with the current proposed
+layout supplied by SwiftUI or explicit geometry passed by the parent; do not read process-global
+screen state. See [macOS views](donor-lee-macos-views.md#appkit-interop).
 
-Avoid branching on a size class between two containers that already adapt on their own, such as `TabView` and `NavigationSplitView`. Swapping the container changes view identity mid-resize and discards navigation state and collapse animations. Branch only when the two layouts are genuinely different, and let `NavigationSplitView` and toolbar overflow handle compact-to-regular transitions. For `TabView`, see [Tab Bar and Sidebar](donor-lee-sheet-navigation-patterns.md#tab-bar-and-sidebar-ios-27).
-
-At wide sizes, consider capping the width of long-form text with `.frame(maxWidth:)` so line lengths stay readable.
-
-Read `@Environment(\.horizontalSizeClass)` or `@Environment(\.verticalSizeClass)` in the `View` or `ViewModifier` nearest the layout decision. Do not cache a size class in an `App`, `Scene`, model, or view model: those objects do not own the view's current proposal and can go stale during resizing. Move the decision into the view, or pass the current value into non-view code at the point of use when that code genuinely needs it.
-
-At a representable boundary, use `context.environment.horizontalSizeClass` or `context.environment.verticalSizeClass` in `makeUIView` / `updateUIView` and the corresponding view-controller methods. This carries the SwiftUI layout context into the bridge without process-global state.
-
-Classify an idiom check before replacing it. Use a size class only when the underlying question is available width or height. A genuine platform, device-idiom, or product-capability decision is not equivalent to a size-class decision, and SwiftUI exposes no user-interface-idiom environment value. Preserve that distinction rather than inventing a size-class mapping or encouraging a global idiom read for ordinary layout.
+Classify an idiom check before replacing it. A genuine platform or product-capability decision
+is separate from available width; preserve that distinction instead of inventing a size-class
+mapping for Mac windows.
 
 ## Adaptive Safe Areas
 
@@ -117,7 +118,7 @@ Make layout decisions from the size SwiftUI proposes to the view. Flag code that
 
 Choose the safe-area modifier by content:
 
-- Use `safeAreaBar(edge:)` for bar content on iOS 26 and aligned releases. It reserves space and supplies bar appearance and scroll-edge behavior. Use `safeAreaInset(edge:)` as the fallback for older targets.
+- Use `safeAreaBar(edge:)` for bar content on macOS 26+ (the installed SDK exposes it). It reserves space and supplies bar appearance and scroll-edge behavior. Use `safeAreaInset(edge:)` as the fallback for older targets.
 - Use `safeAreaInset(edge:)` for other controls or content that should occupy an inset region.
 - When interactive bar content in a `ZStack` or overlay covers scrolling or other content, move the bar out to `safeAreaBar(edge:)` so SwiftUI reserves its space. Do not apply this replacement to a full-bleed background, gradient, artwork layer, or scrim.
 - Use `safeAreaPadding` only for an intentional fixed design margin measured inward from the safe area. It does not read or track the current inset, so do not replace a hardcoded stand-in for a bar or device inset with `safeAreaPadding`; remove the stand-in and let safe-area layout reserve the space.
@@ -138,6 +139,11 @@ Apple's iPhone Duo guidance says not to just stretch the compact layout: reflow 
 - With default `MainActor` isolation, `LayoutValueKey` types and helpers called from `Layout` methods need `nonisolated` if the compiler reports isolated-conformance errors.
 
 ## Two-Region Arrangements (iOS 27.1+)
+
+`ArrangementView` is a donor assertion requiring verification against an SDK that declares it. The
+installed macOS 27.0 SDK has no `ArrangementView` or arrangement-style declaration, so keep this
+example out of Mac code and use `HSplitView`, `VSplitView`, `NavigationSplitView`, or an ordinary
+adaptive stack for Mac layouts. Do not infer iOS 27.1 availability for a current Mac target.
 
 `ArrangementView` is a layout container for a primary and secondary view. Prefer the system's adaptive navigation and presentation containers when they already express the interface. Use an arrangement for an existing custom two-region layout that would otherwise be an `HStack`/`VStack` or `ZStack`:
 
@@ -185,6 +191,11 @@ Tuning modifiers (iOS 27.1+): `splitArrangementLayoutRatio`, `splitArrangementLa
 
 ## Reserved Regions (iOS 27.1+)
 
+`GeometryProxy.reservedRegions` is a donor assertion requiring verification against an SDK that
+declares it. The installed macOS 27.0 SDK has no declaration, so keep this guidance out of Mac
+code and use safe-area/container layout APIs there. Do not infer iOS 27.1 availability for a
+current Mac target.
+
 Start with system containers and presentations: they already adapt around relevant system UI and hardware regions. Query `GeometryProxy.reservedRegions(kind:options:layoutDirectionBehavior:)` only for custom edge-to-edge UI or manually laid-out controls that cannot be expressed with those containers.
 
 ```swift
@@ -222,7 +233,7 @@ To put a gutter over a fold (for example in the [two-column reflow](#two-column-
 
 The query's `layoutDirectionBehavior` defaults to `.mirrors`, so directional geometry follows right-to-left layout. Preserve that default for interface content. Override it only when coordinates intentionally represent physical hardware placement rather than leading/trailing UI, and keep the reason explicit.
 
-These APIs require the Xcode 27.1 SDK and iOS 27.1 at runtime. Put declarations that name the new types in an `@available(iOS 27.1, *)` scope, select them with `#available`, and keep a safe-area or ordinary adaptive-layout fallback for earlier systems.
+The donor source claims these APIs require an Xcode 27.1 SDK and iOS 27.1 runtime; verify that claim against the matching SDK before implementation. Keep declarations scoped to the platform/runtime actually declared, and use a safe-area or ordinary adaptive-layout fallback for Mac and earlier systems.
 
 ## Own Your Container
 
@@ -302,7 +313,7 @@ GeometryReader { outerGeometry in
     }
 }
 
-// Good - single geometry reader or use alternatives (iOS 17+)
+// Good - single geometry reader or use alternatives (macOS 14+)
 containerRelativeFrame(.horizontal) { width, _ in
     width * 0.8
 }
@@ -331,7 +342,7 @@ containerRelativeFrame(.horizontal) { width, _ in
 
 **Business logic belongs in services and models, not in views.** Views should stay simple and declarative — orchestrating UI state, not implementing business rules. This makes logic independently testable without requiring view instantiation.
 
-> **iOS 17+**: Use `@Observable` with `@State`.
+> **macOS 14+**: Use `@Observable` with `@State`.
 
 ```swift
 @Observable
@@ -365,7 +376,7 @@ struct LoginView: View {
 }
 ```
 
-For iOS 16 and earlier, use `ObservableObject` with `@StateObject` -- see `state-management.md` for the legacy pattern.
+For macOS 13 and earlier, use `ObservableObject` with `@StateObject` -- see `state-management.md` for the legacy pattern.
 
 Avoid embedding business logic directly in view closures (e.g., validation checks inside a `Button` action). This makes logic untestable without view instantiation.
 
@@ -430,4 +441,3 @@ Button("Publish Project") {
 - [ ] Use `.frame(maxWidth: .infinity, alignment:)` for full-width views (not `HStack` + `Spacer`)
 - [ ] Avoid excessive `GeometryReader` usage
 - [ ] Use `containerRelativeFrame()` when appropriate
-

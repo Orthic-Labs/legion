@@ -5,9 +5,11 @@
 Define one `AppTab` identity model and one selected-tab source. Give each tab its own
 `NavigationStack` and router path, inject router via environment, and map lightweight
 `Hashable` route values centrally. Keep sheet destination as an `Identifiable` enum on
-router and use one `sheet(item:)` modifier. Reset tab paths on account/logout context
-change. Special compose tabs intercept selection to present composer without changing
-selection.
+router and use one `sheet(item:)` modifier. A sheet that has internal navigation owns
+its own `NavigationStack`; its `Identifiable` ID should be stable and lightweight,
+usually a case key plus stable payload ID, rather than a UUID generated during render.
+Reset tab paths on account/logout context change. Special compose tabs intercept
+selection to present composer without changing selection.
 
 Install truly shared services, theme, clients, model container, push/stream watchers,
 and intent service at app root. Use explicit initializers for feature-local models;
@@ -25,6 +27,7 @@ and business logic into services/models. Sheets own save/cancel actions and call
 `dismiss()`; use `.sheet(item:)` instead of optional unwrap in sheet body.
 
 Use Form + Section for settings/input, focus enum with `@FocusState` for field chains,
+& `.onSubmit` transitions from each field to its next enum case,
 `safeAreaInset(edge: .bottom)` for chat input, and `searchable` with scopes for native
 search. Use List for feed/settings semantics, ScrollView + Lazy stacks for custom feeds,
 Lazy grids for galleries. Keep stable row IDs, avoid same-axis nested scrollers, and

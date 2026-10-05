@@ -77,7 +77,7 @@ struct StepsChart: View, AXChartDescriptorRepresentable {
 
 ## Composite Example
 
-A scrollable bar chart with range selection combining multiple iOS 17+ APIs:
+A scrollable bar chart with range selection combining multiple macOS 14+ APIs:
 
 ```swift
 @State private var selectedRange: ClosedRange<Int>?
@@ -103,10 +103,10 @@ Gate advanced APIs with `#available` and provide a fallback chart without the ga
 
 ### Version Breakdown
 
-- iOS 16+: `Chart`, custom axes, scales, `BarMark`, `LineMark`, `AreaMark`, `PointMark`, `RectangleMark`, `RuleMark`, `ChartProxy`, `chartOverlay`, `chartBackground`
-- iOS 17+: `SectorMark`, `chartXSelection`, `chartYSelection`, `chartAngleSelection`, `chartScrollableAxes`, visible-domain scrolling APIs, `chartGesture`
-- iOS 18+: `AreaPlot`, `BarPlot`, `LinePlot`, `PointPlot`, `RectanglePlot`, `RulePlot`, `SectorPlot`, function plotting
-- iOS 26+: `Chart3D`, `SurfacePlot`, Z-axis marks, 3D camera and pose APIs
+- macOS 13+: `Chart`, custom axes, scales, `BarMark`, `LineMark`, `AreaMark`, `PointMark`, `RectangleMark`, `RuleMark`, `ChartProxy`, `chartOverlay`, `chartBackground`
+- macOS 14+: `SectorMark`, `chartXSelection`, `chartYSelection`, `chartAngleSelection`, `chartScrollableAxes`, visible-domain scrolling APIs, `chartGesture`
+- macOS 15+: `AreaPlot`, `BarPlot`, `LinePlot`, `PointPlot`, `RectanglePlot`, `RulePlot`, `SectorPlot`, function plotting
+- macOS 26+: `Chart3D`, `SurfacePlot`, Z-axis marks, 3D camera and pose APIs
 
 ## WWDC Sessions
 
@@ -121,7 +121,7 @@ Gate advanced APIs with `#available` and provide a fallback chart without the ga
 ## Summary Checklist
 
 - [ ] `import Charts` is present in files using chart types
-- [ ] Deployment target matches the APIs used (`Chart` on iOS 16+, selection and `SectorMark` on iOS 17+, plot types on iOS 18+, `Chart3D` on iOS 26+)
+- [ ] Deployment target matches the APIs used (`Chart` on macOS 13+, selection and `SectorMark` on macOS 14+, plot types on macOS 15+, `Chart3D` on macOS 26+)
 - [ ] Chart data models use `Identifiable` (or `Chart(data, id:)` is provided)
 - [ ] All chart families are represented with the correct mark type
 - [ ] Axes use `AxisMarks` when default ticks are too dense or unclear
@@ -131,7 +131,6 @@ Gate advanced APIs with `#available` and provide a fallback chart without the ga
 - [ ] Single-value selection uses `chartXSelection(value:)` or `chartYSelection(value:)`
 - [ ] Range selection uses `chartXSelection(range:)` or `chartYSelection(range:)`
 - [ ] `SectorMark` selection uses `chartAngleSelection(value:)`
-- [ ] iOS 17+, iOS 18+, and iOS 26+ APIs are guarded with `#available`
+- [ ] macOS 14+, macOS 15+, and macOS 26+ APIs are guarded with `#available`
 - [ ] `.value()` labels are descriptive for VoiceOver and Audio Graph accessibility
-
 

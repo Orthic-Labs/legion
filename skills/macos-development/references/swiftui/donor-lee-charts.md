@@ -22,15 +22,15 @@ Swift Charts is Apple's native charting framework for SwiftUI. Use `Chart` with 
 
 ## Availability
 
-Base `Chart`, custom axes, scales, and most marks require iOS 16 or later.
+Base `Chart`, custom axes, scales, and most marks require macOS 13 or later.
 
-- `BarMark`, `LineMark`, `AreaMark`, `PointMark`, `RectangleMark`, and `RuleMark` are available on iOS 16+
-- `SectorMark`, built-in selection, and scrollable chart axes require iOS 17+
-- Data-driven plot types such as `BarPlot` and `LinePlot` require iOS 18+
-- Chart3D and Z-axis APIs exist on iOS 26+; this reference is primarily about 2D `Chart`, with a dedicated Chart3D section below
+- `BarMark`, `LineMark`, `AreaMark`, `PointMark`, `RectangleMark`, and `RuleMark` are available on macOS 13+
+- `SectorMark`, built-in selection, and scrollable chart axes require macOS 14+
+- Data-driven plot types such as `BarPlot` and `LinePlot` require macOS 15+
+- Chart3D and Z-axis APIs exist on macOS 26+; this reference is primarily about 2D `Chart`, with a dedicated Chart3D section below
 
 ```swift
-if #available(iOS 17, *) {
+if #available(macOS 14, *) {
     // Selection, SectorMark, scrollable axes
 } else {
     // Base Chart, axes, scales, and core marks
@@ -171,7 +171,7 @@ RuleMark(y: .value("Goal", 10_000))
 
 ### SectorMark
 
-Use `SectorMark` for pie and donut-style charts. `SectorMark` requires iOS 17 or later.
+Use `SectorMark` for pie and donut-style charts. `SectorMark` requires macOS 14 or later.
 
 ```swift
 Chart(expenses) { expense in
@@ -186,14 +186,14 @@ Chart(expenses) { expense in
 
 Use `innerRadius` to turn a pie chart into a donut chart, and `angularInset` to separate slices visually.
 
-### Plot Types (iOS 18+)
+### Plot Types (macOS 15+)
 
-iOS 18 adds data-driven plot wrappers: `AreaPlot`, `BarPlot`, `LinePlot`, `PointPlot`, `RectanglePlot`, `RulePlot`, and `SectorPlot`.
+macOS 15 adds data-driven plot wrappers: `AreaPlot`, `BarPlot`, `LinePlot`, `PointPlot`, `RectanglePlot`, `RulePlot`, and `SectorPlot`.
 
 `LinePlot` and `AreaPlot` also accept function closures for plotting mathematical functions without discrete data:
 
 ```swift
-if #available(iOS 18, *) {
+if #available(macOS 15, *) {
     Chart {
         LinePlot(x: "x", y: "sin(x)") { x in
             sin(x)
@@ -206,12 +206,12 @@ if #available(iOS 18, *) {
 
 Use plot types when you want a data-first API surface or need function plotting. The underlying chart families stay the same.
 
-### Chart3D (iOS 26+)
+### Chart3D (macOS 26+)
 
 `Chart3D` is a separate API for 3D chart content. It supports 3D `PointMark`, `RectangleMark`, `RuleMark`, and `SurfacePlot`.
 
 ```swift
-if #available(iOS 26, *) {
+if #available(macOS 26, *) {
     Chart3D(points) { point in
         PointMark(
             x: .value("X", point.x),
@@ -227,7 +227,7 @@ if #available(iOS 26, *) {
 `SurfacePlot` visualizes mathematical surfaces by evaluating a two-variable function:
 
 ```swift
-if #available(iOS 26, *) {
+if #available(macOS 26, *) {
     Chart3D {
         SurfacePlot(x: "x", y: "height", z: "z") { x, z in
             sin(x) * cos(z)
@@ -245,7 +245,7 @@ Camera and pose configuration:
 - **Custom pose**: `.chart3DPose(azimuth: .degrees(45), inclination: .degrees(30))`
 - On visionOS, Chart3D supports natural 3D interaction gestures for rotation and exploration
 
-**Always** gate `Chart3D` with `#available(iOS 26, *)` — it is not available on earlier OS versions.
+**Always** gate `Chart3D` with `#available(macOS 26, *)` — it is not available on earlier Mac versions.
 
 ## Axis Tweaks
 
@@ -345,7 +345,7 @@ You can set one axis domain without forcing the other:
 .chartXScale(domain: startDate...endDate)
 ```
 
-### Scrollable Axes (iOS 17+)
+### Scrollable Axes (macOS 14+)
 
 For larger datasets, make the plot area scroll and control the visible domain.
 
@@ -435,7 +435,7 @@ This is useful for selected values, thresholds, summaries, and direct labeling. 
 
 ## ChartProxy and Custom Touch Handling
 
-Use `chartOverlay`/`chartBackground` (iOS 16+) or `chartGesture` (iOS 17+) with `ChartProxy` when built-in selection modifiers are not enough.
+Use `chartOverlay`/`chartBackground` (macOS 13+) or `chartGesture` (macOS 14+) with `ChartProxy` when built-in selection modifiers are not enough.
 
 ```swift
 .chartOverlay { proxy in
@@ -444,7 +444,7 @@ Use `chartOverlay`/`chartBackground` (iOS 16+) or `chartGesture` (iOS 17+) with 
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
-                        guard let plotFrame = proxy.plotFrame else { return } // iOS 16: use proxy.plotAreaFrame
+                        guard let plotFrame = proxy.plotFrame else { return } // macOS 14: use proxy.plotAreaFrame on macOS 13
                         let frame = geometry[plotFrame]
                         let x = value.location.x - frame.origin.x
                         guard x >= 0, x <= frame.size.width else { return }
@@ -456,16 +456,16 @@ Use `chartOverlay`/`chartBackground` (iOS 16+) or `chartGesture` (iOS 17+) with 
 }
 ```
 
-Use `proxy.plotFrame` (iOS 17+) or `proxy.plotAreaFrame` (iOS 16) to get the plot area anchor.
+Use `proxy.plotFrame` (macOS 14+) or `proxy.plotAreaFrame` (macOS 13) to get the plot area anchor.
 
 `ChartProxy` gives you lower-level access to:
 
 - `value(atX:as:)`, `value(atY:as:)`, and `value(at:as:)` for converting gesture coordinates into chart values
 - `position(forX:)`, `position(forY:)`, and `position(for:)` for placing custom overlays or indicators
 - `selectXValue(at:)`, `selectYValue(at:)`, `selectXRange(from:to:)`, and `selectYRange(from:to:)` for driving built-in selection from custom gestures
-- `plotFrame` (iOS 17+) or `plotAreaFrame` (iOS 16) with `plotSize` for converting between gesture coordinates and the plot area
+- `plotFrame` (macOS 14+) or `plotAreaFrame` (macOS 13) with `plotSize` for converting between gesture coordinates and the plot area
 
-`select*` ChartProxy selection methods and `chartGesture` are available on iOS 17+.
+`select*` ChartProxy selection methods and `chartGesture` are available on macOS 14+.
 
 ## Modifier Scope
 
@@ -586,7 +586,7 @@ withAnimation(.easeInOut) {
 - Use explicit `AxisMarks(values:)` when automatic tick generation gets crowded
 - Use `chartXScale` and `chartYScale` when you need stable visual comparisons
 - Use `chartXSelection(range:)` or `chartYSelection(range:)` for brushed selection
-- Gate iOS 17+ APIs such as `SectorMark` and selection with `#available`
+- Gate macOS 14+ APIs such as `SectorMark` and selection with `#available`
 
 ### Don't
 
@@ -600,5 +600,4 @@ withAnimation(.easeInOut) {
 - Forget that range selection is available only for X and Y axes, not angle selection
 
 For chart accessibility (VoiceOver, Audio Graph, `AXChartDescriptorRepresentable`), fallback strategies, WWDC sessions, and a full summary checklist, see `charts-accessibility.md`.
-
 

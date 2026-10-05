@@ -13,6 +13,10 @@ them.
 - [Progressive docs loading](docs-loading.md): route documentation by task and load only
   relevant pages.
 - [Build loop](build-loop.md): keep build, test, run, output, and version checks repeatable.
+- [Inject](inject.md): version-matched Debug settings, SwiftUI enablement & reconstructing
+  UIKit/AppKit hosts in an existing hot-reload integration.
+- [Sourcery](sourcery.md): executable/plugin invocation, config ownership, staged parsing,
+  template arguments & cache/output controls for an existing generator.
 
 The parent [architecture reference](../architecture.md) remains the entry point. These
 pages add concrete methods; they do not select an architecture acronym or authorize tools,

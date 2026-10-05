@@ -1496,7 +1496,7 @@
                 "skills/ios-development/references/swiftui/animation.md#swiftui-animation",
                 "skills/macos-development/references/swiftui/animation.md#swiftui-animation"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination maps source iOS 17 APIs to macOS 14 availability; retain explicit platform guards."
             },
             {
               "sourceLines": [
@@ -1509,7 +1509,7 @@
                 "skills/ios-development/references/swiftui/animation.md#swiftui-animation",
                 "skills/macos-development/references/swiftui/animation.md#swiftui-animation"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination maps phase animations to macOS 14 availability with fallback."
             },
             {
               "sourceLines": [
@@ -1574,7 +1574,7 @@
                 "skills/ios-development/references/swiftui/animation.md#swiftui-animation",
                 "skills/macos-development/references/swiftui/animation.md#swiftui-animation"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination maps keyframe animations to macOS 14 availability with fallback."
             },
             {
               "sourceLines": [
@@ -1639,7 +1639,7 @@
                 "skills/ios-development/references/swiftui/animation.md#swiftui-animation",
                 "skills/macos-development/references/swiftui/animation.md#swiftui-animation"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination maps completion handlers to macOS 14 availability with fallback."
             },
             {
               "sourceLines": [
@@ -1678,7 +1678,7 @@
                 "skills/ios-development/references/swiftui/animation.md#swiftui-animation",
                 "skills/macos-development/references/swiftui/animation.md#swiftui-animation"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination records installed-SDK @Animatable/@AnimatableIgnored availability (macOS 10.15+) separately from AnimatableValues (macOS 26+) and retains AnimatablePair fallback."
             },
             {
               "sourceLines": [
@@ -2227,7 +2227,7 @@
                 "skills/ios-development/references/swiftui/animation.md#swiftui-animation",
                 "skills/macos-development/references/swiftui/animation.md#swiftui-animation"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination scopes custom transition fallback to pre-macOS 14."
             },
             {
               "sourceLines": [
@@ -2240,7 +2240,7 @@
                 "skills/ios-development/references/swiftui/animation.md#swiftui-animation",
                 "skills/macos-development/references/swiftui/animation.md#swiftui-animation"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination maps Transition protocol guidance to macOS 14+."
             },
             {
               "sourceLines": [
@@ -2318,7 +2318,7 @@
                 "skills/ios-development/references/swiftui/animation.md#swiftui-animation",
                 "skills/macos-development/references/swiftui/animation.md#swiftui-animation"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination records @Animatable/@AnimatableIgnored macOS 10.15+ SDK availability and AnimatableValues macOS 26+ with AnimatablePair fallback."
             },
             {
               "sourceLines": [
@@ -2469,7 +2469,7 @@
                 "skills/ios-development/references/swiftui/media-web-charts-text.md#charts",
                 "skills/macos-development/references/swiftui/media-web-charts-text.md#charts"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination records macOS 13/14/15/26 chart availability and guarded accessibility fallback."
             },
             {
               "sourceLines": [
@@ -2555,7 +2555,7 @@
                 "skills/ios-development/references/swiftui/media-web-charts-text.md#charts",
                 "skills/macos-development/references/swiftui/media-web-charts-text.md#charts"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination preserves source availability as macOS 13 Chart, macOS 14 selection/scrolling, macOS 15 plot types, and macOS 26 Chart3D."
             },
             {
               "sourceLines": [
@@ -2737,7 +2737,7 @@
                 "skills/ios-development/references/swiftui/media-web-charts-text.md#charts",
                 "skills/macos-development/references/swiftui/media-web-charts-text.md#charts"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination maps plot types to macOS 15+ with an earlier fallback."
             },
             {
               "sourceLines": [
@@ -2750,7 +2750,7 @@
                 "skills/ios-development/references/swiftui/media-web-charts-text.md#charts",
                 "skills/macos-development/references/swiftui/media-web-charts-text.md#charts"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination maps Chart3D/Z-axis APIs to macOS 26+ and keeps guarded 2D fallback."
             },
             {
               "sourceLines": [
@@ -2828,7 +2828,7 @@
                 "skills/ios-development/references/swiftui/media-web-charts-text.md#charts",
                 "skills/macos-development/references/swiftui/media-web-charts-text.md#charts"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination maps scrollable axes and selection helpers to macOS 14+; macOS 13 retains plot-area fallback."
             },
             {
               "sourceLines": [
@@ -4782,7 +4782,7 @@
                 "skills/ios-development/references/swiftui/views-layout.md#composition-and-identity",
                 "skills/macos-development/references/swiftui/views-layout.md#composition-and-identity"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination explicitly marks ArrangementView as unavailable on current macOS SDK and routes to native Mac split/stack layouts."
             },
             {
               "sourceLines": [
@@ -4795,7 +4795,7 @@
                 "skills/ios-development/references/swiftui/views-layout.md#composition-and-identity",
                 "skills/macos-development/references/swiftui/views-layout.md#composition-and-identity"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination explicitly marks reservedRegions as unavailable on current macOS SDK and keeps safe-area/container fallback."
             },
             {
               "sourceLines": [
@@ -5422,7 +5422,7 @@
                 "skills/ios-development/references/swiftui/lists-scroll.md#identity-and-rows",
                 "skills/macos-development/references/swiftui/lists-scroll.md#identity-and-rows"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mirrored destinations qualify direct EnumeratedSequence ForEach to Swift 6.2 plus Apple OS 26 SDK/stdlib support; Array fallback remains available."
             },
             {
               "sourceLines": [
@@ -8006,7 +8006,7 @@
                 "skills/ios-development/references/swiftui/state-environment.md#ownership",
                 "skills/macos-development/references/swiftui/state-environment.md#ownership"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination qualifies Observation @Observable guidance at macOS 14+ and preserves legacy fallback."
             },
             {
               "sourceLines": [
@@ -8175,7 +8175,7 @@
                 "skills/ios-development/references/swiftui/state-environment.md#ownership",
                 "skills/macos-development/references/swiftui/state-environment.md#ownership"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination qualifies @Bindable guidance for macOS 14+ and preserves legacy fallback."
             },
             {
               "sourceLines": [
@@ -8326,7 +8326,7 @@
                 "skills/ios-development/references/swiftui/media-web-charts-text.md#text-and-styled-editing",
                 "skills/macos-development/references/swiftui/media-web-charts-text.md#text-and-styled-editing"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination qualifies attributed TextEditor editing by installed SDK availability."
             },
             {
               "sourceLines": [
@@ -8339,7 +8339,7 @@
                 "skills/ios-development/references/swiftui/media-web-charts-text.md#text-and-styled-editing",
                 "skills/macos-development/references/swiftui/media-web-charts-text.md#text-and-styled-editing"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination records AttributedTextSelection as macOS 26+ with earlier plain-text fallback."
             },
             {
               "sourceLines": [
@@ -9557,7 +9557,7 @@
                 "skills/ios-development/references/swiftui/media-web-charts-text.md#webkit",
                 "skills/macos-development/references/swiftui/media-web-charts-text.md#webkit"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination records WebView availability at macOS 26+, explicit WebKit import, and NSViewRepresentable fallback."
             },
             {
               "sourceLines": [
@@ -9570,7 +9570,7 @@
                 "skills/ios-development/references/swiftui/media-web-charts-text.md#webkit",
                 "skills/macos-development/references/swiftui/media-web-charts-text.md#webkit"
               ],
-              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance."
+              "reason": "Concrete source rule reconciled into mirrored topic refs with availability branches, examples, diagnostics, and source-specific detail preserved; donor copy retained for provenance. Mac destination records WebPage availability at macOS 26+, explicit WebKit import, and NSViewRepresentable fallback."
             },
             {
               "sourceLines": [

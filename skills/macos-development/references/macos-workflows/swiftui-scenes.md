@@ -32,6 +32,37 @@ regular Dock app can install an `NSApplicationDelegate` with
 `@NSApplicationDelegateAdaptor`, set `.regular`, and activate on launch; preserve
 accessory/no-Dock behavior when that is the intentional product contract.
 
+Do not impose an arbitrary character-count cap on menu labels. Keep labels concise and
+scannable, use a short action/title when source content is long, and open full text in a
+detail window or pane. This preserves discoverability without forcing truncation into
+every menu path.
+
+Open a declared scene through its stable identifier from a command, toolbar, or menu-bar
+action. The scene router owns the identifier and the caller uses the environment action:
+
+```swift
+struct OpenInspectorButton: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Connection Doctor") {
+            openWindow(id: "connection-doctor")
+        }
+    }
+}
+```
+
+The matching `Window` or `WindowGroup(id:)` must be declared in the app's scene graph;
+`openWindow(id:)` brings an existing `Window` forward and creates a new `WindowGroup`
+instance. Keep IDs unique and treat value-based opening as a separate data-driven route.
+
+For source/destination zoom transitions, check both sides independently. The installed
+macOS SDK exposes `matchedTransitionSource(id:in:)` from macOS 15, but marks
+`ZoomNavigationTransition` and `.navigationTransition(.zoom(sourceID:in:))` unavailable
+on macOS. Do not copy an iOS zoom destination into a Mac target: keep a shared source
+only where useful, and use the Mac-supported automatic transition or a dedicated Mac
+presentation path at the destination. A source marker alone does not prove a zoom path.
+
 Use semantic controls, keyboard focus, localization, contrast, reduced motion/transparency,
 and larger text. Keep newer scene APIs behind availability checks. A preview or screenshot
 does not prove multiwindow state, menu routing, restoration, accessibility, or persistence.
@@ -58,3 +89,8 @@ struct LibraryRoot: View {
 
 The list and detail remain mounted while selection changes. Replace `LibraryItem` and
 `DetailView` with project types; the contract is stable identity plus one owner.
+
+Primary references: [openWindow](https://developer.apple.com/documentation/swiftui/environmentvalues/openwindow),
+[WindowGroup](https://developer.apple.com/documentation/swiftui/windowgroup),
+[matchedTransitionSource](https://developer.apple.com/documentation/swiftui/view/matchedtransitionsource(id:in:)),
+and [NavigationTransition](https://developer.apple.com/documentation/swiftui/navigationtransition).

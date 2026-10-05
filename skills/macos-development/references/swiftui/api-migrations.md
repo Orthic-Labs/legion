@@ -32,11 +32,15 @@ haptics, `MagnifyGesture`/`RotateGesture` for renamed gestures, and `@Entry` for
 Use `#available` around structurally different branches. Keep older behavior equivalent and
 verify minimum deployment target before changing call sites.
 
-Use `topBarLeading`/`topBarTrailing`, `toolbarVisibility`, `scrollIndicators`, `tint`,
+Use macOS toolbar placements such as `.automatic`, `.navigation`, `.primaryAction`,
+`.secondaryAction`, and `.accessoryBar(id:)`; `topBarLeading`/`topBarTrailing` are unavailable
+on macOS. Also use `toolbarVisibility`, `scrollIndicators`, `tint`,
 `autocorrectionDisabled`, `focused`, and platform safe-area APIs according to availability.
-macOS 26+ adds Liquid Glass, `WebView`, rich text, scroll-edge/background effects, typed drag/drop, and
-`@Animatable`; macOS 27/27.1 adds toolbar/sidebar/arrangement/reserved-region families where
-available. Every
+macOS 26+ adds Liquid Glass, WebKit SwiftUI `WebView`/`WebPage`, rich text, scroll-edge/background
+effects, typed drag/drop, and the SDK/compiler-provided `@Animatable` macro (its generated
+conformance can back-deploy to macOS 10.15). Future 27/27.1 donor families such as arrangement
+and reserved-region APIs require matching SDK verification; the installed macOS 27.0 SDK has no
+Mac declarations for those two families. Every
 new family needs `#available`, fallback, and a rationale. Do not assume a future SDK is the
 project's target or force a specific architecture.
 

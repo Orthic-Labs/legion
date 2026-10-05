@@ -1,6 +1,6 @@
 # SwiftUI Advanced Animations
 
-Transactions, phase animations (iOS 17+), keyframe animations (iOS 17+), completion handlers (iOS 17+), and `@Animatable` macro (iOS 26+).
+Transactions, phase animations (iOS 17+), keyframe animations (iOS 17+), completion handlers (iOS 17+), and the SDK/compiler-provided `@Animatable` macro; generated conformance declares iOS 13+, while `AnimatableValues` is iOS 26+.
 
 ## Table of Contents
 - [Transactions](#transactions)
@@ -325,7 +325,7 @@ Circle()
 
 ## @Animatable Macro (iOS 26+)
 
-The `@Animatable` macro auto-synthesizes `animatableData` from all animatable stored properties, eliminating verbose manual conformance. Use `@AnimatableIgnored` to exclude properties that should not animate.
+The SDK/compiler-provided `@Animatable` macro auto-synthesizes `animatableData` from all animatable stored properties, eliminating verbose manual conformance. The installed interface marks the macro iOS 13+; compiling use still requires the newer SDK/compiler, and generated conformance can back-deploy to iOS 13. Use `@AnimatableIgnored` to exclude properties that should not animate. `AnimatableValues` remains iOS 26+.
 
 ### Before (Manual)
 
@@ -370,7 +370,7 @@ struct Wedge: Shape {
 
 ### When to Implement `animatableData` Manually
 
-Reach for an explicit `animatableData` (instead of the macro) when the interpolated value needs custom logic that doesn't map 1:1 to a stored property — normalization, clamping, or driving a derived value. For a deployment target of iOS 26+, use `AnimatableValues`; for earlier targets, use `AnimatablePair`.
+Reach for an explicit `animatableData` (instead of the macro) when the interpolated value needs custom logic that doesn't map 1:1 to a stored property — normalization, clamping, or driving a derived value. Use `AnimatableValues` on iOS 26+; use `AnimatablePair` below iOS 26. The macro/compiler distinction above still applies.
 
 ```swift
 // iOS 26+: keep phase in 0..<2π and clamp amplitude during interpolation

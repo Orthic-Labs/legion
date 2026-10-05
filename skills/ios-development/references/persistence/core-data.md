@@ -4,11 +4,25 @@ Use Core Data when project models/stores already use it, when interoperability i
 
 ## Stack and store loading
 
-Keep stack ownership in an injectable type. Configure store descriptions before `loadPersistentStores`; gate reads/writes until its completion succeeds. Store loading is asynchronous. A standard completion handler is sufficient; bridge it to async/await only when project concurrency style benefits. Use an in-memory store only for isolated tests, and a stable SQLite URL for production.
+Keep stack ownership in an injectable type. Configure every store description before `loadPersistentStores`; gate every read/write until all store completions succeed. Loading is asynchronous, and its completion callback runs once per store. Keep loading state in an owner queue (main actor here), transition to `.ready` only after the expected callback count, and surface `.failed(Error)` to startup/recovery. Do not use a production `precondition`/`fatalError` template that can terminate before recovery is possible.
 
 ```swift
+enum StoreLoadState {
+    case loading
+    case ready
+    case failed(Error)
+}
+
+enum StoreAccessError: Error {
+    case noStoreDescription
+    case storeNotReady
+}
+
+@MainActor
 final class DataController {
     let container: NSPersistentContainer
+    private(set) var state: StoreLoadState = .loading
+    private var pendingStoreLoads = 0
 
     init(modelName: String, inMemory: Bool = false) {
         container = NSPersistentContainer(name: modelName)
@@ -17,13 +31,34 @@ final class DataController {
             description.type = NSInMemoryStoreType
             container.persistentStoreDescriptions = [description]
         }
+        pendingStoreLoads = container.persistentStoreDescriptions.count
+        guard pendingStoreLoads > 0 else {
+            state = .failed(StoreAccessError.noStoreDescription)
+            return
+        }
         container.viewContext.name = "ViewContext"
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyStoreTrumpMergePolicy
-        container.loadPersistentStores { _, error in
-            // Surface failure to app startup/recovery; never silently continue.
-            precondition(error == nil, "Store load failed: \(String(describing: error))")
+        container.loadPersistentStores { [weak self] _, error in
+            // Core Data calls once for each description; marshal state to its owner queue.
+            Task { @MainActor [weak self] in
+                self?.finishStoreLoad(error)
+            }
         }
+    }
+
+    private func finishStoreLoad(_ error: Error?) {
+        guard case .loading = state else { return }
+        if let error {
+            state = .failed(error)
+            return
+        }
+        pendingStoreLoads -= 1
+        if pendingStoreLoads == 0 { state = .ready }
+    }
+
+    func requireReady() throws {
+        guard case .ready = state else { throw StoreAccessError.storeNotReady }
     }
 
     func newBackgroundContext(author: String) -> NSManagedObjectContext {
@@ -34,6 +69,40 @@ final class DataController {
         return context
     }
 }
+```
+
+An app-facing fetch/save API calls `requireReady()` before touching a context. A failed load must enter an explicit startup/recovery path; it must not read a default URL or another store as a fallback.
+
+For an app-group store, resolve its URL and install its description before loading:
+
+```swift
+enum StoreConfigurationError: Error { case appGroupUnavailable(String) }
+
+let groupID = "group.com.example.app"
+guard let groupURL = FileManager.default.containerURL(
+    forSecurityApplicationGroupIdentifier: groupID
+) else {
+    throw StoreConfigurationError.appGroupUnavailable(groupID)
+}
+
+let storeURL = groupURL.appendingPathComponent("Shared.sqlite")
+let description = NSPersistentStoreDescription(url: storeURL)
+description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+description.setOption(true as NSNumber,
+                      forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+container.persistentStoreDescriptions = [description]
+// Only now call loadPersistentStores(...).
+```
+
+Missing app-group entitlement or a nil `containerURL` is a visible configuration failure. Never substitute the default container or another store.
+
+## Query-generation audit
+
+Record each context’s query-generation policy: `nil` is unpinned and follows the store’s current data; `NSQueryGenerationToken.current` pins the context to the generation observed when it is set. A pinned context does not continuously follow later saves. Record how consumers advance (for example, create a new context or explicitly call `setQueryGenerationFrom(_:)` at a controlled boundary), and test that policy after restart or store replacement.
+
+```swift
+try context.setQueryGenerationFrom(.current) // snapshot/pinned read boundary
+let token = context.queryGenerationToken
 ```
 
 Choose merge policy from conflict semantics; no policy is universal. Store-trump is useful with uniqueness constraints, object-trump for intentional user edits, rollback to discard conflicts, and `NSErrorMergePolicy` when callers must resolve conflicts explicitly. Configure `automaticallyMergesChangesFromParent` only when the view context should consume background saves; it does not replace persistent history for batch or cross-process changes.
@@ -56,6 +125,40 @@ func renameArticle(id: NSManagedObjectID, in container: NSPersistentContainer) a
 `NSManagedObjectID` is the cross-context handle. Pass it, or a Sendable value snapshot/DAO, then refetch in destination context. Never pass `NSManagedObject`, `NSManagedObjectContext`, or relationship graphs as ordinary Sendable values. Child contexts add complexity: a child save pushes into its parent, then parent must save to reach disk. Use them only when edit isolation/discard semantics justify two saves.
 
 Swift concurrency does not remove Core Data confinement. Use `@MainActor` for view-context APIs, context `perform` for private work, and `NSManagedObjectID` for task handoff. Do not silence warnings with `@unchecked Sendable`. For default-main-actor projects, inspect generated class isolation; manual code generation/nonisolated declarations may be needed, but preserve generated-model conventions and validate on the project’s Swift version.
+
+## Local context-save merging
+
+Choose one visibility pipeline for a given save: automatic merging, a manual local-save observer, or persistent-history consumption. Do not register a manual observer for saves already consumed automatically or through the same history consumer.
+
+For the manual local-save path, observe the source context, schedule the merge on the destination context’s queue, and let one owner retain/remove the observer:
+
+```swift
+final class LocalSaveMerger {
+    private var observer: NSObjectProtocol?
+
+    init(source: NSManagedObjectContext, viewContext: NSManagedObjectContext) {
+        observer = NotificationCenter.default.addObserver(
+            forName: .NSManagedObjectContextDidSave,
+            object: source,
+            queue: nil // delivery thread; destination queue is selected below
+        ) { [weak viewContext] notification in
+            guard let viewContext else { return }
+            viewContext.perform {
+                viewContext.mergeChanges(fromContextDidSave: notification)
+            }
+        }
+    }
+
+    func stop() {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+        observer = nil
+    }
+
+    deinit { stop() }
+}
+```
+
+The observer owner’s lifetime must cover all source saves, and `stop()` must run when that owner is torn down. The notification’s managed objects stay in its source context; merge only through `mergeChanges(fromContextDidSave:)` on the destination queue.
 
 ## Fetching and presentation
 
@@ -80,6 +183,16 @@ let count = try context.count(for: request)
 let idsRequest = request.copy() as! NSFetchRequest<NSFetchRequestResult>
 idsRequest.resultType = .managedObjectIDResultType
 let ids = try context.fetch(idsRequest) as? [NSManagedObjectID] ?? []
+```
+
+For case-insensitive or Finder-like ordering, SQLite stores support `caseInsensitiveCompare:` and `localizedStandardCompare:` (along with other documented selectors), but custom/other stores can differ. Verify the actual store type and deployment target with representative locale data. Add a persistent, modeled unique tie-breaker so equal display names have deterministic order:
+
+```swift
+request.sortDescriptors = [
+    NSSortDescriptor(key: "name", ascending: true,
+                     selector: #selector(NSString.localizedStandardCompare(_:))),
+    NSSortDescriptor(key: "uuid", ascending: true)
+]
 ```
 
 Use `NSAsynchronousFetchRequest` for a large read whose result is not needed synchronously, and return IDs/value snapshots before leaving its context. Use dictionary-result aggregate requests for grouped sums/counts only after confirming the store supports each expression; a normal object fetch is clearer for small data.
@@ -109,11 +222,66 @@ Batch insert can use a dictionary array or a row-producing closure. Batch delete
 
 When a batch or another process changes the store, merge its object-ID notification into each affected context on that context’s queue, or let a persistent-history consumer do so. Do not assume a successful SQL operation updated already-registered objects.
 
+For an `NSFetchedResultsController`, give the fetch at least one sort descriptor. When using `sectionNameKeyPath`, its key should match the first sort key or produce the same relative ordering. Keep the controller on a main-queue context for UI, handle object and section delegate callbacks on that queue, and apply table/collection updates between the controller’s change-content callbacks.
+
+```swift
+request.sortDescriptors = [
+    NSSortDescriptor(key: "category.name", ascending: true),
+    NSSortDescriptor(key: "name", ascending: true),
+    NSSortDescriptor(key: "uuid", ascending: true)
+]
+let controller = NSFetchedResultsController(
+    fetchRequest: request,
+    managedObjectContext: viewContext, // main-queue context for UIKit/AppKit UI
+    sectionNameKeyPath: "category.name",
+    cacheName: nil
+)
+```
+
 ## Model configuration
 
-Use model constraints for true uniqueness, and select a merge policy that defines duplicate behavior. Derived attributes are read-only and update on save/refresh; do not manually assign them. Transformables require an explicit secure, versionable transformer and should be tested for decode failure. Model validation (`validateForInsert`, `validateForUpdate`, `validateForDelete`, property validators) must return actionable errors. Lifecycle hooks have distinct timing: use `awakeFromInsert` for primitive defaults, `willSave` for pre-save normalization, `didSave` for post-save notifications, `prepareForDeletion` for cancellation only. Do not call `save()` from `willSave`, or perform irreversible file deletion in `prepareForDeletion` because deletion can roll back.
+Use model constraints for true uniqueness, and select a merge policy that defines duplicate behavior. Derived attributes are read-only and update on save/refresh; do not manually assign them. Transformables require an explicit secure, versionable transformer and should be tested for decode failure. Model validation (`validateForInsert`, `validateForUpdate`, `validateForDelete`, property validators) must return actionable errors. Lifecycle hooks have distinct timing: use `awakeFromInsert` for primitive defaults, `willSave` for pre-save normalization, `didSave` for post-save notifications, and `prepareForDeletion` for cancellation only. Use primitive assignment for defaults/derived update fields to avoid KVO notifications or reentrant changes, and never call `save()` from `willSave`.
+
+```swift
+override func awakeFromInsert() {
+    super.awakeFromInsert()
+    setPrimitiveValue(Date(), forKey: #keyPath(Article.creationDate))
+    setPrimitiveValue(Date(), forKey: #keyPath(Article.lastModified))
+}
+
+override func willSave() {
+    super.willSave()
+    guard !isDeleted, changedValues().keys.contains("name") else { return }
+    setPrimitiveValue(Date(), forKey: #keyPath(Article.lastModified))
+}
+
+override func prepareForDeletion() {
+    super.prepareForDeletion()
+    downloadTask?.cancel()
+}
+```
+
+Do not delete external files in `willSave` or `prepareForDeletion`: a save can fail or roll back. Record cleanup intent in a recoverable outbox/job, but release irreversible cleanup only after the full parent-to-persistent-store commit chain succeeds. For a child context, `didSave` confirms only its push into the parent; it is not durable-store proof. Have the top-level store save completion mark the job committed, then execute cleanup idempotently and retry failures.
 
 For a transformable attribute, register a named `ValueTransformer` before loading stores, use secure coding, and treat decode errors as data-recovery events. For derived attributes, remember that in-memory relationship changes are not reflected until save/refresh. For a uniqueness constraint, test duplicate inserts under the selected merge policy and assert which object survives; never rely on a default conflict choice.
+
+## Canceling an edit
+
+Make Save, Discard, and Cancel explicit. A dedicated edit context can discard all of its isolated changes with `rollback()`; never call rollback on a shared view context when unrelated edits must survive. For a single existing object in a shared context, use `refresh(_:mergeChanges: false)` to discard only that object’s edits.
+
+```swift
+switch choice {
+case .save:
+    try editContext.save()       // save parent too when using a child context
+case .discard:
+    editContext.rollback()       // safe when editContext is isolated
+case .cancel:
+    break                        // leave edit context and changes untouched
+}
+
+// Shared-context, selected-object discard:
+viewContext.refresh(article, mergeChanges: false)
+```
 
 ## Persistent history
 

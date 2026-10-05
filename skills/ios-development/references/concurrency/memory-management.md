@@ -80,7 +80,11 @@ final class ImageLoader {
         task = Task {
             while true {
                 self.pollImages() // Warning: Strong capture
-                try? await Task.sleep(for: .seconds(1))
+                do {
+                    try await Task.sleep(for: .seconds(1))
+                } catch {
+                    return
+                }
             }
         }
     }
@@ -97,12 +101,22 @@ loader = nil // Warning: Loader never deallocated - retain cycle!
 
 ### Use weak self
 
+Weak capture only prevents the task from retaining the instance before work starts. Keep each strong `self` binding inside one bounded unit of work, then end that scope before the polling delay & check cancellation explicitly.
+
 ```swift
 func startPolling() {
     task = Task { [weak self] in
-        while let self = self {
-            self.pollImages()
-            try? await Task.sleep(for: .seconds(1))
+        while !Task.isCancelled {
+            do {
+                guard let self else { return }
+                self.pollImages()
+            }
+
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return
+            }
         }
     }
 }
@@ -116,15 +130,24 @@ loader = nil // Preferred: Loader deallocated, task stops
 
 ```swift
 task = Task { [weak self] in
-    while let self = self {
-        await self.doWork()
-        try? await Task.sleep(for: interval)
+    while !Task.isCancelled {
+        do {
+            guard let self else { return }
+            await self.doWork()
+        }
+
+        do {
+            try await Task.sleep(for: interval)
+        } catch {
+            return
+        }
     }
 }
 ```
 
+The loop exits when `self` becomes `nil` or cancellation interrupts its sleep. The nested work scope ends before the subsequent polling sleep.
 
-Loop exits when `self` becomes `nil`.
+`doWork()` must be bounded or cancellation-aware. Weak capture cannot release `self` while an async call still owns its strong receiver, so make potentially indefinite work cancellable before using this loop.
 
 ## One-Way Retention
 
@@ -280,25 +303,38 @@ func saveData() {
 
 **When safe**: Task completes quickly, acceptable for object to live until done.
 
-### Long-running task (weak self required)
+### Long-running task with weak owner capture
+
+Use weak capture when owner deallocation should end work. An explicitly lifecycle-owned task may retain its worker when that lifecycle reliably cancels & awaits completion; deinit alone cannot break a task/owner cycle.
 
 ```swift
 func startPolling() {
     task = Task { [weak self] in
-        while let self = self {
-            await self.fetchUpdates()
-            try? await Task.sleep(for: .seconds(5))
+        while !Task.isCancelled {
+            do {
+                guard let self else { return }
+                await self.fetchUpdates()
+            }
+
+            do {
+                try await Task.sleep(for: .seconds(5))
+            } catch {
+                return
+            }
         }
     }
 }
 ```
 
+`fetchUpdates()` should likewise be bounded or cancellation-aware; the nested scope releases `self` only after that call returns.
+
 ### Async sequence monitoring (weak self + guard)
 
 ```swift
 func startMonitoring() {
-    task = Task { [weak self] in
-        for await event in eventStream {
+    let events = eventStream // Read property before task; closure needn't capture self for stream.
+    task = Task { [weak self, events] in
+        for await event in events {
             guard let self = self else { return }
             self.handle(event)
         }
@@ -313,13 +349,23 @@ func startWork() {
     task = Task { [weak self] in
         defer { self?.cleanup() }
         
-        while let self = self {
-            await self.doWork()
-            try? await Task.sleep(for: .seconds(1))
+        while !Task.isCancelled {
+            do {
+                guard let self else { return }
+                await self.doWork()
+            }
+
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return
+            }
         }
     }
 }
 ```
+
+Keep `doWork()` bounded or cancellation-aware so cleanup does not wait indefinitely for a strong receiver held by an in-flight call.
 
 ## Detection Strategies
 
@@ -411,7 +457,11 @@ func testViewDeallocates() {
 Task {
     while true {
         self.poll() // Retain cycle
-        try? await Task.sleep(for: .seconds(1))
+        do {
+            try await Task.sleep(for: .seconds(1))
+        } catch {
+            return
+        }
     }
 }
 ```
@@ -460,9 +510,17 @@ final class PollingService {
     
     func start() {
         task = Task { [weak self] in
-            while let self = self {
-                await self.poll()
-                try? await Task.sleep(for: .seconds(5))
+            while !Task.isCancelled {
+                do {
+                    guard let self else { return }
+                    await self.poll()
+                }
+
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    return
+                }
             }
         }
     }
@@ -530,7 +588,11 @@ actor Timer {
         task = Task {
             while !Task.isCancelled {
                 await action()
-                try? await Task.sleep(for: interval)
+                do {
+                    try await Task.sleep(for: interval)
+                } catch {
+                    return
+                }
             }
         }
     }

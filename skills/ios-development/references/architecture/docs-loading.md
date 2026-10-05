@@ -50,3 +50,44 @@ Follow `next_cursor` as `chunk_cursor` for later sections. If resource or scan l
 resume from returned `resume.scan_offset`; do not retry from start without changing scope or budget.
 The reader consumes local `docSet.dsidx`, `cache.db`, and raw/Brotli DocC chunks only; it does not
 download, update, or write docsets.
+
+## Optional DocSetQuery compatibility adapter
+
+Native `legion-apple` search/read is the read-only lookup path. Use this adapter only when an
+existing DocSetQuery checkout is already available & an export, sanitization, or index write is
+explicitly in scope. Select an already-installed `python3` or `python`; do not install Python,
+download a docset, or mirror a docs cache. Confirm source/runtime before use:
+
+```bash
+DOCSET_PYTHON=python3  # choose preinstalled python3 or python
+DOCSET_ROOT=/path/to/existing/Apple_API_Reference.docset
+"$DOCSET_PYTHON" --version
+"$DOCSET_PYTHON" tools/docset_query.py --help
+"$DOCSET_PYTHON" tools/docset_query.py export --help
+"$DOCSET_PYTHON" tools/docset_query.py fetch --help
+"$DOCSET_PYTHON" tools/docset_query.py init --help
+```
+
+Pinned upstream entrypoints expose no tool `--version` flag; record checkout revision & runtime
+version. Match global options before subcommand: `--docset PATH` or `DOCSET_ROOT` selects an
+existing docset, `--language swift` selects language variant, & `DOCSET_CACHE_DIR` selects its
+optional cache. Export/fetch depth defaults are 7/1; keep those bounded unless source help
+confirms another value:
+
+```bash
+"$DOCSET_PYTHON" tools/docset_query.py --docset "$DOCSET_ROOT" --language swift \
+  export --root /documentation/foundation --max-depth 7 --output docs/apple/foundation.md
+"$DOCSET_PYTHON" tools/docset_query.py --docset "$DOCSET_ROOT" --language swift \
+  fetch --path /documentation/foundation/urlsession --max-depth 1 \
+  --output docs/apple/urlsession.md
+DOCSET_CACHE_DIR=.cache/apple-docs \
+  "$DOCSET_PYTHON" tools/docset_query.py --docset "$DOCSET_ROOT" init /documentation/foundation
+"$DOCSET_PYTHON" tools/docset_sanitize.py --input docs/apple/foundation.md --in-place --toc-depth 2
+"$DOCSET_PYTHON" tools/docindex.py --docs-root docs/apple --index Build/DocIndex/index.json rebuild
+"$DOCSET_PYTHON" tools/docindex.py --docs-root docs/apple --index Build/DocIndex/index.json \
+  search "URLSession"
+```
+
+These commands may write exported Markdown, sanitized front matter/TOC, manifests, cache data,
+or index JSON. Keep writes in ignored/owned paths & do not call any download or `sync_docs.sh`
+mirroring workflow.

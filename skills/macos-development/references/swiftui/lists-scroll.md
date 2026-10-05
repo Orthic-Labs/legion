@@ -9,8 +9,11 @@ For identity, tables, reorder, and scroll geometry examples, read [list patterns
 
 Every `ForEach` element needs a stable, unique, cheap identity that outlives a view update.
 Prefer `Identifiable` models; never use indices/offsets for mutable collections, freshly made
-UUIDs, duplicate IDs, or IDs derived from mutable display content. Enumerated sequences can be
-used directly with `id: \.element.id`; do not convert to an array merely to satisfy identity.
+UUIDs, duplicate IDs, or IDs derived from mutable display content. Use
+`ForEach(items.enumerated(), id: \.element.id)` only when Swift 6.2 compiler support and the
+target stdlib/deployment expose `EnumeratedSequence`'s Collection conformance (SDK declaration:
+any Apple OS 26+). Otherwise use `ForEach(Array(items.enumerated()), id: \.element.id)`; never
+use the offset as identity.
 Keep row structure unary and move transforms out of `List`/`ForEach` initializers. Constant row
 shape preserves state and diffing.
 
@@ -46,4 +49,3 @@ ScrollView {
 .scrollTargetBehavior(.viewAligned)
 .scrollIndicators(.hidden)
 ```
-

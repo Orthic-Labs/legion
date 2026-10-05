@@ -1,8 +1,10 @@
 # Tasks
 
 Task entry behavior depends on the active compiler, target default isolation and upcoming
-features. `Task {}` inherits current actor context. `Task { @concurrent in ... }` is an
-availability-gated opt-in for leaving caller isolation; use it only for measured CPU or
+features. `Task {}` inherits the lexical actor context at its creation site. Swift 6.2 SE-0461 permits
+`Task { @concurrent in ... }` when supported; it is an availability-gated opt-in for
+leaving caller isolation, so captures crossing that boundary must satisfy Sendable rules
+and the closure cannot also carry actor isolation. Use it only for measured CPU or
 executor requirements, and keep structured `async let`/task groups as the default for
 owned work. A synchronous prefix that touches UI state must remain on its owning actor.
 
@@ -278,7 +280,7 @@ let images = try await withThrowingTaskGroup(of: UIImage.self) { group in
 }
 ```
 
-**Critical**: Errors in child tasks don't automatically fail the group. Use iteration (`for try await`, `next()`, `reduce()`) to propagate errors.
+Throwing groups surface child errors only when the body observes them through throwing `next()`, `for try await`, or `waitForAll()`. An error thrown out of the body cancels remaining children. `waitForAll()` rethrows the first error after waiting, but does not cancel siblings when it observes that error; call `cancelAll()` when first-error cancellation is required.
 
 
 ### Early termination on error
@@ -289,7 +291,7 @@ try await withThrowingTaskGroup(of: Data.self) { group in
         group.addTask { try await fetch(id) }
     }
     
-    // First error cancels remaining tasks
+    // A thrown error from `next()` exits the body and cancels remaining tasks.
     while let data = try await group.next() {
         process(data)
     }
@@ -319,7 +321,7 @@ let didAdd = group.addTaskUnlessCancelled {
 
 ## Discarding Task Groups
 
-For fire-and-forget operations where results don't matter:
+For structured child work where results don't matter:
 
 ```swift
 await withDiscardingTaskGroup { group in
@@ -333,7 +335,7 @@ await withDiscardingTaskGroup { group in
 
 - More memory efficient (doesn't store results)
 - No `next()` calls needed
-- Automatically waits for completion
+- Scope waits for every submitted child before returning
 - Ideal for side effects
 
 ### Error handling
@@ -343,7 +345,7 @@ try await withThrowingDiscardingTaskGroup { group in
     group.addTask { try await uploadLog() }
     group.addTask { try await syncSettings() }
 }
-// First error cancels group and throws
+// First child failure cancels remaining siblings and rethrows the first failure.
 ```
 
 ### Real-world pattern: Multiple notifications
@@ -549,7 +551,7 @@ func search(_ query: String) async {
 |---------|-----------|-----------|
 | Task count | Fixed at compile-time | Dynamic at runtime |
 | Syntax | Lightweight | More verbose |
-| Cancellation | Automatic on scope exit | Manual via `cancelAll()` |
+| Cancellation | Automatic on scope exit | Parent cancellation propagates; use `cancelAll()` for early termination |
 | Use when | 2-5 known parallel tasks | Loop-based parallel work |
 
 ```swift

@@ -25,6 +25,12 @@ Re-record after fix with comparable setup; report update counts, hitch frequency
 frame drops, and memory only when measured. Hangs are usually long main-run-loop work;
 keep event handlers short and move expensive work out of main actor where safe.
 
+Timeline duration cutoffs are tool-version triage evidence, not diagnoses: Apple's hang
+guidance commonly treats delays over 100 ms as noticeable & Hangs may flag busy periods
+over 250 ms, while thresholds can be configured. Correlate selected timeline ranges
+with Cause & Effect & Time Profiler before naming cause. See Apple's
+[`Understanding hangs in your app`](https://developer.apple.com/documentation/xcode/understanding-hangs-in-your-app).
+
 ## Focused ETTrace
 
 Choose one visible flow with explicit start/stop, build the exact simulator app,
@@ -32,6 +38,12 @@ temporarily link simulator-compatible ETTrace into app target, and remove wiring
 capture. Use one app trace at a time. Capture a matching dSYM set for app executable
 and app-owned embedded dynamic frameworks after final build; verify UUIDs. A missing
 first-party symbol fails meaningful attribution. System/ETTrace noise may remain.
+
+Match ETTrace runner & app framework tags/versions (for example, runner `ETTRACE_TAG`
+& linked `ETTrace.xcframework`) before interpreting processed output. Run runner with
+raw TTY so interactive prompts & answers are preserved; without TTY it may exit
+without useful trace. Profile one instrumented app per simulator because simulator
+ETTrace listens on a fixed localhost port.
 
 Capture launch only for startup/first-render; otherwise start from stable screen,
 perform one flow, wait for visible completion, stop runner, and preserve fresh processed

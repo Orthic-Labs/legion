@@ -124,7 +124,7 @@
                 11,
                 27
               ],
-              "summary": "Use init/deinit or scopes instead of setUp/tearDown; require zero-argument suite initialization; async/throwing suites and tests are valid.",
+              "summary": "Use init/deinit or scopes instead of setUp/tearDown; require zero-argument suite initialization, moving tests to supported global/static functions or refactoring fixture state when needed; async/throwing suites and tests are valid.",
               "disposition": "kept",
               "destinations": [
                 "skills/ios-development/references/testing/core.md#suites-and-test-declarations",
@@ -373,7 +373,7 @@
                 205,
                 234
               ],
-              "summary": "Use test-target CustomTestStringConvertible for readable diagnostics, never production-only conformance.",
+              "summary": "Use test-target `CustomTestStringConvertible` for readable diagnostics; apply `@retroactive` only for a truly external conformance, never blanket-mark local or same-package cases.",
               "disposition": "kept",
               "destinations": [
                 "skills/ios-development/references/testing/assertions.md#errors-and-failures",
@@ -518,7 +518,7 @@
                 208,
                 252
               ],
-              "summary": "Mock URLSession through a narrow protocol and injected fixture/error data; avoid live networking in unit tests.",
+              "summary": "Mock URLSession through a narrow protocol and injected fixture/error data, constructing URLResponse with request URL and fixture length when metadata is read; avoid live networking in unit tests.",
               "disposition": "kept",
               "destinations": [
                 "skills/ios-development/references/testing/async.md#networking-boundaries",
@@ -1073,7 +1073,7 @@
                 107,
                 110
               ],
-              "summary": "Use test-only CustomTestStringConvertible for concise diagnostics.",
+              "summary": "Use test-only `CustomTestStringConvertible` for concise diagnostics; apply `@retroactive` only when both type and protocol are external, with fully qualified names for older compilers.",
               "disposition": "merged",
               "destinations": [
                 "skills/ios-development/references/testing/assertions.md#errors-and-failures",

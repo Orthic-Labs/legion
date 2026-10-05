@@ -19,6 +19,35 @@ description.shouldInferMappingModelAutomatically = true
 container.persistentStoreDescriptions = [description]
 ```
 
+### Deferred lightweight migration
+
+Use deferred lightweight migration only for SQLite stores when measured cleanup cost justifies it; it is available at runtime on iOS 14+ and macOS 11+. The option is off by default, and the key is dual-purpose: pass `NSPersistentStoreDeferredLightweightMigrationOptionKey: true` while adding the store, then read that same key from store metadata to detect pending cleanup. Do not use metadata to infer whether deferred migration was enabled.
+
+```swift
+let options: [AnyHashable: Any] = [
+    NSMigratePersistentStoresAutomaticallyOption: true,
+    NSInferMappingModelAutomaticallyOption: true,
+    NSPersistentStoreDeferredLightweightMigrationOptionKey: true
+]
+let store = try coordinator.addPersistentStore(
+    ofType: NSSQLiteStoreType,
+    configurationName: nil,
+    at: storeURL,
+    options: options
+)
+
+if store.metadata[NSPersistentStoreDeferredLightweightMigrationOptionKey] as? Bool == true {
+    do {
+        try coordinator.finishDeferredLightweightMigration()
+    } catch {
+        // Preserve store and sidecars; record error for controlled recovery.
+        throw error
+    }
+}
+```
+
+The initial migration remains synchronous; only eligible cleanup is deferred. If finishing fails, preserve the original store, sidecars, model versions, and metadata, then retry from a controlled recovery path after capturing the error. Never delete or reset the user store to clear pending work.
+
 For complex changes, use a distinct staged migration for each model version on OS releases that provide `NSStagedMigrationManager`, with lightweight and custom stages as needed. Make custom stages restartable and idempotent; stage data preparation before making a property required. Manual mapping models remain appropriate when staged migration is unavailable or insufficient. Deferred lightweight migration can postpone expensive cleanup, but it adds pending-work handling and recovery states; do not add it without measured benefit and tests for `finishDeferredLightweightMigration()`.
 
 Composite attributes (Core Data iOS 17+/macOS 14+) can model structured fields without a transformable, but they still belong in the model-version inventory and migration fixtures. A staged plan should name every model reference/checksum in order; do not collapse multiple model transitions into one opaque custom step. Deferred migration is useful only when the store can serve current-schema reads while cleanup waits for a controlled background opportunity.
@@ -33,7 +62,7 @@ For each SwiftData plan, test model rename/relationship/delete-rule changes, uni
 
 ## Core Data CloudKit
 
-Use `NSPersistentCloudKitContainer` only when entitlements, model configuration, account behavior, and sync are in scope. Configure each store description’s `cloudKitContainerOptions` before loading; local-only and CloudKit-backed stores can coexist with explicit configurations. CloudKit imposes schema restrictions, including no uniqueness constraints for mirrored entities, optional relationships with inverses, and no deny delete rule. Production schema changes are constrained by deployed CloudKit schema; test in Development, deploy intentionally, and plan additive/cross-version compatibility before release.
+Use `NSPersistentCloudKitContainer` only when entitlements, model configuration, account behavior, and sync are in scope. Configure each store description’s `cloudKitContainerOptions` before loading; local-only and CloudKit-backed stores can coexist with explicit configurations. CloudKit imposes schema restrictions, including no uniqueness constraints for mirrored entities, no `Undefined` or `ObjectID` attribute types, optional relationships with inverses, and no deny delete rule. Production schema changes are constrained by deployed CloudKit schema; test in Development, deploy intentionally, and plan additive/cross-version compatibility before release.
 
 Observe `NSPersistentCloudKitContainer.eventChangedNotification` for setup/import/export failures, but do not treat an event as proof all records are synchronized. Test signed-out/offline/delayed import/conflict/retry states on real qualified accounts. Never enable CloudKit or upload local fixtures as a local validation shortcut.
 

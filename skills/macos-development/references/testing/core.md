@@ -22,6 +22,11 @@ sync/async, throwing or non-throwing). Give stored properties defaults or initia
 traits over XCTest `setUp`/`tearDown`. A suite with no reached `#expect` or `#require` is treated
 as passing, so each test must visibly verify behavior.
 
+If an instance suite cannot satisfy its zero-argument initialization path, move its tests to
+global or supported static test functions, or refactor fixture state so the suite can initialize
+without caller-supplied arguments. Keep fixture construction explicit rather than forcing a
+parameterized suite initializer into test discovery.
+
 ```swift
 import Testing
 
@@ -82,4 +87,3 @@ For reusable verification helpers, accept `sourceLocation: SourceLocation = #_so
 pass it to every `#expect`/`#require`, so failures point to the calling test. In test targets,
 `CustomTestStringConvertible` can improve complex failure output; do not add test-only conformances
 to production code.
-

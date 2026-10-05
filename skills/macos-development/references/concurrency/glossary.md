@@ -52,7 +52,7 @@ An availability-gated opt-out that prevents “sending” non-Sendable values ac
 ## @concurrent (when supported by active toolchain)
 
 An attribute used to explicitly opt a nonisolated async function into concurrent execution (i.e., not inheriting the caller’s actor). It is used during migration when enabling `NonisolatedNonsendingByDefault`.
-Also valid on `Task { @concurrent in ... }` to opt the task body out of the enclosing actor's isolation; consider it only when active compiler/SDK support and measured offloading need are established, and the task's synchronous prefix (everything before the first `await`) does not need the main actor.
+SE-0461 also permits it on `Task { @concurrent in ... }` to opt the async task body out of the enclosing actor's isolation when Swift 6.2 compiler/SDK support is active. The closure cannot combine `@concurrent` with actor isolation, and captures crossing that boundary must satisfy Sendable rules; use it only when measured offloading or an explicit executor requirement justifies it.
 
 ## @preconcurrency
 

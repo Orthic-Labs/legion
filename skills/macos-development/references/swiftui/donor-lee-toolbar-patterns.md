@@ -30,7 +30,7 @@ Use `.toolbar(id:)` when people should be able to add, remove, or rearrange tool
 ```swift
 .toolbar {
     DefaultToolbarItem(kind: .search, placement: .bottomBar)
-    DefaultToolbarItem(kind: .sidebarToggle, placement: .navigationBarLeading)
+    DefaultToolbarItem(kind: .sidebarToggle, placement: .navigation)
 }
 ```
 
@@ -42,11 +42,11 @@ On iOS 26+ and macOS 26+, use `sharedBackgroundVisibility(.hidden)` on the `Tool
 
 ```swift
 .toolbar {
-    ToolbarItem(placement: .topBarTrailing) {
+    ToolbarItem(placement: .secondaryAction) {
         Button("Notifications", systemImage: "bell") { }
             .badge(unreadCount)
     }
-    ToolbarItem(placement: .topBarTrailing) {
+    ToolbarItem(placement: .secondaryAction) {
         ProfileButton()
     }
     .sharedBackgroundVisibility(.hidden)
@@ -65,7 +65,7 @@ Attach `matchedTransitionSource(id:in:)` to toolbar content that presents anothe
 @Namespace private var namespace
 
 .toolbar {
-    ToolbarItem(placement: .topBarTrailing) {
+    ToolbarItem(placement: .secondaryAction) {
         Button("Show details", systemImage: "info") {
             isPresented = true
         }

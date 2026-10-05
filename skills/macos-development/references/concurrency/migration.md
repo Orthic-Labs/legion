@@ -46,7 +46,7 @@ Before interpreting diagnostics or choosing a fix, confirm the target/module set
 
 | Setting / feature | Where to check | Why it matters |
 |---|---|---|
-| Swift language mode (Swift 5.x vs Swift 6) | Xcode build settings (`SWIFT_VERSION`) / SwiftPM `// swift-tools-version:` | Swift 6 turns many warnings into errors and enables stricter defaults. |
+| Swift language mode (Swift 5.x vs Swift 6) | Xcode build settings (`SWIFT_VERSION`) / SwiftPM `swiftLanguageModes: [.v6]` or target `.swiftLanguageMode(.v6)` | Swift 6 turns many warnings into errors and enables stricter defaults. |
 | Strict concurrency checking | Xcode: Strict Concurrency Checking (`SWIFT_STRICT_CONCURRENCY`) / SwiftPM: strict concurrency flags | Controls how aggressively Sendable + isolation rules are enforced. |
 | Default actor isolation | Xcode: Default Actor Isolation (`SWIFT_DEFAULT_ACTOR_ISOLATION`) / SwiftPM: `.defaultIsolation(MainActor.self)` | Changes the default isolation of declarations; can reduce migration noise but changes behavior and requirements. |
 | `NonisolatedNonsendingByDefault` | Xcode upcoming feature / SwiftPM `.enableUpcomingFeature("NonisolatedNonsendingByDefault")` | Changes how nonisolated async functions execute (can inherit the caller’s actor unless explicitly marked `@concurrent`). |
@@ -258,6 +258,30 @@ Swift Language Version = Swift 6
 **Swift Package Manager**:
 ```swift
 // swift-tools-version: 6.0
+// Minimum tools + manifest API; default mode if no explicit mode is set.
+import PackageDescription
+
+let package = Package(
+    name: "MyPackage",
+    targets: [
+        .target(name: "MyTarget")
+    ],
+    swiftLanguageModes: [.v6]
+)
+
+```
+
+`// swift-tools-version` selects the minimum tools and PackageDescription manifest API, and supplies a default language mode when no explicit mode is configured. Set `swiftLanguageModes` or target `.swiftLanguageMode(.v6)` when source mode must be explicit.
+
+Target-level alternative (replace the target entry above):
+
+```swift
+.target(
+    name: "MyTarget",
+    swiftSettings: [
+        .swiftLanguageMode(.v6)
+    ]
+)
 ```
 
 If you've completed all previous steps, you should have minimal new errors.
@@ -279,9 +303,12 @@ Swift 6.2+ includes **semi-automatic migration** for upcoming features.
 
 **Example warning**:
 ```swift
-// Warning: Use of protocol 'Error' as a type must be written 'any Error'
-func fetchData() throws -> Data  // Before
-func fetchData() throws -> any Data  // After applying fix
+protocol DataProvider {
+    func fetchData() throws -> Data
+}
+
+func fetchData(using provider: DataProvider) throws -> Data  // Before
+func fetchData(using provider: any DataProvider) throws -> Data  // After applying fix
 ```
 
 ### Package Migration

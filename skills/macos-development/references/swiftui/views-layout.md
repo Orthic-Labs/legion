@@ -55,16 +55,19 @@ Safe-area rules are semantic: `safeAreaBar(edge:)` for bars on supported SDKs wi
 full-bleed visual layers. Do not read and reapply `GeometryProxy.safeAreaInsets`, which
 double-counts reserved space.
 
-For large/foldable displays, select a technique by screen structure. Reflow cards with a custom
+For large displays, select a technique by window structure. Reflow cards with a custom
 `LayoutValueKey`/`Layout` only when width permits; preserve reading/VoiceOver order and keep
-Dynamic Type content in one column. `ArrangementView` and `reservedRegions` are iOS 27.1+
-conditional tools for custom two-region/fold layouts; prefer system navigation/safe-area
-containers, filter inactive regions, preserve RTL mirroring, and provide an earlier-OS fallback.
+Dynamic Type content in one column. `ArrangementView` and `reservedRegions` are donor assertions requiring verification against their
+matching SDK; they are absent from the installed macOS 27.0 SDK, so keep them out of Mac code and
+do not promise current macOS compilation. Prefer `NavigationSplitView`, `HSplitView`,
+`VSplitView`, and safe-area containers; preserve RTL mirroring and provide an earlier-OS fallback.
 Avoid unsupported nesting with `NavigationSplitView`, `List`, or `ScrollView`, and keep state
 above branches when a layout switch could recreate stateful children.
 
 ## Representables and diagnostics
 
-Use UIKit/AppKit representables only at a necessary bridge, pass SwiftUI environment through
-`Context`, and keep `make`/`update` idempotent. For compiler type-check failures, split complex
-expressions into subviews or local values. Previews are not lifecycle or device evidence.
+Use `NSViewRepresentable` for AppKit views (`makeNSView`/`updateNSView`) and
+`NSViewControllerRepresentable` for AppKit controllers; `UIViewRepresentable` and
+`makeUIView`/`updateUIView` are iOS-only. Pass SwiftUI environment through `Context`, and keep
+`make`/`update` idempotent. For compiler type-check failures, split complex expressions into
+subviews or local values. Previews are not lifecycle or device evidence.

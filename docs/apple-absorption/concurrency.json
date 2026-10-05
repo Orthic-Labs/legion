@@ -4689,13 +4689,13 @@
                 52,
                 56
               ],
-              "summary": "Section “@concurrent (Swift 6.2+ behavior)”: An attribute used to explicitly opt a nonisolated async function into concurrent execution (i.e., not inheriting the caller’s actor). It is used during migration when enabling `NonisolatedNonsendingByDefault`. Also valid",
+              "summary": "Section “@concurrent (Swift 6.2+ behavior)”: SE-0461 permits `@concurrent` on async functions and `Task` closures; actor isolation cannot be combined on that closure, and crossing captures must satisfy Sendable rules.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/glossary.md#glossary",
-                "skills/macos-development/references/concurrency/glossary.md#glossary"
+                "skills/ios-development/references/concurrency/glossary.md#concurrent-when-supported-by-active-toolchain",
+                "skills/macos-development/references/concurrency/glossary.md#concurrent-when-supported-by-active-toolchain"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated the glossary claim to reflect SE-0461 closure legality and restrictions."
             },
             {
               "sourceLines": [
@@ -5264,26 +5264,26 @@
                 94,
                 110
               ],
-              "summary": "Section “Use weak self”: func startPolling() { task = Task { [weak self] in while let self = self { self.pollImages() try? await Task.sleep(for: .seconds(1)) } } } var loader: ImageLoader? = .init() loader?.startPolling() loader = nil // ✅ Loade",
+              "summary": "Section “Use weak self”: Weak capture must scope strong `self` to bounded work, release it before `Task.sleep`, and handle cancellation instead of swallowing `CancellationError`.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/memory-management.md#memory-management",
-                "skills/macos-development/references/concurrency/memory-management.md#memory-management"
+                "skills/ios-development/references/concurrency/memory-management.md#use-weak-self",
+                "skills/macos-development/references/concurrency/memory-management.md#use-weak-self"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated both platform references with bounded strong-self scopes, explicit cancellation checks and throwing sleep handling."
             },
             {
               "sourceLines": [
                 111,
                 125
               ],
-              "summary": "Section “Pattern for long-running tasks”: task = Task { [weak self] in while let self = self { await self.doWork() try? await Task.sleep(for: interval) } } Loop exits when `self` becomes `nil`.",
+              "summary": "Section “Pattern for long-running tasks”: A weak-self loop performs bounded work in a nested scope, then sleeps only after releasing the strong binding and exits on cancellation.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/memory-management.md#memory-management",
-                "skills/macos-development/references/concurrency/memory-management.md#memory-management"
+                "skills/ios-development/references/concurrency/memory-management.md#pattern-for-long-running-tasks",
+                "skills/macos-development/references/concurrency/memory-management.md#pattern-for-long-running-tasks"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated both platform references to avoid retaining `self` across suspension while preserving long-running polling guidance."
             },
             {
               "sourceLines": [
@@ -5420,39 +5420,39 @@
                 280,
                 292
               ],
-              "summary": "Section “Long-running task (weak self required)”: func startPolling() { task = Task { [weak self] in while let self = self { await self.fetchUpdates() try? await Task.sleep(for: .seconds(5)) } } }",
+              "summary": "Section “Long-running task (weak self required)”: Long-running polling scopes strong `self` to each fetch, checks cancellation and handles interrupted sleep.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/memory-management.md#memory-management",
-                "skills/macos-development/references/concurrency/memory-management.md#memory-management"
+                "skills/ios-development/references/concurrency/memory-management.md#long-running-task-with-weak-owner-capture",
+                "skills/macos-development/references/concurrency/memory-management.md#long-running-task-with-weak-owner-capture"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated both platform references with cancellation-aware bounded work."
             },
             {
               "sourceLines": [
                 293,
                 305
               ],
-              "summary": "Section “Async sequence monitoring (weak self + guard)”: func startMonitoring() { task = Task { [weak self] in for await event in eventStream { guard let self = self else { return } self.handle(event) } } }",
+              "summary": "Section “Async sequence monitoring (weak self + guard)”: Capture the sequence before creating the task so the closure does not implicitly retain its owner for the stream property; weakly bind the owner per event.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/memory-management.md#memory-management",
-                "skills/macos-development/references/concurrency/memory-management.md#memory-management"
+                "skills/ios-development/references/concurrency/memory-management.md#async-sequence-monitoring-weak-self-guard",
+                "skills/macos-development/references/concurrency/memory-management.md#async-sequence-monitoring-weak-self-guard"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated both platform references to capture the event stream before task creation and keep owner retention bounded."
             },
             {
               "sourceLines": [
                 306,
                 320
               ],
-              "summary": "Section “Cancellable work with cleanup”: func startWork() { task = Task { [weak self] in defer { self?.cleanup() } while let self = self { await self.doWork() try? await Task.sleep(for: .seconds(1)) } } }",
+              "summary": "Section “Cancellable work with cleanup”: Cleanup tasks use nested bounded owner scopes, explicit cancellation checks and throwing sleeps.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/memory-management.md#memory-management",
-                "skills/macos-development/references/concurrency/memory-management.md#memory-management"
+                "skills/ios-development/references/concurrency/memory-management.md#cancellable-work-with-cleanup",
+                "skills/macos-development/references/concurrency/memory-management.md#cancellable-work-with-cleanup"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated both platform references with cancellation-aware cleanup loops."
             },
             {
               "sourceLines": [
@@ -5589,13 +5589,13 @@
                 407,
                 417
               ],
-              "summary": "Section “❌ Forgetting weak self in loops”: Task { while true { self.poll() // Retain cycle try? await Task.sleep(for: .seconds(1)) } }",
+              "summary": "Section “Forgetting weak self in loops”: Strong captures can retain owners indefinitely; cancellation-aware sleep handling still matters when demonstrating the retain-cycle failure.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/memory-management.md#memory-management",
-                "skills/macos-development/references/concurrency/memory-management.md#memory-management"
+                "skills/ios-development/references/concurrency/memory-management.md#avoid-forgetting-weak-self-in-loops",
+                "skills/macos-development/references/concurrency/memory-management.md#avoid-forgetting-weak-self-in-loops"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Kept the intentional strong-capture failure while making its loop responsive to cancellation errors."
             },
             {
               "sourceLines": [
@@ -5654,13 +5654,13 @@
                 454,
                 474
               ],
-              "summary": "Section “Polling service”: final class PollingService { private var task: Task<Void, Never>? func start() { task = Task { [weak self] in while let self = self { await self.poll() try? await Task.sleep(for: .seconds(5)) } } } func stop() { task?.ca",
+              "summary": "Section “Polling service”: Stored polling tasks weakly capture their owner, scope strong work per poll and stop on cancellation or interrupted sleep.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/memory-management.md#memory-management",
-                "skills/macos-development/references/concurrency/memory-management.md#memory-management"
+                "skills/ios-development/references/concurrency/memory-management.md#polling-service",
+                "skills/macos-development/references/concurrency/memory-management.md#polling-service"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated both platform references with bounded owner retention and explicit cancellation handling."
             },
             {
               "sourceLines": [
@@ -5693,13 +5693,13 @@
                 522,
                 542
               ],
-              "summary": "Section “Timer”: actor Timer { private var task: Task<Void, Never>? func start(interval: Duration, action: @Sendable () async -> Void) { task = Task { while !Task.isCancelled { await action() try? await Task.sleep(for: interval) } } } fu",
+              "summary": "Section “Timer”: A timer task checks cancellation and treats throwing sleep cancellation as a stop condition.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/memory-management.md#memory-management",
-                "skills/macos-development/references/concurrency/memory-management.md#memory-management"
+                "skills/ios-development/references/concurrency/memory-management.md#timer",
+                "skills/macos-development/references/concurrency/memory-management.md#timer"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated both platform references to avoid swallowing cancellation in repeating timer work."
             },
             {
               "sourceLines": [
@@ -5795,7 +5795,7 @@
                 "skills/ios-development/references/concurrency/migration.md#migration-to-swift-6-and-strict-concurrency",
                 "skills/macos-development/references/concurrency/migration.md#migration-to-swift-6-and-strict-concurrency"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated platform references to distinguish tools-version manifest/API selection from explicit source language mode configuration."
             },
             {
               "sourceLines": [
@@ -6014,13 +6014,13 @@
                 290,
                 307
               ],
-              "summary": "Section “9. Change to Swift 6 Language Mode”: Xcode Build Settings**: Swift Language Version = Swift 6 Swift Package Manager**: // swift-tools-version: 6.0 If you've completed all previous steps, you should have minimal new errors.",
+              "summary": "Section “9. Change to Swift 6 Language Mode”: Xcode uses `SWIFT_VERSION`; SwiftPM can set explicit source mode with PackageDescription `swiftLanguageModes` or target `.swiftLanguageMode(.v6)`. The tools-version supplies minimum tools/manifest API and a default when no explicit mode is configured.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/migration.md#migration-to-swift-6-and-strict-concurrency",
-                "skills/macos-development/references/concurrency/migration.md#migration-to-swift-6-and-strict-concurrency"
+                "skills/ios-development/references/concurrency/migration.md#9-change-to-swift-6-language-mode",
+                "skills/macos-development/references/concurrency/migration.md#9-change-to-swift-6-language-mode"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Replaced the tools-version-only SwiftPM instruction with SDK-verified PackageDescription APIs and documented default-versus-explicit mode semantics."
             },
             {
               "sourceLines": [
@@ -6040,13 +6040,13 @@
                 312,
                 326
               ],
-              "summary": "Section “Xcode Migration”: 1. Go to Build Settings → Find the upcoming feature (e.g., \"Require Existential any\") 2. Set to **Migrate** (temporary setting) 3. Build the project 4. Warnings appear with **Apply** buttons 5. Click Apply for each warni",
+              "summary": "Section “Xcode Migration”: Existential migration uses a real protocol-typed parameter (`DataProvider`) and changes `DataProvider` to `any DataProvider`; concrete `Data` is not an existential.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/migration.md#migration-to-swift-6-and-strict-concurrency",
-                "skills/macos-development/references/concurrency/migration.md#migration-to-swift-6-and-strict-concurrency"
+                "skills/ios-development/references/concurrency/migration.md#xcode-migration",
+                "skills/macos-development/references/concurrency/migration.md#xcode-migration"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Corrected the invalid `any Data` example while preserving Xcode migration workflow."
             },
             {
               "sourceLines": [
@@ -7210,7 +7210,7 @@
                 "skills/ios-development/references/concurrency/performance.md#performance",
                 "skills/macos-development/references/concurrency/performance.md#performance"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Audited `Task { @concurrent in ... }` examples against SE-0461; retained valid closure spelling with compiler/SDK and measured-offloading gates."
             },
             {
               "sourceLines": [
@@ -7282,13 +7282,13 @@
                 389,
                 408
               ],
-              "summary": "Section “Optimization example”: // Before: Two suspensions Task { let data = await generate() // Suspension 1 self.items.append(data) // Suspension 2 (back to main) } // After: One suspension Task { @concurrent in let data = generate() // No suspension",
+              "summary": "Section “Optimization example”: The `@concurrent` task is valid with supported toolchains when its actor-owned capture is weak and UI mutation occurs inside a `MainActor.run` hop.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/performance.md#performance",
-                "skills/macos-development/references/concurrency/performance.md#performance"
+                "skills/ios-development/references/concurrency/performance.md#optimization-example",
+                "skills/macos-development/references/concurrency/performance.md#optimization-example"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated both platform references to keep non-Sendable actor-owned state inside the main-actor hop."
             },
             {
               "sourceLines": [
@@ -7612,13 +7612,13 @@
                 41,
                 50
               ],
-              "summary": "Section “1. Nonisolated (default)”: No concurrency restrictions, but can't modify isolated state: func computeValue(a: Int, b: Int) -> Int { return a + b }",
+              "summary": "Section “1. Nonisolated (without explicit actor isolation)”: A declaration without explicit actor isolation cannot modify isolated state; async executor behavior depends on target default actor isolation and `NonisolatedNonsendingByDefault`.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/sendable.md#sendable",
-                "skills/macos-development/references/concurrency/sendable.md#sendable"
+                "skills/ios-development/references/concurrency/sendable.md#1-nonisolated-without-explicit-actor-isolation",
+                "skills/macos-development/references/concurrency/sendable.md#1-nonisolated-without-explicit-actor-isolation"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated the platform references to remove unconditional “no concurrency restrictions” and record executor-setting dependencies."
             },
             {
               "sourceLines": [
@@ -8176,13 +8176,13 @@
                 1,
                 24
               ],
-              "summary": "Section “Tasks”: Use this when: You need to start async work from synchronous code. You are choosing between `Task`, `async let`, and task groups. You need cancellation, priorities, or structured vs unstructured guidance. Skip this file",
+              "summary": "Section “Tasks”: Swift 6.2 SE-0461 permits `Task { @concurrent in ... }` when supported; `Task {}` inherits the lexical actor context at its creation site, while concurrent closures require Sendable-safe crossing captures and cannot also carry actor isolation.",
               "disposition": "merged",
               "destinations": [
                 "skills/ios-development/references/concurrency/tasks.md#tasks",
                 "skills/macos-development/references/concurrency/tasks.md#tasks"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated task-entry preamble to audit `@concurrent` closure legality and restrictions against SE-0461."
             },
             {
               "sourceLines": [
@@ -8410,26 +8410,26 @@
                 255,
                 275
               ],
-              "summary": "Section “Error handling”: let images = try await withThrowingTaskGroup(of: UIImage.self) { group in for url in photoURLs { group.addTask { try await downloadPhoto(url: url) } } // Iterate to propagate errors var results: [UIImage] = [] for try aw",
+              "summary": "Section “Error handling”: Throwing groups surface child failures when observed through `next()`, iteration or `waitForAll()`; errors leaving the body cancel remaining children.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/tasks.md#tasks",
-                "skills/macos-development/references/concurrency/tasks.md#tasks"
+                "skills/ios-development/references/concurrency/tasks.md#error-handling",
+                "skills/macos-development/references/concurrency/tasks.md#error-handling"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated platform references to distinguish observation from automatic failure and to document `waitForAll()` first-error behavior."
             },
             {
               "sourceLines": [
                 276,
                 290
               ],
-              "summary": "Section “Early termination on error”: try await withThrowingTaskGroup(of: Data.self) { group in for id in ids { group.addTask { try await fetch(id) } } // First error cancels remaining tasks while let data = try await group.next() { process(data) } }",
+              "summary": "Section “Early termination on error”: A throwing `next()` error exits the group body and cancels remaining children; use `cancelAll()` when early cancellation is needed while continuing in the body.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/tasks.md#tasks",
-                "skills/macos-development/references/concurrency/tasks.md#tasks"
+                "skills/ios-development/references/concurrency/tasks.md#early-termination-on-error",
+                "skills/macos-development/references/concurrency/tasks.md#early-termination-on-error"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Clarified structured cancellation around first observed child failure."
             },
             {
               "sourceLines": [
@@ -8442,46 +8442,46 @@
                 "skills/ios-development/references/concurrency/tasks.md#tasks",
                 "skills/macos-development/references/concurrency/tasks.md#tasks"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated the comparison to state parent cancellation propagation and explicit `cancelAll()` for early TaskGroup termination."
             },
             {
               "sourceLines": [
                 312,
                 323
               ],
-              "summary": "Section “Discarding Task Groups”: For fire-and-forget operations where results don't matter: await withDiscardingTaskGroup { group in group.addTask { await logEvent(\"user_login\") } group.addTask { await preloadCache() } group.addTask { await syncAnalytic",
+              "summary": "Section “Discarding Task Groups”: Discarding groups are structured; their scope waits for submitted children even though results are not collected.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/tasks.md#tasks",
-                "skills/macos-development/references/concurrency/tasks.md#tasks"
+                "skills/ios-development/references/concurrency/tasks.md#discarding-task-groups",
+                "skills/macos-development/references/concurrency/tasks.md#discarding-task-groups"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Corrected “fire-and-forget” wording and retained side-effect guidance with structured waiting."
             },
             {
               "sourceLines": [
                 324,
                 330
               ],
-              "summary": "Section “Benefits”: More memory efficient (doesn't store results) No `next()` calls needed Automatically waits for completion Ideal for side effects",
+              "summary": "Section “Benefits”: Discarding groups avoid result storage and `next()` calls while still waiting for every child before scope return.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/tasks.md#tasks",
-                "skills/macos-development/references/concurrency/tasks.md#tasks"
+                "skills/ios-development/references/concurrency/tasks.md#benefits",
+                "skills/macos-development/references/concurrency/tasks.md#benefits"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Corrected completion semantics for structured discarding groups."
             },
             {
               "sourceLines": [
                 331,
                 340
               ],
-              "summary": "Section “Error handling”: try await withThrowingDiscardingTaskGroup { group in group.addTask { try await uploadLog() } group.addTask { try await syncSettings() } } // First error cancels group and throws",
+              "summary": "Section “Error handling”: Throwing discarding groups cancel remaining siblings on the first child failure and rethrow that first failure after structured cleanup.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/tasks.md#tasks",
-                "skills/macos-development/references/concurrency/tasks.md#tasks"
+                "skills/ios-development/references/concurrency/tasks.md#discarding-task-groups",
+                "skills/macos-development/references/concurrency/tasks.md#discarding-task-groups"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Corrected first-error cancellation and rethrow semantics from SE-0381."
             },
             {
               "sourceLines": [
@@ -9486,13 +9486,13 @@
                 90,
                 103
               ],
-              "summary": "Section “New way (Swift Concurrency)”: // Thinking about isolation domains @MainActor func updateUI() { // Runs on main actor (usually main thread) } func heavyWork() async { // Runs on any available thread in pool }",
+              "summary": "Section “New way (Swift Concurrency)”: `async` alone does not promise a background pool thread; executor behavior follows target default actor isolation and active upcoming features.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/threading.md#threading",
-                "skills/macos-development/references/concurrency/threading.md#threading"
+                "skills/ios-development/references/concurrency/threading.md#new-way-swift-concurrency",
+                "skills/macos-development/references/concurrency/threading.md#new-way-swift-concurrency"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Corrected the heavy-work example so executor placement is derived from target settings rather than inferred from `async` alone."
             },
             {
               "sourceLines": [
@@ -9564,13 +9564,13 @@
                 146,
                 176
               ],
-              "summary": "Section “Actor reentrancy example”: actor BankAccount { private var balance: Int = 0 func deposit(amount: Int) async { balance += amount print(\"Balance: \\(balance)\") await logTransaction(amount) // ⚠️ Suspension point balance += 10 // Bonus print(\"After bo",
+              "summary": "Section “Actor reentrancy example”: `100 → 200 → 210 → 220` is a valid reentrant trace; `100 → 110 → 210 → 220` is only a naive atomic expectation.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/threading.md#threading",
-                "skills/macos-development/references/concurrency/threading.md#threading"
+                "skills/ios-development/references/concurrency/threading.md#actor-reentrancy-example",
+                "skills/macos-development/references/concurrency/threading.md#actor-reentrancy-example"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Corrected trace labels so the example does not call valid reentrancy unexpected."
             },
             {
               "sourceLines": [
@@ -9590,13 +9590,13 @@
                 196,
                 237
               ],
-              "summary": "Section “Choosing Task entry isolation”: For unstructured `Task { ... }`, choose entry isolation based on the synchronous prefix (everything before the first `await`), not on where the task was created. Two common reasons a bare `Task { ... }` starts on `@MainA",
+              "summary": "Section “Choosing Task entry isolation”: `Task { @concurrent in ... }` is valid with Swift 6.2 support; choose it from synchronous-prefix needs, measured offloading and Sendable-safe captures.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/threading.md#threading",
-                "skills/macos-development/references/concurrency/threading.md#threading"
+                "skills/ios-development/references/concurrency/threading.md#choosing-task-entry-isolation",
+                "skills/macos-development/references/concurrency/threading.md#choosing-task-entry-isolation"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Audited closure claims against SE-0461 and added explicit closure isolation/capture constraints."
             },
             {
               "sourceLines": [
@@ -9668,13 +9668,13 @@
                 282,
                 303
               ],
-              "summary": "Section “Nonisolated async functions (SE-461)”: Old behavior**: Nonisolated async functions always switch to background. New behavior**: Inherit caller's isolation by default. class NotSendable { func performAsync() async { print(Thread.current) } } @MainActor func ca",
+              "summary": "Section “Nonisolated async functions (SE-461)”: Observed executor depends on target default actor isolation plus `NonisolatedNonsendingByDefault`; enabled mode permits nonsending caller inheritance, while legacy default is concurrent.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/threading.md#threading",
-                "skills/macos-development/references/concurrency/threading.md#threading"
+                "skills/ios-development/references/concurrency/threading.md#nonisolated-async-functions-se-461",
+                "skills/macos-development/references/concurrency/threading.md#nonisolated-async-functions-se-461"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Corrected executor explanation and retained target-setting readback guidance."
             },
             {
               "sourceLines": [
@@ -9700,7 +9700,7 @@
                 "skills/ios-development/references/concurrency/threading.md#threading",
                 "skills/macos-development/references/concurrency/threading.md#threading"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Retained explicit `@concurrent` function opt-out as valid SE-0461 guidance; closure validity and capture constraints are documented in the adjacent task-entry section."
             },
             {
               "sourceLines": [
@@ -9739,7 +9739,7 @@
                 "skills/ios-development/references/concurrency/threading.md#threading",
                 "skills/macos-development/references/concurrency/threading.md#threading"
               ],
-              "reason": "Concrete section guidance retained in task-specific reference; platform variants kept in sync."
+              "reason": "Updated default-isolation guidance so it is recorded alongside, rather than substituted for, `NonisolatedNonsendingByDefault` feature state."
             },
             {
               "sourceLines": [

@@ -91,12 +91,12 @@ struct SelectableCard: View {
 }
 ```
 
-### `.focusable(_:interactions:)` (iOS 17+)
+### `.focusable(_:interactions:)` (macOS 14+)
 
 Controls which focus-driven interactions the view supports via `FocusInteractions`:
 
-- `.activate` -- Button-like: only focusable when system-wide keyboard navigation is on (macOS/iOS)
-- `.edit` -- Captures keyboard/Digital Crown input
+- `.activate` -- Button-like: participates in macOS keyboard navigation
+- `.edit` -- Captures keyboard input
 - `.automatic` -- Platform default (both activate and edit)
 
 ```swift
@@ -111,6 +111,8 @@ Use `.activate` for custom button-like views that should match system keyboard-n
 Focused values let parent views (App, Scene, Commands) read state from whichever view currently has focus. Use for enabling/disabling menu commands based on the focused document or selection.
 
 ### Declare with `@Entry`
+
+Use this macro when the project SDK/compiler provides it; retain a manual focused-value key for older SDK/compiler baselines.
 
 ```swift
 extension FocusedValues {
@@ -153,7 +155,7 @@ struct MyApp: App {
 }
 ```
 
-### `@FocusedObject` (iOS 16+)
+### `@FocusedObject` (macOS 13+)
 
 For `ObservableObject` types. The view invalidates when the focused object changes.
 
@@ -169,7 +171,7 @@ Scene-scoped variant: `.focusedSceneObject(_:)`.
 
 ## Default Focus
 
-### `.defaultFocus(_:_:priority:)` (iOS 17+, macOS 13+, tvOS 16+)
+### `.defaultFocus(_:_:priority:)` (macOS 13+)
 
 Prefer `.defaultFocus` over setting `@FocusState` in `onAppear` for initial focus placement.
 
@@ -240,7 +242,7 @@ MyCustomCard()
 
 ## Search Focus
 
-### `.searchFocused(_:)` / `.searchFocused(_:equals:)`
+### `.searchFocused(_:)` / `.searchFocused(_:equals:)` (macOS 15+)
 
 Bind focus state to the search field associated with the nearest `.searchable` modifier. Works like `.focused` but targets the search bar.
 
@@ -292,9 +294,8 @@ Use distinct enum cases for each focusable view.
 
 ### `.onAppear` focus timing
 
-Setting `@FocusState` in `.onAppear` may fail if the view tree hasn't settled. Prefer `.defaultFocus` (iOS 17+) for reliable initial focus. If you must use `.onAppear`, wrap in `DispatchQueue.main.async` as a last resort.
+Setting `@FocusState` in `.onAppear` may fail if the view tree hasn't settled. Prefer `.defaultFocus` (macOS 13+) for reliable initial focus. If you must use `.onAppear`, wrap in `DispatchQueue.main.async` as a last resort.
 
 ### Missing `.focusable()` for non-text views
 
 `TextField` and `SecureField` are implicitly focusable. Custom views (stacks, shapes, images) are not. Forgetting `.focusable()` means `.focused()` bindings have no effect and key event handlers never fire.
-

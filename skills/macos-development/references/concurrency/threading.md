@@ -101,7 +101,8 @@ func updateUI() {
 }
 
 func heavyWork() async {
-    // Runs on any available thread in pool
+    // Executor depends on target default actor isolation and active upcoming features;
+    // do not infer a pool thread from `async` alone.
 }
 ```
 
@@ -171,8 +172,8 @@ actor BankAccount {
 async let _ = account.deposit(amount: 100)
 async let _ = account.deposit(amount: 100)
 
-// Unexpected: 100 → 200 → 210 → 220
-// Expected:   100 → 110 → 210 → 220
+// Valid reentrant trace:       100 → 200 → 210 → 220
+// Naive atomic expectation:    100 → 110 → 210 → 220 (not guaranteed)
 ```
 
 **Why**: During `logTransaction`, second deposit runs, modifying balance before first completes.
@@ -235,7 +236,7 @@ Task {
 
 The delayed-retry `Task.sleep` pattern (see `performance.md` "Match Task entry isolation to its synchronous prefix") is a specialization of this same rule: the wait is usually not UI-owned, while the final mutation is.
 
-Note that `Task { @concurrent in ... }` changes the closure's isolation, so any capture of non-Sendable state from the enclosing actor must move inside the `MainActor.run { ... }` hop, or be captured weakly (e.g., `[weak self]` plus a `guard let self`) before being used there. The examples above stay safe by keeping `self` use inside `MainActor.run`. If the body needs to touch non-Sendable state directly, see `sendable.md` before reaching for `@concurrent`.
+SE-0461 permits `Task { @concurrent in ... }` when Swift 6.2 compiler/SDK support it; do not reject this closure spelling by itself. `@concurrent` changes the closure's isolation, so captures crossing that boundary must satisfy Sendable rules, and it cannot be combined with actor isolation on the same closure. Move actor-owned use inside `MainActor.run { ... }`, or capture weakly and bind only inside that hop. If the body needs to touch non-Sendable state directly, see `sendable.md` before reaching for `@concurrent`.
 
 ## Thread Execution Patterns
 
@@ -283,13 +284,15 @@ func backgroundTask() async {
 
 ### Nonisolated async functions (SE-461)
 
-With the `NonisolatedNonsendingByDefault` behavior enabled, a nonisolated async function
-whose values are not sent can inherit caller isolation; without that feature, active
-compiler semantics differ. Do not infer either behavior from a Swift marketing/version
-label alone.
+Observed execution depends on both the target's default actor isolation and whether
+`NonisolatedNonsendingByDefault` is enabled. With that feature enabled, a nonisolated
+async function whose values are not sent can inherit caller isolation; without it, the
+default nonisolated async behavior is `@concurrent` on the generic executor. Record both
+settings instead of inferring behavior from a Swift version label alone.
 
 When that feature is enabled, nonisolated nonsending async work can inherit caller
-isolation. The exact behavior must come from this target's active feature set.
+isolation. A `defaultIsolation(MainActor.self)` setting supplies default actor isolation
+for declarations, but does not enable the upcoming feature by itself.
 
 ```swift
 class NotSendable {

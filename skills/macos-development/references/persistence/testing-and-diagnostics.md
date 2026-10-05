@@ -35,9 +35,21 @@ For SwiftData, construct a unique temporary URL/configuration, insert fixtures t
 
 ## Diagnostics
 
-Use `-com.apple.CoreData.ConcurrencyDebug 1` for reproducible queue violations, `-com.apple.CoreData.SQLDebug 1` to inspect SQL/query count, and migration logging for model/store mismatches. Use Instruments Time Profiler and Allocations with realistic data. Measure before adding indexes, prefetches, batch sizes, context resets, or partial property fetches. `context.reset()` invalidates registered objects; use only when callers no longer hold them. `refresh(_:mergeChanges:)`/`refreshAllObjects()` can discard pending values, so make that choice explicit.
+Use `-com.apple.CoreData.ConcurrencyDebug 1` for reproducible queue violations, `-com.apple.CoreData.SQLDebug 1` to inspect SQL/query count, and migration logging for model/store mismatches. Add `-com.apple.CoreData.MigrationDebug 1` to a debug/test launch only when reproducing migration behavior; remove it after diagnosis and never make it a permanent production setting. Use Instruments Time Profiler and Allocations with realistic data. Measure before adding indexes, prefetches, batch sizes, context resets, or partial property fetches. `context.reset()` invalidates registered objects; use only when callers no longer hold them. `refresh(_:mergeChanges:)`/`refreshAllObjects()` can discard pending values, so make that choice explicit.
 
 For SwiftData predicate failures, isolate each expression against a real temporary store; a successful macro expansion does not prove store execution. Inspect model/container schema, stored-vs-computed property use, availability, and CloudKit mode before changing query syntax.
+
+For Core Data with CloudKit, qualify logs by platform, app process, and container. Use these predicates on the target log source. Plain macOS `log stream` reads Mac logs; it does not stream a connected physical device. Select the device in Console for device capture, use an explicitly targeted simulator log command, or query an exported target log archive:
+
+```bash
+# Replace YourApp and iCloud.com.example.container with actual identifiers.
+log stream --info --debug --predicate 'process = "YourApp" and (subsystem = "com.apple.coredata" or subsystem = "com.apple.cloudkit")'
+log stream --info --debug --predicate 'process = "cloudd" and message contains[cd] "iCloud.com.example.container"'
+log stream --info --debug --predicate 'process = "apsd" and message contains[cd] "YourApp"'
+log stream --info --debug --predicate 'process = "dasd" and message contains[cd] "com.apple.coredata.cloudkit.activity"'
+```
+
+Start only predicates supported by target platform/runtime; daemon visibility and message content differ between macOS, iOS/iPadOS, simulator, and device. Reproduce one bounded sync case, stop capture, then collect a sysdiagnose: on a physical iOS/iPadOS device, follow Apple’s model-specific sysdiagnose button procedure (brief simultaneous Volume Up, Volume Down & Side press where supported), wait for the archive & retrieve it through device diagnostics; on macOS use `Shift-Control-Option-Command-Period`. For an archive, use `log show --info --debug` with a narrow time range and the same predicates against its `system_logs.logarchive`. System logs and sysdiagnose can contain account, device, container, timing, and payload metadata; restrict access, keep process/container filters narrow, and redact before sharing.
 
 ## Triage decisions
 

@@ -26,7 +26,7 @@ This route covers native Xcode projects/workspaces and Swift packages used by Ap
 
 ## Platform benchmark examples
 
-Use native `project.build` for selected system-tool execution, then send captured output to pure `build-analysis`; analyzer output alone never claims a build ran. Commands below inspect build plans. Execution requires `--execute` with host-authorized `--policy-context`; save returned `stdout` as raw evidence. Configure timing/diagnostic output through supported project settings or an existing authorized build command: this adapter does not accept arbitrary Xcode flags.
+Use native `project.build` for ordinary selected system-tool execution, then send captured output to pure `build-analysis`; analyzer output alone never claims a build ran. Commands below inspect build plans. Execution requires `--execute` with host-authorized `--policy-context`; save returned `stdout` as raw evidence. For timing or compiler diagnostics, use the repository's existing authorized Xcode wrapper or native `xcodebuild` on its authorized host, then parse its captured log. Do not pass arbitrary Xcode flags through `project.build`; its schema remains the typed ordinary-build contract.
 
 ### iOS
 
@@ -52,15 +52,13 @@ Use macOS target/scheme settings and `platform=macOS`; do not route a macOS diag
 
 ## Platform compiler examples
 
-Keep diagnostic flags and thresholds fixed across repeated runs, then parse supplied output with native Rust:
+Keep diagnostic flags and thresholds fixed across repeated runs. Capture them through the authorized wrapper or native `xcodebuild` route in [compiler capture](build-optimization/compilation-analysis.md#evidence-and-flags), then parse its existing raw log with native Rust:
 
 ```bash
-legion apple project.build \
-  --input '{"project":"App.xcodeproj","scheme":"App","configuration":"Debug","destination":"<platform-specific destination>"}'
 legion apple build-analysis \
   --input '{"operation":"compiler.parse","input_path":".build-benchmark/compiler.log","threshold_ms":100}'
 ```
 
-Apply `-Xfrontend -warn-long-function-bodies`, `-Xfrontend -warn-long-expression-type-checking`, `-Xfrontend -debug-time-compilation`, `-Xfrontend -debug-time-function-bodies`, `-Xswiftc -driver-time-compilation`, or `-Xfrontend -stats-output-dir` through selected native build operation's typed settings when supported; preserve exact flags in evidence.
+Apply `-Xfrontend -warn-long-function-bodies`, `-Xfrontend -warn-long-expression-type-checking`, `-Xfrontend -debug-time-compilation`, `-Xfrontend -debug-time-function-bodies`, `-Xswiftc -driver-time-compilation`, or `-Xfrontend -stats-output-dir` only through that authorized wrapper or native `xcodebuild` invocation when the selected toolchain supports them; preserve exact flags in evidence. `build-analysis` only parses supplied output and never injects flags or runs a build.
 
 Primary references: [Apple incremental builds](https://developer.apple.com/documentation/xcode/improving-the-speed-of-incremental-builds), [Apple coding practices](https://developer.apple.com/documentation/xcode/improving-build-efficiency-with-good-coding-practices), and [Apple explicit module dependencies](https://developer.apple.com/documentation/xcode/building-your-project-with-explicit-module-dependencies).

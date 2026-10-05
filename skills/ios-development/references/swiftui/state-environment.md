@@ -54,7 +54,9 @@ relationships optional.
 
 Read environment values near the view consuming them; do not cache size class, display scale,
 locale, or safe-area values in app/model state. Custom environment/focused/container keys use
-`@Entry` where deployment target supports it. Defaults must be stable constants: never create
+`@Entry` when the project SDK/compiler provides the macro. The installed SDK declares it as an
+external macro without a runtime `@available` annotation; retain manual key fallbacks for older
+SDK/compiler baselines. Defaults must be stable constants: never create
 `Model()`, `Date()`, `UUID()`, or other fresh reference/value in a default. Never store a
 closure in a custom key because it obscures dependencies and invalidates poorly; publish an
 action object or value instead. Remove unused reads and avoid high-frequency environment

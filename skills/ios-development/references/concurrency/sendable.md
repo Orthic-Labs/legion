@@ -43,15 +43,18 @@ Empty protocol, but triggers compiler verification of thread-safety.
 
 Three types of isolation in Swift Concurrency:
 
-### 1. Nonisolated (default)
+### 1. Nonisolated (without explicit actor isolation)
 
-No concurrency restrictions, but can't modify isolated state:
+A declaration without an explicit actor has no actor isolation of its own, but it still
+cannot modify isolated state. Async executor behavior depends on target settings:
 
 ```swift
 func computeValue(a: Int, b: Int) -> Int {
     return a + b
 }
 ```
+
+For async functions, a nonisolated declaration does not by itself determine its executor. Check the target's default actor isolation together with `NonisolatedNonsendingByDefault`: the upcoming feature makes nonsending async work eligible to inherit caller isolation, while without it the default nonisolated async behavior is `@concurrent`. `@concurrent` explicitly leaves actor isolation and requires Sendable-safe crossing values.
 
 ### 2. Actor-isolated
 

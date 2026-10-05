@@ -26,6 +26,18 @@ ratio for media. Treat first placement and zoom placement as separate policies; 
 for external, rotated, and narrow displays. Keep logical titles meaningful for menus and
 accessibility even when visually hidden.
 
+SwiftUI follows user's system-wide window restoration setting by default. Add
+`.restorationBehavior(...)` only when product policy explicitly makes a window transient
+or intentionally restorable. Primary document/navigation windows should therefore leave
+the default in place.
+
+Use fixed utility sizing only when utility's product role requires one intended size:
+pair a suitable `defaultSize`/content-size policy with disabled minimize or zoom only when
+those controls would create an invalid surface. Keep normal utility windows resizable
+when their content benefits from it. `windowIdealPlacement` is for a meaningful Zoom or
+Option-click policy, especially media/document fitting; it is not a general replacement
+for user-controlled sizing.
+
 These placement modifiers are macOS 15 SDK APIs. Keep an older scene branch when the
 deployment minimum predates them:
 
@@ -56,8 +68,9 @@ For older targets, omit these modifiers or use the existing AppKit placement own
 not reference macOS 15-only symbols from an unguarded shared path.
 
 Inspect click-then-drag behavior when a background window is inactive. Keep overlays out
-of controls that need pointer input. Do not disable restoration on primary windows or
-hard-code one monitor size. If modifiers cannot express required titlebar, panel, tabbing,
+of controls that need pointer input. Do not disable restoration on primary windows,
+disable utility zoom without product need, or hard-code one monitor size. If modifiers
+cannot express required titlebar, panel, tabbing,
 or lifecycle behavior, use a narrow `NSWindow`/`NSPanel` bridge with explicit ownership.
 
 Primary references: [defaultWindowPlacement](https://developer.apple.com/documentation/swiftui/scene/defaultwindowplacement(_:)),

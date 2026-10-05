@@ -217,6 +217,8 @@ templates, configuration and compiler compatibility. Binary installation does no
 approve generated-code changes, new build phases or package plugins. Source-build and
 platform support differ, so inspect upstream's chosen method, not a guessed universal
 command. Keep generation deterministic and review its output.
+Use [Sourcery procedures](architecture/sourcery.md) for executable/plugin invocation,
+target-local configuration, `forceParse`, template arguments & cache/output controls.
 
 ## inject
 
@@ -227,6 +229,8 @@ upstream setup for the project's compiler; approve the specific dependency, code
 debug-setting changes before applying them. Do not automatically add it to every app.
 Verify an actual intended hot-reload update and keep release targets unaffected. The
 machine app and project integration persist separately; do not reinstall on each use.
+Use [Inject procedures](architecture/inject.md) for version-dependent Debug settings,
+`@ObserveInjection`/`.enableInjection()` & constructor-owned UIKit/AppKit hosts.
 
 ## ascctl
 

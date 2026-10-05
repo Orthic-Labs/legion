@@ -53,6 +53,26 @@ func verify(_ value: Result, sourceLocation: SourceLocation = #_sourceLocation) 
 }
 ```
 
+When both the domain type and `CustomTestStringConvertible` come from modules outside
+the test target, the extension is retroactive. Swift 6 warns about that conformance,
+so mark only that conformance with `@retroactive`:
+
+```swift
+import Testing
+import FeatureKit
+
+extension FeatureKit.GameError: @retroactive CustomTestStringConvertible {
+    var testDescription: String { localizedDescription }
+}
+```
+
+SE-0364 does not treat a conformance to a protocol declared in the current module as
+retroactive, and it has exceptions when declarations come from a Clang module's Swift
+overlay or from a module in the same package. `@retroactive` is legal only where the
+conformance is actually retroactive; do not add it to every test-only conformance.
+For an older Swift compiler that cannot parse the attribute, fully qualify both
+external names instead: `extension FeatureKit.GameError: Testing.CustomTestStringConvertible`.
+
 ## Known issues
 
 Wrap only the failing region in `withKnownIssue("reason") { ... }`. It keeps a temporary defect

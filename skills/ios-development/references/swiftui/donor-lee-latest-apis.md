@@ -115,9 +115,10 @@ project's SDK exposes them: `.accessibilityLabel()`, `.accessibilityValue()`,
 
 ### Custom Environment / Container Values
 
-Use the `@Entry` macro when the project's toolchain exposes it; retain manual
-`EnvironmentKey` conformance for older SDKs or integration boundaries. The macro was
-introduced in Xcode 16 and back-deploys to supported OS versions.
+Use the `@Entry` macro when the project's SDK/compiler exposes it; retain manual
+`EnvironmentKey` conformance for older SDK/compiler baselines or integration boundaries. The
+installed SDK declares `Entry` as an external macro without a runtime `@available` annotation,
+so its SDK/compiler availability must not be inferred from a deployment target.
 
 ```swift
 // Modern — one line replaces ~10 lines of EnvironmentKey boilerplate
@@ -572,7 +573,7 @@ These APIs are from the beta iOS 27.1 SDK. Gate runtime use with `#available(iOS
 | `coordinateSpace(name:)` | `coordinateSpace(.named(...))` | iOS 17+ |
 | `ObservableObject` | `@Observable` | iOS 17+ |
 | `tabItem(_:)` | `Tab` API | iOS 18+ |
-| Manual 1:1 `animatableData` synthesis | `@Animatable` macro; keep manual logic for clamping/normalization | iOS 26+ |
+| Manual 1:1 `animatableData` synthesis | `@Animatable` macro; keep manual logic for clamping/normalization | SDK/compiler-provided macro; generated conformance declares iOS 13+ |
 | `presentationBackground(_:)` on sheets | Default Liquid Glass sheet material | iOS 26+ |
 | Custom toolbar background hacks | `scrollEdgeEffectStyle(_:for:)` | iOS 26+ |
 | `CarouselTabViewStyle` (watchOS) | `VerticalTabViewStyle` | SDK 27 soft-deprecated |

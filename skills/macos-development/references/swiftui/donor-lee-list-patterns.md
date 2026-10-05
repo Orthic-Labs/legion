@@ -167,7 +167,7 @@ Do not conform a type to `Identifiable` just to satisfy `ForEach` when it has no
 
 ```swift
 // Wrong - offset is the position, not the element
-ForEach(items.enumerated(), id: \.offset) { index, item in
+ForEach(Array(items.enumerated()), id: \.offset) { index, item in
     ItemRow(number: index + 1, item: item)
 }
 
@@ -177,12 +177,11 @@ ForEach(items.enumerated(), id: \.element.id) { index, item in
 }
 ```
 
-The direct `ForEach(items.enumerated(), id: \.element.id)` form requires a compiler and target
-stdlib that provide `EnumeratedSequence`'s collection conformance (the Swift stdlib 6.2
-conformance is not implied by an iOS 17 or macOS 14 deployment target). Confirm compiler,
-stdlib, and platform SDK availability before using it. For older iOS/macOS toolchains, use
-`ForEach(Array(items.enumerated()), id: \.element.id)`; use `ForEach(items)` when index is not
-needed. Avoid unconditional direct-enumerated guidance in shared iOS 17/macOS 14 code.
+The direct `ForEach(items.enumerated(), id: \.element.id)` form requires Swift 6.2 compiler
+support plus target stdlib/deployment support for `EnumeratedSequence`'s Collection conformance
+(SDK declaration: any Apple OS 26+). Confirm compiler, stdlib, and platform SDK availability
+before using it. For older targets, use `ForEach(Array(items.enumerated()), id: \.element.id)`;
+use `ForEach(items)` when index is not needed. Avoid unconditional direct-enumerated guidance.
 
 ## Reorderable Collections (SDK 27)
 
@@ -383,9 +382,9 @@ struct SortableTable: View {
 
 **Important:** The table does **not** sort data itself — you must re-sort the collection when `sortOrder` changes.
 
-### Adaptive Table for Compact Size Classes
+### Adaptive Table for Compact Size Classes (iOS-only)
 
-On iPhone or iPad in Slide Over, only the first column is shown. Customize it to display combined information:
+On iPhone or iPad in Slide Over, only the first column is shown. This size-class example is iOS-only; Mac windows should keep Table columns and use proposed width or `ViewThatFits` for other layout choices. Customize it to display combined information:
 
 ```swift
 struct AdaptiveTable: View {

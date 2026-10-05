@@ -7,9 +7,12 @@ Prefer to place standard fonts, sizes, colors, stack spacing, padding, rounding,
 
 ## Requirements for flexible, accessible design
 
-- Never use `UIScreen.main.bounds` to read available space; prefer alternatives such as `containerRelativeFrame()`, or `visualEffect()` as appropriate, or (if there is no alternative) `GeometryReader`.
-- Prefer to avoid fixed frames for views unless content can fit neatly inside; this can cause problems across different device sizes, different Dynamic Type settings, and more. Giving frames some flexibility is usually preferred.
-- Apple’s minimum acceptable tap area for interactions on iOS is 44x44. Ensure this is strictly enforced.
+- Never use `UIScreen.main.bounds` or another device-screen read to size a Mac window. Prefer the
+  proposed container size, `containerRelativeFrame()`, `visualEffect()`, or `GeometryReader`
+  when measurement is genuinely required.
+- Prefer to avoid fixed frames unless content can fit neatly inside a resizable window. Use
+  flexible container layout, preserve Dynamic Type, and let native controls establish their
+  platform-appropriate hit targets and keyboard focus behavior.
 
 
 ## Standard system styling
@@ -28,7 +31,7 @@ Prefer to place standard fonts, sizes, colors, stack spacing, padding, rounding,
 - Use `bold()` instead of `fontWeight(.bold)`, because using `bold()` allows the system to choose the correct weight for the current context.
 - Only use `fontWeight()` for weights other than bold when there's an important reason - scattering around `fontWeight(.medium)` or `fontWeight(.semibold)` is counterproductive.
 - Avoid hard-coded values for padding and stack spacing unless specifically requested.
-- Avoid UIKit colors (`UIColor`) in SwiftUI code; use SwiftUI `Color` or asset catalog colors.
+- Use SwiftUI semantic `Color` or asset catalog colors. When an AppKit bridge requires a native
+  semantic color, use `NSColor`/`Color(nsColor:)`; do not carry `UIColor` into macOS code.
 - The font size `.caption2` is extremely small, and is generally best avoided. Even the font size `.caption` is on the small side, and should be used carefully.
-
 

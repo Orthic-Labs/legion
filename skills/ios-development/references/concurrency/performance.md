@@ -308,7 +308,11 @@ Delayed retry is one specialization of this rule:
 ```swift
 // Avoid: Can wait for MainActor, then suspend immediately
 registrationRetryTask = Task { @MainActor [weak self] in
-    try? await Task.sleep(for: .milliseconds(100))
+    do {
+        try await Task.sleep(for: .milliseconds(100))
+    } catch {
+        return
+    }
     guard let self else { return }
     self.registrationRetryTask = nil
     self.updateConnectedTargetWindow()
@@ -325,9 +329,8 @@ registrationRetryTask = Task { @concurrent [weak self] in
     } catch is CancellationError {
         return
     }
-    guard let self else { return }
-
-    await MainActor.run {
+    await MainActor.run { [weak self] in
+        guard let self else { return }
         self.registrationRetryTask = nil
         self.updateConnectedTargetWindow()
     }
@@ -401,10 +404,10 @@ Task {
 
 
 // After: One suspension
-Task { @concurrent in
+Task { @concurrent [weak self] in
     let data = generate() // No suspension (synchronous)
-    await MainActor.run {
-        self.items.append(data) // Suspension 1 (to main)
+    await MainActor.run { [weak self] in
+        self?.items.append(data) // Suspension 1 (to main)
     }
 }
 ```

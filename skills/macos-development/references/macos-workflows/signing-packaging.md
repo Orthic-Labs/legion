@@ -32,6 +32,11 @@ ad-hoc signature or broad entitlement.
 
 For packaging, verify bundle structure, nested frameworks/helpers, resources, symbols,
 architectures, Info.plist, version metadata, and the selected archive/export scheme.
+Conclusions based only on build settings, signing settings, or an unexported target are
+inferences; label them as such until the exported app or installer artifact has been
+inspected with the commands above. Settings can predict intended packaging, but cannot
+prove bundle contents, nested signatures, Gatekeeper trust, notarization, or installer
+behavior.
 For notarization, submit only through an explicitly authorized route, then verify accepted
 status and staple/validate the exact artifact. A successful upload or transport is not
 approval or publication. Local debug need not be notarized; an unsigned build cannot prove

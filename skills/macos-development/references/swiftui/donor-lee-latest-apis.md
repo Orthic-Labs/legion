@@ -122,9 +122,10 @@ project's SDK exposes them: `.accessibilityLabel()`, `.accessibilityValue()`,
 
 ### Custom Environment / Container Values
 
-Use the `@Entry` macro when the project's toolchain exposes it; retain manual
-`EnvironmentKey` conformance for older SDKs or integration boundaries. The macro was
-introduced in Xcode 16 and back-deploys to supported OS versions.
+Use the `@Entry` macro when the project's SDK/compiler exposes it; retain manual
+`EnvironmentKey` conformance for older SDK/compiler baselines or integration boundaries. The
+installed SDK declares `Entry` as an external macro without a runtime `@available` annotation,
+so its SDK/compiler availability must not be inferred from a deployment target.
 
 ```swift
 // Modern — one line replaces ~10 lines of EnvironmentKey boilerplate
@@ -374,7 +375,7 @@ Use `searchToolbarBehavior(.minimize)` on iOS or visionOS 26+ to opt into a mini
 
 ### Animations
 
-**Use `@Animatable` macro instead of manual `animatableData` declarations.** The macro auto-synthesizes `animatableData` from all animatable properties. Use `@AnimatableIgnored` to exclude specific properties.
+**Use `@Animatable` macro instead of manual `animatableData` declarations when the SDK/compiler provides it.** The installed SDK declares the external macro with macOS 10.15+ availability; generated `Animatable` conformance can back-deploy to macOS 10.15. Use `@AnimatableIgnored` to exclude specific properties. `AnimatableValues` remains macOS 26+.
 
 ```swift
 @Animatable
@@ -455,7 +456,7 @@ var body: some View {
 
 ### Web Content
 
-**Use `WebView` to display web content.** For richer interaction, create a `WebPage` observable model.
+**Use WebKit SwiftUI `WebView` to display web content on macOS 26+** (with explicit `import WebKit` and `#available(macOS 26, *)` gating). For richer interaction, create a `WebPage` observable model. For older macOS targets, wrap `WKWebView` with `NSViewRepresentable`.
 
 ```swift
 // Simple URL display
@@ -567,7 +568,7 @@ These APIs are from the beta iOS 27.1 SDK. Gate runtime use with `#available(iOS
 | `Section(header:content:)` | `Section(content:header:)` | Future-deprecated |
 | `Section(footer:content:)` | `Section(content:footer:)` | Future-deprecated |
 | `Section(header:footer:content:)` | `Section(content:header:footer:)` | Future-deprecated |
-| Manual `EnvironmentKey` | `@Entry` macro | Back-deploys (Xcode 16+) |
+| Manual `EnvironmentKey` | `@Entry` macro | SDK/compiler-provided macro; retain fallback for older baselines |
 | `NavigationView` | `NavigationStack` / `NavigationSplitView` | iOS 16+ |
 | `accentColor(_:)` | `tint(_:)` | iOS 16+ |
 | `disableAutocorrection(_:)` | `autocorrectionDisabled(_:)` | iOS 16+ |
@@ -579,7 +580,7 @@ These APIs are from the beta iOS 27.1 SDK. Gate runtime use with `#available(iOS
 | `coordinateSpace(name:)` | `coordinateSpace(.named(...))` | iOS 17+ |
 | `ObservableObject` | `@Observable` | iOS 17+ |
 | `tabItem(_:)` | `Tab` API | iOS 18+ |
-| Manual 1:1 `animatableData` synthesis | `@Animatable` macro; keep manual logic for clamping/normalization | iOS 26+ |
+| Manual 1:1 `animatableData` synthesis | `@Animatable` macro; keep manual logic for clamping/normalization | SDK/compiler-provided macro; generated conformance declares iOS 13+/macOS 10.15+ |
 | `presentationBackground(_:)` on sheets | Default Liquid Glass sheet material | iOS 26+ |
 | Custom toolbar background hacks | `scrollEdgeEffectStyle(_:for:)` | iOS 26+ |
 | `CarouselTabViewStyle` (watchOS) | `VerticalTabViewStyle` | SDK 27 soft-deprecated |

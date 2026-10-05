@@ -125,7 +125,7 @@ if showCard {
 
 ## Custom Transitions
 
-### Pre-iOS 17
+### Before macOS 14
 
 ```swift
 struct BlurModifier: ViewModifier {
@@ -148,7 +148,7 @@ extension AnyTransition {
 .transition(.blur(radius: 10))
 ```
 
-### iOS 17+ (Transition Protocol)
+### macOS 14+ (Transition Protocol)
 
 ```swift
 struct BlurTransition: Transition {
@@ -264,10 +264,10 @@ struct BadShakeModifier: ViewModifier {
 
 ### Multiple Properties with AnimatablePair
 
-For deployment targets below iOS 26, use `AnimatablePair` to combine multiple animated properties. For iOS 26+ targets, prefer `@Animatable` or `AnimatableValues` — see [@Animatable Macro (iOS 26+)](donor-lee-animation-advanced.md#animatable-macro-ios-26).
+For deployment targets below macOS 26, use `AnimatablePair` to combine multiple animated properties. The installed SDK declares `@Animatable`/`@AnimatableIgnored` as external macros with macOS 10.15+ availability; compiling their use still requires an SDK/compiler that provides `SwiftUIMacros`. Generated conformance can back-deploy to macOS 10.15, while `AnimatableValues` is macOS 26+; keep availability branches.
 
 ```swift
-// GOOD (below iOS 26) - AnimatablePair for two properties
+// GOOD (below macOS 26) - AnimatablePair for two properties
 struct ComplexModifier: ViewModifier, Animatable {
     var scale: CGFloat
     var rotation: Double
@@ -287,7 +287,7 @@ struct ComplexModifier: ViewModifier, Animatable {
     }
 }
 
-// GOOD (below iOS 26) - nested AnimatablePair for 3+ properties
+// GOOD (below macOS 26) - nested AnimatablePair for 3+ properties
 struct ThreePropertyModifier: ViewModifier, Animatable {
     var x: CGFloat
     var y: CGFloat
@@ -318,7 +318,7 @@ struct ThreePropertyModifier: ViewModifier, Animatable {
 - Place transitions outside conditional structures
 - Use `withAnimation` or `.animation` outside the `if`
 - Implement `animatableData` explicitly for custom Animatable
-- Use `AnimatablePair` for multiple animated properties on deployment targets below iOS 26; for iOS 26+, use `@Animatable` or `AnimatableValues` (see `animation-advanced.md`)
+- Use `AnimatablePair` for multiple animated properties on deployment targets below macOS 26; use `AnimatableValues` on macOS 26+ and retain `@Animatable` availability branches (see `animation-advanced.md`)
 - Use asymmetric transitions when insert/remove need different effects
 
 ### Don't
@@ -326,4 +326,3 @@ struct ThreePropertyModifier: ViewModifier, Animatable {
 - Forget `animatableData` implementation (silent failure)
 - Use inline blur/opacity instead of proper transitions
 - Expect property animation when view identity changes
-

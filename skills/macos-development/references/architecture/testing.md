@@ -21,6 +21,11 @@ known completion signal rather than sleeping. Assert cancellation and cleanup fo
 tasks. Keep unit tests fast enough for repeated agent/build loops; reserve simulator/device
 checks for native behavior unit tests cannot prove.
 
+Construct dependency-reading initial state after overrides are prepared, including nested
+fixtures. See [initial-state construction timing](dependency-injection.md#initial-state-construction-timing)
+for factory order; supplying explicit state alone does not make an earlier UUID/clock read
+deterministic.
+
 ## Effects & clients
 
 Use client structs or the project’s established dependency system to override only endpoints

@@ -34,10 +34,12 @@ what was not exercised.
 ## Availability & boundaries
 
 Gate APIs by actual deployment target. Liquid Glass, newer tab placement, scroll
-geometry, matched transitions, and safe-area bars need availability branches. Keep
-older fallback behavior. Do not change entitlements, signing, shared containers,
-permissions, dependencies, or simulator state as incidental workflow setup. Do not
-edit an app project to support previews when a disposable host is sufficient.
+geometry, matched transitions, background extension, and safe-area bars need
+compile SDK interfaces, with runtime `#available` branches for deployment targets.
+Keep older fallback behavior. Do not
+change entitlements, signing, shared containers, permissions, dependencies, or
+simulator state as incidental workflow setup. Do not edit an app project to support
+previews when a disposable host is sufficient.
 
 ## Shared SwiftUI ownership
 

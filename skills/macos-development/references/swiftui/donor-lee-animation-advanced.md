@@ -1,13 +1,13 @@
 # SwiftUI Advanced Animations
 
-Transactions, phase animations (iOS 17+), keyframe animations (iOS 17+), completion handlers (iOS 17+), and `@Animatable` macro (iOS 26+).
+Transactions, phase animations (macOS 14+), keyframe animations (macOS 14+), completion handlers (macOS 14+), and `@Animatable`/`AnimatableValues` availability.
 
 ## Table of Contents
 - [Transactions](#transactions)
-- [Phase Animations (iOS 17+)](#phase-animations-ios-17)
-- [Keyframe Animations (iOS 17+)](#keyframe-animations-ios-17)
-- [Animation Completion Handlers (iOS 17+)](#animation-completion-handlers-ios-17)
-- [@Animatable Macro (iOS 26+)](#animatable-macro-ios-26)
+- [Phase Animations (macOS 14+)](#phase-animations-macos-14)
+- [Keyframe Animations (macOS 14+)](#keyframe-animations-macos-14)
+- [Animation Completion Handlers (macOS 14+)](#animation-completion-handlers-macos-14)
+- [@Animatable Macro](#animatable-macro)
 
 ---
 
@@ -61,7 +61,7 @@ Button("Tap") {
 .transaction { $0.animation = nil }
 ```
 
-### Custom Transaction Keys (iOS 17+)
+### Custom Transaction Keys (macOS 14+)
 
 Pass metadata through transactions.
 
@@ -94,7 +94,7 @@ withTransaction(transaction) { flag.toggle() }
 
 ---
 
-## Phase Animations (iOS 17+)
+## Phase Animations (macOS 14+)
 
 Cycle through discrete phases automatically. Each phase change is a separate animation.
 
@@ -176,7 +176,7 @@ Button("Animate") {
 
 ---
 
-## Keyframe Animations (iOS 17+)
+## Keyframe Animations (macOS 14+)
 
 Precise timing control with exact values at specific times.
 
@@ -262,7 +262,7 @@ Image(systemName: "bell.fill")
     }
 ```
 
-### KeyframeTimeline (iOS 17+)
+### KeyframeTimeline (macOS 14+)
 
 Query animation values directly for testing or non-SwiftUI use.
 
@@ -280,7 +280,7 @@ print(midpoint.scale)  // Value at 0.25 seconds
 
 ---
 
-## Animation Completion Handlers (iOS 17+)
+## Animation Completion Handlers (macOS 14+)
 
 Execute code when animations finish.
 
@@ -323,9 +323,13 @@ Circle()
 
 ---
 
-## @Animatable Macro (iOS 26+)
+## @Animatable Macro
 
-The `@Animatable` macro auto-synthesizes `animatableData` from all animatable stored properties, eliminating verbose manual conformance. Use `@AnimatableIgnored` to exclude properties that should not animate.
+The installed SDK declares `@Animatable`/`@AnimatableIgnored` as external macros with macOS
+10.15+ availability. Compiling their use still requires an SDK/compiler that provides
+`SwiftUIMacros`; generated `Animatable` conformance can back-deploy to macOS 10.15.
+`AnimatableValues` is macOS 26+; use `AnimatablePair` below that deployment. Use
+`@AnimatableIgnored` to exclude properties that should not animate.
 
 ### Before (Manual)
 
@@ -370,10 +374,10 @@ struct Wedge: Shape {
 
 ### When to Implement `animatableData` Manually
 
-Reach for an explicit `animatableData` (instead of the macro) when the interpolated value needs custom logic that doesn't map 1:1 to a stored property — normalization, clamping, or driving a derived value. For a deployment target of iOS 26+, use `AnimatableValues`; for earlier targets, use `AnimatablePair`.
+Reach for an explicit `animatableData` (instead of the macro) when the interpolated value needs custom logic that doesn't map 1:1 to a stored property — normalization, clamping, or driving a derived value. The installed SDK exposes `AnimatableValues` on macOS 26+; use `AnimatablePair` on earlier deployment targets.
 
 ```swift
-// iOS 26+: keep phase in 0..<2π and clamp amplitude during interpolation
+// macOS 26+: keep phase in 0..<2π and clamp amplitude during interpolation
 struct WaveShape: Shape {
     var amplitude: CGFloat
     var phase: CGFloat
@@ -397,35 +401,33 @@ On earlier deployment targets, the same logic uses `AnimatablePair` with `newVal
 
 ## Quick Reference
 
-### Transactions (All iOS versions)
+### Transactions (All macOS versions)
 - `withTransaction` is the explicit form of `withAnimation`
 - Implicit animations override explicit (later in view tree wins)
 - Use `disablesAnimations` to prevent override
 - Use `.transaction { $0.animation = nil }` to remove animation
 
-### Custom Transaction Keys (iOS 17+)
+### Custom Transaction Keys (macOS 14+)
 - Pass metadata through animation system via `TransactionKey`
 
-### Phase Animations (iOS 17+)
+### Phase Animations (macOS 14+)
 - Use for multi-step sequences returning to start
 - Prefer enum phases for clarity
 - Each phase change is a separate animation
 - Use `trigger` parameter for one-shot animations
 
-### Keyframe Animations (iOS 17+)
+### Keyframe Animations (macOS 14+)
 - Use for precise timing control
 - Tracks run in parallel
 - Use `KeyframeTimeline` for testing/advanced use
 - Prefer over manual DispatchQueue timing
 
-### Completion Handlers (iOS 17+)
+### Completion Handlers (macOS 14+)
 - Use `withAnimation(.animation) { } completion: { }` for one-shot completion handlers
 - Use `.transaction(value:)` for handlers that should refire on every value change
 - Without `value:` parameter, completion only fires once
 
-### @Animatable Macro (iOS 26+)
+### @Animatable Macro / AnimatableValues
 - Use `@Animatable` to auto-synthesize `animatableData` from stored properties
 - Use `@AnimatableIgnored` to exclude non-animatable properties
 - Replaces verbose manual `animatableData` getters/setters
-
-

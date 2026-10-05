@@ -21,9 +21,10 @@ if isExpanded { Details().transition(.move(edge: .bottom).combined(with: .opacit
 
 Use asymmetric transitions when insertion/removal differ. Identity changes (`.id`, different
 branches) trigger transitions; stable identity enables property interpolation. For custom
-animation, `Transition` (iOS 17+) or `Animatable` must expose interpolated data. On targets with
-`@Animatable` (iOS 26+), prefer it with `@AnimatableIgnored`; otherwise use `animatableData`/
-`AnimatablePair` carefully.
+animation, `Transition` (iOS 17+) or `Animatable` must expose interpolated data. Use
+`@Animatable` when the SDK/compiler provides the macro; the installed interface marks the macro
+iOS 13+ while generated conformance can back-deploy to iOS 13. Compiling use still requires
+that newer SDK/compiler; `AnimatableValues` remains iOS 26+. Use `animatableData`/`AnimatablePair` when the macro is unavailable.
 
 Transactions can disable or override animation for a subtree; use them instead of zero-duration
 hacks. Phase/keyframe animators and completion handlers are conditional by SDK; gate them and

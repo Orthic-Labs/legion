@@ -23,6 +23,31 @@ the raw log for diagnosis. A pretty log without the xcodebuild status is not pro
 CI renderers are optional presentation; they must not hide warnings/errors or alter build
 semantics.
 
+For parallel or concurrent destinations, set `NSUnbufferedIO=YES` & redirect stderr to stdout
+before formatting. Retain raw output through `tee`; `pipefail` preserves xcodebuild failure:
+
+```bash
+set -o pipefail
+NSUnbufferedIO=YES xcodebuild [resolved flags] 2>&1 \
+  | tee .build-benchmark/build.log \
+  | xcbeautify
+```
+
+When CI presentation is required, pass an installed formatter's supported renderer while
+keeping same raw-log & status procedure: `--renderer github-actions`, `--renderer teamcity`, or
+`--renderer azure-devops-pipelines`.
+
+```bash
+# Choose one renderer:
+set -o pipefail
+NSUnbufferedIO=YES xcodebuild [resolved flags] 2>&1 | tee .build-benchmark/build.log \
+  | xcbeautify --renderer github-actions
+NSUnbufferedIO=YES xcodebuild [resolved flags] 2>&1 | tee .build-benchmark/build.log \
+  | xcbeautify --renderer teamcity
+NSUnbufferedIO=YES xcodebuild [resolved flags] 2>&1 | tee .build-benchmark/build.log \
+  | xcbeautify --renderer azure-devops-pipelines
+```
+
 ## Project structure
 
 Xcode buildable folders can reduce target-membership churn for projects that support them.
@@ -45,3 +70,6 @@ change diagnostics or generated output; compare before/after rather than assumin
 Run Sourcery only from an approved, pinned configuration with deterministic output and a
 reviewable diff. Use Inject only for existing Debug-only hot reload integration. Neither tool
 is part of a required build loop, and neither replaces compilation, tests, or runtime evidence.
+
+For an in-scope setup, follow [Sourcery invocation & config ownership](sourcery.md) or
+[Inject target settings & host lifecycle](inject.md); match the project's resolved versions.

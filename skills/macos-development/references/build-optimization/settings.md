@@ -18,9 +18,9 @@ Audit values from `xcodebuild -showBuildSettings` and project/target configurati
 | Release | `ONLY_ACTIVE_ARCH` | `NO` | Include distribution slices |
 | Release | `DEBUG_INFORMATION_FORMAT` | `dwarf-with-dsym` | Crash symbolication |
 | Release | `ENABLE_TESTABILITY` | `NO` | Avoid internal export overhead |
-| All | `COMPILATION_CACHE_ENABLE_CACHING` | `YES` when supported | Reuse Swift/C-family results; measured source range 5–14% clean improvement across 87–1,991 Swift files; validate cached-clean |
+| All | `COMPILATION_CACHE_ENABLE_CACHING` | `YES` when supported | Reuse Swift/C-family results; measured source range 5–14% clean improvement across 87–1,991 Swift files; validate cached-clean. Inspect resolved settings for `SWIFT_ENABLE_COMPILE_CACHE` and `CLANG_ENABLE_COMPILE_CACHE`; where exposed, each can be scoped independently, including per-user settings for local-only cache opt-in. |
 | All | `SWIFT_USE_INTEGRATED_DRIVER` | `YES` | Reduce driver scheduling overhead; verify toolchain |
 | All | `CLANG_ENABLE_MODULES` | `YES` | Reuse C/ObjC module maps |
-| All | `SWIFT_ENABLE_EXPLICIT_MODULES` / experimental Swift equivalent | evaluate | Better visibility/scheduling, possible scan regression |
+| All | `SWIFT_ENABLE_EXPLICIT_MODULES` or historical `_EXPERIMENTAL_SWIFT_EXPLICIT_MODULES` | evaluate only when active toolchain reports a supported key | Better visibility/scheduling, possible scan regression; underscored name is toolchain-dependent & must not be added as blanket setting |
 
-Check project-level inheritance vs target overrides for compilation mode, optimization, active architecture, debug format, flags, macros, and language mode. Drift can create module variants and repeated `SwiftEmitModule`; do not flag intentional target conditions. Use `[x]` when actual matches, `[ ]` with actual and expected when it does not.
+Check project-level inheritance vs target overrides for compilation mode, optimization, active architecture, debug format, flags, macros, language mode, & any cache/explicit-module keys reported by active toolchain. Drift can create module variants and repeated `SwiftEmitModule`; do not flag intentional target conditions. Use `[x]` when actual matches, `[ ]` with actual & expected when it does not.

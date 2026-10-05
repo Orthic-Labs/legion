@@ -86,6 +86,8 @@ Autosave timing is context configuration and lifecycle behavior, not a transacti
 
 `@Transient` values are not stored and must have a default; they reset after fetch. Prefer computed properties for cheap derivations. `@Attribute(.externalStorage)` is a storage hint for `Data`, not a guarantee. Persisted enums must be `Codable`. Avoid a stored property named `description`, and do not rely on property observers in `@Model` classes; use explicit mutation or context notifications.
 
+For each bidirectional relationship pair, put `@Relationship(inverse:)` on one side to avoid circular macro expansion, leaving the other side as the corresponding stored relationship property. This is a per-pair pattern, not a blanket prohibition on models that contain multiple `@Relationship` declarations.
+
 ## Queries and predicates
 
 Keep `@Query` in a SwiftUI view. Services use an explicit `ModelContext` and `FetchDescriptor`; put filtering, sorting, limits, offsets/batching, and counts at that boundary.
@@ -113,6 +115,8 @@ func recentBooks(in context: ModelContext) throws -> [Book] {
 ```
 
 `localizedStandardContains` is the supported string-search shape. `hasPrefix`/`hasSuffix`, `lowercased`, `map`, `reduce`, `count(where:)`, `Collection.first`, custom operators, regular expressions, computed/`@Transient` values, and custom `Codable` struct fields can fail to compile or crash at runtime depending on SDK/store path. Keep predicate expressions over stored model properties and verify each predicate with a real store. For counts use `fetchCount`; for IDs use `fetchIdentifiers`; neither live-updates like `@Query`.
+
+One toolchain-qualified runtime trap is `$0.cast.isEmpty == false` in a predicate. Use `!$0.cast.isEmpty`; the former has been observed to trap on affected SDK/store paths, so do not generalize that regression to every current SDK.
 
 ## Concurrency and identity
 

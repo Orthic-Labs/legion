@@ -264,7 +264,7 @@ struct BadShakeModifier: ViewModifier {
 
 ### Multiple Properties with AnimatablePair
 
-For deployment targets below iOS 26, use `AnimatablePair` to combine multiple animated properties. For iOS 26+ targets, prefer `@Animatable` or `AnimatableValues` — see [@Animatable Macro (iOS 26+)](donor-lee-animation-advanced.md#animatable-macro-ios-26).
+For deployment targets below iOS 26, use `AnimatablePair` to combine multiple animated properties. The SDK/compiler-provided `@Animatable` macro is declared iOS 13+ and its generated conformance can back-deploy to iOS 13; `AnimatableValues` is iOS 26+. Compiling the macro still requires the newer SDK/compiler — see [@Animatable Macro (iOS 26+ SDK/compiler)](donor-lee-animation-advanced.md#animatable-macro-ios-26).
 
 ```swift
 // GOOD (below iOS 26) - AnimatablePair for two properties
@@ -318,7 +318,7 @@ struct ThreePropertyModifier: ViewModifier, Animatable {
 - Place transitions outside conditional structures
 - Use `withAnimation` or `.animation` outside the `if`
 - Implement `animatableData` explicitly for custom Animatable
-- Use `AnimatablePair` for multiple animated properties on deployment targets below iOS 26; for iOS 26+, use `@Animatable` or `AnimatableValues` (see `animation-advanced.md`)
+- Use `AnimatablePair` for multiple animated properties below iOS 26; use the SDK/compiler-provided `@Animatable` macro when available, and `AnimatableValues` on iOS 26+
 - Use asymmetric transitions when insert/remove need different effects
 
 ### Don't

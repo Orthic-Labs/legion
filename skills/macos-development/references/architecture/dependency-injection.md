@@ -47,6 +47,35 @@ date, UUID, process environment, or a global notification center, first check wh
 existing project already has a seam. Add one narrow seam only when the behavior must be
 controlled or observed.
 
+## Initial-state construction timing
+
+Install test/preview dependency overrides before constructing state whose initializers read
+UUIDs, clocks or other dynamic values. Passing an already-created state into a later override
+scope cannot retroactively replace values captured by its initializer. With an ambient
+dependency library, evaluate the state factory inside its prepared override scope; verify
+the pinned framework's eager/lazy initializer semantics instead of copying an older API.
+
+An independent factory makes construction order explicit without requiring a framework:
+
+```swift
+import Foundation
+
+struct DraftState {
+    let id: UUID
+}
+
+func makeInitialDraft(makeID: () -> UUID) -> DraftState {
+    DraftState(id: makeID())
+}
+
+let fixedID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+let initialState = makeInitialDraft(makeID: { fixedID })
+```
+
+The selected generator runs during state construction. Keep that order when adding nested
+state factories; a preconstructed child can capture production values before the parent
+enters its test scope. Assert the initial IDs/timestamps as well as later effect results.
+
 ## Test doubles
 
 Override only collaborators relevant to behavior under test. Unused endpoints should fail

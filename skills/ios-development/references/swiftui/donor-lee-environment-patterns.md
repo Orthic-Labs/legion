@@ -48,7 +48,9 @@ For older deployment targets, `@EnvironmentObject` with `.environmentObject(...)
 
 ## Prefer `@Entry` for Custom Values
 
-Use `@Entry` instead of manual key conformances when defining custom environment, transaction, container, or focused values:
+Use `@Entry` instead of manual key conformances when the project SDK/compiler provides it for
+custom environment, transaction, container, or focused values. Retain manual key fallbacks for
+older SDK/compiler baselines:
 
 ```swift
 extension EnvironmentValues {

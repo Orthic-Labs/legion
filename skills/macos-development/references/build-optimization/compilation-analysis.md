@@ -4,7 +4,7 @@ Use this lane when timing evidence points to Swift/C/Objective-C compilation. St
 
 ## Evidence and flags
 
-Inspect `SwiftCompile`, `CompileC`, `SwiftEmitModule`, and `Planning Swift module`, plus per-file compile tasks. Diagnostic flags belong to the selected Xcode invocation; current native `project.build` does not expose `OTHER_SWIFT_FLAGS`. Use the repository wrapper if it owns builds, otherwise this system-command shape on the authorized host:
+Inspect `SwiftCompile`, `CompileC`, `SwiftEmitModule`, and `Planning Swift module`, plus per-file compile tasks. Diagnostic flags belong to the selected Xcode invocation; current native `project.build` does not expose `OTHER_SWIFT_FLAGS` or arbitrary diagnostic arguments. Use the repository wrapper if it owns builds, otherwise this system-command shape on the authorized host:
 
 ```bash
 mkdir -p .build-benchmark
@@ -33,7 +33,7 @@ For per-file timing add `-Xfrontend -debug-time-compilation`; parse `N seconds .
 
 Look for explicit local/property types around complex initializers, intermediate bindings for long chains, simple steps instead of nested ternaries/overloaded generic chains, explicit closure parameter/return types, named delegate protocols instead of `AnyObject`, narrow Objective-C bridging headers and prefix headers, framework-qualified/module imports, `final` only after searching for subclasses, narrow `private`/`fileprivate`/`internal` visibility, and value types where identity/reference semantics are unnecessary. Use type aliases or `some Protocol` to reduce deeply nested generic constraints only when semantics remain clear.
 
-For SwiftUI, extract monolithic (roughly 50+ line) `body` result builders into separate `View` structs; avoid deeply nested stacks/groups and prefer typed helpers. Treat each as a candidate tied to measured diagnostics, not a blanket style rule.
+For SwiftUI, extract monolithic (roughly 50+ line) `body` result builders into separate `View` structs; an `@ViewBuilder` helper property can retain one result-builder type-checking scope, while separate `View` types reduce scope per `body`. Avoid deeply nested stacks/groups and prefer typed helpers. Treat each as a candidate tied to measured diagnostics, not a blanket style rule.
 
 ## Reporting
 
