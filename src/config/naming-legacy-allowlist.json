@@ -33,11 +33,32 @@
         "nemesis": 12,
         "forge": 109,
         "seer": 40,
-        "sentinel": 35,
+        "sentinel": 41,
         "sorcerer": 14
       },
       "class": "R2",
       "reason": "legacy-token classification source"
+    },
+    {
+      "path": "docs/apple-absorption/swiftui.json",
+      "tokens": ["sentinel"],
+      "occurrences": { "sentinel": 2 },
+      "class": "R2",
+      "reason": "Upstream trace-helper terminology for an unterminated-duration marker, not an authority alias"
+    },
+    {
+      "path": "skills/ios-development/references/swiftui/donor-lee-environment-patterns.md",
+      "tokens": ["sentinel"],
+      "occurrences": { "sentinel": 2 },
+      "class": "R2",
+      "reason": "Swift data-model terminology for placeholder values, not an authority alias"
+    },
+    {
+      "path": "skills/macos-development/references/swiftui/donor-lee-environment-patterns.md",
+      "tokens": ["sentinel"],
+      "occurrences": { "sentinel": 2 },
+      "class": "R2",
+      "reason": "Swift data-model terminology for placeholder values, not an authority alias"
     },
     {
       "pathPrefix": "src/lib/dispatch-validator/",
