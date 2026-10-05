@@ -2140,6 +2140,40 @@ fn setup_health(
                 .and_then(Value::as_str)
         })
         .collect::<BTreeSet<_>>();
+    let optional_baseline_clients = clients
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|client| {
+            let client_id = client
+                .get("clientId")
+                .or_else(|| client.get("client_id"))
+                .and_then(Value::as_str)?;
+            let fidelity = client.get("fidelity").and_then(Value::as_str)?;
+            let profile = legion_host::setup_registry::client_boundary(client_id)?;
+            (client.get("installed").and_then(Value::as_bool) == Some(true)
+                && fidelity == "Baseline"
+                && profile.explicit_only)
+                .then_some(client_id)
+        })
+        .collect::<BTreeSet<_>>();
+    let has_full_supported_client = clients
+        .as_array()
+        .into_iter()
+        .flatten()
+        .any(|client| {
+            client.get("installed").and_then(Value::as_bool) == Some(true)
+                && client.get("fidelity").and_then(Value::as_str) == Some("Full")
+                && client
+                    .get("clientId")
+                    .or_else(|| client.get("client_id"))
+                    .and_then(Value::as_str)
+                    .is_some_and(|client_id| {
+                        client_id != legion_host::setup_registry::CLIENT_PI
+                            && legion_host::setup_registry::client_boundary(client_id)
+                                .is_some_and(|profile| profile.executable_registration)
+                    })
+        });
     let installed = live_identity.get("origin").and_then(Value::as_str)
         == Some(legion_host::setup_registry::ORIGIN_INSTALLED);
     let repair_command = if installed {
@@ -2198,6 +2232,11 @@ fn setup_health(
             EXPECTED_RELEASE_VERSION
         ));
     }
+    if !optional_baseline_clients.is_empty() && !has_full_supported_client {
+        remediation.push(
+            "optional Pi Baseline is present but no Full supported client is active".into(),
+        );
+    }
     match clients.as_array() {
         Some(values) if values.is_empty() => remediation
             .push("no supported client is registered with complete setup evidence".into()),
@@ -2218,6 +2257,30 @@ fn setup_health(
                     .unwrap_or("unknown");
                 let pi_baseline =
                     client_id == legion_host::setup_registry::CLIENT_PI && fidelity == "Baseline";
+                if installed
+                    && (optional_baseline_clients.contains(client_id)
+                        || (pi_baseline
+                            && legion_host::setup_registry::client_boundary(client_id)
+                                .is_some_and(|profile| profile.explicit_only)))
+                {
+                    let missing = client
+                        .get("missingSurfaces")
+                        .or_else(|| client.get("missing_surfaces"))
+                        .and_then(Value::as_array)
+                        .map(|values| {
+                            values
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        })
+                        .filter(|value| !value.is_empty())
+                        .unwrap_or_else(|| "skills-only host surface".into());
+                    opt_in_notes.push(format!(
+                        "client {client_id} is optional (Baseline); missing {missing}; default setup leaves it unselected"
+                    ));
+                    continue;
+                }
                 if !installed || (fidelity != "Full" && !pi_baseline) {
                     remediation.push(format!(
                         "client {} is incomplete ({fidelity}); {repair_command}",
@@ -2255,6 +2318,42 @@ fn setup_health(
                     _ => None,
                 });
             if projection_client.is_some_and(|id| !active_clients.contains(id)) {
+                if projection_client == Some(legion_host::setup_registry::CLIENT_PI)
+                    && projection
+                        .get("explicitOnly")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+                {
+                    let state = projection
+                        .get("state")
+                        .and_then(Value::as_str)
+                        .unwrap_or("unavailable");
+                    let missing = projection
+                        .get("missingSurfaces")
+                        .and_then(Value::as_array)
+                        .map(|values| {
+                            values
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        })
+                        .filter(|value| !value.is_empty())
+                        .unwrap_or_else(|| {
+                            "executableToolSurface, mcpLifecycle, releaseBinding, executableResolution, hostEnforcement".into()
+                        });
+                    opt_in_notes.push(format!(
+                        "pi projection is {state}; client is optional Baseline with missing {missing}; default setup leaves it unselected"
+                    ));
+                }
+                continue;
+            }
+            if projection_client.is_some_and(|id| optional_baseline_clients.contains(id)) {
+                if let Some(state) = projection.get("state").and_then(Value::as_str) {
+                    opt_in_notes.push(format!(
+                        "{client} projection is {state}; client is optional Baseline and default setup leaves it unselected"
+                    ));
+                }
                 continue;
             }
             let projection_state = projection.get("state").and_then(Value::as_str);
@@ -2997,10 +3096,17 @@ fn apply_host_integrations(request: &legion_host::SetupRequest) -> Result<Value,
         let key = projection_key(&input.client_id);
         let value = match request.action {
             legion_host::SetupAction::Apply | legion_host::SetupAction::Repair => {
-                serde_json::to_value(
-                    legion_host::setup_registry::repair_client_projection(input)
-                        .map_err(setup_error)?,
-                )
+                if should_mutate_client(request, &input.client_id) {
+                    serde_json::to_value(
+                        legion_host::setup_registry::repair_client_projection(input)
+                            .map_err(setup_error)?,
+                    )
+                } else {
+                    serde_json::to_value(
+                        legion_host::setup_registry::inspect_client_projection(input)
+                            .map_err(setup_error)?,
+                    )
+                }
             }
             legion_host::SetupAction::Remove | legion_host::SetupAction::Purge => {
                 serde_json::to_value(
@@ -3027,6 +3133,22 @@ fn should_process_client(request: &legion_host::SetupRequest, client_id: &str) -
             .iter()
             .any(|evidence| evidence.client_id == client_id && evidence.detected),
     }
+}
+
+fn should_mutate_client(request: &legion_host::SetupRequest, client_id: &str) -> bool {
+    if !should_process_client(request, client_id) {
+        return false;
+    }
+    if !matches!(
+        request.action,
+        legion_host::SetupAction::Apply | legion_host::SetupAction::Repair
+    ) {
+        return true;
+    }
+    !(matches!(
+        &request.selector,
+        legion_host::ClientSelector::AllSupported
+    ) && client_id == legion_host::setup_registry::CLIENT_PI)
 }
 
 fn host_integration_inputs(
@@ -3949,6 +4071,130 @@ mod tests {
         assert!(remediation
             .iter()
             .all(|item| !item.contains("legion setup --repair")));
+    }
+
+    #[test]
+    fn setup_health_completes_requested_clients_with_optional_pi_baseline() {
+        let temp = TempRoot::new("mixed-optional-pi");
+        let clients = json!([
+            {"clientId": "claude-code", "installed": true, "fidelity": "Full"},
+            {"clientId": "codex", "installed": true, "fidelity": "Full"},
+            {
+                "clientId": "pi",
+                "installed": true,
+                "fidelity": "Baseline",
+                "missingSurfaces": [
+                    "executableToolSurface",
+                    "mcpLifecycle",
+                    "releaseBinding",
+                    "executableResolution",
+                    "hostEnforcement"
+                ],
+                "explicitOnly": true
+            }
+        ]);
+        let mut live_identity = installed_health_identity(&temp.0);
+        live_identity["projections"] = json!({
+            "claudePlugin": {"clientId": "claude-code", "state": "current"},
+            "codexPlugin": {"clientId": "codex", "state": "current"},
+            "piSkills": {
+                "clientId": "pi",
+                "state": "stale",
+                "explicitOnly": true,
+                "generation": "old-generation",
+                "origin": legion_host::setup_registry::ORIGIN_INSTALLED,
+                "executable": "/outside/current/bin/legion",
+                "installRoot": "/outside"
+            }
+        });
+
+        let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
+
+        assert_eq!(status, "complete");
+        assert!(remediation.iter().any(|item| {
+            item.contains("client pi is optional (Baseline)")
+                && item.contains("executableToolSurface")
+        }));
+        assert!(remediation
+            .iter()
+            .all(|item| !item.contains("piSkills resolved target escaped active release")));
+    }
+
+    #[test]
+    fn setup_health_rejects_pi_baseline_without_full_supported_client() {
+        let clients = json!([{
+            "clientId": "pi",
+            "installed": true,
+            "fidelity": "Baseline",
+            "missingSurfaces": ["executableToolSurface"],
+            "explicitOnly": true
+        }]);
+        let live_identity = json!({
+            "origin": legion_host::setup_registry::ORIGIN_DEVELOPMENT,
+            "executable": {"state": "current"}
+        });
+
+        let (status, remediation) = setup_health(&clients, &json!({}), &live_identity);
+
+        assert_eq!(status, "incomplete");
+        assert!(remediation.iter().any(|item| {
+            item == "optional Pi Baseline is present but no Full supported client is active"
+        }));
+
+        let uninstalled = json!([{
+            "clientId": "pi",
+            "installed": false,
+            "fidelity": "Baseline",
+            "explicitOnly": true
+        }]);
+        let (status, remediation) = setup_health(&uninstalled, &json!({}), &live_identity);
+        assert_eq!(status, "incomplete");
+        assert!(remediation
+            .iter()
+            .any(|item| item == "client pi is incomplete (Baseline); rerun setup --development with identical context and repair --confirm"));
+    }
+
+    #[test]
+    fn global_apply_and_repair_skip_pi_but_scoped_non_pi_repairs_mutate() {
+        let evidence = vec![
+            legion_host::ClientEvidence {
+                client_id: legion_host::setup_registry::CLIENT_PI.into(),
+                detected: true,
+                mechanisms: vec!["pi-skills-only".into()],
+                command_proof_ref: None,
+                qualification_evidence_ref: None,
+            },
+            legion_host::ClientEvidence {
+                client_id: legion_host::setup_registry::CLIENT_CODEX.into(),
+                detected: true,
+                mechanisms: vec!["codex-agent-plugins".into()],
+                command_proof_ref: None,
+                qualification_evidence_ref: None,
+            },
+        ];
+        for action in [
+            legion_host::SetupAction::Apply,
+            legion_host::SetupAction::Repair,
+        ] {
+            let request = legion_host::SetupRequest {
+                action: action.clone(),
+                selector: legion_host::ClientSelector::AllSupported,
+                release: bound_release(&test_release_manifest()),
+                platform_state_root: PathBuf::from("/tmp/legion-setup-test-state"),
+                client_evidence: evidence.clone(),
+                dry_run: false,
+                origin: legion_host::setup_registry::ORIGIN_DEVELOPMENT.into(),
+                development: None,
+            };
+            assert!(!should_mutate_client(
+                &request,
+                legion_host::setup_registry::CLIENT_PI
+            ));
+            assert!(should_mutate_client(
+                &request,
+                legion_host::setup_registry::CLIENT_CODEX
+            ));
+        }
     }
 
     #[test]

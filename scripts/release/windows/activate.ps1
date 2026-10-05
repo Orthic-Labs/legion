@@ -1,20 +1,22 @@
 param(
   [Parameter(Mandatory=$true)][string]$InstallRoot,
   [Parameter(Mandatory=$true)][string]$Version,
-  [ValidateRange(1, 600)][int]$ChildTimeoutSeconds = 60
+  [ValidateRange(1, 600)][int]$ChildTimeoutSeconds = 180
 )
 $ErrorActionPreference = 'Stop'
 $rootPath = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid Legion version' }
 $currentPath = Join-Path $rootPath 'current'
 $versionPath = Join-Path $rootPath ('versions\' + $Version)
+$payloadPath = Join-Path $rootPath ('.next-version-' + $Version)
 $backupPath = Join-Path $rootPath ('.previous-current-' + [Guid]::NewGuid().ToString('N'))
+$versionBackupPath = Join-Path $rootPath ('.previous-version-' + [Guid]::NewGuid().ToString('N'))
 $stagePath = Join-Path $rootPath ('.next-current-' + [Guid]::NewGuid().ToString('N'))
 $eventLog = if ($env:LEGION_INSTALL_EVENT_LOG) { [IO.Path]::GetFullPath($env:LEGION_INSTALL_EVENT_LOG) } else { Join-Path $rootPath 'install-events.jsonl' }
 if ($env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS -match '^\d+$') {
   $ChildTimeoutSeconds = [Math]::Max(1, [Math]::Min(600, [int]$env:LEGION_INSTALL_CHILD_TIMEOUT_SECONDS))
 }
-foreach ($path in @($currentPath, $versionPath, $backupPath, $stagePath)) {
+foreach ($path in @($currentPath, $versionPath, $payloadPath, $backupPath, $versionBackupPath, $stagePath)) {
   if (-not [IO.Path]::GetFullPath($path).StartsWith($rootPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Activation path escaped install root' }
 }
 if (-not [IO.Path]::IsPathRooted($eventLog)) { throw 'Activation event log must be absolute' }
@@ -100,13 +102,28 @@ function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments)
     $process.Dispose()
   }
 }
-if (-not (Test-Path -LiteralPath (Join-Path $versionPath 'bin\legion.exe') -PathType Leaf)) { throw 'Installed Legion executable missing' }
+if (-not (Test-Path -LiteralPath (Join-Path $payloadPath 'bin\legion.exe') -PathType Leaf)) { throw 'Staged Legion executable missing' }
 $hadCurrent = $null -ne (Get-Item -LiteralPath $currentPath -Force -ErrorAction SilentlyContinue)
+$hadVersion = $null -ne (Get-Item -LiteralPath $versionPath -Force -ErrorAction SilentlyContinue)
+$currentBackupCreated = $false
+$versionBackupCreated = $false
+$currentReplaced = $false
+$versionReplaced = $false
 Write-InstallEvent 'activation' 'started' "version=$Version"
-if ($hadCurrent) { Move-Item -LiteralPath $currentPath -Destination $backupPath }
 try {
-  Copy-Item -LiteralPath $versionPath -Destination $stagePath -Recurse
+  # Build and validate a clean current candidate before moving prior current.
+  Copy-Item -LiteralPath $payloadPath -Destination $stagePath -Recurse
+  $stagedLegion = Join-Path $stagePath 'bin\legion.exe'
+  if ($env:LEGION_INSTALL_TEST_MODE -eq 'staged-validation-failure') { throw 'Forced staged payload validation failure' }
+  $stagedVersion = ([string](Invoke-Bounded 'staged-version' $stagedLegion @('--version'))).Trim()
+  if ($stagedVersion -ne $Version) { throw "Staged payload returned version $stagedVersion" }
+
+  if ($hadCurrent) { Move-Item -LiteralPath $currentPath -Destination $backupPath; $currentBackupCreated = $true }
+  if ($hadVersion) { Move-Item -LiteralPath $versionPath -Destination $versionBackupPath; $versionBackupCreated = $true }
+  Move-Item -LiteralPath $payloadPath -Destination $versionPath
+  $versionReplaced = $true
   Move-Item -LiteralPath $stagePath -Destination $currentPath
+  $currentReplaced = $true
   $legion = Join-Path $currentPath 'bin\legion.exe'
   $reportedVersion = ([string](Invoke-Bounded 'activation-version' $legion @('--version'))).Trim()
   if ($reportedVersion -ne $Version) { throw "Activation verification returned version $reportedVersion" }
@@ -122,12 +139,16 @@ try {
   $versionHash = Get-BinaryHash (Join-Path $versionPath 'bin\legion.exe')
   $currentHash = Get-BinaryHash $legion
   if ($currentHash -ne $versionHash) { throw "Activation hash mismatch: $currentHash != $versionHash" }
-  Remove-Item -LiteralPath $backupPath -Recurse -Force -ErrorAction SilentlyContinue
   [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$versionPath;previous=$null;refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $rootPath 'activation.json') -Encoding UTF8
   Write-InstallEvent 'activation' 'complete' "version=$Version"
+  Remove-Item -LiteralPath $backupPath,$versionBackupPath -Recurse -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $payloadPath -Recurse -Force -ErrorAction SilentlyContinue
 } catch {
-  Remove-Item -LiteralPath $stagePath,$currentPath -Recurse -Force -ErrorAction SilentlyContinue
-  if ($hadCurrent -and (Test-Path -LiteralPath $backupPath)) { Move-Item -LiteralPath $backupPath -Destination $currentPath }
+  if ($currentReplaced) { Remove-Item -LiteralPath $currentPath -Recurse -Force -ErrorAction SilentlyContinue }
+  if ($versionReplaced) { Remove-Item -LiteralPath $versionPath -Recurse -Force -ErrorAction SilentlyContinue }
+  Remove-Item -LiteralPath $stagePath,$payloadPath -Recurse -Force -ErrorAction SilentlyContinue
+  if ($currentBackupCreated -and (Test-Path -LiteralPath $backupPath)) { Move-Item -LiteralPath $backupPath -Destination $currentPath }
+  if ($versionBackupCreated -and (Test-Path -LiteralPath $versionBackupPath)) { Move-Item -LiteralPath $versionBackupPath -Destination $versionPath }
   Write-InstallEvent 'activation' 'failed' ($_ | Out-String).Trim()
   Write-InstallEvent 'rollback' 'complete' $(if ($hadCurrent) { 'previous current restored' } else { 'new current removed' })
   throw

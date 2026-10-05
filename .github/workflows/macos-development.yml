@@ -50,6 +50,7 @@ jobs:
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-hook
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion --test minimize_cli
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion --test m2_plugin_root
+          cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion --bin legion commands::setup::tests
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-apple
       - name: Assemble & qualify exact unsigned native candidate
         run: |
@@ -64,22 +65,46 @@ jobs:
         timeout-minutes: 5
         run: |
           app="$RUNNER_TEMP/legion-macos-delivery/Legion Installer.app"
+          version="$(node -p 'require("./release/version.json").version')"
           mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
           swiftc -parse-as-library scripts/release/macos/LegionInstaller.swift -framework Cocoa -o "$app/Contents/MacOS/Legion Installer"
           cp -R "$RUNNER_TEMP/legion-install" "$app/Contents/Resources/payload"
-          printf '0.3.21\n' > "$app/Contents/Resources/version.txt"
+          printf '%s\n' "$version" > "$app/Contents/Resources/version.txt"
           /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string Legion Installer' "$app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.orthiclabs.legion.installer' "$app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string APPL' "$app/Contents/Info.plist"
-          # Qualification uses a Codex configuration fixture on this disposable runner.
-          mkdir -p "$HOME/.codex"
+          # Include shared Pi skills so default setup cannot mistake Baseline
+          # discovery for a required Full client or mutate this unrelated skill.
+          mkdir -p "$HOME/.codex" "$HOME/.agents/skills/qualification-unrelated"
+          printf '%s\n' '---' 'name: qualification-unrelated' 'description: Unrelated shared-root qualification fixture.' '---' > "$HOME/.agents/skills/qualification-unrelated/SKILL.md"
+          cp "$HOME/.agents/skills/qualification-unrelated/SKILL.md" "$RUNNER_TEMP/legion-macos-delivery/optional-pi-fixture.original"
           "$app/Contents/MacOS/Legion Installer" --headless 2> "$RUNNER_TEMP/legion-macos-delivery/installer-qualification.log"
           installed="$HOME/Library/Application Support/Orthic Labs/Legion/current"
           policy="share/legion/assets/lib/minimize/POLICY.md"
           printf 'stale development candidate\n' > "$installed/$policy"
           "$app/Contents/MacOS/Legion Installer" --headless 2> "$RUNNER_TEMP/legion-macos-delivery/installer-reinstall-qualification.log"
           cmp "$installed/$policy" "$app/Contents/Resources/payload/$policy"
-          tar -czf "$RUNNER_TEMP/legion-macos-delivery/Legion-0.3.21-macos-arm64-installer.tar.gz" -C "$RUNNER_TEMP/legion-macos-delivery" 'Legion Installer.app'
+          "$installed/bin/legion" --json setup status > "$RUNNER_TEMP/legion-macos-delivery/mixed-client-setup-status.json"
+          cmp "$HOME/.agents/skills/qualification-unrelated/SKILL.md" "$RUNNER_TEMP/legion-macos-delivery/optional-pi-fixture.original"
+          if "$installed/bin/legion" --json setup repair --confirm --client pi > "$RUNNER_TEMP/legion-macos-delivery/explicit-pi-result.json" 2> "$RUNNER_TEMP/legion-macos-delivery/explicit-pi.stderr"; then
+            echo 'explicit Pi setup falsely reported complete native integration' >&2
+            exit 1
+          fi
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const evidence = path.join(process.env.RUNNER_TEMP, 'legion-macos-delivery');
+          const status = JSON.parse(fs.readFileSync(path.join(evidence, 'mixed-client-setup-status.json'), 'utf8'));
+          if (status.status !== 'complete' || status.origin !== 'installed' || status.stableCurrent !== true) throw new Error('mixed client setup is incomplete');
+          for (const id of ['claude-code', 'codex']) {
+            const client = status.clients.find(c => (c.clientId || c.client_id) === id);
+            if (!client || !client.installed || client.fidelity !== 'Full') throw new Error(`${id} Full integration missing`);
+          }
+          if (!status.remediation.some(note => note.includes('optional Baseline') || note.includes('optional (Baseline)'))) throw new Error('Pi Baseline limitation omitted');
+          const rejection = fs.readFileSync(path.join(evidence, 'explicit-pi-result.json'), 'utf8') + fs.readFileSync(path.join(evidence, 'explicit-pi.stderr'), 'utf8');
+          if (!rejection.includes('ClientMechanismUnsupported')) throw new Error('explicit Pi failed for unexpected reason');
+          NODE
+          tar -czf "$RUNNER_TEMP/legion-macos-delivery/Legion-$version-macos-arm64-installer.tar.gz" -C "$RUNNER_TEMP/legion-macos-delivery" 'Legion Installer.app'
           rm -r "$app"
       - name: Upload exact installer & native candidate evidence
         if: ${{ always() }}

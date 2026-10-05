@@ -1,7 +1,8 @@
 //! Rust port of `scripts/release/windows/qualify-installed.mjs`: runs a
-//! finalized Windows installer through all nine qualification stages
-//! (install, version, forced-refresh-failure, stalled-child, repair, status,
-//! codex-plugin-opt-in, doctor, uninstall) in an isolated
+//! finalized Windows installer through its qualification stages
+//! (install, version, same-version-upgrade, plugin-root transport,
+//! forced-refresh-failure, stalled-child, repair, status, codex-plugin-opt-in,
+//! doctor, uninstall) in an isolated
 //! `LOCALAPPDATA`/`USERPROFILE`, and writes either `qualification.json` or,
 //! on failure, `qualification-failure.json` with captured evidence — Phase A
 //! item 9: a failed run must leave a readable receipt instead of silently
@@ -11,7 +12,9 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
@@ -146,6 +149,89 @@ fn execute_expected_failure(runner: CommandRunner, executable: &Path, args: &[St
     Ok(StepOutcome { stdout: result.stdout.unwrap_or_default().trim().to_string(), stderr: result.stderr.unwrap_or_default().trim().to_string(), evidence })
 }
 
+/// Sends the canonical probe set through the installed executable's actual
+/// plugin-root transport.  Installer qualification must catch strict package
+/// validation failures that `--version` and setup repair cannot observe.
+fn probe_plugin_root_transport(executable: &Path, plugin_root: &Path, options: &CommandOptions) -> ReleaseResult<StepOutcome> {
+    let requests = [
+        json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}),
+        json!({"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}),
+        json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"legion_apple","arguments":{"operation":"catalog"}}}),
+        json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"legion_apple","arguments":{"operation":"app-store","arguments":{"action":"apps","execute":false}}}}),
+        json!({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"legion_apple","arguments":{"operation":"simulator.list","arguments":{"execute":false}}}}),
+    ];
+    let input = requests.iter().map(|request| format!("{request}\n")).collect::<String>();
+    let mut command = Command::new(executable);
+    command.args(["serve", "--stdio", "--plugin-root"]);
+    command.arg(plugin_root);
+    if let Some(cwd) = &options.cwd { command.current_dir(cwd); }
+    if let Some(env) = &options.env {
+        command.env_clear();
+        command.envs(env);
+    }
+    command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = command.spawn().map_err(|e| fail(format!("plugin-root MCP spawn failed: {e}")))?;
+    let mut stdin = child.stdin.take().ok_or_else(|| fail("plugin-root MCP stdin missing"))?;
+    let stdout = child.stdout.take().ok_or_else(|| fail("plugin-root MCP stdout missing"))?;
+    let stderr = child.stderr.take().ok_or_else(|| fail("plugin-root MCP stderr missing"))?;
+    let out_reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stdout.take(2 * 1024 * 1024 + 1).read_to_end(&mut bytes).map(|_| bytes)
+    });
+    let err_reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stderr.take(2 * 1024 * 1024 + 1).read_to_end(&mut bytes).map(|_| bytes)
+    });
+    let write_error = stdin.write_all(input.as_bytes()).err();
+    drop(stdin);
+    let started = Instant::now();
+    let (status, timed_out) = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break (status, false),
+            Ok(None) if started.elapsed() < Duration::from_secs(30) => std::thread::sleep(Duration::from_millis(25)),
+            Ok(None) => {
+                let _ = child.kill();
+                let status = child.wait().map_err(|e| fail(format!("plugin-root MCP wait failed: {e}")))?;
+                break (status, true);
+            }
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(fail(format!("plugin-root MCP poll failed: {error}")));
+            }
+        }
+    };
+    let stdout = out_reader.join().map_err(|_| fail("plugin-root MCP stdout reader failed"))?.map_err(|e| fail(format!("plugin-root MCP stdout read failed: {e}")))?;
+    let stderr = err_reader.join().map_err(|_| fail("plugin-root MCP stderr reader failed"))?.map_err(|e| fail(format!("plugin-root MCP stderr read failed: {e}")))?;
+    let stdout_text = String::from_utf8_lossy(&stdout).to_string();
+    let stderr_text = String::from_utf8_lossy(&stderr).to_string();
+    if timed_out || !status.success() || write_error.is_some() || stdout.len() > 2 * 1024 * 1024 || stderr.len() > 2 * 1024 * 1024 {
+        return Err(fail(format!("plugin-root MCP failed: status={status}; timeout={timed_out}; write={write_error:?}; stderr={}", stderr_text.trim())));
+    }
+    let responses: Vec<Value> = stdout_text.lines().map(serde_json::from_str).collect::<Result<_, _>>().map_err(|e| fail(format!("plugin-root MCP response JSON is invalid: {e}")))?;
+    if responses.len() != requests.len() || responses.iter().enumerate().any(|(index, response)| {
+        response.get("id").and_then(Value::as_u64) != Some(index as u64 + 1)
+            || response.get("error").is_some()
+            || response.get("result").is_none()
+            || response.pointer("/result/isError").and_then(Value::as_bool) == Some(true)
+    }) {
+        return Err(fail(format!("plugin-root MCP returned incomplete/error responses: {responses:?}")));
+    }
+    let names: std::collections::BTreeSet<_> = responses[1].pointer("/result/tools").and_then(Value::as_array)
+        .ok_or_else(|| fail("plugin-root MCP tools/list missing tools"))?.iter()
+        .filter_map(|tool| tool.get("name").and_then(Value::as_str)).collect();
+    let expected: std::collections::BTreeSet<_> = ["legion_m1_status", "legion_m1_invoke", "legion_apple"].into_iter().collect();
+    if names != expected {
+        return Err(fail(format!("plugin-root MCP canonical tool list mismatch: {names:?}")));
+    }
+    let summary = json!({"mode":"plugin-root", "responses":responses.len(), "tools":names.into_iter().collect::<Vec<_>>()});
+    Ok(StepOutcome {
+        stdout: summary.to_string(),
+        stderr: stderr_text.trim().to_string(),
+        evidence: json!({"status":0, "stdout":summary, "stderr":stderr_text.trim()}),
+    })
+}
+
 /// Mirrors `setupPayload`: parses a repair/status JSON response, asserts
 /// complete installed activation bound to the stable-current executable,
 /// structural client activation for `requiredClients`, and current-state
@@ -256,11 +342,13 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
     let executable = install_root.join("current").join("bin").join("legion.exe");
     let install_log = output.join("setup-install.log");
     let activation_events = output.join("activation-events.jsonl");
+    let staged_validation_failure_log = output.join("setup-staged-validation-failure.log");
     let forced_refresh_failure_log = output.join("setup-forced-refresh-failure.log");
     let stalled_child_log = output.join("setup-stalled-child.log");
     let setup_logs: Vec<(&str, &PathBuf)> = vec![
         ("install", &install_log),
         ("activationEvents", &activation_events),
+        ("stagedValidationFailure", &staged_validation_failure_log),
         ("forcedRefreshFailure", &forced_refresh_failure_log),
         ("stalledChild", &stalled_child_log),
     ];
@@ -308,6 +396,52 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
         }
 
         step("version", &mut || execute(runner, &executable, &["--version".into()], &install_root_opts, "installed legion --version"))?;
+
+        // Seed the exact stale directory shape observed in a real same-version
+        // upgrade. The next installer run must replace the owned version tree,
+        // rather than merging into it.
+        let stale_dir = install_root.join("versions").join(version).join("plugin").join("skills").join("alchemist").join("scripts");
+        let stale_file = stale_dir.join("obsolete-upgrade-marker.txt");
+        let version_executable = install_root.join("versions").join(version).join("bin").join("legion.exe");
+        let pre_upgrade_current_sha256 = sha256_file(&executable)?;
+        let pre_upgrade_version_sha256 = sha256_file(&version_executable)?;
+        fs::create_dir_all(&stale_dir).map_err(|e| fail(format!("could not seed stale upgrade entry: {e}")))?;
+        fs::write(&stale_file, "stale same-version payload").map_err(|e| fail(format!("could not seed stale upgrade marker: {e}")))?;
+        let mut staged_failure_env = environment.clone();
+        staged_failure_env.insert("LEGION_INSTALL_TEST_MODE".to_string(), "staged-validation-failure".to_string());
+        let staged_failure_opts = CommandOptions { cwd: Some(workspace.to_path_buf()), env: Some(staged_failure_env) };
+        step("staged-validation-failure", &mut || {
+            execute_expected_failure(
+                runner,
+                installer,
+                &["/VERYSILENT".into(), "/SUPPRESSMSGBOXES".into(), "/NORESTART".into(), format!("/DIR={}", install_root.display()), format!("/LOG={}", staged_validation_failure_log.display())],
+                &staged_failure_opts,
+                "staged payload validation failure",
+            )
+        })?;
+        if sha256_file(&executable)? != pre_upgrade_current_sha256 || sha256_file(&version_executable)? != pre_upgrade_version_sha256 {
+            return Err(fail("staged payload validation failure changed prior runtime"));
+        }
+        if !stale_dir.exists() || !stale_file.exists() {
+            return Err(fail("staged payload validation failure did not preserve prior version tree"));
+        }
+        let upgrade_run = step("same-version-upgrade", &mut || {
+            execute(
+                runner,
+                installer,
+                &["/VERYSILENT".into(), "/SUPPRESSMSGBOXES".into(), "/NORESTART".into(), format!("/DIR={}", install_root.display()), format!("/LOG={}", install_log.display())],
+                &workspace_opts,
+                "same-version upgrade",
+            )
+        })?;
+        let _ = upgrade_run;
+        let current_stale_dir = install_root.join("current").join("plugin").join("skills").join("alchemist").join("scripts");
+        if stale_dir.exists() || stale_file.exists() || current_stale_dir.exists() {
+            return Err(fail("same-version upgrade retained obsolete payload entries"));
+        }
+        let plugin_root_transport = step("plugin-root-transport", &mut || {
+            probe_plugin_root_transport(&executable, &install_root.join("current").join("plugin"), &install_root_opts)
+        })?;
         let activated_sha256 = sha256_file(&executable)?;
 
         let mut forced_env = environment.clone();
@@ -380,6 +514,9 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
             "commands": {
                 "install": commands_stage("install"),
                 "version": commands_stage("version"),
+                "stagedValidationFailure": commands_stage("staged-validation-failure"),
+                "sameVersionUpgrade": commands_stage("same-version-upgrade"),
+                "pluginRootTransport": commands_stage("plugin-root-transport"),
                 "forcedRefreshFailure": commands_stage("forced-refresh-failure"),
                 "stalledChild": commands_stage("stalled-child"),
                 "repair": commands_stage("repair"),
@@ -388,7 +525,7 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
                 "doctor": commands_stage("doctor"),
                 "uninstall": commands_stage("uninstall"),
             },
-            "activation": { "repair": repair, "status": status, "codexPluginRepair": codex_plugin_repair, "rollbackVerified": true, "stalledChildBounded": true },
+            "activation": { "repair": repair, "status": status, "codexPluginRepair": codex_plugin_repair, "stagedValidationRollbackVerified": true, "sameVersionUpgradeClean": true, "pluginRootTransport": plugin_root_transport.stdout, "rollbackVerified": true, "stalledChildBounded": true },
         });
         fs::write(&evidence_path, format!("{}\n", serde_json::to_string_pretty(&evidence).unwrap())).map_err(|e| fail(e.to_string()))?;
         let mut result = evidence.clone();

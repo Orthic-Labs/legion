@@ -1442,6 +1442,15 @@ impl<S: SetupStore> SetupRegistry<S> {
         let mut result = evidence
             .iter()
             .filter(|item| matches_selector(selector, &item.client_id))
+            // Pi is an optional Baseline shared-root integration. It is not
+            // part of default lifecycle request merely because its host
+            // directory exists; an operator must select Pi by id.
+            .filter(|item| match selector {
+                ClientSelector::AllSupported => client_boundary(&item.client_id).is_some_and(
+                    |profile| !(profile.explicit_only && item.client_id == CLIENT_PI),
+                ),
+                ClientSelector::ClientId(_) => true,
+            })
             .map(detected)
             .collect::<Vec<_>>();
         result.sort_by_key(|client| client.client_id.clone());
@@ -1467,6 +1476,16 @@ impl<S: SetupStore> SetupRegistry<S> {
                     } else {
                         format!("supported client {id} was not detected")
                     },
+                ));
+            }
+            if result[0].fidelity == "Baseline"
+                && client_boundary(id).is_some_and(|profile| profile.explicit_only)
+            {
+                return Err(err(
+                    SetupErrorCode::ClientMechanismUnsupported,
+                    format!(
+                        "supported client {id} is available only as optional Baseline fidelity; explicit setup requires a complete supported mechanism"
+                    ),
                 ));
             }
         }
@@ -4623,6 +4642,40 @@ mod tests {
         let status = registry.status(&ClientSelector::AllSupported).unwrap();
         assert!(status[0].installed);
         assert_eq!(status[0].fidelity, "Full");
+    }
+
+    #[test]
+    fn default_lifecycle_omits_optional_pi_and_explicit_pi_selection_fails() {
+        let root = TestRoot::new("mixed-optional-pi");
+        let mut registry = SetupRegistry::open_on_disk(release(), root.0.clone()).unwrap();
+        let mut mixed = request(root.0.clone(), SetupAction::Repair);
+        mixed.selector = ClientSelector::AllSupported;
+        mixed.client_evidence.push(ClientEvidence {
+            client_id: CLIENT_CODEX.into(),
+            detected: true,
+            mechanisms: vec!["codex-agent-plugins".into()],
+            command_proof_ref: None,
+            qualification_evidence_ref: None,
+        });
+        mixed.client_evidence.push(ClientEvidence {
+            client_id: CLIENT_PI.into(),
+            detected: true,
+            mechanisms: vec!["pi-skills-only".into()],
+            command_proof_ref: None,
+            qualification_evidence_ref: None,
+        });
+
+        let preview = registry.preview(mixed.clone()).unwrap();
+        assert_eq!(preview.clients.len(), 2);
+        assert_eq!(preview.clients[0].client_id, CLIENT_CLAUDE);
+        assert_eq!(preview.clients[0].fidelity, "Full");
+        assert_eq!(preview.clients[1].client_id, CLIENT_CODEX);
+        assert_eq!(preview.clients[1].fidelity, "Full");
+
+        mixed.selector = ClientSelector::ClientId(CLIENT_PI.into());
+        let error = registry.preview(mixed).unwrap_err();
+        assert_eq!(error.code, SetupErrorCode::ClientMechanismUnsupported);
+        assert!(error.remediation.contains("optional Baseline fidelity"));
     }
 
     #[test]

@@ -33,9 +33,11 @@ Uninstallable=yes
 
 [Files]
 Source: "@@ACTIVATION_SCRIPT@@"; DestDir: "{tmp}"; Flags: deleteafterinstall
-Source: "{#SourceRoot}\bin\*"; DestDir: "{app}\versions\{#ProductVersion}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#SourceRoot}\plugin\*"; DestDir: "{app}\versions\{#ProductVersion}\plugin"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#SourceRoot}\share\*"; DestDir: "{app}\versions\{#ProductVersion}\share"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Stage into a fresh root.  Same-version installs must not merge into the
+; existing version tree: removed payload entries would otherwise survive.
+Source: "{#SourceRoot}\bin\*"; DestDir: "{app}\.next-version-{#ProductVersion}\bin"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\plugin\*"; DestDir: "{app}\.next-version-{#ProductVersion}\plugin"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\share\*"; DestDir: "{app}\.next-version-{#ProductVersion}\share"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\Legion"; Filename: "{app}\current\bin\legion.exe"
@@ -120,6 +122,15 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
 begin
+  { A previous interrupted setup may have left a partial payload stage. It is
+    safe to remove that stage before copying; current remains untouched until
+    activation has validated the new payload. }
+  if DirExists(ExpandConstant('{app}\.next-version-{#ProductVersion}')) then begin
+    if not DelTree(ExpandConstant('{app}\.next-version-{#ProductVersion}'), True, True, True) then begin
+      Result := 'Could not clean staged Legion payload';
+      Exit;
+    end;
+  end;
   { A client keeps `legion serve --stdio` running, and Windows will not replace
     a running executable, so an upgrade aborted with the previous version left
     in place. Stop the product's own processes first; clients restart the MCP

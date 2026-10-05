@@ -82,3 +82,10 @@ Corrections cover build diagnostic capture & compiler-cache settings; test confo
 Baseline `ad010ff3d89820bc4cfa29526697726192f0a430` passed [full CI](https://github.com/Orthic-Labs/legion/actions/runs/37283638166) (7,329 passing Rust tests), [Apple checks](https://github.com/Orthic-Labs/legion/actions/runs/37282198422), [Mac installer qualification](https://github.com/Orthic-Labs/legion/actions/runs/37283644186) & [Windows installer qualification](https://github.com/Orthic-Labs/legion/actions/runs/37283708187). Qualified 0.3.21 payloads were installed on both machines; all 319 Apple bundle files matched source in payload, Codex & Claude projections. Mac global setup reported an unrelated optional Pi projection issue; scoped Codex/Claude setup & native CLI/MCP checks passed.
 
 Those baseline results do not validate this subsequent source revision. Delivery requires this revision’s canonical manifests, full GitHub gate & exact qualified installer replacement; CI runs and installation receipts identify their source revision. Source-ledger counts remain trace bookkeeping, not proof of exhaustive semantic parity or compiled Apple application examples.
+
+Installed acceptance at `d54bea8cf41ecbacee7cfd2a626f3719e0ed3c54` supersedes that pending-delivery
+state: qualified 0.3.21 payloads are installed on Mac & Windows. [Portable readback](plans/legion-installed-readback-d54bea8c.json)
+records both actual bare & plugin-root transports, canonical tool discovery, Apple catalog/apps-plan/
+simulator-plan replies & all 1,036 manifest files matching payload, Codex & Claude roots.
+Full CI passed 7,336 tests with zero failures. These results establish installed skill retention &
+native parser/planning/transport behavior; device/app/account execution has separate acceptance.
