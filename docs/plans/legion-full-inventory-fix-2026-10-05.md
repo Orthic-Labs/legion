@@ -455,3 +455,20 @@ requested supported clients, report their actual fidelity, & produce a truthful 
 Acceptance: qualify installer with Claude + Codex + optional Pi present; requested clients install
 cleanly & optional profile has an explicit disposition. Add that mixed-client fixture to macOS
 qualification, which currently tests a narrower disposable host.
+
+
+### Confirmed native dispatch panics
+
+P1: offline CLI probes exit 101 for `designer/detect`, `designer/live-complete`,
+`seo/banana-generate`, `seo/ga4_report`, `seo/indexing_notify`, `seo/indexnow` &
+`seo/site_audit`. Each reports Tokio runtime shutdown panic: blocking runtime cannot be
+dropped inside async context. `commands/script.rs` calls synchronous production adapters
+directly from Tokio-driven CLI; several construct blocking Reqwest clients before validating
+help/preconditions. Source adapter tests do not exercise that actual CLI boundary.
+
+Fix: run synchronous adapter ownership on a blocking thread, or migrate adapters fully async;
+parse help/required arguments before constructing network/browser clients. Preserve exit semantics
+& credentials. Acceptance: invoke each real CLI route through async root with help, malformed
+input & offline provider fixture; no panic, no help side effects, explicit dependency/auth errors.
+Browser probes under privileged isolated CI report Chrome sandbox preconditions; those results
+are recorded as dependency outcomes, not evidence of failure on user's desktop.
