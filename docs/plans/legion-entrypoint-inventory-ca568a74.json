@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "generated_at_unix_ms": 1791203806644,
+  "generated_at_unix_ms": 1791204434178,
   "network_isolation": {
     "parent_namespace": "net:[4026531833]",
-    "probe_namespace": "net:[4026532313]",
+    "probe_namespace": "net:[4026532267]",
     "ipv4_routes": ""
   },
   "counts": {
@@ -12,9 +12,9 @@
     "root_commands_expected": 43,
     "legion_dev_commands_expected": 27,
     "xtask_commands_expected": 16,
-    "rows": 169,
+    "rows": 167,
     "not_exercised_rows": 0,
-    "structural_errors": 14
+    "structural_errors": 12
   },
   "structural_errors": [
     "legion --help returned 32 commands, expected 43",
@@ -28,9 +28,7 @@
     "legion --help omitted command research",
     "legion --help omitted command review",
     "legion --help omitted command setup",
-    "legion --help omitted command script",
-    "legion-dev --help returned 28 commands, expected 27",
-    "xtask --help returned 17 commands, expected 16"
+    "legion --help omitted command script"
   ],
   "rows": [
     {
@@ -84,7 +82,7 @@
       "exit_code": null,
       "timed_out": true,
       "output": {
-        "stdout": "Citadel: http://127.0.0.1:8790   runs: /tmp/legion-entrypoint-inventory-10255-1791203794611/row-2/home/.alchemist/runs\n",
+        "stdout": "Citadel: http://127.0.0.1:8790   runs: /tmp/legion-entrypoint-inventory-10644-1791204422163/row-2/home/.alchemist/runs\n",
         "stderr": "",
         "truncated": false
       },
@@ -125,7 +123,7 @@
       "timed_out": false,
       "output": {
         "stdout": "",
-        "stderr": "CODER_FAILURE [pi_missing]: Pi CLI executable 'pi' was not found\nCODER_RECEIPT {\"argv\":[\"pi\",\"--tools\",\"read,grep,find,ls\",\"--no-session\",\"--no-extensions\",\"--no-skills\",\"--no-prompt-templates\",\"--no-themes\",\"--no-context-files\",\"--model\",\"opencode/hy3-free\",\"-p\",\"<prompt-redacted>\"],\"duration_ms\":0,\"executor\":\"pi\",\"exit_code\":null,\"finished_at\":\"2026-10-05T12:36:39.689+00:00\",\"model\":\"opencode/hy3-free\",\"run_id\":\"000000000000283118dba25d98d5ac9e\",\"schema\":\"coder.pi.receipt.v1\",\"started_at\":\"2026-10-05T12:36:39.689+00:00\",\"status\":\"pi_missing\",\"tools\":[\"read\",\"grep\",\"find\",\"ls\"]}\n",
+        "stderr": "CODER_FAILURE [pi_missing]: Pi CLI executable 'pi' was not found\nCODER_RECEIPT {\"argv\":[\"pi\",\"--tools\",\"read,grep,find,ls\",\"--no-session\",\"--no-extensions\",\"--no-skills\",\"--no-prompt-templates\",\"--no-themes\",\"--no-context-files\",\"--model\",\"opencode/hy3-free\",\"-p\",\"<prompt-redacted>\"],\"duration_ms\":0,\"executor\":\"pi\",\"exit_code\":null,\"finished_at\":\"2026-10-05T12:47:07.246+00:00\",\"model\":\"opencode/hy3-free\",\"run_id\":\"00000000000029b618dba2efb62344ec\",\"schema\":\"coder.pi.receipt.v1\",\"started_at\":\"2026-10-05T12:47:07.246+00:00\",\"status\":\"pi_missing\",\"tools\":[\"read\",\"grep\",\"find\",\"ls\"]}\n",
         "truncated": false
       },
       "state": "help",
@@ -162,7 +160,7 @@
       "exit_code": 0,
       "timed_out": false,
       "output": {
-        "stdout": "NO_PRODUCT_MD: This project has no PRODUCT.md yet. Stop the current task, load reference/init.md, and follow its instructions to write PRODUCT.md before resuming.\n\n---\n\nRESOLVED_CONTEXT:\n{\n  \"targetPath\": null,\n  \"projectRoot\": \"/tmp/legion-entrypoint-inventory-10255-1791203794611/row-6\",\n  \"repoRoot\": \"/tmp/legion-entrypoint-inventory-10255-1791203794611/row-6\",\n  \"productPath\": null,\n  \"designPath\": null\n}\n",
+        "stdout": "NO_PRODUCT_MD: This project has no PRODUCT.md yet. Stop the current task, load reference/init.md, and follow its instructions to write PRODUCT.md before resuming.\n\n---\n\nRESOLVED_CONTEXT:\n{\n  \"targetPath\": null,\n  \"projectRoot\": \"/tmp/legion-entrypoint-inventory-10644-1791204422163/row-6\",\n  \"repoRoot\": \"/tmp/legion-entrypoint-inventory-10644-1791204422163/row-6\",\n  \"productPath\": null,\n  \"designPath\": null\n}\n",
         "stderr": "",
         "truncated": false
       },
@@ -221,7 +219,7 @@
       "timed_out": false,
       "output": {
         "stdout": "",
-        "stderr": "\nthread 'main' (10330) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "stderr": "\nthread 'main' (10719) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
         "truncated": false
       },
       "state": "isolated_precondition",
@@ -473,7 +471,7 @@
       "timed_out": false,
       "output": {
         "stdout": "",
-        "stderr": "\nthread 'main' (10451) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "stderr": "\nthread 'main' (10839) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
         "truncated": false
       },
       "state": "help",
@@ -610,7 +608,7 @@
       "exit_code": 0,
       "timed_out": false,
       "output": {
-        "stdout": "{\"originalCwd\":\"/tmp/legion-entrypoint-inventory-10255-1791203794611/row-29\",\"projectRoot\":\"/tmp/legion-entrypoint-inventory-10255-1791203794611/row-29\",\"targetPath\":null,\"absoluteTargetPath\":null,\"targetOptions\":{}}\n",
+        "stdout": "{\"originalCwd\":\"/tmp/legion-entrypoint-inventory-10644-1791204422163/row-29\",\"projectRoot\":\"/tmp/legion-entrypoint-inventory-10644-1791204422163/row-29\",\"targetPath\":null,\"absoluteTargetPath\":null,\"targetOptions\":{}}\n",
         "stderr": "",
         "truncated": false
       },
@@ -981,7 +979,7 @@
       "timed_out": false,
       "output": {
         "stdout": "",
-        "stderr": "\nthread 'main' (10691) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "stderr": "\nthread 'main' (11078) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
         "truncated": false
       },
       "state": "isolated_precondition",
@@ -1096,7 +1094,7 @@
       "timed_out": false,
       "output": {
         "stdout": "",
-        "stderr": "\nthread 'main' (10740) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "stderr": "\nthread 'main' (11127) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
         "truncated": false
       },
       "state": "precondition",
@@ -1195,7 +1193,7 @@
       "timed_out": false,
       "output": {
         "stdout": "",
-        "stderr": "\nthread 'main' (10781) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "stderr": "\nthread 'main' (11168) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
         "truncated": false
       },
       "state": "precondition",
@@ -1214,7 +1212,7 @@
       "timed_out": false,
       "output": {
         "stdout": "",
-        "stderr": "\nthread 'main' (10790) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "stderr": "\nthread 'main' (11177) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
         "truncated": false
       },
       "state": "precondition",
@@ -1311,7 +1309,7 @@
       "timed_out": false,
       "output": {
         "stdout": "",
-        "stderr": "error: could not read /tmp/legion-entrypoint-inventory-10255-1791203794611/row-65/skills/seo/config/provider-registry.json: No such file or directory (os error 2)\n",
+        "stderr": "error: could not read /tmp/legion-entrypoint-inventory-10644-1791204422163/row-65/skills/seo/config/provider-registry.json: No such file or directory (os error 2)\n",
         "truncated": false
       },
       "state": "precondition",
@@ -1426,7 +1424,7 @@
       "exit_code": 1,
       "timed_out": false,
       "output": {
-        "stdout": "SEO closure: FAIL — 0 phases, 0 workflow packs, 0 critical gates\nFAIL: missing /tmp/legion-entrypoint-inventory-10255-1791203794611/row-71/skills/seo/config/control-catalog.json\n",
+        "stdout": "SEO closure: FAIL — 0 phases, 0 workflow packs, 0 critical gates\nFAIL: missing /tmp/legion-entrypoint-inventory-10644-1791204422163/row-71/skills/seo/config/control-catalog.json\n",
         "stderr": "",
         "truncated": false
       },
@@ -1465,7 +1463,7 @@
       "timed_out": false,
       "output": {
         "stdout": "",
-        "stderr": "\nthread 'main' (10895) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "stderr": "\nthread 'main' (11282) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
         "truncated": false
       },
       "state": "precondition",
@@ -2765,25 +2763,6 @@
     },
     {
       "group": "legion-dev",
-      "key": "help",
-      "invocation": [
-        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
-        "help",
-        "--help"
-      ],
-      "exit_code": 2,
-      "timed_out": false,
-      "output": {
-        "stdout": "",
-        "stderr": "error: unrecognized subcommand '--help'\n\nUsage: legion-dev <COMMAND>\n\nFor more information, try '--help'.\n",
-        "truncated": false
-      },
-      "state": "help",
-      "outcome": "EXIT_NONZERO_OBSERVED",
-      "reason": null
-    },
-    {
-      "group": "legion-dev",
       "key": "native-cli-capture-rust",
       "invocation": [
         "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
@@ -2988,25 +2967,6 @@
       },
       "state": "help",
       "outcome": "EXIT_ZERO_OBSERVED",
-      "reason": null
-    },
-    {
-      "group": "xtask",
-      "key": "help",
-      "invocation": [
-        "/home/runner/work/legion/legion/engine/target/debug/xtask",
-        "help",
-        "--help"
-      ],
-      "exit_code": 2,
-      "timed_out": false,
-      "output": {
-        "stdout": "",
-        "stderr": "error: unrecognized subcommand '--help'\n\nUsage: xtask <COMMAND>\n\nFor more information, try '--help'.\n",
-        "truncated": false
-      },
-      "state": "help",
-      "outcome": "EXIT_NONZERO_OBSERVED",
       "reason": null
     },
     {

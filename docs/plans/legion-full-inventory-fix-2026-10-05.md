@@ -13,7 +13,7 @@ Primary source inventory revision: `251de32200cb14882dbed794139393c2a869dadd`.
 Production repair revision: `8c23e45b49e41cc2eec3b8f5e776564d077647f0`.
 Full CI run [37307458066](https://github.com/Orthic-Labs/legion/actions/runs/37307458066)
 passed: **7,333 tests, zero failures, one ignored, 288 suites**. Apple qualification & macOS
-native/installer qualification passed. Windows installer qualification is still running.
+native/installer qualification passed. Windows installer qualification & stable installation passed.
 
 Mac stable installation matches qualified runtime SHA256
 `bb9d303e131879eec60a308e97aeb4410e6a1f13b56d79587c9e9f4c3fe23893` & asset generation
@@ -109,14 +109,14 @@ reached by dispatch are excluded from this route count.
 | `harness` | `commands/harness.rs` | characterization rows; positive host matrix `I/A` |
 | `authority` | `commands/authority.rs` | empty/usage only; corrupt evidence falsely succeeds |
 | `state` | `commands/state.rs` | `T` cutover/migration |
-| `minimize` | `commands/minimize.rs` | `T` native CLI receipt, tamper & staged-tree tests; installed qualification pending |
+| `minimize` | `commands/minimize.rs` | `T` native CLI receipt, tamper & staged-tree tests; macOS/Windows installed qualification & readback passed at `8c23e45b` |
 | `catalog` | `commands/catalog.rs` | no focused CLI fixture; M1 catalog only |
 | `policy` | `commands/policy.rs` | file validation only; `--effect` and JSON mode inert |
 | `decision` | `commands/decision.rs` | route exists; positive decision lifecycle `I` |
 | `handoff` | `commands/handoff.rs` | help only; missing input exits success |
 | `research` | `commands/research.rs` | native route source reviewed; domain classification `U` |
 | `review` | `commands/review.rs` | help only; authorized provider `I/A` |
-| `setup` | `commands/setup.rs` | install/projection source reviewed; Claude/Codex installed readback recorded at `251de322`; new candidate pending |
+| `setup` | `commands/setup.rs` | install/projection source reviewed; Claude/Codex installed readback passed on macOS & Windows at `8c23e45b` |
 | `script` | `commands/script.rs` | 77 keys; 18 direct invocation paths, remainder `I` |
 
 ### Root CLI fixes & acceptance
@@ -165,7 +165,7 @@ missing key is typed incomplete; no visual-clean claim appears without required 
 | `legion_m1_status` | closed object, no args | `M1McpApi::invoke`; status normalization | `T` M1 vertical slice/server/tools |
 | `legion_m1_invoke` | required `capabilityId:string`, `policyContext:any`; closed object | `M1Application::invoke` | `T` policy/capability receipt path |
 | `legion_apple` | required `operation:string`; optional `arguments`, `policyContext` objects | `apple_mcp.rs` | partial `T`; full operation matrix `I/A` |
-| standalone `legion-mcp` | separate stdio binary | `main.rs` builds app then uses `RejectingBindingGate` | `I`; shipped form rejects initialization |
+| standalone `legion-mcp` | separate stdio binary | `main.rs` builds app then uses `RejectingBindingGate` | installed macOS standard initialize exits 1: versioned config missing; configured source path still has rejecting gate |
 
 ### MCP fixes & acceptance
 
@@ -397,7 +397,7 @@ Run after RightKit admission in GitHub, with exact source SHA and artifacts:
 - Source report's package count corrected from 36 to 37; no runtime defect follows from that typo.
 - Real external RightKit, GitHub, Inno, PowerShell, Swift, codesign, notarization, browser,
   provider credentials, and network paths remain platform/dependency/auth gated.
-- Green `8c23e45b` full CI & macOS qualification remain scoped to named stages; Windows qualification is pending.
+- Green `8c23e45b` full CI & macOS qualification remain scoped to named stages; Windows qualification & stable installation passed.
 
 Root owner records each acceptance receipt in GitHub CI, then updates this inventory with exact
 SHA, artifact digest, platform, and installed readback.
@@ -429,7 +429,7 @@ calls & two synthetic Clap help commands are included: 94 exit-zero, 74 nonzero,
 zero unexercised rows. These are help/precondition outcomes, not functional PASS labels.
 
 Report artifact SHA256: `f30c6bbf68ab0222a373119e1b0821aef469f79c3a2ef6a863e546402c95e6d3`.
-Machine-readable rows: [entrypoint evidence](legion-entrypoint-inventory-a553be4f.json).
+Machine-readable corrected rows: [entrypoint evidence](legion-entrypoint-inventory-ca568a74.json).
 
 Confirmed discovery failure: root help advertises 32 of 43 routes, omitting `apple`, `status`,
 `serve`, `catalog`, `policy`, `decision`, `handoff`, `research`, `review`, `setup` & `script`.
@@ -472,3 +472,39 @@ parse help/required arguments before constructing network/browser clients. Prese
 input & offline provider fixture; no panic, no help side effects, explicit dependency/auth errors.
 Browser probes under privileged isolated CI report Chrome sandbox preconditions; those results
 are recorded as dependency outcomes, not evidence of failure on user's desktop.
+
+Corrected probe run [37311568382](https://github.com/Orthic-Labs/legion/actions/runs/37311568382)
+at `ca568a74` confirms **167 rows: 94 exit-zero, 72 nonzero, one timeout, zero unexercised**.
+Only genuine root-help denominator/missing-command findings remain among 12 structural errors;
+seven script panic reproductions remain unchanged. Artifact SHA256:
+`2af184d575dc20671398bdff318f60abe55d328e40c078023015856e470289c1`.
+Original `a553be4f` evidence is retained in Git history & its named Actions artifact.
+
+Installed macOS standalone `legion-mcp` was invoked with standard initialize request, isolated
+HOME/cwd & no composition override. It exited 1 with `versioned native application configuration
+is missing`, emitted no JSON-RPC response. Installed `legion serve --stdio` passed five requests.
+Standalone composition/binding repair remains P1; these transports have distinct behavior.
+
+
+## Completed Windows stable installation
+
+Windows run [37307457541](https://github.com/Orthic-Labs/legion/actions/runs/37307457541)
+passed full repository gate, whole native workspace/all targets, hook behavior, exact unsigned
+installer build & isolated installed qualification including rollback/stalled-child tests.
+Qualified source: `8c23e45b49e41cc2eec3b8f5e776564d077647f0`.
+
+- Artifact ZIP SHA256: `ecec246d7514e52c8790c1e7d313046e26eeedac98f8c18261c7a77dd98ed07b`.
+- Installer SHA256: `9ceb5ca3154e88b545ec8aad49ff58ad6ee3d3d6f02854222cca2f5a132fe31e`.
+- Stable native CLI SHA256: `7adac1ab0e12250793663747c031add5c4975feba773969f990d849f5b8296a3`.
+- Assets generation: `51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f`.
+
+Exact normal installer completed exit 0 on operator's Windows host, using documented 180-second
+child budget to avoid known 60s/180s mismatch. Installed status reads COMPLETE, installed-origin
+& stable-current. All 1,036 manifest-listed files match across payload, Claude & Codex. Standard
+hook payloads at parent workspace admit Snapshot/Click/docs query without host permission override;
+write/send/delete deny. Five MCP requests succeed. Isolated native Minimize receipt workflow passes,
+binds shipped Rust CLI/policy & rejects staged-tree drift. Parent workspace Git hook resolves this
+installed CLI; unrelated staged work & prior receipts were not recertified.
+
+Production source changes are committed in `932d1074` & `8c23e45b`; later inventory changes affect
+diagnostics/documents only. Both machines share exact repaired production source & asset generation.
