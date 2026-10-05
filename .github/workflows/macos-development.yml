@@ -69,6 +69,8 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string Legion Installer' "$app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c 'Add :CFBundleIdentifier string com.orthiclabs.legion.installer' "$app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string APPL' "$app/Contents/Info.plist"
+          # Qualification uses a Codex configuration fixture on this disposable runner.
+          mkdir -p "$HOME/.codex"
           "$app/Contents/MacOS/Legion Installer" --headless 2> "$RUNNER_TEMP/legion-macos-delivery/installer-qualification.log"
           tar -czf "$RUNNER_TEMP/legion-macos-delivery/Legion-0.3.21-macos-arm64-installer.tar.gz" -C "$RUNNER_TEMP/legion-macos-delivery" 'Legion Installer.app'
           rm -r "$app"
