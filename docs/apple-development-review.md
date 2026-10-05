@@ -89,3 +89,14 @@ records both actual bare & plugin-root transports, canonical tool discovery, App
 simulator-plan replies & all 1,036 manifest files matching payload, Codex & Claude roots.
 Full CI passed 7,336 tests with zero failures. These results establish installed skill retention &
 native parser/planning/transport behavior; device/app/account execution has separate acceptance.
+
+Installer follow-up closes aggregate setup & same-version upgrade blockers: normal 0.3.21
+installers exit 0 on both hosts. Mac uses `a6c628a4`; Windows uses `f8513d20`, whose additional
+change is Windows first-install directory bootstrap. Global setup & Claude/Codex projections
+are complete; all 1,036 files match each host, both actual MCP transports & native Minimize pass.
+[Full CI](https://github.com/Orthic-Labs/legion/actions/runs/37333623783) passes 7,340 tests;
+[Windows qualification](https://github.com/Orthic-Labs/legion/actions/runs/37339666898) reruns
+full gate plus 49 focused tests & installer rollback/upgrade cases.
+[Mac qualification](https://github.com/Orthic-Labs/legion/actions/runs/37333624477) passes 141
+focused tests & mixed-client installation. [Current installed evidence](plans/legion-installed-readback-2026-10-05.json)
+records exact platform identities. iOS chat resumed HeardRight device/app work.

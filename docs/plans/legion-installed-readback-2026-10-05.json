@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "kind": "legion-installed-native-readback",
+  "date": "2026-10-05",
+  "version": "0.3.21",
+  "sourceRelationship": "Mac uses a6c628a4; Windows uses f8513d20, which adds only Windows installer parent-directory bootstrap. Rust runtime & skill sources are shared.",
+  "fullCi": {
+    "sourceRevision": "a6c628a4e32225f74e2220e3a5c1f3803b69ad4e",
+    "runId": 37333623783,
+    "passed": 7340,
+    "failed": 0,
+    "ignored": 2,
+    "suites": 289
+  },
+  "windowsFullGate": {
+    "sourceRevision": "f8513d206b6341622dbfc680db118cd6284c773f",
+    "runId": 37339666898,
+    "fullRepositoryPassed": 7340,
+    "focusedReleaseTestsPassed": 49,
+    "aggregatePassed": 7389,
+    "failed": 0,
+    "ignored": 2,
+    "suites": 292
+  },
+  "latestMainCi": {
+    "sourceRevision": "f8513d206b6341622dbfc680db118cd6284c773f",
+    "runId": 37339666703,
+    "conclusion": "success",
+    "rustTests": "skipped for Windows installer-only diff; full Rust gate ran in Windows development workflow"
+  },
+  "macos": {
+    "sourceRevision": "a6c628a4e32225f74e2220e3a5c1f3803b69ad4e",
+    "platform": "macos-arm64",
+    "runtimeSha256": "6ed67a08652bbe23ee0b2c9660d2d24b62697b9ba99d530109e7254aaabd891b",
+    "declarativeAssetsSha256": "51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f",
+    "skillChecks": [
+      {
+        "root": "payload",
+        "matched": 1036
+      },
+      {
+        "root": "claude",
+        "matched": 1036
+      },
+      {
+        "root": "codex",
+        "matched": 1036
+      }
+    ],
+    "globalSetup": {
+      "status": "complete",
+      "origin": "installed",
+      "stableCurrent": true,
+      "remediation": [
+        "client pi is optional (Baseline); missing executableToolSurface, mcpLifecycle, releaseBinding, executableResolution, hostEnforcement; default setup leaves it unselected",
+        "codexSkills projection is stale; this client is opt-in, so repair leaves it alone. Create its projection deliberately, or ignore this.",
+        "piSkills projection is stale; client is optional Baseline and default setup leaves it unselected"
+      ]
+    },
+    "clients": {
+      "claude-code": {
+        "status": "complete",
+        "origin": "installed",
+        "stableCurrent": true
+      },
+      "codex": {
+        "status": "complete",
+        "origin": "installed",
+        "stableCurrent": true
+      }
+    },
+    "mcpChecks": [
+      {
+        "mode": "bare",
+        "responses": 5,
+        "tools": [
+          "legion_apple",
+          "legion_m1_invoke",
+          "legion_m1_status"
+        ],
+        "apple": [
+          "catalog",
+          "apps-plan",
+          "simulator-plan"
+        ]
+      },
+      {
+        "mode": "plugin-root",
+        "responses": 5,
+        "tools": [
+          "legion_apple",
+          "legion_m1_invoke",
+          "legion_m1_status"
+        ],
+        "apple": [
+          "catalog",
+          "apps-plan",
+          "simulator-plan"
+        ]
+      }
+    ],
+    "hookChecks": [
+      {
+        "tool": "mcp__Windows-MCP__Snapshot",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__Windows-MCP__Click",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__docs__query",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__files__write_file",
+        "allowed": false
+      },
+      {
+        "tool": "mcp__mail__send_message",
+        "allowed": false
+      },
+      {
+        "tool": "mcp__files__delete_file",
+        "allowed": false
+      }
+    ],
+    "minimize": {
+      "receipt": "verified",
+      "validator": "installed-rust-cli",
+      "policy": "packaged-native-policy",
+      "stagedTreeDrift": "rejected"
+    },
+    "installer": {
+      "sourceRevision": "a6c628a4e32225f74e2220e3a5c1f3803b69ad4e",
+      "exitCode": 0,
+      "installerSha256": "5757f15f850b378fe3d1abe84e0f052ae4bf2d7624df9a525f78fee358ad7401"
+    },
+    "qualification": {
+      "runId": 37333624477,
+      "artifactId": 11356528152,
+      "artifactZipSha256": "3cc974f239d9132dcf00e6aed9a751b76fe1d3f148f129430939495db39c46a8",
+      "status": "qualified",
+      "focusedNativeTests": {
+        "passed": 141,
+        "failed": 0,
+        "ignored": 0,
+        "suites": 8
+      },
+      "mixedClientInstallComplete": true,
+      "optionalSharedSkillsPreserved": 2,
+      "explicitBaselineClientRejected": true,
+      "sameVersionPolicyRefreshVerified": true
+    }
+  },
+  "windows": {
+    "mcpChecks": [
+      {
+        "tools": [
+          "legion_apple",
+          "legion_m1_invoke",
+          "legion_m1_status"
+        ],
+        "apple": [
+          "catalog",
+          "apps-plan",
+          "simulator-plan"
+        ],
+        "mode": "bare",
+        "responses": 5
+      },
+      {
+        "tools": [
+          "legion_apple",
+          "legion_m1_invoke",
+          "legion_m1_status"
+        ],
+        "apple": [
+          "catalog",
+          "apps-plan",
+          "simulator-plan"
+        ],
+        "mode": "plugin-root",
+        "responses": 5
+      }
+    ],
+    "skillChecks": [
+      {
+        "matched": 1036,
+        "root": "payload"
+      },
+      {
+        "matched": 1036,
+        "root": "codex"
+      },
+      {
+        "matched": 1036,
+        "root": "claude"
+      }
+    ],
+    "appleBackend": "legion-apple",
+    "hookChecks": [
+      {
+        "tool": "mcp__Windows-MCP__Snapshot",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__Windows-MCP__Click",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__docs__query",
+        "allowed": true
+      },
+      {
+        "tool": "mcp__files__write_file",
+        "allowed": false
+      },
+      {
+        "tool": "mcp__mail__send_message",
+        "allowed": false
+      },
+      {
+        "tool": "mcp__files__delete_file",
+        "allowed": false
+      }
+    ],
+    "minimize": {
+      "stagedTreeDrift": "rejected",
+      "policy": "packaged-native-policy",
+      "validator": "installed-rust-cli",
+      "receipt": "verified"
+    },
+    "sourceRevision": "f8513d206b6341622dbfc680db118cd6284c773f",
+    "declarativeAssetsSha256": "51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f",
+    "runtimeSha256": "f9e78a6bb908b2bcfb595f632c86284f79ea46a712e6a08c2db4ffdc38b1c0ea",
+    "platform": "windows-x86_64",
+    "globalSetup": {
+      "generation": "0.3.21:51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f",
+      "status": "complete",
+      "origin": "installed",
+      "stableCurrent": true
+    },
+    "installer": {
+      "exitCode": 0,
+      "installerSha256": "8f64716bff28ee42f97fab2d4d83ed293b935961b9f74111b5044a1b09e1c41b",
+      "timeoutSource": "installer-default",
+      "sourceRevision": "f8513d206b6341622dbfc680db118cd6284c773f",
+      "childTimeoutSeconds": 180
+    },
+    "qualification": {
+      "runId": 37339666898,
+      "artifactId": 11360075007,
+      "artifactZipSha256": "6812f81177dead8a5caa48a075517dc4cad0453be0333a983033a2f57f42e698",
+      "status": "qualified",
+      "firstInstallExitCode": 0,
+      "sameVersionUpgradeExitCode": 0,
+      "stagedValidationRollbackVerified": true,
+      "mirrorSyncRollbackVerified": true,
+      "sameVersionUpgradeClean": true,
+      "rollbackVerified": true,
+      "stalledChildBounded": true
+    },
+    "sourcePreservation": {
+      "installerPerformedGitMutations": false,
+      "repositories": [
+        {
+          "repository": "parent-workspace",
+          "before": {
+            "dirtyCount": 3,
+            "head": "6bd8d35acbd7eb22d22116814b61d8df5a94e351",
+            "statusSha256": "948159f6bf0a0846c8dbfcf39f1bb9b642de04d409fdf29aec911b8dea270361"
+          },
+          "after": {
+            "dirtyCount": 7,
+            "head": "6bd8d35acbd7eb22d22116814b61d8df5a94e351",
+            "statusSha256": "5a69fa5be76a50201231aa02e2877b9f339e4cfe85183ca98d756a140351dd0b"
+          },
+          "headUnchanged": true,
+          "statusUnchanged": false
+        },
+        {
+          "repository": "legion-checkout",
+          "before": {
+            "dirtyCount": 70,
+            "head": "18dc277d9fcfdc4781e941e5485ddf63d0a20d38",
+            "statusSha256": "608c85ca0c1a48c2ccf53cddd9a64579d6cf453903b93264681269ed58a2f746"
+          },
+          "after": {
+            "dirtyCount": 70,
+            "head": "18dc277d9fcfdc4781e941e5485ddf63d0a20d38",
+            "statusSha256": "608c85ca0c1a48c2ccf53cddd9a64579d6cf453903b93264681269ed58a2f746"
+          },
+          "headUnchanged": true,
+          "statusUnchanged": true
+        }
+      ],
+      "parentStatusChangedDuringConcurrentWork": true
+    }
+  }
+}

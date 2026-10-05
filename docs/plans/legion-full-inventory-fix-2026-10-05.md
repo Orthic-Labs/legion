@@ -1,6 +1,44 @@
 # Legion full entrypoint inventory & fix plan — 2026-10-05
 
-## Scope & evidence
+## Current installed acceptance
+
+Legion **0.3.21** normal installers exited **0 on Mac & Windows**. Global setup reports
+COMPLETE, installed origin & stable current. All **1,036 files** match payload, Claude & Codex
+on each machine. Both bare & actual plugin-root MCP transports return five successful replies,
+three canonical tools & Apple catalog/apps/simulator plans. Six hook decisions pass on each host;
+Windows-MCP Snapshot/Click & docs queries are admitted. Native Minimize binds installed Rust
+executable & packaged policy, validates receipts & rejects staged-tree drift.
+
+Mac source is `a6c628a4e32225f74e2220e3a5c1f3803b69ad4e`; Windows source is
+`f8513d206b6341622dbfc680db118cd6284c773f`. Final Windows revision only creates missing
+`versions` parent before first activation; Rust runtime & skill sources match Mac. Platform-specific
+runtime, installer & artifact hashes are recorded in
+[portable installed evidence](legion-installed-readback-2026-10-05.json).
+
+[Full repository CI](https://github.com/Orthic-Labs/legion/actions/runs/37333623783) passed
+**7,340 tests, zero failures, two ignored**.
+[Windows development CI](https://github.com/Orthic-Labs/legion/actions/runs/37339666898)
+reran that full gate plus **49 focused release tests** & whole native workspace/all-target checks,
+then qualified first install, clean same-version replacement, staged-validation rollback,
+mirror-sync rollback, refresh rollback, bounded stalled child & actual plugin-root MCP.
+[Mac development CI](https://github.com/Orthic-Labs/legion/actions/runs/37333624477)
+passed whole native workspace/all-target checks, **141 focused tests** & mixed Claude/Codex/Pi
+installer qualification. Latest main CI passed; its Rust gate correctly skipped Windows-only diff.
+
+Closed installer defects: optional Pi/Baseline no longer breaks default Mac setup; explicit Pi
+selection remains truthfully unsupported. Two unrelated shared-skill files remain unchanged.
+Windows replaces owned version tree from verified fresh staging, removes stale package entries,
+uses default 180-second child budget & restores package mirrors with activation rollback.
+Mac workflow derives release version from canonical metadata. Normal same-version Windows
+install needed no manual uninstall, timeout override or installed-file edits.
+
+Windows Legion checkout HEAD & dirty status are unchanged. Parent workspace HEAD is unchanged;
+its dirty count changed from 3 to 7 during concurrent work. Installer performed no Git mutations.
+iOS chat received installed identity & resumed HeardRight device/app work under its existing scope.
+Remaining inventory defects below stay open, including seven async dispatch panics, standalone
+MCP binary & narrower release hardening findings.
+
+## Historical transport acceptance — superseded by current results
 
 Follow-up acceptance found `8c23e45b` advertised plugin-root transport broken on both hosts:
 `serve --stdio --plugin-root current/plugin` exits 2 before JSON-RPC because validator requires
@@ -101,9 +139,8 @@ Exact qualified installers are used for explicitly requested stable installation
 
 ## Priority order
 
-1. **Claude/native installed path first.** Qualify `d54bea8c` through GitHub: Claude hook/MCP
-   permissions, native Minimize policy/validator assets, exact macOS same-version reinstall,
-   then exact installed readback. Do not call source/unit coverage release completion.
+1. **Claude/native installed path — CLOSED.** Current acceptance above proves normal installers,
+   Claude/Codex skill projections, both MCP transports, hooks & native Minimize on both hosts.
 2. **Canonical MCP/runtime parity.** Choose one registry and adapter, repair or remove inert
    standalone `legion-mcp`, then prove list/call parity.
 3. **Native CLI truthfulness & high-risk core defects.** Fix schedule, audit claims, doctor root,
@@ -331,14 +368,14 @@ and process diagnostics; real RightKit/GitHub/Inno/PowerShell/Apple signing/nota
 | Priority | Finding | Exact fix | Acceptance |
 |---|---|---|---|
 | P1 | Rust subprocess timeouts are inert: blocking `Command::output()` in `qualify_windows/tree.rs`, `release/paths.rs`, and ignored `_timeout` in `native_installed_smoke.rs`. | one killable runner with timeout, process-tree kill, bounded output, diagnostic evidence; route all Rust subprocesses through it. | sleeping child terminates, nonzero result, clipped diagnostics, no false qualification. |
-| P1 | Windows activation defaults 60s while setup qualification permits 180s. | one explicit Inno → PowerShell → setup timeout contract; pass from qualification. | stalled child produces bounded failure/retry evidence; normal repair respects budget. |
-| P1 | Same-version Windows installer merges payload into existing `versions/0.3.21`; obsolete directories survive & strict plugin-root validation rejects them. Real `d54bea8c` upgrade reproduced `package contains extra directory skills/alchemist/scripts`. | stage fresh version payload, validate before activation & replace owned version tree; preserve prior current for rollback. Add upgrade qualification with obsolete files/directories present. | exact normal same-version upgrade removes obsolete package entries & both MCP transports pass without manual cleanup; forced failure restores prior current. |
+| CLOSED | Windows activation default differed from setup qualification budget. | Default child timeout is 180s; isolated stalled-child qualification stays bounded. | Normal Windows installer exited 0 without environment override; qualified stalled-child rejection passed. |
+| CLOSED | Same-version Windows installer retained obsolete package directories. | Verified fresh staging replaces owned version tree; first activation creates missing versions parent; prior tree remains available for rollback. | Qualified stale-file/directory upgrade & rollback cases pass; actual normal upgrade exited 0 & both transports pass without manual cleanup. |
 | P1 | macOS local build bypasses RightKit admission (`dev:build:mac`). | shared admission wrapper or CI-only route. | active/recent/missing inventory refuses local work and points to GitHub. |
 | P1 | Swift installer accepts `..`, `.`, slash, non-SemVer; switches `current` before setup/doctor and lacks rollback. | strict stable SemVer/path validation; stage/verify then pointer swap or durable rollback. | invalid versions cannot escape `versions`; forced setup failure restores prior current. |
-| P1 | `932d1074` fixes same-version stale payload by staging/replacing payload; macOS CI & installed readback passed at `8c23e45b`. | complete GitHub macOS installed qualification and record exact payload comparison. | second same-version install replaces stale Minimize policy and passes readback. |
-| P2 | `activate.ps1` scans every package LocalCache mirror. | scope declared package IDs; rollback-safe non-destructive mirror failures. | unrelated package trees untouched. |
+| CLOSED | Mac same-version payload refresh needed installed qualification. | Current Mac qualification refreshes stale Minimize policy through normal installer. | Qualified refresh & actual exact payload/projection comparison pass. |
+| P2 / PARTIAL | `activate.ps1` scans every package LocalCache mirror. | Mirror replacement is staged, verified & transactionally restored on failure; package-ID scoping remains open. | Forced mirror-sync rollback passes; constrain unrelated package selection before full closure. |
 | P2 | CI change detector omits package/lock/scripts/release config and can skip toolchain setup before gate. | include all build/release inputs or make gate install tools independently. | each release-affecting diff gets toolchain + gate coverage. |
-| P2 | macOS workflow hardcodes `0.3.21`. | derive from `release/version.json`; assert metadata/payload match. | version bump changes artifact identity without edit to workflow. |
+| CLOSED | macOS workflow hardcoded release version. | Workflow derives version from `release/version.json` & checks payload metadata. | Qualified Mac build uses canonical version for artifact & installer identity. |
 | P2 | release-finalize host guards incomplete. | fail fast before mutation on wrong OS/tool absence. | wrong-host Windows/macOS finalize has no output mutation. |
 | P2 | `Command::output()` capture unbounded in ports. | bounded pipes/files with clipped diagnostics and hashes. | noisy child cannot exhaust memory; evidence retains diagnostic hash. |
 
@@ -490,20 +527,13 @@ raw original evidence is retained. Diagnostic remains red until genuine help def
 Full CI for `a553be4f` stopped at portability gate because this report included two developer-local
 workspace paths. Paths are replaced with portable descriptions; no runtime defect caused that gate.
 
-## Additional installed macOS setup defect
+## Additional installed macOS setup defect — CLOSED
 
-Normal qualified installer activated exact `8c23e45b` payload but global setup-finish exited 1:
-optional Pi profile reports Baseline fidelity & missing executableToolSurface, mcpLifecycle,
-releaseBinding, executableResolution & hostEnforcement. Claude & Codex selected repair each
-exited 0 & read back COMPLETE. This mixed-client aggregate failure predates this repair & does
-not invalidate requested clients' installed evidence.
-
-P1 fix: global setup aggregation must distinguish optional explicit-only Baseline clients from
-requested supported clients, report their actual fidelity, & produce a truthful exit/result.
-Acceptance: qualify installer with Claude + Codex + optional Pi present; requested clients install
-cleanly & optional profile has an explicit disposition. Add that mixed-client fixture to macOS
-qualification, which currently tests a narrower disposable host.
-
+Default setup now selects supported Full clients & reports optional Pi/Baseline separately;
+explicit Pi selection returns typed unsupported-mechanism result. Mixed-client Mac qualification
+includes Claude, Codex & Pi. Normal installer, global repair/status & doctor exit 0; Claude/Codex
+read back COMPLETE. Optional shared skills remain unchanged. Exact source & installed results
+appear in [current portable evidence](legion-installed-readback-2026-10-05.json).
 
 ### Confirmed native dispatch panics
 
