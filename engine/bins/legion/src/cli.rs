@@ -757,8 +757,8 @@ fn validate_portable_plugin_root(
     }
     // Known per-client projection additions written on purpose by the setup
     // registry: the Claude native-plugin manifest copy and the Antigravity MCP
-    // config copy. Each is accepted only when its bytes are identical to the
-    // portable-core original; any other extra path still fails the closure check.
+    // config copy. These aliases preserve the portable-core original; Claude's
+    // MCP descriptor additionally has one exact host-specific argument projection.
     let claude_projection = root.join(".claude-plugin").join("plugin.json");
     if claude_projection.is_file() {
         let projected = std::fs::read(&claude_projection).map_err(commands::io_error)?;
@@ -780,13 +780,15 @@ fn validate_portable_plugin_root(
         expected_files.insert("mcp_config.json".into());
     }
     // Claude Code reads a plugin's MCP server from `.mcp.json`, so the Claude
-    // projection writes that dotted copy beside the portable `mcp.json`.
+    // projection writes that descriptor beside the portable `mcp.json`.
+    // Claude does not expand ${PLUGIN_ROOT}; assembly removes only that pair
+    // from its native descriptor. Everything else must match the portable one.
     let claude_mcp_projection = root.join(".mcp.json");
     if claude_mcp_projection.is_file() {
         let projected = std::fs::read(&claude_mcp_projection).map_err(commands::io_error)?;
         let original = std::fs::read(root.join("mcp.json")).map_err(commands::io_error)?;
-        if projected != original {
-            return Err(plugin_root_error(".mcp.json does not match mcp.json"));
+        if !matches_claude_mcp_projection(&original, &projected) {
+            return Err(plugin_root_error(".mcp.json does not match the approved Claude projection of mcp.json"));
         }
         expected_files.insert(".mcp.json".into());
     }
@@ -826,6 +828,23 @@ fn validate_portable_plugin_root(
     validate_portable_plugin_manifests(&root)?;
 
     Ok(())
+}
+
+fn matches_claude_mcp_projection(original: &[u8], projected: &[u8]) -> bool {
+    if original == projected {
+        return true;
+    }
+    let Ok(mut expected) = serde_json::from_slice::<Value>(original) else {
+        return false;
+    };
+    let Some(args) = expected.pointer_mut("/mcpServers/legion/args") else {
+        return false;
+    };
+    if *args != json!(["serve", "--stdio", "--plugin-root", "${PLUGIN_ROOT}"]) {
+        return false;
+    }
+    *args = json!(["serve", "--stdio"]);
+    serde_json::from_slice::<Value>(projected).is_ok_and(|value| value == expected)
 }
 
 fn is_safe_portable_relative_path(relative: &str) -> bool {

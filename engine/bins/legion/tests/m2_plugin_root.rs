@@ -634,6 +634,65 @@ fn plugin_root_accepts_the_claude_dotted_mcp_copy() {
 }
 
 #[test]
+fn plugin_root_accepts_the_shipped_claude_native_mcp_descriptor() {
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    let mut native: Value = serde_json::from_slice(
+        &fs::read(plugin_root.join("mcp.json")).expect("portable MCP"),
+    ).expect("portable MCP JSON");
+    native["mcpServers"]["legion"]["args"] = json!(["serve", "--stdio"]);
+    fs::write(plugin_root.join(".mcp.json"), native.to_string()).expect("native Claude MCP");
+    // Antigravity retains the Agent Plugins contract, independently of Claude.
+    fs::copy(plugin_root.join("mcp.json"), plugin_root.join("mcp_config.json")).expect("Antigravity MCP");
+
+    let (mut child, mut stdin, mut stdout) = start_stdio(&plugin_root, &fixture.config);
+    let initialized = request(&mut stdin, &mut stdout,
+        json!({"jsonrpc":"2.0", "id":1, "method":"initialize", "params":{}}));
+    assert_eq!(initialized["result"]["releaseIdentity"]["releaseVersion"], env!("CARGO_PKG_VERSION"));
+    drop(stdin);
+    assert!(child.wait().expect("server exit").success());
+}
+
+#[test]
+fn plugin_root_rejects_modified_claude_native_mcp_descriptors() {
+    for (field, value) in [
+        ("command", json!("other-binary")),
+        ("type", json!("http")),
+        ("args", json!(["serve", "--stdio", "--other"])),
+        ("args", json!(["serve", "--stdio", "--plugin-root", "/unapproved"])),
+        ("env", json!({"LEGION_M1_CONFIG":"unapproved"})),
+    ] {
+        let fixture = fixture();
+        let plugin_root = portable_package(&fixture);
+        let mut native: Value = serde_json::from_slice(
+            &fs::read(plugin_root.join("mcp.json")).expect("portable MCP"),
+        ).expect("portable MCP JSON");
+        native["mcpServers"]["legion"]["args"] = json!(["serve", "--stdio"]);
+        native["mcpServers"]["legion"][field] = value;
+        fs::write(plugin_root.join(".mcp.json"), native.to_string()).expect("modified MCP");
+        let output = serve_output(&plugin_root, &fixture.config);
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty(), "modified MCP must not start transport");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("approved Claude projection"));
+    }
+}
+
+#[test]
+fn plugin_root_rejects_claude_arguments_in_antigravity_alias() {
+    let fixture = fixture();
+    let plugin_root = portable_package(&fixture);
+    let mut native: Value = serde_json::from_slice(
+        &fs::read(plugin_root.join("mcp.json")).expect("portable MCP"),
+    ).expect("portable MCP JSON");
+    native["mcpServers"]["legion"]["args"] = json!(["serve", "--stdio"]);
+    fs::write(plugin_root.join("mcp_config.json"), native.to_string()).expect("incorrect alias");
+    let output = serve_output(&plugin_root, &fixture.config);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("mcp_config.json does not match mcp.json"));
+}
+
+#[test]
 fn plugin_root_accepts_the_claude_projection_manifest_copy() {
     let fixture = fixture();
     let plugin_root = portable_package(&fixture);

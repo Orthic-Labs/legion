@@ -49,6 +49,7 @@ jobs:
           cargo check --manifest-path engine/Cargo.toml --workspace --all-targets --locked --release --target aarch64-apple-darwin
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-hook
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion --test minimize_cli
+          cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion --test m2_plugin_root
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-apple
       - name: Assemble & qualify exact unsigned native candidate
         run: |

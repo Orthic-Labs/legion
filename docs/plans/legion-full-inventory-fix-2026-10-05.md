@@ -2,6 +2,14 @@
 
 ## Scope & evidence
 
+Follow-up acceptance found `8c23e45b` advertised plugin-root transport broken on both hosts:
+`serve --stdio --plugin-root current/plugin` exits 2 before JSON-RPC because validator requires
+`.mcp.json` byte equality with `mcp.json`. Prior five-request receipts exercised bare stdio only.
+Assembler intentionally removes `${PLUGIN_ROOT}` arguments for Claude; validator now accepts
+only that exact argument projection while preserving every other field. Antigravity alias retains
+exact-byte validation. Qualification now probes both bare & plugin-root transports, all three
+canonical tools & Apple catalog/apps/simulator dry plans. Rebuilt installed readback is pending.
+
 This is source-bound inventory for Legion's primary checkout. Reports read:
 
 - `/tmp/legion-full-audit-cli-runtime.md`

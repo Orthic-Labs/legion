@@ -7,9 +7,10 @@
 
 use std::env;
 use std::fs;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::Duration;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
@@ -76,6 +77,83 @@ fn plain_path(path: PathBuf) -> PathBuf {
     } else {
         path
     }
+}
+
+/// Probe both client transports against actual assembled descriptors, without
+/// executing Apple tools or contacting account services.
+fn smoke_mcp_transport(binary: &Path, plugin_root: Option<&Path>, env_vars: &[(String, String)]) -> Result<(), String> {
+    let mut command = Command::new(binary);
+    command.args(["serve", "--stdio"]);
+    if let Some(root) = plugin_root {
+        command.arg("--plugin-root").arg(root);
+    }
+    command.env_clear().envs(env_vars.iter().cloned())
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = command.spawn().map_err(|e| format!("MCP smoke spawn failed: {e}"))?;
+    let mut stdin = child.stdin.take().ok_or("MCP smoke stdin missing")?;
+    let stdout = child.stdout.take().ok_or("MCP smoke stdout missing")?;
+    let stderr = child.stderr.take().ok_or("MCP smoke stderr missing")?;
+    const CAPTURE: u64 = 2 * 1024 * 1024;
+    let read = |pipe: Box<dyn Read + Send>| {
+        std::thread::spawn(move || {
+            let mut bytes = Vec::new();
+            pipe.take(CAPTURE + 1).read_to_end(&mut bytes).map(|_| bytes)
+        })
+    };
+    let out_reader = read(Box::new(stdout));
+    let err_reader = read(Box::new(stderr));
+    let requests = [
+        serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}),
+        serde_json::json!({"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}),
+        serde_json::json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"legion_apple","arguments":{"operation":"catalog"}}}),
+        serde_json::json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"legion_apple","arguments":{"operation":"app-store","arguments":{"action":"apps","execute":false}}}}),
+        serde_json::json!({"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"legion_apple","arguments":{"operation":"simulator.list","arguments":{"execute":false}}}}),
+    ];
+    let input = requests.iter().map(|request| format!("{request}\n")).collect::<String>();
+    let write_error = stdin.write_all(input.as_bytes()).err();
+    drop(stdin);
+    let started = Instant::now();
+    let (status, timed_out) = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break (status, false),
+            Ok(None) if started.elapsed() < Duration::from_secs(30) => std::thread::sleep(Duration::from_millis(25)),
+            result => {
+                let _ = child.kill();
+                let status = child.wait().map_err(|e| format!("MCP smoke wait failed: {e}"))?;
+                if let Err(error) = result {
+                    return Err(format!("MCP smoke poll failed: {error}"));
+                }
+                break (status, true);
+            }
+        }
+    };
+    let stdout = out_reader.join().map_err(|_| "MCP smoke stdout reader failed")?
+        .map_err(|e| e.to_string())?;
+    let stderr = err_reader.join().map_err(|_| "MCP smoke stderr reader failed")?
+        .map_err(|e| e.to_string())?;
+    if timed_out || !status.success() || write_error.is_some() || stdout.len() as u64 > CAPTURE || stderr.len() as u64 > CAPTURE {
+        return Err(format!("MCP smoke failed (plugin-root={}, status={status}, timeout={timed_out}, write={write_error:?}): {}",
+            plugin_root.is_some(), String::from_utf8_lossy(&stderr)));
+    }
+    let responses: Vec<Value> = String::from_utf8_lossy(&stdout).lines()
+        .map(serde_json::from_str).collect::<Result<_, _>>().map_err(|e| format!("MCP smoke response JSON: {e}"))?;
+    if responses.len() != requests.len() || responses.iter().enumerate().any(|(index, response)| {
+        response.get("id").and_then(Value::as_u64) != Some(index as u64 + 1)
+            || response.get("error").is_some()
+            || response.get("result").is_none()
+            || response.pointer("/result/isError").and_then(Value::as_bool) == Some(true)
+    }) {
+        return Err(format!("MCP smoke returned incomplete/error responses: {responses:?}"));
+    }
+    let names: std::collections::BTreeSet<_> = responses[1].pointer("/result/tools").and_then(Value::as_array)
+        .ok_or("MCP smoke tools/list missing tools")?.iter()
+        .filter_map(|tool| tool.get("name").and_then(Value::as_str)).collect();
+    let expected: std::collections::BTreeSet<_> = ["legion_m1_status", "legion_m1_invoke", "legion_apple"].into_iter().collect();
+    if names != expected {
+        return Err(format!("MCP smoke canonical tool list mismatch: {names:?}"));
+    }
+    println!("installed MCP smoke PASS: plugin-root={}, 3 canonical tools, catalog/apps/simulator plans", plugin_root.is_some());
+    Ok(())
 }
 
 pub fn native_installed_smoke(
@@ -303,5 +381,7 @@ pub fn native_installed_smoke(
         return Err(format!("installed Minimize accepted a missing policy: {stderr}"));
     }
 
+    smoke_mcp_transport(&binary, None, &env_vars)?;
+    smoke_mcp_transport(&binary, Some(&current_root.join("plugin")), &env_vars)?;
     Ok(())
 }
