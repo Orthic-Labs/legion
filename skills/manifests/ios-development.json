@@ -211,7 +211,7 @@
     {
       "path": "config/source-manifest.json",
       "uri": "legion-skill://ios-development/config/source-manifest.json",
-      "digest": "sha256:c80c5a45dcf758231afad1407198f4bbc55940e967a84f2ac307c140f17bf058"
+      "digest": "sha256:2940429b43435aff5769371fdaddf5f00e036239a9bd4d9abef0d85cbdf89143"
     },
     {
       "path": "config/tool-catalog.json",
@@ -276,12 +276,12 @@
     {
       "path": "references/build-optimization/benchmarking.md",
       "uri": "legion-skill://ios-development/references/build-optimization/benchmarking.md",
-      "digest": "sha256:3dbd2a8243f12b0dbff55dc7a22a51142796320f19acb029c215562e716b7aab"
+      "digest": "sha256:102752b8931a77dcb57b61b7ab8df4b91a2c1aa8f82224492f470b38ca3c0c64"
     },
     {
       "path": "references/build-optimization/compilation-analysis.md",
       "uri": "legion-skill://ios-development/references/build-optimization/compilation-analysis.md",
-      "digest": "sha256:d0d1d86c231f431181caaf8ea7fda9fd049ed94c3b1c044ac00f9d36657ce48a"
+      "digest": "sha256:596bb80c35f01078c0c4194469a60f442165c4f59c591b80329137e01433f5ba"
     },
     {
       "path": "references/build-optimization/fixing.md",
@@ -931,7 +931,7 @@
     {
       "path": "references/testing/assertions.md",
       "uri": "legion-skill://ios-development/references/testing/assertions.md",
-      "digest": "sha256:e08e377b380a96022a1a0f7628e8aed732890c7697945af0af5fcecd088258fd"
+      "digest": "sha256:2a4095fad3876887c0daddfa90f45d58592af8ad3ec0a1c186e6d60faec0cb20"
     },
     {
       "path": "references/testing/async.md",
@@ -981,7 +981,7 @@
     {
       "path": "references/tool-setup.md",
       "uri": "legion-skill://ios-development/references/tool-setup.md",
-      "digest": "sha256:fdbbca5496430e1694507765864747bf2168930234e943307bd7c50d753bea79"
+      "digest": "sha256:5e389704c0253bb74df73ed7b1c55a437949a6df4ef5a0f3c685bad348c9dc4d"
     },
     {
       "path": "references/toolchain.md",

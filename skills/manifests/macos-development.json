@@ -214,7 +214,7 @@
     {
       "path": "config/source-manifest.json",
       "uri": "legion-skill://macos-development/config/source-manifest.json",
-      "digest": "sha256:c80c5a45dcf758231afad1407198f4bbc55940e967a84f2ac307c140f17bf058"
+      "digest": "sha256:2940429b43435aff5769371fdaddf5f00e036239a9bd4d9abef0d85cbdf89143"
     },
     {
       "path": "config/tool-catalog.json",
@@ -279,12 +279,12 @@
     {
       "path": "references/build-optimization/benchmarking.md",
       "uri": "legion-skill://macos-development/references/build-optimization/benchmarking.md",
-      "digest": "sha256:11e47cffe1f08f86228ce38358a43f9a7cb8b74ba49e759cec0d23e4f477221b"
+      "digest": "sha256:b9f7f605360de90b5ee49a66bad4654260c3f857b3fce33d8e9367be34781349"
     },
     {
       "path": "references/build-optimization/compilation-analysis.md",
       "uri": "legion-skill://macos-development/references/build-optimization/compilation-analysis.md",
-      "digest": "sha256:38e1c28c004b7d738527af0fd3de6b3593180aaffb1aae5a12f7212d6c80bff7"
+      "digest": "sha256:d975738ea09e6adcd4a5c4803a157fd4bfbf644e45080bd44e4853f268e3ee8d"
     },
     {
       "path": "references/build-optimization/fixing.md",
@@ -949,7 +949,7 @@
     {
       "path": "references/testing/assertions.md",
       "uri": "legion-skill://macos-development/references/testing/assertions.md",
-      "digest": "sha256:e08e377b380a96022a1a0f7628e8aed732890c7697945af0af5fcecd088258fd"
+      "digest": "sha256:2a4095fad3876887c0daddfa90f45d58592af8ad3ec0a1c186e6d60faec0cb20"
     },
     {
       "path": "references/testing/async.md",
@@ -999,7 +999,7 @@
     {
       "path": "references/tool-setup.md",
       "uri": "legion-skill://macos-development/references/tool-setup.md",
-      "digest": "sha256:fdbbca5496430e1694507765864747bf2168930234e943307bd7c50d753bea79"
+      "digest": "sha256:5e389704c0253bb74df73ed7b1c55a437949a6df4ef5a0f3c685bad348c9dc4d"
     },
     {
       "path": "references/toolchain.md",
