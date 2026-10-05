@@ -2583,6 +2583,7 @@
     },
     {
       "id": "public-architecture-synthesis",
+      "pathBase": "repository-root (snapshotRoot, sourceMap, hashes, and clonePath)",
       "repository": "https://merowing.info/",
       "commit": null,
       "scope": [
@@ -2590,16 +2591,16 @@
         "skills/macos-development/references/architecture/",
         "docs/apple-absorption/architecture.json"
       ],
-      "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
-      "sourceMap": "/Volumes/D/claude/apple-skill-sources/public-architecture/SOURCES.txt",
-      "hashes": "/Volumes/D/claude/apple-skill-sources/public-architecture/SHA256SUMS",
+      "snapshotRoot": "../apple-skill-sources/public-architecture",
+      "sourceMap": "../apple-skill-sources/public-architecture/SOURCES.txt",
+      "hashes": "../apple-skill-sources/public-architecture/SHA256SUMS",
       "files": [
         {
           "path": "assets/files/general.md",
           "sha256": "310209777cbeee675cda964ee2224ea777ea1793f49b8b7311d090b098b7733f",
           "kind": "guidance",
           "sourceUrl": "https://merowing.info/assets/files/general.md",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "merowing-general.md"
         },
         {
@@ -2607,7 +2608,7 @@
           "sha256": "07f30bd21967773957e6d3a2c6e2c31a398cd0902ab9dc091a90a6bc8d5e9ef0",
           "kind": "guidance",
           "sourceUrl": "https://merowing.info/assets/files/rule-loading.md",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "merowing-rule-loading.md"
         },
         {
@@ -2615,7 +2616,7 @@
           "sha256": "4a0da246a9408ac98054cb9c77bbcc97d0bcdcf8ca0b223ce7a6931e4b44dd23",
           "kind": "guidance",
           "sourceUrl": "https://merowing.info/posts/stop-getting-average-code-from-your-llm/",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "merowing-stop-average-code.txt"
         },
         {
@@ -2623,7 +2624,7 @@
           "sha256": "b09798eac8e74a53f68e689b7b706a45e12db337912fa81c79db9b99db201021",
           "kind": "guidance",
           "sourceUrl": "https://merowing.info/posts/exhaustive-testing-in-tca/",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "merowing-exhaustive-testing.txt"
         },
         {
@@ -2631,7 +2632,7 @@
           "sha256": "3f92622bd72621be2ab1de4e1661eabcdb9b665e898e86213b439fad9d0cfd95",
           "kind": "guidance",
           "sourceUrl": "https://merowing.info/posts/the-composable-architecture-best-practices/",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "merowing-tca-practices.txt"
         },
         {
@@ -2639,35 +2640,35 @@
           "sha256": "57d13348ab148b76edd9305111b2925dd2d8ceb3cfb53397ffd602aba566d87a",
           "kind": "guidance",
           "sourceUrl": "https://github.com/krzysztofzablocki/Inject",
-          "clonePath": "/Volumes/D/claude/apple-skill-sources/krzysztofzablocki-inject"
+          "clonePath": "../apple-skill-sources/krzysztofzablocki-inject"
         },
         {
           "path": "README.md",
           "sha256": "0a5411cdf803c00b52ea8ca5e8872b9419f4ac145c353a2b7de4b38ea519e83e",
           "kind": "guidance",
           "sourceUrl": "https://github.com/krzysztofzablocki/Sourcery",
-          "clonePath": "/Volumes/D/claude/apple-skill-sources/krzysztofzablocki-sourcery"
+          "clonePath": "../apple-skill-sources/krzysztofzablocki-sourcery"
         },
         {
           "path": "README.md",
           "sha256": "443545ff8d778bbbc76195e02fb21ab86d9b9758f09d9b0bc601c8a6b590ce34",
           "kind": "guidance",
           "sourceUrl": "https://github.com/PaulSolt/DocSetQuery",
-          "clonePath": "/Volumes/D/claude/apple-skill-sources/paulsolt-docsetquery"
+          "clonePath": "../apple-skill-sources/paulsolt-docsetquery"
         },
         {
           "path": "README.md",
           "sha256": "fd77b228dc392e1d380acefdd0edd6c2aa57bb0e75fc45cc27f8f75c9d101402",
           "kind": "guidance",
           "sourceUrl": "https://github.com/cpisciotta/xcbeautify",
-          "clonePath": "/Volumes/D/claude/apple-skill-sources/cpisciotta-xcbeautify"
+          "clonePath": "../apple-skill-sources/cpisciotta-xcbeautify"
         },
         {
           "path": "README.md",
           "sha256": "f160bf23d457bc050e19ccdb379b1a729a4d3db8474c38f85e8b4e671c98400e",
           "kind": "discovery-directory",
           "sourceUrl": "https://github.com/twostraws/Swift-Agent-Skills",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "twostraws-swift-agent-skills-README.md"
         },
         {
@@ -2675,7 +2676,7 @@
           "sha256": "e14517223b3cd3235e8877153893d613875fd9bff728dc84f700b0bc1cfbc17d",
           "kind": "guidance",
           "sourceUrl": "https://super-easy-apps.kit.com/app-creator",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "appcreator-public.txt"
         },
         {
@@ -2683,7 +2684,7 @@
           "sha256": "c70d78dd7f46ee1e7f5dbb682c0ccddb4dff622b1bcc74767329043e85376a6f",
           "kind": "guidance",
           "sourceUrl": "https://super-easy-apps.kit.com/posts/use-this-skill-to-create-apps-10x-faster",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "appcreator-workflow.txt"
         },
         {
@@ -2691,7 +2692,7 @@
           "sha256": "a2e30a138171e3d19114f367917ac1aaadfc27d2997f715b80c4ae75cefb8422",
           "kind": "discovery-summary",
           "sourceUrl": "https://super-easy-apps.kit.com/posts/install-these-skills-before-codex-touches-your-xcode-project",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "paulsolt-skill-thread-summary.txt"
         },
         {
@@ -2699,7 +2700,7 @@
           "sha256": "02055e52825defe3f417dc867d8539a09e9cea38090d80cf59714398fb0164c0",
           "kind": "public-secondary-guidance",
           "sourceUrl": "https://www.skillsdirectory.com/skills/vasilyu1983-software-ios-runtime-debugging",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": "appcreator-secondary-index.txt"
         },
         {
@@ -2707,7 +2708,7 @@
           "sha256": null,
           "kind": "web",
           "sourceUrl": "https://x.com/PaulSolt/status/2042716870512353294",
-          "snapshotRoot": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+          "snapshotRoot": "../apple-skill-sources/public-architecture",
           "snapshotFile": null,
           "availability": "HTTP 403; no snapshot"
         }

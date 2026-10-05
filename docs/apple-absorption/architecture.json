@@ -197,9 +197,10 @@
     }
   ],
   "snapshots": {
-    "directory": "/Volumes/D/claude/apple-skill-sources/public-architecture",
+    "pathBase": "repository-root (sourceMap and hashes are relative to directory)",
+    "directory": "../apple-skill-sources/public-architecture",
     "sourceMap": "SOURCES.txt",
     "hashes": "SHA256SUMS",
-    "notes": "Raw HTML and normalized text snapshots are outside Legion. Public AppCreator page was read; private/gated skill payload was not accessed. Direct twostraws directory clone is outside Legion at /Volumes/D/claude/apple-skill-sources/twostraws-swift-agent-skills."
+    "notes": "Raw HTML and normalized text snapshots are outside Legion. Public AppCreator page was read; private/gated skill payload was not accessed. Direct twostraws directory clone is outside Legion at ../apple-skill-sources/twostraws-swift-agent-skills."
   }
 }
