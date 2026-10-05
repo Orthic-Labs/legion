@@ -21,13 +21,12 @@ const SHARED_TOPICS: [&str; 8] = [
     "swiftui",
     "testing",
 ];
-// Build guidance shares file coverage, but selected Xcode destinations differ
-// between the iOS & macOS bundles.
-const BYTE_IDENTICAL_TOPICS: [&str; 4] = [
+// Build, release & UI guidance share file coverage, but Xcode destinations,
+// App Store platform values & UI APIs differ between iOS & macOS bundles.
+const BYTE_IDENTICAL_TOPICS: [&str; 3] = [
     "architecture",
     "concurrency",
     "profiling",
-    "release",
 ];
 
 fn repository_root() -> PathBuf {

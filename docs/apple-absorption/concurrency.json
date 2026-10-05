@@ -5436,8 +5436,8 @@
               "summary": "Section “Async sequence monitoring (weak self + guard)”: Capture the sequence before creating the task so the closure does not implicitly retain its owner for the stream property; weakly bind the owner per event.",
               "disposition": "merged",
               "destinations": [
-                "skills/ios-development/references/concurrency/memory-management.md#async-sequence-monitoring-weak-self-guard",
-                "skills/macos-development/references/concurrency/memory-management.md#async-sequence-monitoring-weak-self-guard"
+                "skills/ios-development/references/concurrency/memory-management.md#async-sequence-monitoring-weak-self--guard",
+                "skills/macos-development/references/concurrency/memory-management.md#async-sequence-monitoring-weak-self--guard"
               ],
               "reason": "Updated both platform references to capture the event stream before task creation and keep owner retention bounded."
             },
