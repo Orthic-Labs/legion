@@ -11,18 +11,20 @@ pub fn resolve_minimize_paths() -> Result<MinimizePaths, MinimizeError> {
 }
 
 fn resolve_asset_pair() -> Result<(PathBuf, PathBuf), MinimizeError> {
-    let policy_name = Path::new("lib/cognitive/arcane/policy/minimize-policy.md");
-    let validator_name = Path::new("lib/cognitive/arcane/minimize.mjs");
+    let policy_name = Path::new("lib/minimize/POLICY.md");
+    // Receipt validation is native. Bind receipts to the executable actually
+    // performing it, so changing the implementation invalidates old receipts.
+    let validator = std::env::current_exe()
+        .map_err(|error| MinimizeError::new(format!("native minimize validator unavailable: {error}")))?;
     let candidates = release_roots();
     for root in candidates {
         let policy = root.join(policy_name);
-        let validator = root.join(validator_name);
-        if policy.is_file() && validator.is_file() {
+        if policy.is_file() {
             return Ok((policy, validator));
         }
     }
     Err(MinimizeError::new(
-        "minimize policy and validator assets are unavailable from the installed release root",
+        "minimize policy asset lib/minimize/POLICY.md is unavailable from the installed release root",
     ))
 }
 
@@ -34,6 +36,7 @@ fn release_roots() -> Vec<PathBuf> {
             roots.push(parent.join("share").join("legion"));
             roots.push(parent.join("assets"));
         }
+        return roots;
     }
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     if let Some(repo_root) = manifest_dir.ancestors().nth(3) {

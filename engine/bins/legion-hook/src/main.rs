@@ -808,8 +808,8 @@ fn effect_request(request: &HookRequest) -> Result<Option<EffectRequest>, String
         // non-MCP-specific class) still resolves to a concrete class here.
         // Anything else is unclassified rather than mislabeled as an external
         // side effect. Route it to a dedicated class so policy emits a truthful
-        // receipt. Canonical policy denies this uncertainty by default; an
-        // explicit narrow rule can allow a known observation tool.
+        // receipt. Canonical policy leaves unclassified tools ambient under
+        // host permissions; explicit policy can still deny them.
         Some(
             mcp_external_side_effect(tool_name.as_deref(), explicit_operation.as_deref())
                 .or_else(|| parse_effect_class(None, tool_name.as_deref(), command.as_deref()))
@@ -1193,7 +1193,7 @@ fn default_operation(effect_class: EffectClass) -> &'static str {
 /// "contains `read`" is a denylist an untrusted server dodges by naming its
 /// delete tool `read_and_purge`; an exact name is a claim we make about a
 /// tool we know. Anything absent here stays
-/// `MCP_UNCLASSIFIED_OBSERVATION` and stays denied.
+/// `MCP_UNCLASSIFIED_OBSERVATION`, preserving that uncertainty in its receipt.
 ///
 /// Only read paths belong here. `legion_m1_invoke` is deliberately absent:
 /// it runs work and is not an observation.
@@ -2741,7 +2741,7 @@ mod tests {
     }
 
     #[test]
-    fn unrecognized_mcp_tools_fail_closed_with_truthful_receipts() {
+    fn unrecognized_mcp_tools_are_allowed_with_truthful_receipts() {
         // A third-party MCP tool whose name matches no positive
         // classification arm must never be silently skipped (no policy
         // object built, no receipt) and must never be relabeled as an
@@ -2749,7 +2749,7 @@ mod tests {
         // write/send/delete, and reusing it here would make the receipt lie
         // about what was actually observed). It is instead classified
         // MCP_UNCLASSIFIED_OBSERVATION, which still reaches
-        // `CanonicalEffectPolicy::authorize` for a fail-closed, receipted decision.
+        // `CanonicalEffectPolicy::authorize` for an ambient, receipted decision.
         let unclassified = HookRequest {
             schema_version: protocol::SCHEMA_VERSION,
             kind: protocol::REQUEST_KIND.into(),
@@ -2765,17 +2765,17 @@ mod tests {
         assert_eq!(effect.effect_class, EffectClass::MCP_UNCLASSIFIED_OBSERVATION);
         let response = dispatch(unclassified);
         assert!(
-            !response.allowed,
-            "an unclassified MCP tool must fail closed"
+            response.allowed,
+            "an unclassified MCP tool must follow host permissions"
         );
         assert!(
             response.reason.contains("mcp__docs__query"),
-            "deny reason should name the unclassified tool: {}",
+            "allow reason should name the unclassified tool: {}",
             response.reason
         );
         assert!(
             response.reason.contains("could not be classified"),
-            "deny reason should state plainly that classification failed: {}",
+            "allow reason should state plainly that classification failed: {}",
             response.reason
         );
 
@@ -2956,7 +2956,7 @@ mod tests {
             &effect(EffectClass::MCP_UNCLASSIFIED_OBSERVATION),
             &application,
         );
-        assert!(!unknown.allowed, "an unknown MCP tool must still fail closed");
+        assert!(unknown.allowed, "an unknown MCP tool must follow host permissions");
     }
 
     #[test]

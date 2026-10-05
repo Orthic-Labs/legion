@@ -48,6 +48,7 @@ jobs:
         run: |
           cargo check --manifest-path engine/Cargo.toml --workspace --all-targets --locked --release --target aarch64-apple-darwin
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-hook
+          cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion --test minimize_cli
           cargo test --manifest-path engine/Cargo.toml --locked --release --target aarch64-apple-darwin -p legion-apple
       - name: Assemble & qualify exact unsigned native candidate
         run: |
@@ -72,6 +73,11 @@ jobs:
           # Qualification uses a Codex configuration fixture on this disposable runner.
           mkdir -p "$HOME/.codex"
           "$app/Contents/MacOS/Legion Installer" --headless 2> "$RUNNER_TEMP/legion-macos-delivery/installer-qualification.log"
+          installed="$HOME/Library/Application Support/Orthic Labs/Legion/current"
+          policy="share/legion/assets/lib/minimize/POLICY.md"
+          printf 'stale development candidate\n' > "$installed/$policy"
+          "$app/Contents/MacOS/Legion Installer" --headless 2> "$RUNNER_TEMP/legion-macos-delivery/installer-reinstall-qualification.log"
+          cmp "$installed/$policy" "$app/Contents/Resources/payload/$policy"
           tar -czf "$RUNNER_TEMP/legion-macos-delivery/Legion-0.3.21-macos-arm64-installer.tar.gz" -C "$RUNNER_TEMP/legion-macos-delivery" 'Legion Installer.app'
           rm -r "$app"
       - name: Upload exact installer & native candidate evidence

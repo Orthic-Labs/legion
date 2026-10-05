@@ -266,5 +266,42 @@ pub fn native_installed_smoke(
         return Err(format!("{label} failed: {}", command_diagnostic(&result)));
     }
 
+    // Exercise the installed native Minimize path, including its shipped policy.
+    // A source-checkout fallback must not hide an incomplete installer payload.
+    let policy = current_root.join("share/legion/assets/lib/minimize/POLICY.md");
+    let policy_bytes = fs::read(&policy)
+        .map_err(|e| format!("installed Minimize policy is missing: {e}"))?;
+    let decision = isolated_root.join("minimize-decision.json");
+    let receipt = isolated_root.join("minimize-receipt.json");
+    fs::write(&decision, serde_json::json!({
+        "schema": "minimize-decision.v1",
+        "decision_id": "installed-native-smoke",
+        "state_a": "missing receipt", "state_b": "verified native receipt",
+        "selected_rung": "REUSE",
+        "prior_rungs": [{"rung": "NOT_BUILD", "verdict": "REJECTED",
+            "evidence": "installed native receipt validation is requested"}],
+        "allowed_new_files": [], "allowed_new_dependencies": []
+    }).to_string()).map_err(|e| e.to_string())?;
+    let decision_str = decision.display().to_string();
+    let receipt_str = receipt.display().to_string();
+    for args in [
+        vec!["minimize", "decision", "validate", &decision_str],
+        vec!["minimize", "decision", "receipt", &decision_str, &receipt_str],
+        vec!["minimize", "decision", "verify", &decision_str, &receipt_str],
+    ] {
+        let (status, stdout, stderr) = run(&binary, &args, &env_vars)?;
+        if status != Some(0) || stdout.trim() != "MINIMIZE PASS" {
+            return Err(format!("installed native Minimize {} failed: {stdout} {stderr}", args.join(" ")));
+        }
+    }
+    fs::remove_file(&policy).map_err(|e| e.to_string())?;
+    let missing = run(&binary,
+        &["minimize", "decision", "verify", &decision_str, &receipt_str], &env_vars);
+    fs::write(&policy, policy_bytes).map_err(|e| e.to_string())?;
+    let (status, _, stderr) = missing?;
+    if status == Some(0) || !stderr.contains("minimize policy asset") {
+        return Err(format!("installed Minimize accepted a missing policy: {stderr}"));
+    }
+
     Ok(())
 }

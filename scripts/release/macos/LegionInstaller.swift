@@ -46,10 +46,13 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
     let final = versions.appendingPathComponent(version, isDirectory: true)
     let temporary = versions.appendingPathComponent(".install-\(version)-\(UUID().uuidString)", isDirectory: true)
     try fileManager.createDirectory(at: versions, withIntermediateDirectories: true)
-    if !fileManager.fileExists(atPath: final.path) {
-      try fileManager.copyItem(at: payload, to: temporary)
-      try fileManager.moveItem(at: temporary, to: final)
+    // Development installers can carry a newer candidate with the same version.
+    // Finish staging before replacing that version's installed payload.
+    try fileManager.copyItem(at: payload, to: temporary)
+    if fileManager.fileExists(atPath: final.path) {
+      try fileManager.removeItem(at: final)
     }
+    try fileManager.moveItem(at: temporary, to: final)
     let current = root.appendingPathComponent("current")
     let replacement = root.appendingPathComponent(".current-\(UUID().uuidString)")
     try? fileManager.removeItem(at: replacement)

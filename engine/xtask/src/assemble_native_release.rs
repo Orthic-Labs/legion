@@ -371,6 +371,9 @@ pub fn run(repository_root: &Path, args: AssembleArgs) -> Result<Value, String> 
     fs::copy(repository_root.join("src/registry/skills/index.json"), &catalog_path).map_err(|e| e.to_string())?;
     fs::copy(repository_root.join("src/registry/providers.json"), &provider_registry_path).map_err(|e| e.to_string())?;
     copy_skill_tree(&repository_root.join("skills"), &assets.join("skills"))?;
+    let minimize_policy = assets.join("lib/minimize/POLICY.md");
+    fs::create_dir_all(minimize_policy.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::copy(repository_root.join("src/lib/minimize/POLICY.md"), &minimize_policy).map_err(|e| e.to_string())?;
     fs::create_dir_all(native_rule_manifest_path.parent().unwrap()).map_err(|e| e.to_string())?;
     fs::copy(repository_root.join("packs/native/manifest.v1.json"), &native_rule_manifest_path).map_err(|e| e.to_string())?;
 

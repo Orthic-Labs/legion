@@ -149,8 +149,8 @@ fn rule(
 /// Denying them by default did not make the operator safer — it stopped the
 /// work and offered no way to proceed, which is how a guard stops being one.
 /// What stays denied is what cannot be undone or what leaks: a destructive
-/// delete, a history-rewriting push, credential material, and an MCP effect
-/// the Guard cannot classify. Those are refusals rather than prompts on
+/// delete, a history-rewriting push, credential material, and a positively
+/// classified external MCP write/send/delete. Those are refusals rather than prompts on
 /// purpose: an approval an operator grants without reading is not a control,
 /// and the rare legitimate rewrite is better done by hand.
 ///
@@ -167,9 +167,9 @@ fn rule(
 /// destructive delete path is future work; this ships the schema capability
 /// (the `operations` field plus the two-rule shape) now.
 ///
-/// `MCP_UNCLASSIFIED_OBSERVATION` receives its own deny-by-default rule. This
-/// preserves truthful receipts without silently granting unknown MCP behavior.
-/// Projects may permit a narrow target or operation through an explicit rule.
+/// `MCP_UNCLASSIFIED_OBSERVATION` stays ambient under the host's permissions.
+/// Its separate class preserves uncertainty in receipts; an allow does not
+/// certify the tool as read-only. Projects may deny specific targets or operations.
 pub fn canonical_default_policy_pack() -> PolicyPack {
     PolicyPack {
         schema_version: 1,
@@ -203,12 +203,12 @@ pub fn canonical_default_policy_pack() -> PolicyPack {
                 false,
                 &["*"],
             ),
-            // Unclassified MCP tools fail closed. Callers must positively classify
-            // observations before canonical policy can allow them.
+            // A tool missing from our classification table still follows host
+            // permissions. Retain its unclassified identity in the receipt.
             rule(
-                "default-mcp-unclassified-observation-deny",
+                "default-mcp-unclassified-observation-allow",
                 EffectClass::MCP_UNCLASSIFIED_OBSERVATION,
-                false,
+                true,
                 &["*"],
             ),
         ],
@@ -318,9 +318,9 @@ mod tests {
         }
     }
 
-    /// Both classes fail closed while preserving truthful receipt classification.
+    /// Classified external effects remain denied; unclassified tools stay ambient.
     #[test]
-    fn external_side_effect_and_mcp_unclassified_observation_both_fail_closed() {
+    fn external_side_effect_denied_and_mcp_unclassified_observation_allowed() {
         let pack = canonical_default_policy_pack();
         let external_side_effect = pack
             .rules
@@ -337,8 +337,8 @@ mod tests {
             "a positively classified MCP write/send/delete must stay denied by default"
         );
         assert!(
-            !unclassified_observation.allowed,
-            "an unclassified MCP tool must fail closed by default"
+            unclassified_observation.allowed,
+            "an unclassified MCP tool must follow host permissions by default"
         );
     }
 

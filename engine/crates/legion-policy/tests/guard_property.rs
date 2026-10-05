@@ -393,7 +393,6 @@ fn live_default_policy_is_valid_and_reserved_classes_are_not_ambient_allowed() {
     for effect_class in [
         ContractEffectClass::CREDENTIAL_ACCESS,
         ContractEffectClass::EXTERNAL_SIDE_EFFECT,
-        ContractEffectClass::MCP_UNCLASSIFIED_OBSERVATION,
     ] {
         assert!(
             pack.rules
@@ -440,4 +439,3 @@ fn policy_evaluator_constructor_rejects_invalid_policy_without_fallback() {
     assert!(result.is_ok(), "invalid policy construction must not panic");
     assert!(result.expect("panic was checked").is_err());
 }
-
