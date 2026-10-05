@@ -37,7 +37,9 @@
       "references/architecture/dependency-injection.md",
       "references/architecture/docs-loading.md",
       "references/architecture/errors.md",
+      "references/architecture/inject.md",
       "references/architecture/progressive-design.md",
+      "references/architecture/sourcery.md",
       "references/architecture/testing.md",
       "references/architecture.md",
       "references/build-optimization/artifacts.md",
@@ -108,11 +110,13 @@
       "references/profiling/export.md",
       "references/profiling/hotspots.md",
       "references/profiling.md",
+      "references/release/asc-workflows.md",
       "references/release/build.md",
       "references/release/contract.md",
       "references/release/metadata.md",
       "references/release/screenshots.md",
       "references/release/signing.md",
+      "references/release/submission-repairs.md",
       "references/release/submission.md",
       "references/release/testflight.md",
       "references/release.md",
@@ -214,7 +218,7 @@
     {
       "path": "config/source-manifest.json",
       "uri": "legion-skill://macos-development/config/source-manifest.json",
-      "digest": "sha256:2940429b43435aff5769371fdaddf5f00e036239a9bd4d9abef0d85cbdf89143"
+      "digest": "sha256:31fa29406d1cb0c2fd67b9e53efb624e398c799b85e51fd35cfc5ce9b1b1d436"
     },
     {
       "path": "config/tool-catalog.json",
@@ -234,22 +238,22 @@
     {
       "path": "references/architecture/_index.md",
       "uri": "legion-skill://macos-development/references/architecture/_index.md",
-      "digest": "sha256:7a78d59138f8a9a063def118b73eaba4e9b50789b4bd4c59f3044188fc49ad56"
+      "digest": "sha256:7bb51152c033a5815f9b70cb34e82500b70ac0bcd11a8b88f547421f6a791d02"
     },
     {
       "path": "references/architecture/build-loop.md",
       "uri": "legion-skill://macos-development/references/architecture/build-loop.md",
-      "digest": "sha256:3e93b30f1ef17823de1e442c1ff3e20cefb26844b9915da7cf166e675a6862d5"
+      "digest": "sha256:ec314d0bf6f02e5572539eda2637176e86d5b89fc10b57d62203af48a5f89ae7"
     },
     {
       "path": "references/architecture/dependency-injection.md",
       "uri": "legion-skill://macos-development/references/architecture/dependency-injection.md",
-      "digest": "sha256:f97b07f1101c4084aac3baa0ee71f6e9342c3f00f1131ffaf2b2c65dc0aba621"
+      "digest": "sha256:1b7e78e2bce32182b774897d564e8e7e7662b13e65baac7aad00d2df9cbad735"
     },
     {
       "path": "references/architecture/docs-loading.md",
       "uri": "legion-skill://macos-development/references/architecture/docs-loading.md",
-      "digest": "sha256:c3a5ee694c96b85573b32a0176cedc3e8b0a098140f4163370592c6be6976f8d"
+      "digest": "sha256:b5235c46610bcc369d9706f88cb4fa18ba9e9ba6464a943513252ae001523e76"
     },
     {
       "path": "references/architecture/errors.md",
@@ -257,19 +261,29 @@
       "digest": "sha256:e1c31818a35141df9025139bf883f53f52f0eb5c146638ad28d82ef2297a2e97"
     },
     {
+      "path": "references/architecture/inject.md",
+      "uri": "legion-skill://macos-development/references/architecture/inject.md",
+      "digest": "sha256:63be8eaf6cd5c5c05fc91af7f393e7153983ae4b59d2888d50fb1aaf15c90006"
+    },
+    {
       "path": "references/architecture/progressive-design.md",
       "uri": "legion-skill://macos-development/references/architecture/progressive-design.md",
-      "digest": "sha256:b6c68efb8d14a1c825aad380170838d6365400c738552f44a4ed2de60bdeba84"
+      "digest": "sha256:670c7e2b53bb8ea4ec8a0de8b313ed4765311e5ef94498f4248fc289504ab596"
+    },
+    {
+      "path": "references/architecture/sourcery.md",
+      "uri": "legion-skill://macos-development/references/architecture/sourcery.md",
+      "digest": "sha256:a74e5a62f897ae5143b01c628e02099ec8e1a6b3d8bcce5191b19d92d8d8d66f"
     },
     {
       "path": "references/architecture/testing.md",
       "uri": "legion-skill://macos-development/references/architecture/testing.md",
-      "digest": "sha256:79ebb851830df7f71bf4b0e2be53bfaf19a432599de2f06bc8d21511753a66fb"
+      "digest": "sha256:32bb17c7ba9faf7949a94381992c55e57bf458ebbdb8a95b001e167d71763076"
     },
     {
       "path": "references/architecture.md",
       "uri": "legion-skill://macos-development/references/architecture.md",
-      "digest": "sha256:8a1093a315f4c2d1739b24a387984012e1dd334883154eed3f27df8b1e330329"
+      "digest": "sha256:0ad778379b58d17b9027834c15ae26cc0575b611a6fffe2e8f60cddfb36d2238"
     },
     {
       "path": "references/build-optimization/artifacts.md",
@@ -284,7 +298,7 @@
     {
       "path": "references/build-optimization/compilation-analysis.md",
       "uri": "legion-skill://macos-development/references/build-optimization/compilation-analysis.md",
-      "digest": "sha256:d975738ea09e6adcd4a5c4803a157fd4bfbf644e45080bd44e4853f268e3ee8d"
+      "digest": "sha256:9b81ef5d97bf754465738b03588731e59140eb75e7b5f43c2f2e09a2dfe09130"
     },
     {
       "path": "references/build-optimization/fixing.md",
@@ -309,7 +323,7 @@
     {
       "path": "references/build-optimization/settings.md",
       "uri": "legion-skill://macos-development/references/build-optimization/settings.md",
-      "digest": "sha256:9bc205286e0eb2e649b09c599641479f79ddaa98410518084c3e4e744bcd0111"
+      "digest": "sha256:68ede543b62db9668e65f5d532fd649f5f38bc5a55c63b41fa81ce2853fd390c"
     },
     {
       "path": "references/build-optimization/sources.md",
@@ -319,12 +333,12 @@
     {
       "path": "references/build-optimization/spm-analysis.md",
       "uri": "legion-skill://macos-development/references/build-optimization/spm-analysis.md",
-      "digest": "sha256:73e9374d82ba0ef0deb85b9dd059675604b1c1c9a6fa96aebac9f031464c59f1"
+      "digest": "sha256:bd13e4a8b822cb8756cc1d1ff348f290fba25d003ac36dc5e164bdd8af4b656c"
     },
     {
       "path": "references/build-optimization.md",
       "uri": "legion-skill://macos-development/references/build-optimization.md",
-      "digest": "sha256:d8d351e71b80c6c53e5492a1e958473466bef079a5c19258798c92ac118d9c80"
+      "digest": "sha256:385d7dbd070c0ff9aea6bcfebd8ff33d74ef292fe6d14224e8f936afa0071b3b"
     },
     {
       "path": "references/concurrency/_index.md",
@@ -364,7 +378,7 @@
     {
       "path": "references/concurrency/glossary.md",
       "uri": "legion-skill://macos-development/references/concurrency/glossary.md",
-      "digest": "sha256:8ed58bb8a0510aa0746699b7e240f2b009e782e0478dd2df94606532aac50e34"
+      "digest": "sha256:98149ed7bbb19a2f618e105a67c352d94b13b351b54811529aa6530a13cff25e"
     },
     {
       "path": "references/concurrency/linting.md",
@@ -374,12 +388,12 @@
     {
       "path": "references/concurrency/memory-management.md",
       "uri": "legion-skill://macos-development/references/concurrency/memory-management.md",
-      "digest": "sha256:0f3958f0055155c34dc1c22db2dc58e33102586c18907310871655cdedcb6a96"
+      "digest": "sha256:8316f1c02d2cbd11993e61a94200e6286358f108da50e8d81b610faaaa23db72"
     },
     {
       "path": "references/concurrency/migration.md",
       "uri": "legion-skill://macos-development/references/concurrency/migration.md",
-      "digest": "sha256:e8286d17347170281425cdcdf81f86b6dd88ccfc42a6dde6e91a81520f7f4215"
+      "digest": "sha256:ae834b1aded40f14db5e9766e16b8bb0490d6562a9a93bdd72ec21d19e154a2c"
     },
     {
       "path": "references/concurrency/observation.md",
@@ -389,12 +403,12 @@
     {
       "path": "references/concurrency/performance.md",
       "uri": "legion-skill://macos-development/references/concurrency/performance.md",
-      "digest": "sha256:b31f868996eecb4dc6a8e93872e128426b86413642a189aeb7f285da716d07bf"
+      "digest": "sha256:3fdf03d3e81a5aa6044c747a2ffd11d46c0ee1685c7b1a09996dd131be26ee3c"
     },
     {
       "path": "references/concurrency/sendable.md",
       "uri": "legion-skill://macos-development/references/concurrency/sendable.md",
-      "digest": "sha256:d12f63ffff2300c8989d82b0ea9d2b4bf0501a9d41c8e8bc3dcc760366557bd4"
+      "digest": "sha256:b242a0412205b844ec1954f36d09a17cb4acc164f79bc5220af3cb688a1cf94b"
     },
     {
       "path": "references/concurrency/streams.md",
@@ -404,7 +418,7 @@
     {
       "path": "references/concurrency/tasks.md",
       "uri": "legion-skill://macos-development/references/concurrency/tasks.md",
-      "digest": "sha256:d63e0cb091f9e09faa496cde6d90cf58bccebf1cee2ec0ab7459daf31174b3a6"
+      "digest": "sha256:60a3287c2e2cf6c69233abcd7ca030934ee6bd3cdef9b7e53a9dbb250dacc86d"
     },
     {
       "path": "references/concurrency/testing-memory.md",
@@ -419,7 +433,7 @@
     {
       "path": "references/concurrency/threading.md",
       "uri": "legion-skill://macos-development/references/concurrency/threading.md",
-      "digest": "sha256:bf123324dfa5d72d1ff5f8255f41736dcf83028ad2166a0159fefd943cca26aa"
+      "digest": "sha256:f1361b37eda481f6cd72ca4b91e56238fd1a470a74961c00eb0671e987c13ce2"
     },
     {
       "path": "references/concurrency.md",
@@ -519,12 +533,12 @@
     {
       "path": "references/macos-workflows/liquid-glass.md",
       "uri": "legion-skill://macos-development/references/macos-workflows/liquid-glass.md",
-      "digest": "sha256:7813bb1c31350e157206c09ebec9730a472798cb3b12ced1ce04fa17286365dd"
+      "digest": "sha256:8afd9df2a58c92b4a10c1338af9ddcb4e245a67e6c51e8049ca17e4d23da9586"
     },
     {
       "path": "references/macos-workflows/signing-packaging.md",
       "uri": "legion-skill://macos-development/references/macos-workflows/signing-packaging.md",
-      "digest": "sha256:c3ed1d235599dc45661d408fc39236db2952f70c5a246a318dd1f39cbb3e3c7a"
+      "digest": "sha256:d4061c4e55cc44c57dc8db4be7bb5c3371fe295d9fcd41b51abd04fc95b19a08"
     },
     {
       "path": "references/macos-workflows/swiftpm.md",
@@ -534,7 +548,7 @@
     {
       "path": "references/macos-workflows/swiftui-scenes.md",
       "uri": "legion-skill://macos-development/references/macos-workflows/swiftui-scenes.md",
-      "digest": "sha256:a9131b12eae32630a9cceb07287c173ab8b1d2e809ba8a16c330c98b2e20c473"
+      "digest": "sha256:ac7df638dfe1e457a8324f1eae9ccf7c71a489c462bdc6210db2439d5a61dd44"
     },
     {
       "path": "references/macos-workflows/telemetry.md",
@@ -554,7 +568,7 @@
     {
       "path": "references/macos-workflows/windows.md",
       "uri": "legion-skill://macos-development/references/macos-workflows/windows.md",
-      "digest": "sha256:eacad6446537f66e47579b86cea4d568a01bb9ad562a4247697cdf197176abf9"
+      "digest": "sha256:fb7e4794bd6970fca760dcd8d8c95f558889763248f4da1480c09fe7bdaa575a"
     },
     {
       "path": "references/macos-workflows.md",
@@ -569,22 +583,22 @@
     {
       "path": "references/persistence/core-data.md",
       "uri": "legion-skill://macos-development/references/persistence/core-data.md",
-      "digest": "sha256:7ea29ee23cb49d6ca39afb3f4c843d79294acd832303db7ed862180057834649"
+      "digest": "sha256:65f52d6b499b982c3ffda7629681a590ed7cff4ee24b6cf4c66763121b3bcc84"
     },
     {
       "path": "references/persistence/migration-and-cloud.md",
       "uri": "legion-skill://macos-development/references/persistence/migration-and-cloud.md",
-      "digest": "sha256:46476bfad1c5cef015990e70f2be4c84d646a6c667a8cc5392b0d6e70500b662"
+      "digest": "sha256:9d9ea01daffb565c33975c0581bbe4d44fda042b89a974bb48a671dd322801b0"
     },
     {
       "path": "references/persistence/swiftdata.md",
       "uri": "legion-skill://macos-development/references/persistence/swiftdata.md",
-      "digest": "sha256:0fce8b6939c90cb272f981a7b976af743f97e1eadcebe81f5dea8a9afae7f0a7"
+      "digest": "sha256:b4f853791eb737c2e12f457fbd06c72e21ed9a0d1f2ee2c03b0777f1e22a27de"
     },
     {
       "path": "references/persistence/testing-and-diagnostics.md",
       "uri": "legion-skill://macos-development/references/persistence/testing-and-diagnostics.md",
-      "digest": "sha256:023e68c703f3d28c8c7325454f60c347ecdf513e78b0b580e5b2e7b40ebd482c"
+      "digest": "sha256:fb96b73a5fb69e17cbc6bcbf7d73efce43e91e967f2ab90e9b7e622b942435fc"
     },
     {
       "path": "references/persistence.md",
@@ -612,14 +626,19 @@
       "digest": "sha256:43710da965e1b14ac07adca92fb8c0eeb0733ad7d505e566b570d87169a59238"
     },
     {
+      "path": "references/release/asc-workflows.md",
+      "uri": "legion-skill://macos-development/references/release/asc-workflows.md",
+      "digest": "sha256:c09cacafca9b057edc328be14b43e4cfd95b75b1b86a2a1cada44c3f40ee10ff"
+    },
+    {
       "path": "references/release/build.md",
       "uri": "legion-skill://macos-development/references/release/build.md",
-      "digest": "sha256:ba91fde88602b92c22d3f57db2eaec187fb130e434d331c190e70d246c22c114"
+      "digest": "sha256:5566c04c7e1577fb6b783798d3b5501efb849384663df8253958e8d63ba0af18"
     },
     {
       "path": "references/release/contract.md",
       "uri": "legion-skill://macos-development/references/release/contract.md",
-      "digest": "sha256:6f6671a8f4f92aff0ea8b0fea6313da08f0c2ec0b9b4af07e1ac44735701821d"
+      "digest": "sha256:ab264980ab33e8eaad2cd3d2268fb499ff4af78a15fe8e7159bb73715b891714"
     },
     {
       "path": "references/release/metadata.md",
@@ -629,22 +648,27 @@
     {
       "path": "references/release/screenshots.md",
       "uri": "legion-skill://macos-development/references/release/screenshots.md",
-      "digest": "sha256:bb4d3c55ec57d844f14a5c636a611c55f9b80ca09ca86e43c70668687771e988"
+      "digest": "sha256:dd8c5e4eb4030b5c8f12c6b073f87904e8aa3ec3f90e5936630d5dc3bc610bbe"
     },
     {
       "path": "references/release/signing.md",
       "uri": "legion-skill://macos-development/references/release/signing.md",
-      "digest": "sha256:afcd69e69adf78f01b31bd97f93319c69e0670f9e1df4103a69de5001e8b0ea4"
+      "digest": "sha256:bcbbf0b0bea5b82c7d19123de6277e9d4a9500b47d9e353009a34be7d247d83d"
+    },
+    {
+      "path": "references/release/submission-repairs.md",
+      "uri": "legion-skill://macos-development/references/release/submission-repairs.md",
+      "digest": "sha256:a4a73b28051ad47f1d271c7ecf15c0c1a26dbb095dbd6499426a5b343af83272"
     },
     {
       "path": "references/release/submission.md",
       "uri": "legion-skill://macos-development/references/release/submission.md",
-      "digest": "sha256:478cc3f58dff771d4980a2c2d54fa25cc03f82949546baa4a1975a070517c3c1"
+      "digest": "sha256:cc8355d829864edcc0f4889106a2a95c1f706e5c9e7d93c432dec9690d700a2b"
     },
     {
       "path": "references/release/testflight.md",
       "uri": "legion-skill://macos-development/references/release/testflight.md",
-      "digest": "sha256:2ec3dfd8507715570795ee600d9255c4ccc86efc5017f2e81bee5cc416607498"
+      "digest": "sha256:cc9eff55256cd4f41fae3bc62eb1bdd73871021b915a23462934fc2de4621b2e"
     },
     {
       "path": "references/release.md",
@@ -664,12 +688,12 @@
     {
       "path": "references/swiftui/animation.md",
       "uri": "legion-skill://macos-development/references/swiftui/animation.md",
-      "digest": "sha256:4dbd8d3b442b4530221f4bbc3413e4de36a842ebeb0855c9100909def1944212"
+      "digest": "sha256:7cc82f608f594546e81b9e15d2e1643db417c71410007f24c39875823600054b"
     },
     {
       "path": "references/swiftui/api-migrations.md",
       "uri": "legion-skill://macos-development/references/swiftui/api-migrations.md",
-      "digest": "sha256:5e0134cb4ff5be8e56345d88d1f18a7d41b1026bc7ac5d82a94a71c87f7fff45"
+      "digest": "sha256:ad8e23b7671f165e3b65f0a7c21064d757b6b57c4cb8ac2415f8c394cea41d15"
     },
     {
       "path": "references/swiftui/documents-macos.md",
@@ -684,7 +708,7 @@
     {
       "path": "references/swiftui/donor-hudson-api.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-hudson-api.md",
-      "digest": "sha256:aafeea13ad5132b61723f44d3dbde1b24b7378e42bc6b96dd2620fd3f14441cf"
+      "digest": "sha256:a7f65d01e505b18e20eb773e00e10cc2767d1c33de1279ad09b41e3aa716dc19"
     },
     {
       "path": "references/swiftui/donor-hudson-data.md",
@@ -694,7 +718,7 @@
     {
       "path": "references/swiftui/donor-hudson-design.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-hudson-design.md",
-      "digest": "sha256:cd510fb51d52414273d34d40728e22d1d658361b6031be43f33210527fe13554"
+      "digest": "sha256:19e0725cbacde8c049e6a77217771c4838a96f6fbf8eab720d0929d28fe4d168"
     },
     {
       "path": "references/swiftui/donor-hudson-hygiene.md",
@@ -734,27 +758,27 @@
     {
       "path": "references/swiftui/donor-lee-animation-advanced.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-animation-advanced.md",
-      "digest": "sha256:22a15da4f431ac4dd39bfa242b119a68c05dfe7055dbf53c1dbda130e0a45168"
+      "digest": "sha256:6d0a6e6bf0975329df35e56ccd9c96ff57954a96f33b1d6a83fc65417d08d37e"
     },
     {
       "path": "references/swiftui/donor-lee-animation-basics.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-animation-basics.md",
-      "digest": "sha256:35a3145cb737cecdd46e0773fead8c5a738974a9f7294ce0bd99e4ad457e605e"
+      "digest": "sha256:ff7cad2ed138e6be58ecf43adb24f2ea319a9e31f9c7c043b703a3aaf957e486"
     },
     {
       "path": "references/swiftui/donor-lee-animation-transitions.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-animation-transitions.md",
-      "digest": "sha256:b354beba4a52654118d24ad662db1f543f8d401dccf679c4f01f4949a6b7eb75"
+      "digest": "sha256:b9bfff6373ac8eae4050f0d7638a931821ccb6cbdbf6e4a7dbab44fe0013796b"
     },
     {
       "path": "references/swiftui/donor-lee-charts-accessibility.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-charts-accessibility.md",
-      "digest": "sha256:95b468ff629f63b1fd25ce800dcd75857711874e477d5e4f3d603bf1ee5247e4"
+      "digest": "sha256:0b2a02389a35124758b83f83a0406d61b4c6c8fef4f75aedfc9d9eb60ff9e7ba"
     },
     {
       "path": "references/swiftui/donor-lee-charts.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-charts.md",
-      "digest": "sha256:ef1d1e525b2fc2e2de1b9898a3702a6cb3b9ee18c302f21f5b3a0840b4499992"
+      "digest": "sha256:024b6b1be63d7bdbeb304bf76eb30df58388a7ae5131acc093ba697817bd85c5"
     },
     {
       "path": "references/swiftui/donor-lee-document-apps.md",
@@ -764,12 +788,12 @@
     {
       "path": "references/swiftui/donor-lee-environment-patterns.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-environment-patterns.md",
-      "digest": "sha256:fe0f96174e7b580c9f8fec405cd7c19e3d98f2daa5bfd3a553734184e48a5173"
+      "digest": "sha256:0894c11396611440b15305e264e15f6647a33bd6f75a9b038d3b1c204ca12617"
     },
     {
       "path": "references/swiftui/donor-lee-focus-patterns.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-focus-patterns.md",
-      "digest": "sha256:4be2c91ecbfb01a8053e057d49ca609e323e07398a3cfb6df8b940ac2595a650"
+      "digest": "sha256:750977f27523621d6285e524e18dcbf2a0638bf20f0ad60851e7201026125f0f"
     },
     {
       "path": "references/swiftui/donor-lee-image-optimization.md",
@@ -784,12 +808,12 @@
     {
       "path": "references/swiftui/donor-lee-latest-apis.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-latest-apis.md",
-      "digest": "sha256:0e87acb42688567a4e98d3ad33bdee6d5a5d04dedb6b803f51d09f09676de0dc"
+      "digest": "sha256:d315896aca6d91d9b815f8b2675e2e7742fdd98d591298b1f588cf54f76cddd2"
     },
     {
       "path": "references/swiftui/donor-lee-layout-best-practices.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-layout-best-practices.md",
-      "digest": "sha256:c6f9128c71fb6821562c976ce6459f9e1ae74943e3029ed9535ffcaf9a691e77"
+      "digest": "sha256:167cca07ce23a1159adf6cf29c822f5602455a26ec10baa1e323c98bbbd07d09"
     },
     {
       "path": "references/swiftui/donor-lee-liquid-glass.md",
@@ -799,7 +823,7 @@
     {
       "path": "references/swiftui/donor-lee-list-patterns.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-list-patterns.md",
-      "digest": "sha256:8031c663067f9248cdc64fbb1ad08581e725e91343d97c4edb5beb8923e11bdb"
+      "digest": "sha256:278713c68759293626aaea2ad9c6d0b46f08c53064d6eb8247790a407a5f5636"
     },
     {
       "path": "references/swiftui/donor-lee-localization.md",
@@ -869,7 +893,7 @@
     {
       "path": "references/swiftui/donor-lee-toolbar-patterns.md",
       "uri": "legion-skill://macos-development/references/swiftui/donor-lee-toolbar-patterns.md",
-      "digest": "sha256:295247b1db8f38efdc5b51854eb83ece6dc1d942a089526de4a0a360849a312f"
+      "digest": "sha256:80459bd40785db61779ee9b16734332f602be9f88d4e725463219f0bfb548271"
     },
     {
       "path": "references/swiftui/donor-lee-trace-analysis.md",
@@ -904,12 +928,12 @@
     {
       "path": "references/swiftui/lists-scroll.md",
       "uri": "legion-skill://macos-development/references/swiftui/lists-scroll.md",
-      "digest": "sha256:483a3bbb1ff264e4dd55a5062dd681c1cca42f1cb7c21adff4d13e66811aa96f"
+      "digest": "sha256:81f878b232d30d819670e4b649b7912fb9c6f17ee40723e91f009533935f13d4"
     },
     {
       "path": "references/swiftui/media-web-charts-text.md",
       "uri": "legion-skill://macos-development/references/swiftui/media-web-charts-text.md",
-      "digest": "sha256:b13d88026bb59d248beed17db2363d7ba66eca1c2a1bdc90dc9351a9ce9a6d2b"
+      "digest": "sha256:5dc17da228cac7e17d060e13ecdf6cebaf94fdb6865bc807fa746be9229d270c"
     },
     {
       "path": "references/swiftui/navigation-presentation.md",
@@ -924,12 +948,12 @@
     {
       "path": "references/swiftui/state-environment.md",
       "uri": "legion-skill://macos-development/references/swiftui/state-environment.md",
-      "digest": "sha256:e0b72ecefcfa2440d2eadc389a5084235f7c4d7c41cf356fe8bdd4369c64a146"
+      "digest": "sha256:f8dd2d4138651d020aa464456cb3de2e92456924a03aa5d0f2ec1a32466710d2"
     },
     {
       "path": "references/swiftui/views-layout.md",
       "uri": "legion-skill://macos-development/references/swiftui/views-layout.md",
-      "digest": "sha256:b826bddd837948c59f973a331b8d6b65c9f481d24abfab0e6128e5dc8e202c1c"
+      "digest": "sha256:c34ee8d03e89ecf16255f0394a78f69b76f5f7fc03bd2f128781f80e9303d715"
     },
     {
       "path": "references/swiftui.md",
@@ -949,17 +973,17 @@
     {
       "path": "references/testing/assertions.md",
       "uri": "legion-skill://macos-development/references/testing/assertions.md",
-      "digest": "sha256:2a4095fad3876887c0daddfa90f45d58592af8ad3ec0a1c186e6d60faec0cb20"
+      "digest": "sha256:872c3c0a94e24dd6d5c5bb7f050c857e37ec349bc0044a7efb18008ef4b383f2"
     },
     {
       "path": "references/testing/async.md",
       "uri": "legion-skill://macos-development/references/testing/async.md",
-      "digest": "sha256:aacda29337fe2b33d47818112783da94153a05ed1c548b525b819f236fc2e303"
+      "digest": "sha256:42bb4f3a87fcc4c5a48ef2438cc24ff36c247552c1e2128a61f1ae220b70c1ad"
     },
     {
       "path": "references/testing/core.md",
       "uri": "legion-skill://macos-development/references/testing/core.md",
-      "digest": "sha256:14502297fbf61bda9f4939fb3eef33e66d9c3e086e46dd910c4072c3d326a738"
+      "digest": "sha256:ebeb6414a59c0e196e52d4ed76ba6b0f74f1ad9b67051ae1162d3d595bfd4eec"
     },
     {
       "path": "references/testing/isolation-performance.md",
@@ -999,7 +1023,7 @@
     {
       "path": "references/tool-setup.md",
       "uri": "legion-skill://macos-development/references/tool-setup.md",
-      "digest": "sha256:5e389704c0253bb74df73ed7b1c55a437949a6df4ef5a0f3c685bad348c9dc4d"
+      "digest": "sha256:1862a3a7b28456fd4769e2d97b444b4839dca3394b196ebcdc9a2f09a414eb3c"
     },
     {
       "path": "references/toolchain.md",
