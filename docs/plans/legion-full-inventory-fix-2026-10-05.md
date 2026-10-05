@@ -2,22 +2,31 @@
 
 ## Scope & evidence
 
-This is source-bound inventory for `/Volumes/D/claude/legion`. Reports read:
+This is source-bound inventory for Legion's primary checkout. Reports read:
 
 - `/tmp/legion-full-audit-cli-runtime.md`
 - `/tmp/legion-full-audit-mcp-scripts.md`
 - `/tmp/legion-full-audit-dev-release.md`
 - `/tmp/legion-full-audit-skills-assets.md`
 
-Primary report revision: `251de32200cb14882dbed794139393c2a869dadd`. Repair candidate is
-`8c23e45b49e41cc2eec3b8f5e776564d077647f0` (native Claude repair plus digest-test correction). Existing recorded CI for `251de322` was green for its named
-stages only. `8c23e45b` Claude/MCP/native-Minimize & macOS same-version-install changes have
-CI in progress; new candidate installed completion is pending. Previous `251de322` Mac/Windows receipts proved
-Claude/Codex setup, Apple catalog, five MCP responses & 327 Apple files across three roots;
-they did not prove every public workflow.
+Primary source inventory revision: `251de32200cb14882dbed794139393c2a869dadd`.
+Production repair revision: `8c23e45b49e41cc2eec3b8f5e776564d077647f0`.
+Full CI run [37307458066](https://github.com/Orthic-Labs/legion/actions/runs/37307458066)
+passed: **7,333 tests, zero failures, one ignored, 288 suites**. Apple qualification & macOS
+native/installer qualification passed. Windows installer qualification is still running.
 
-No local build, check, test, installer, signing, publication, or RightKit queue action belongs in
-this pass. Missing or non-idle RightKit inventory routes work to GitHub CI. Status labels:
+Mac stable installation matches qualified runtime SHA256
+`bb9d303e131879eec60a308e97aeb4410e6a1f13b56d79587c9e9f4c3fe23893` & asset generation
+`51cf3b32952c706a4c079d82fa9ac337b6d67ae49e9eeb6bfcabc231c816131f`.
+Claude & Codex setup repair/readback are COMPLETE, installed-origin & stable-current.
+All 29 bundles / 1,036 manifest-listed files match payload, Claude & Codex projections.
+Installed hook admits Windows-MCP Snapshot/Click & docs query without overriding host
+permissions; classified write/send/delete remain denied. Native Minimize init-review → receipt →
+verify passes in isolated Git fixture, binds installed Rust executable & shipped policy, & rejects
+staged-tree drift. Five installed MCP requests return successful responses.
+
+Local compilation/check/test admission was unavailable, so builds & tests ran on GitHub CI.
+Exact qualified installers are used for explicitly requested stable installation. Status labels:
 
 | Label | Meaning |
 |---|---|
@@ -67,7 +76,7 @@ reached by dispatch are excluded from this route count.
 | Command | Source route | Evidence |
 |---|---|---|
 | `apple` | `commands::apple::AppleArgs` | `T` Apple CLI/MCP lanes; operation matrix incomplete |
-| `status` | `native_m1_status` | `T` M1 vertical slice; installed positive recorded at `251de322`; new candidate pending |
+| `status` | `native_m1_status` | `T` M1 vertical slice; installed positive recorded at `8c23e45b` |
 | `serve` | `native_m1_serve` | `T` M1/M2; malformed-release matrix `I` |
 | `init` | `commands/init.rs` | `T` characterization/migration |
 | `doctor` | `commands/doctor.rs` | `T`; external-root naming defect |
@@ -278,7 +287,7 @@ and process diagnostics; real RightKit/GitHub/Inno/PowerShell/Apple signing/nota
 | P1 | Windows activation defaults 60s while setup qualification permits 180s. | one explicit Inno → PowerShell → setup timeout contract; pass from qualification. | stalled child produces bounded failure/retry evidence; normal repair respects budget. |
 | P1 | macOS local build bypasses RightKit admission (`dev:build:mac`). | shared admission wrapper or CI-only route. | active/recent/missing inventory refuses local work and points to GitHub. |
 | P1 | Swift installer accepts `..`, `.`, slash, non-SemVer; switches `current` before setup/doctor and lacks rollback. | strict stable SemVer/path validation; stage/verify then pointer swap or durable rollback. | invalid versions cannot escape `versions`; forced setup failure restores prior current. |
-| P1 | `932d1074` fixes same-version stale payload by staging/replacing payload, but CI readback is pending. | complete GitHub macOS installed qualification and record exact payload comparison. | second same-version install replaces stale Minimize policy and passes readback. |
+| P1 | `932d1074` fixes same-version stale payload by staging/replacing payload; macOS CI & installed readback passed at `8c23e45b`. | complete GitHub macOS installed qualification and record exact payload comparison. | second same-version install replaces stale Minimize policy and passes readback. |
 | P2 | `activate.ps1` scans every package LocalCache mirror. | scope declared package IDs; rollback-safe non-destructive mirror failures. | unrelated package trees untouched. |
 | P2 | CI change detector omits package/lock/scripts/release config and can skip toolchain setup before gate. | include all build/release inputs or make gate install tools independently. | each release-affecting diff gets toolchain + gate coverage. |
 | P2 | macOS workflow hardcodes `0.3.21`. | derive from `release/version.json`; assert metadata/payload match. | version bump changes artifact identity without edit to workflow. |
@@ -375,7 +384,7 @@ Run after RightKit admission in GitHub, with exact source SHA and artifacts:
 
 ## Remaining unmapped or unproven entries
 
-- 50+ of 77 script keys lack direct dispatcher invocation; module tests do not close them.
+- All 77 script keys now have direct help/precondition probes; successful operational fixtures remain incomplete. Module tests & exit-zero help responses do not close functional parity.
 - Root positive lifecycle routes (`schedule`, `run`, `contract`, `completion`, `review`, valid
   host ledger, installed topology/assets) remain `I/A`.
 - Standalone `legion-mcp` has no successful shipped initialization path.
@@ -388,14 +397,14 @@ Run after RightKit admission in GitHub, with exact source SHA and artifacts:
 - Source report's package count corrected from 36 to 37; no runtime defect follows from that typo.
 - Real external RightKit, GitHub, Inno, PowerShell, Swift, codesign, notarization, browser,
   provider credentials, and network paths remain platform/dependency/auth gated.
-- Recorded green `251de322` CI and in-progress `8c23e45b` CI remain scoped to named stages.
+- Green `8c23e45b` full CI & macOS qualification remain scoped to named stages; Windows qualification is pending.
 
 Root owner records each acceptance receipt in GitHub CI, then updates this inventory with exact
 SHA, artifact digest, platform, and installed readback.
 
 ## Live Minimize consumer & dormant receipt path
 
-Windows `D:\Claude\.git\hooks\pre-commit` resolves installed stable `current/bin/legion.exe`
+Windows parent workspace `.git/hooks/pre-commit` resolves installed stable `current/bin/legion.exe`
 & executes `minimize commit verify .audit/minimize/commit-receipt.json`. Native asset repair
 reaches that consumer. Existing receipts must be regenerated through reviewed native flow;
 changing executable digest deliberately invalidates prior receipts. Parent workspace staging
@@ -408,3 +417,41 @@ is a parity gap, not evidence that repaired native CLI still needs JavaScript. C
 receipt validation behind one native implementation before enabling full discipline consumer.
 
 Source challenge: missing optional Oracle validation alone is not an Audit defect. `skills/audit/references/manual.md:130-144` explicitly separates quality gate from overall audit; current AGENTS.md makes Oracle conditional. Gate-vector semantics remain an open reconciliation item, not a confirmed blanket CV requirement.
+
+
+## Executed offline entrypoint probes
+
+Diagnostic run [37310348598](https://github.com/Orthic-Labs/legion/actions/runs/37310348598)
+compiled & executed source `a553be4f` in a separate network namespace with no routes, isolated
+HOME/config/cwd & no provider credentials. All **77 script keys, 43 root commands, 27 developer
+commands & 16 xtask commands** were invoked. Raw result contains 169 rows because discovery
+calls & two synthetic Clap help commands are included: 94 exit-zero, 74 nonzero, one timeout,
+zero unexercised rows. These are help/precondition outcomes, not functional PASS labels.
+
+Report artifact SHA256: `f30c6bbf68ab0222a373119e1b0821aef469f79c3a2ef6a863e546402c95e6d3`.
+Machine-readable rows: [entrypoint evidence](legion-entrypoint-inventory-a553be4f.json).
+
+Confirmed discovery failure: root help advertises 32 of 43 routes, omitting `apple`, `status`,
+`serve`, `catalog`, `policy`, `decision`, `handoff`, `research`, `review`, `setup` & `script`.
+`alchemist/viewer --help` starts Citadel server instead of showing help, then exceeds five-second
+limit. CI kills its owned process group. Fix argument handling & require help to exit without
+opening a listener. Two developer/xtask count errors were probe bookkeeping: Clap's synthetic
+`help` command was counted against enum totals. Probe parser now excludes that synthetic route;
+raw original evidence is retained. Diagnostic remains red until genuine help defects close.
+
+Full CI for `a553be4f` stopped at portability gate because this report included two developer-local
+workspace paths. Paths are replaced with portable descriptions; no runtime defect caused that gate.
+
+## Additional installed macOS setup defect
+
+Normal qualified installer activated exact `8c23e45b` payload but global setup-finish exited 1:
+optional Pi profile reports Baseline fidelity & missing executableToolSurface, mcpLifecycle,
+releaseBinding, executableResolution & hostEnforcement. Claude & Codex selected repair each
+exited 0 & read back COMPLETE. This mixed-client aggregate failure predates this repair & does
+not invalidate requested clients' installed evidence.
+
+P1 fix: global setup aggregation must distinguish optional explicit-only Baseline clients from
+requested supported clients, report their actual fidelity, & produce a truthful exit/result.
+Acceptance: qualify installer with Claude + Codex + optional Pi present; requested clients install
+cleanly & optional profile has an explicit disposition. Add that mixed-client fixture to macOS
+qualification, which currently tests a narrower disposable host.

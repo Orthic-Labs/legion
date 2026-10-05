@@ -1131,7 +1131,9 @@ fn entrypoint_inventory() {
             row_id,
         );
         row_id += 1;
-        let discovered = command_names_from_help(&help_text);
+        // Clap adds a synthetic help subcommand outside the declared command enum.
+        let discovered: Vec<_> = command_names_from_help(&help_text).into_iter()
+            .filter(|name| name != "help").collect();
         rows.push(discovery);
         if binary.is_some() && discovered.is_empty() {
             structural_errors.push(format!("could not parse {label} --help command inventory"));

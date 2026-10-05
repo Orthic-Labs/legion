@@ -1,0 +1,3279 @@
+{
+  "schema_version": 1,
+  "generated_at_unix_ms": 1791203806644,
+  "network_isolation": {
+    "parent_namespace": "net:[4026531833]",
+    "probe_namespace": "net:[4026532313]",
+    "ipv4_routes": ""
+  },
+  "counts": {
+    "script_dispatch_keys_expected": 77,
+    "script_dispatch_keys_observed": 77,
+    "root_commands_expected": 43,
+    "legion_dev_commands_expected": 27,
+    "xtask_commands_expected": 16,
+    "rows": 169,
+    "not_exercised_rows": 0,
+    "structural_errors": 14
+  },
+  "structural_errors": [
+    "legion --help returned 32 commands, expected 43",
+    "legion --help omitted command apple",
+    "legion --help omitted command status",
+    "legion --help omitted command serve",
+    "legion --help omitted command catalog",
+    "legion --help omitted command policy",
+    "legion --help omitted command decision",
+    "legion --help omitted command handoff",
+    "legion --help omitted command research",
+    "legion --help omitted command review",
+    "legion --help omitted command setup",
+    "legion --help omitted command script",
+    "legion-dev --help returned 28 commands, expected 27",
+    "xtask --help returned 17 commands, expected 16"
+  ],
+  "rows": [
+    {
+      "group": "script-list",
+      "key": "--help",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "--list"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "{\"scripts\":[\"alchemist/parse_events\",\"alchemist/viewer\",\"brand-identity/color-check\",\"coder/api-worker\",\"covenant/validate-external-review-packet\",\"designer/context\",\"designer/context-signals\",\"designer/critique-storage\",\"designer/detect\",\"designer/detect-csp\",\"designer/export-deck-pdf\",\"designer/export-deck-pptx\",\"designer/export-deck-stage-pdf\",\"designer/fetch-images\",\"designer/gen-deck-thumbs\",\"designer/hook\",\"designer/hook-admin\",\"designer/hook-before-edit\",\"designer/live\",\"designer/live-accept\",\"designer/live-commit-manual-edits\",\"designer/live-complete\",\"designer/live-inject\",\"designer/live-insert\",\"designer/live-poll\",\"designer/live-resume\",\"designer/live-server\",\"designer/live-status\",\"designer/live-target\",\"designer/live-wrap\",\"designer/narrate-pipeline\",\"designer/palette\",\"designer/mix-voiceover\",\"designer/render-narration\",\"designer/render-video\",\"designer/render-video-seek\",\"designer/tts-doubao\",\"designer/verify\",\"dispatch/validate-dispatch\",\"foundation/validate-atom-report\",\"handoff/transcript-handoff\",\"handoff/validate-handoff\",\"ios-development/tool_preflight\",\"macos-development/tool_preflight\",\"qa/qa-functional\",\"qa/qa-shot\",\"seo/banana-cost-tracker\",\"seo/banana-generate\",\"seo/banana-presets\",\"seo/bing_webmaster\",\"seo/crux_history\",\"seo/edit\",\"seo/fetch_page\",\"seo/ga4_report\",\"seo/google_auth\",\"seo/gsc_inspect\",\"seo/gsc_query\",\"seo/gsc_query_v2\",\"seo/indexing_notify\",\"seo/indexnow\",\"seo/keyword_planner\",\"seo/nlp_analyze\",\"seo/pagespeed_check\",\"seo/parse_html\",\"seo/provider_registry\",\"seo/question_inventory\",\"seo/query_ownership\",\"seo/rank_tracker\",\"seo/render_gap\",\"seo/search_ops\",\"seo/seo_closure\",\"seo/seo_project\",\"seo/site_audit\",\"seo/google_report\",\"seo/templated_metadata\",\"seo/youtube_search\",\"tasklist/validate-tasklist\"]}\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "alchemist/parse_events",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "alchemist/parse_events",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "error: one of the arguments --stream --summary is required\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "alchemist/viewer",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "alchemist/viewer",
+        "--help"
+      ],
+      "exit_code": null,
+      "timed_out": true,
+      "output": {
+        "stdout": "Citadel: http://127.0.0.1:8790   runs: /tmp/legion-entrypoint-inventory-10255-1791203794611/row-2/home/.alchemist/runs\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "TIMED_OUT",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "brand-identity/color-check",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "brand-identity/color-check",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "usage: contrast <fg> <bg> | oklch <hex> | oklch-to-hex <L> <C> <H> | audit '<json>'\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "coder/api-worker",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "coder/api-worker",
+        "--help"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "CODER_FAILURE [pi_missing]: Pi CLI executable 'pi' was not found\nCODER_RECEIPT {\"argv\":[\"pi\",\"--tools\",\"read,grep,find,ls\",\"--no-session\",\"--no-extensions\",\"--no-skills\",\"--no-prompt-templates\",\"--no-themes\",\"--no-context-files\",\"--model\",\"opencode/hy3-free\",\"-p\",\"<prompt-redacted>\"],\"duration_ms\":0,\"executor\":\"pi\",\"exit_code\":null,\"finished_at\":\"2026-10-05T12:36:39.689+00:00\",\"model\":\"opencode/hy3-free\",\"run_id\":\"000000000000283118dba25d98d5ac9e\",\"schema\":\"coder.pi.receipt.v1\",\"started_at\":\"2026-10-05T12:36:39.689+00:00\",\"status\":\"pi_missing\",\"tools\":[\"read\",\"grep\",\"find\",\"ls\"]}\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "covenant/validate-external-review-packet",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "covenant/validate-external-review-packet"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "error: packet path is required\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/context",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/context"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "NO_PRODUCT_MD: This project has no PRODUCT.md yet. Stop the current task, load reference/init.md, and follow its instructions to write PRODUCT.md before resuming.\n\n---\n\nRESOLVED_CONTEXT:\n{\n  \"targetPath\": null,\n  \"projectRoot\": \"/tmp/legion-entrypoint-inventory-10255-1791203794611/row-6\",\n  \"repoRoot\": \"/tmp/legion-entrypoint-inventory-10255-1791203794611/row-6\",\n  \"productPath\": null,\n  \"designPath\": null\n}\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/context-signals",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/context-signals"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "{\n  \"setup\": {\n    \"hasProduct\": false,\n    \"productPath\": null,\n    \"hasDesign\": false,\n    \"designPath\": null,\n    \"hasCode\": false,\n    \"register\": null\n  },\n  \"critique\": {\n    \"latest\": null\n  },\n  \"git\": {\n    \"isRepo\": false,\n    \"branch\": null,\n    \"base\": null,\n    \"changedFiles\": [],\n    \"changedCount\": 0\n  },\n  \"devServer\": {\n    \"running\": false,\n    \"ports\": []\n  },\n  \"scan\": {\n    \"targets\": [],\n    \"via\": null\n  }\n}\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/critique-storage",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/critique-storage",
+        "__legion_entrypoint_missing__"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "usage: critique-storage.mjs <slug|write|latest|trend> [args]\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/detect",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/detect"
+      ],
+      "exit_code": 101,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "\nthread 'main' (10330) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "truncated": false
+      },
+      "state": "isolated_precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/detect-csp",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/detect-csp"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "{\n  \"shape\": null,\n  \"signals\": []\n}\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/export-deck-pdf",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/export-deck-pdf"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "用法: node export_deck_pdf.mjs --slides <dir> --out <file.pdf> [--width 1920] [--height 1080]\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/export-deck-pptx",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/export-deck-pptx"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "用法: node export_deck_pptx.mjs --slides <dir> --out <file.pptx>\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/export-deck-stage-pdf",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/export-deck-stage-pdf"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "用法: node export_deck_stage_pdf.mjs --html <deck.html> --out <file.pdf> [--width 1920] [--height 1080]\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/fetch-images",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/fetch-images"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "usage: fetch_images.py --query <q...> --out <dir> [--count 2] [--width 1600]\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/gen-deck-thumbs",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/gen-deck-thumbs"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "failed to launch headless chrome: You need to set the sandbox(false) option when running as root\n",
+        "truncated": false
+      },
+      "state": "isolated_precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/hook",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/hook"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/hook-admin",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/hook-admin",
+        "__legion_entrypoint_missing__"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown action: __legion_entrypoint_missing__\nValid: status,on,off,ignore-rule,ignore-file,ignore-value,reset\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/hook-before-edit",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/hook-before-edit"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "{\"permission\":\"allow\",\"userMessage\":null,\"agentMessage\":null}",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: node live.mjs\n\nPrepare everything for live variant mode in a single command:\n  - Checks .impeccable/live/config.json (required, created once per project)\n  - Starts (or reuses) the live server in the background\n  - Injects the browser script tag\n  - Reads PRODUCT.md / DESIGN.md for project context\n  - In monorepos, choose a child app first; --target <path> is the fallback/manual path\n\nOn success, prints a JSON blob with:\n  { ok, serverPort, serverToken, pageFiles, projectRoot, repoRoot, targetPath, productPath, designPath }\n\nOn target_selection_required, prints:\n  { ok: false, error: \"target_selection_required\", targetCandidates }\n\nOn config_missing, prints:\n  { ok: false, error: \"config_missing\", configPath, hint }\n\nThe agent should then:\n  1. If target_selection_required, ask which app to use and rerun from that child cwd\n  2. If config_missing, create the config and re-run this script\n  3. Optionally open the project's dev/preview URL in the browser (see reference/live.md—not serverPort)\n  4. Enter the poll loop: node live-poll.mjs\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-accept",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-accept",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: node live-accept.mjs [options]\n\nDeterministic accept/discard for live variant sessions.\n\nModes:\n  --discard          Remove variants, restore original\n  --variant N        Accept variant N, discard the rest\n\nRequired:\n  --id SESSION_ID    Session ID of the variant wrapper\n\nOptions:\n  --page-url URL     Current browser page URL; scopes staged copy-edit cleanup\n  --defer-source-write\n                     Deprecated compatibility flag. Svelte component accepts\n                     now write the real source immediately.\n\nOutput (JSON):\n  { handled, file, carbonize }\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-commit-manual-edits",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-commit-manual-edits",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion-commit-manual-edits [--page-url=<url>] [--provider=auto|codex|claude|mock]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-complete",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-complete",
+        "--help"
+      ],
+      "exit_code": 101,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "\nthread 'main' (10451) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-inject",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-inject",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: node live-inject.mjs [options]\n\nInsert or remove the live mode script tag in the project's HTML entry point.\nReads configuration from .impeccable/live/config.json.\n\nModes:\n  --port PORT   Insert script tag pointing at http://localhost:PORT/live.js\n  --remove      Remove the script tag (if present)\n  --check       Print whether .impeccable/live/config.json exists and its content\n\nOutput (JSON):\n  { ok, file, inserted|removed, config? }\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-insert",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-insert",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: node live-insert.mjs [options]\n\nFind an anchor element in source and splice an insert-variant wrapper.\n\nRequired:\n  --id ID            Session ID for the variant wrapper\n  --count N          Number of expected variants (1-8)\n  --position POS     before | after (relative to the anchor element)\n\nElement identification (at least one required):\n  --element-id ID    HTML id attribute of the anchor element\n  --classes A,B,C    Comma-separated CSS class names\n  --tag TAG          Tag name (div, section, etc.)\n  --query TEXT       Fallback: raw text to search for\n\nOptional:\n  --file PATH        Source file to search in (skips auto-detection)\n  --text TEXT        Anchor textContent for disambiguation (~80 chars)\n\nOutput (JSON):\n  { mode: \"insert\", file, position, insertLine, commentSyntax, styleMode, styleTag, cssAuthoring }\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-poll",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-poll",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: impeccable poll [options]\n\nWait for a browser event from the live variant server, or reply to one.\n\nModes:\n  poll                             Block until a browser event arrives, print JSON, exit\n  poll --stream                    Keep polling; print one JSON line per event (see live.md)\n  poll --reply <id> done           Reply \"done\" to event <id> (replace or insert generate)\n  poll --reply <id> steer_done     Reply after handling a steer event (unlocks Steer bar)\n  poll --reply <id> error \"msg\"    Reply with an error message\n  poll --reply <id> done --data '<json>'\n                                   Reply with a structured JSON result (manual_edit_apply)\n\nOptions:\n  --timeout=MS        One-shot poll timeout in ms (default: 600000). Ignored in --stream mode\n  --ack-timeout=MS    Stream mode: max wait for --reply after generate/steer (default: 600000)\n  --file PATH         Attach a source file path to the reply (generate/steer flow)\n  --data JSON         Attach a JSON result object to the reply (manual_edit_apply flow). Must be valid JSON\n  --help              Show this help message\n\nHarness note:\n  Default one-shot mode is the portable contract for Claude Code, Codex, and Cursor.\n  --stream is experimental for harnesses with fast incremental stdout; do not use on Cursor.\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-resume",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-resume",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: node live-resume.mjs [--id SESSION_ID]\n\nPrint the active durable session checkpoint and the next safe agent action.\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-server",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-server",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: node live-server.mjs [options]\n\nStart the live variant mode server (zero dependencies).\n\nCommands:\n  (default)     Start the server (foreground)\n  stop          Stop the server and remove the injected live.js script tag\n  stop --keep-inject   Stop the server only (leave the script tag in the HTML entry)\n\nOptions:\n  --background  Start detached, print connection JSON to stdout, then exit\n  --port=PORT   Use a specific port (default: auto-detect starting at 8400)\n  --keep-inject Only with stop: skip live-inject.mjs --remove\n  --help        Show this help\n\nEndpoints:\n  /live.js             Browser script (element picker + variant cycling)\n  /detect.js           Detection overlay (backwards compatible)\n  /modern-screenshot.js Vendored modern-screenshot UMD build (lazy-loaded by live.js)\n  /annotation          POST raw image/png to stage a variant screenshot\n  /events              SSE stream (server→browser) + POST (browser→server)\n  /poll                Long-poll for agent CLI\n  /manual-edit-stash   Stage browser copy edits\n  /manual-edit-commit  Apply staged browser copy edits\n  /manual-edit-discard Discard staged browser copy edits\n  /source              Raw source file reader (no-HMR fallback)\n  /status              Durable recovery status (token-protected)\n  /health              Health check\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-status",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-status"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "{\"liveServer\":null,\"activeSessions\":[],\"recoveryHint\":\"Start live-server.mjs to requeue pending durable events, then run live-poll.mjs.\"}\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-target",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-target"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "{\"originalCwd\":\"/tmp/legion-entrypoint-inventory-10255-1791203794611/row-29\",\"projectRoot\":\"/tmp/legion-entrypoint-inventory-10255-1791203794611/row-29\",\"targetPath\":null,\"absoluteTargetPath\":null,\"targetOptions\":{}}\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/live-wrap",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/live-wrap",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: impeccable wrap [options]\n\nFind an element in source and wrap it in a variant container.\n\nRequired:\n  --id ID            Session ID for the variant wrapper\n  --count N          Number of expected variants (1-8)\n\nElement identification (at least one required):\n  --element-id ID    HTML id attribute of the element\n  --classes A,B,C    Comma- or space-separated CSS class names\n  --tag TAG          Tag name (div, section, etc.)\n  --query TEXT       Fallback: raw text to search for\n\nOptional:\n  --file PATH        Source file to search in (skips auto-detection)\n  --text TEXT        Picked element's textContent. Used to disambiguate when\n                     classes/tag match multiple sibling elements (e.g. a list\n                     of <Card>s with the same className). Pass the first ~80\n                     chars of event.element.textContent.\n  --page-url URL     Current page URL. Required when pending manual edits may\n                     affect the picked source block. Pending edits are filtered\n                     to this page so an edit on /a doesn't bleed into /b.\n  --help             Show this help message\n\nOutput (JSON):\n  { file, startLine, endLine, insertLine, commentSyntax }\n\nThe agent should insert variant HTML at insertLine.\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/narrate-pipeline",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/narrate-pipeline"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "narrate-pipeline.mjs · L2 长解说总指挥\n\n  --script <path>     解说稿 .md 文件（必填）\n  --out-dir <path>    输出目录（必填）\n\n输出：<out-dir>/voiceover.mp3 + <out-dir>/timeline.json\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/palette",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/palette",
+        "--id",
+        "seed-200"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "BRAND SEED · seed-200\n\nSeed color (anchor for your primary brand color):\n  oklch(0.360 0.137 0.0) — pure red (one read: \"Aesop apothecary shelf — oxblood bottle glass against linen, considered and unhurried\")\n\nThis is the brand's anchor — a single beautiful color. Compose the rest of\nthe palette around it using YOUR judgment, the brief (PRODUCT.md /\nDESIGN.md / the user's prompt), and the color-strategy guidance already in\nSKILL.md.\n\nHow to use:\n\n1. Read the brief. Write one specific phrase describing the mood this\n   product calls for. Be granular. Good: \"1970s travel poster — sun-baked\n   warmth, considered\", \"midnight jazz club — smoky brass, saxophone\n   light\", \"Scandinavian winter morning — quiet light through frost\". Bad:\n   \"modern and clean\", \"warm and inviting\". The first lets you compose; the\n   second is generic and will produce generic palettes.\n\n2. The seed's hue (0°) anchors your primary brand color. You\n   choose L and C to match the mood. The same hue can be deep-and-velvet,\n   bright-and-confident, or pale-and-faded — pick the one the mood demands.\n   Primary's hue should stay within ±10° of the seed.\n  - one example strategy: Seed is a deep desaturated red-brown that reads as brand ink itself; I push primary darker toward bottle-glass oxblood, pair with a pure white surface so the red does the work, and use a clear pale-blush accent that can carry dark text in pills.\n\n3. Now compose the full palette in OKLCH (5 more roles):\n     • bg       — the most important architectural choice.\n                  CORE PRINCIPLE: the mood lives in the BRAND COLORS\n                  (primary + accent) and typography, NOT in the surface.\n                  Stripe is warm — its purple does that, bg is pure\n                  white. Linear is cool — its blue does that, bg is\n                  pure. Notion is warm — its accents do that, bg is\n                  near-pure-white. Putting warmth in BOTH primary AND\n                  bg is the AI cliché.\n\n                  DEFAULT A — PURE white: exactly oklch(1.000 0.000 0).\n                    Not 0.99, not chroma 0.002. Stripe / Notion / Apple\n                    use literal #ffffff. Don't add hidden warmth.\n                    Refs: Stripe, Notion, Linear (light), Apple.com,\n                    Vercel docs, Figma marketing, Loom, Substack.\n\n                  DEFAULT B — PURE black/near-black: L 0.04-0.12,\n                    chroma exactly 0.000. No hue tint. Vercel is\n                    roughly oklch(0.08 0 0). Pick L for mood; C is 0.\n                    Refs: Vercel, A24, Acne, Apple dark, MUBI.\n\n                  ALT 2 — TINTED: chroma 0.015-0.05.\n                    Use ONLY when:\n                    (a) the mood is EXPLICITLY environmental — the surface\n                        IS part of the brand (1920s lacquered interior,\n                        leather library, ceramic studio, hotel lobby), or\n                    (b) the seed itself is desaturated (chroma < 0.10) and\n                        needs a tinted surface to read as a brand.\n                    NOT for \"feels warm\" / \"modern + warm\" / \"moody\". If\n                    your mood says \"warm\" but doesn't name a specific\n                    environment, use PURE white and let primary carry\n                    the warmth.\n\n                  HEURISTIC: if seed chroma > 0.10 AND mood is product-\n                  focused (not environment-focused), it's almost always\n                  PURE white. Target distribution across many palettes:\n                  ~50% pure white, ~25% pure black, ~25% tinted.\n     • surface  — bg pulled slightly toward ink (10-15% mix). Same hue\n                  family as bg. Used for cards, panels, sections.\n     • ink      — body text color. Must reach ≥7:1 contrast vs bg.\n                  Can carry the brand hue at low chroma in light mode\n                  (slight warmth or coolness toward the brand).\n     • accent   — a SECOND brand color, distinct from primary in BOTH\n                  hue AND lightness. Picked to complement the mood (not\n                  default-complementary across the wheel). Used for\n                  badges, status pills, links, accent rules.\n     • muted    — secondary text. Ink pulled 40% toward bg, keeping ink's\n                  hue. Must reach ≥3.5:1 contrast vs bg.\n\n4. Pick a color STRATEGY (the four steps from SKILL.md):\n     • Restrained: tinted neutrals + accent ≤10% — product default\n     • Committed: one saturated color carries 30-60% — identity-driven\n     • Full palette: 3-4 named roles each used deliberately — brand work\n     • Drenched: the surface IS the color — campaign, hero, statement\n   The brief picks the strategy. A startup dashboard ≠ a perfume brand.\n\nHard rules (already in SKILL.md, recapped because the seed step is where\nthey actually bite):\n\n  - OKLCH only — never hex. Never #RRGGBB.\n  - ink-vs-bg WCAG contrast ≥ 7 (body text must be readable)\n  - primary chroma ≤ 0.23 (above this, primary glows perceptually and\n    no text on it is readable — acid-bright is a UI failure)\n  - if primary L > 0.78, primary chroma ≤ 0.18 (the fluorescent zone)\n  - primary-vs-accent contrast ≥ 1.7 (they must be visually distinct,\n    not two variants of the same hue at similar lightness)\n  - accent must carry readable text on a filled badge/pill: EITHER\n    saturated (chroma ≥ 0.10) OR clearly light (L ≥ 0.85) OR clearly\n    dark (L ≤ 0.30). Never a muddy mid-tone (L 0.45-0.72 + chroma < 0.10)\n    — taupe/mushroom/dusty-grey accents read as weak and can't hold text\n    either way. Saturate it or push its lightness to a clear light/dark.\n  - avoid the saturated AI attractor zones: claude-beige (warm-cream bg\n    + dusty brown primary), forest-green-on-cream, AI-purple-on-white,\n    navy-cream-with-orange-accent\n\nTEXT-ON-COLOR FILLS — pick by perceptual contrast, not just WCAG. The\nrule applies to ANY element where text sits on a saturated color fill:\nprimary buttons, accent buttons, badges, status pills, tag highlights,\nfilled callouts. Don't only think \"primary button\" — apply consistently.\n\nFor any saturated mid-luminance color (L between 0.42 and 0.78, chroma ≥\n0.08), use WHITE text (or near-white from your bg), not dark text — even\nif WCAG says dark technically passes. The Helmholtz-Kohlrausch effect\nmakes saturated colors appear brighter than their luminance suggests,\nand dark text on a warm-or-cool-saturated fill reads as muddy.\n\nConvention: Stripe orange CTAs, McDonald's red, every fintech orange\nbutton, Vercel's filled badges, Linear's status pills — all use white\ntext on saturated bg fills.\n\nDark text is correct only on PALE fills (L > 0.85) or PURE-NEUTRAL fills\n(chroma near 0). Everything else: white text.\n\nReturn your composed palette in CSS custom properties using OKLCH, then\nbuild with it. The seed is the start, not the recipe.\n\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/mix-voiceover",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/mix-voiceover"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Usage: bash mix-voiceover.sh <video.mp4> --voiceover=<v.mp3> [--bgm=<b.mp3> | --bgm-mood=<name>]\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/render-narration",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/render-narration"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Usage: bash render-narration.sh <html> --timeline=<path> [options]\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/render-video",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/render-video"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "You need to set the sandbox(false) option when running as root\n",
+        "truncated": false
+      },
+      "state": "isolated_precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/render-video-seek",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/render-video-seek"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Usage: node render-video-seek.js <html-file> [--duration=N] [--fps=N] [--width=N] [--height=N] [--concurrency=N]\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/tts-doubao",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/tts-doubao"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "错：缺 --text 或 --text-file\n\ntts-doubao.mjs · 豆包语音 TTS\n\n  --text <str>          要合成的文本\n  --text-file <path>    从文件读取文本（与 --text 二选一）\n  --out <path>          输出 mp3 路径（必填）\n  --speed <float>       语速倍率，默认 1.0（0.5-2.0）\n  --voice <voice_id>    覆盖 .env 里的音色 id\n  --encoding <ext>      mp3 / wav / pcm，默认 mp3\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "designer/verify",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "designer/verify"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "You need to set the sandbox(false) option when running as root\n",
+        "truncated": false
+      },
+      "state": "isolated_precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "dispatch/validate-dispatch",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "dispatch/validate-dispatch"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "the following arguments are required: dispatch\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "foundation/validate-atom-report",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "foundation/validate-atom-report"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "usage: validate_atom_report.py <report> --mode <mode> [--expected-rows N] [--max-repeat N] [--manifest <path>] [--write-receipt <path>]\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "handoff/transcript-handoff",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "handoff/transcript-handoff",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "FAIL: unrecognized command: --help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "handoff/validate-handoff",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "handoff/validate-handoff",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "FAIL: unrecognized argument: --help\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "ios-development/tool_preflight",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "ios-development/tool_preflight",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion script ios-development/tool_preflight --list | --tool ID [--tool ID ...]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "macos-development/tool_preflight",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "macos-development/tool_preflight",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion script ios-development/tool_preflight --list | --tool ID [--tool ID ...]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "qa/qa-functional",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "qa/qa-functional",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage:\n  qa.mjs --shot [--route \"/?qa=1\"] [--out \".cache/qa-shots/app.png\"]\n  qa.mjs --actions actions.json [--route \"/?qa=1\"]\n  qa.mjs --url \"http://127.0.0.1:3000/?qa=1\" --actions actions.json\n\nOptions:\n  --shot                 Capture one viewport-only app screenshot.\n  --actions <file>       JSON action file for hover/click/assert/screenshot QA.\n  --url <url>            Use an already-running app URL.\n  --start <command>      Start command. Use {port} placeholder for the selected port.\n  --route <route>        Route to open on the local server. Default: /?qa=1\n  --out <path>           Screenshot path for --shot. Default: .cache/qa-shots/app.png\n  --width <px>           Viewport width. Default: 1365\n  --height <px>          Viewport height. Default: 900\n  --port <port>          Server port. Default: first free port from 1422.\n  --cdp-port <port>      DevTools port for action mode. Default: first free port from 9222.\n  --qa-env <NAME=VALUE>  Env var for server process. Default: VITE_APP_BROWSER_QA=1\n  --viewport <spec>      Preset (desktop|tablet|mobile) or WxH (e.g. 390x844). Sets width/height/DPR/mobile.\n  --slow-3g              Throttle network ~400 kbps / 400ms RTT (CDP). Reveals spinners/jank hidden on localhost.\n  --slow-4g              Throttle network ~1.6 Mbps / 150ms RTT (CDP).\n  --cpu-4x               Throttle CPU 4x (CDP). Shorthand for --cpu-throttle 4.\n  --cpu-throttle <n>     Throttle CPU by factor n (CDP).\n  --save-session <file>  After the run, save cookies + localStorage to <file>.\n  --load-session <file>  Restore cookies + localStorage before first paint (skip re-login).\n  --keep-open            Leave server running after the run.\n  --sweep                Delete abandoned browser profiles under .cache and exit.\n  --help                 Show help.\n\nAny throttle/CPU/mobile/session flag routes --shot through the CDP path, because Chrome's\nfire-and-forget --screenshot= flag cannot express those conditions.\n\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "qa/qa-shot",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "qa/qa-shot",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage:\n  qa.mjs --shot [--route \"/?qa=1\"] [--out \".cache/qa-shots/app.png\"]\n  qa.mjs --actions actions.json [--route \"/?qa=1\"]\n  qa.mjs --url \"http://127.0.0.1:3000/?qa=1\" --actions actions.json\n\nOptions:\n  --shot                 Capture one viewport-only app screenshot.\n  --actions <file>       JSON action file for hover/click/assert/screenshot QA.\n  --url <url>            Use an already-running app URL.\n  --start <command>      Start command. Use {port} placeholder for the selected port.\n  --route <route>        Route to open on the local server. Default: /?qa=1\n  --out <path>           Screenshot path for --shot. Default: .cache/qa-shots/app.png\n  --width <px>           Viewport width. Default: 1365\n  --height <px>          Viewport height. Default: 900\n  --port <port>          Server port. Default: first free port from 1422.\n  --cdp-port <port>      DevTools port for action mode. Default: first free port from 9222.\n  --qa-env <NAME=VALUE>  Env var for server process. Default: VITE_APP_BROWSER_QA=1\n  --viewport <spec>      Preset (desktop|tablet|mobile) or WxH (e.g. 390x844). Sets width/height/DPR/mobile.\n  --slow-3g              Throttle network ~400 kbps / 400ms RTT (CDP). Reveals spinners/jank hidden on localhost.\n  --slow-4g              Throttle network ~1.6 Mbps / 150ms RTT (CDP).\n  --cpu-4x               Throttle CPU 4x (CDP). Shorthand for --cpu-throttle 4.\n  --cpu-throttle <n>     Throttle CPU by factor n (CDP).\n  --save-session <file>  After the run, save cookies + localStorage to <file>.\n  --load-session <file>  Restore cookies + localStorage before first paint (skip re-login).\n  --keep-open            Leave server running after the run.\n  --sweep                Delete abandoned browser profiles under .cache and exit.\n  --help                 Show help.\n\nAny throttle/CPU/mobile/session flag routes --shot through the CDP path, because Chrome's\nfire-and-forget --screenshot= flag cannot express those conditions.\n\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/banana-cost-tracker",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/banana-cost-tracker"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "usage: cost_tracker.py <log|summary|today|estimate|reset> ...\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/banana-generate",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/banana-generate"
+      ],
+      "exit_code": 101,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "\nthread 'main' (10691) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "truncated": false
+      },
+      "state": "isolated_precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/banana-presets",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/banana-presets"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "usage: presets.py <list|show|create|delete> ...\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/bing_webmaster",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/bing_webmaster"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "missing command\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/crux_history",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/crux_history",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "unrecognized argument: --help\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/edit",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/edit"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "the following arguments are required: --image\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/fetch_page",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/fetch_page"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "the following arguments are required: url\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/ga4_report",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/ga4_report"
+      ],
+      "exit_code": 101,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "\nthread 'main' (10740) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/google_auth",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/google_auth",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Credential Tier: -1 -- No credentials configured\nRun --setup for configuration instructions.\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/gsc_inspect",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/gsc_inspect",
+        "--help"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Error: No site URL specified. Use --site-url or set default_property in config.\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/gsc_query",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/gsc_query",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "--property required unless configured\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/gsc_query_v2",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/gsc_query_v2",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "--property required unless configured\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/indexing_notify",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/indexing_notify"
+      ],
+      "exit_code": 101,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "\nthread 'main' (10781) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/indexnow",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/indexnow"
+      ],
+      "exit_code": 101,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "\nthread 'main' (10790) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/keyword_planner",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/keyword_planner"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Error: No Google Ads developer token configured. Add 'ads_developer_token' to ~/.config/claude-seo/google-api.json. Get a token at: https://ads.google.com/aw/apicenter\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/nlp_analyze",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/nlp_analyze",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "unrecognized argument: --help\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/pagespeed_check",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/pagespeed_check",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "unrecognized argument: --help\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/parse_html",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/parse_html"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Title: None\nMeta Description: None\nCanonical: None\nH1 Tags: 0\nH2 Tags: 0\nImages: 0\nInternal Links: 0\nExternal Links: 0\nSchema Blocks: 0\nWord Count: 0\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/provider_registry",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/provider_registry"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "error: could not read /tmp/legion-entrypoint-inventory-10255-1791203794611/row-65/skills/seo/config/provider-registry.json: No such file or directory (os error 2)\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/question_inventory",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/question_inventory",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "error: No such file or directory (os error 2)\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/query_ownership",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/query_ownership",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "error: No such file or directory (os error 2)\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/rank_tracker",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/rank_tracker"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Error: a command is required (ingest|compare)\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/render_gap",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/render_gap"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Error: --url <url> is required. Run with --help for usage.\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/search_ops",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/search_ops"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Error: a command is required\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/seo_closure",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/seo_closure"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "SEO closure: FAIL — 0 phases, 0 workflow packs, 0 critical gates\nFAIL: missing /tmp/legion-entrypoint-inventory-10255-1791203794611/row-71/skills/seo/config/control-catalog.json\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/seo_project",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/seo_project"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "error: a command is required (setup, doctor, cache-key)\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/site_audit",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/site_audit"
+      ],
+      "exit_code": 101,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "\nthread 'main' (10895) panicked at /home/runner/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/blocking/shutdown.rs:51:21:\nCannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/google_report",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/google_report"
+      ],
+      "exit_code": 1,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Error: MissingType\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/templated_metadata",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/templated_metadata"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "error: input path is required\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "seo/youtube_search",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "seo/youtube_search",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "unrecognized arguments: --help\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "script",
+      "key": "tasklist/validate-tasklist",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "tasklist/validate-tasklist"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "the following arguments are required: packets\n",
+        "truncated": false
+      },
+      "state": "precondition",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root-help",
+      "key": "--help",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion <command> [options]\n\nCommands:\n  init\n  doctor\n  bind\n  inspect\n  targets\n  components\n  stacks\n  controls\n  governance\n  skills\n  languages\n  providers\n  rules\n  schedule\n  plan\n  audit\n  verify\n  explain\n  report\n  fix\n  hooks\n  mcp\n  run\n  budget\n  contract\n  assurance\n  completion\n  host\n  harness\n  authority\n  state\n  minimize\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "apple",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "apple",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Apple tools, documentation, diagnostics & App Store Connect\n\nUsage: legion apple [OPTIONS] [OPERATION]\n\nArguments:\n  [OPERATION]  [default: catalog]\n\nOptions:\n      --input <INPUT>\n          JSON arguments for the selected operation\n      --input-file <INPUT_FILE>\n          Read JSON arguments from a bounded UTF-8 file\n      --execute\n          Execute a planned process/API operation within host-authorized scope\n      --policy-context <POLICY_CONTEXT>\n          Host policy context; never an independent authorization grant\n  -h, --help\n          Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "assurance",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "assurance",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "unknown command: assurance\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "audit",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "audit",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "authority",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "authority",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion authority proof inspect [--invocation <id>]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "bind",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "bind",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "budget",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "budget",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "budget requires inspect (got --help)\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "catalog",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "catalog",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Inspect the native capability catalog\n\nUsage: legion catalog [OPTIONS] [ROOT]\n\nArguments:\n  [ROOT]  [default: .]\n\nOptions:\n      --json  \n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "completion",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "completion",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion completion claim|evidence --file <outcome.json> [--session <id>]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "components",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "components",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "contract",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "contract",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "contract requires a subcommand: seal (got --help)\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "controls",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "controls",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "decision",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "decision",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Record or inspect a routing decision\n\nUsage: legion decision [OPTIONS] --task <TASK> --rationale <RATIONALE>\n\nOptions:\n      --repository <REPOSITORY>  [default: repository]\n      --scope <SCOPE>            [default: workspace]\n      --task <TASK>              \n      --rationale <RATIONALE>    \n  -h, --help                     Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "doctor",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "doctor",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "explain",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "explain",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "fix",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "fix",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion fix --plan <sealed-remediation-plan>\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "governance",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "governance",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion governance execution|delivery|judgment --json <structured-request> [--key-dir <dir>]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "handoff",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "handoff",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Prepare or validate a cold-start handoff packet\n\nUsage: legion handoff [OPTIONS]\n\nOptions:\n      --input <INPUT>  \n      --json           \n  -h, --help           Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "harness",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "harness",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "hooks",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "hooks",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "host",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "host",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion host events inspect [--session <id>]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "init",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "init",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Initialize Legion evidence scaffolding in a repository\n\nUsage: legion init [OPTIONS] [ROOT]\n\nArguments:\n  [ROOT]  [default: .]\n\nOptions:\n      --json     \n      --write    \n      --dry-run  \n  -h, --help     Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "inspect",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "inspect",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "languages",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "languages",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "List the languages this Legion release can qualify\n\nUsage: legion languages [OPTIONS] [ARGS]...\n\nArguments:\n  [ARGS]...  \n\nOptions:\n      --json  \n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "mcp",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "mcp",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "minimize",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "minimize",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "minimize requires a domain: commit|decision (got --help)\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "plan",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "plan",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "policy",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "policy",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Inspect the native policy pack\n\nUsage: legion policy [OPTIONS]\n\nOptions:\n      --file <FILE>      \n      --effect <EFFECT>  \n      --json             \n  -h, --help             Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "providers",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "providers",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "List the audit providers this Legion release composes\n\nUsage: legion providers [OPTIONS] [ARGS]...\n\nArguments:\n  [ARGS]...  \n\nOptions:\n      --json  \n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "report",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "report",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Render a stored audit report in another format\n\nUsage: legion report [OPTIONS] <REPORT>\n\nArguments:\n  <REPORT>  \n\nOptions:\n      --format <FORMAT>  [default: json]\n      --out <OUT>        \n  -h, --help             Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "research",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "research",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Route an evidence research request\n\nUsage: legion research [OPTIONS] --query <QUERY>\n\nOptions:\n      --query <QUERY>\n          \n      --provider <PROVIDER>\n          \n      --max-hits <MAX_HITS>\n          [default: 5]\n      --source-record <SOURCE_RECORDS>\n          \n      --min-independent-providers <MIN_INDEPENDENT_PROVIDERS>\n          [default: 2]\n      --domain <DOMAIN>\n          Route domain. The medical and legal gates are only reachable when the route names them; a route frozen at `general` can never reach either, so a sensitive query was silently answered as an ordinary one [default: general]\n      --sensitivity <SENSITIVITY>\n          Route sensitivity. Bound with the domain because the gates read both [default: public]\n  -h, --help\n          Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "review",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "review",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Run an independent completion-validation review\n\nUsage: legion review [OPTIONS]\n\nOptions:\n      --input <INPUT>\n          \n      --json\n          \n      --provider-endpoint <PROVIDER_ENDPOINT>\n          OpenAI-compatible endpoint for an independently authorized reviewer\n      --provider-id <PROVIDER_ID>\n          Provider identity required to match Guard-projected credential scope\n      --provider-model <PROVIDER_MODEL>\n          Model used by the authorized review provider\n      --provider-timeout-ms <PROVIDER_TIMEOUT_MS>\n          Bounded active time for each provider judgment [default: 60000]\n  -h, --help\n          Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "rules",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "rules",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion rules [compile <source> --base <policy> [--out <output>]]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "run",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "run",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "run requires a subcommand: open|close|suspend|supersede|repair (got --help)\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "schedule",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "schedule",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion schedule (--plan <plan.json>|--run <run.json>|--trigger <trigger.json>) [--format json|text|mermaid]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "script",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "script",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Dispatch to the Rust port of a `skills/**/scripts/**` CLI (`--list` to enumerate)\n\nUsage: legion script [OPTIONS] [REST]...\n\nArguments:\n  [REST]...  `<skill>/<stem>` followed by the arguments to pass through to the port\n\nOptions:\n      --list  Print the table of `<skill>/<stem>` scripts with a Rust entry point\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "serve",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "serve",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Serve the Legion MCP server over stdio for a plugin host\n\nUsage: legion serve [OPTIONS]\n\nOptions:\n      --stdio                      \n      --plugin-root <PLUGIN_ROOT>  Immutable Agent Plugins package root supplied by the client launcher\n      --config <CONFIG>            Versioned explicit composition source for the native M1 API\n  -h, --help                       Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "setup",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "setup",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Install, check, or purge the installed Legion product\n\nUsage: legion setup [OPTIONS] [COMMAND]\n\nCommands:\n  preview  \n  apply    \n  status   \n  qualify  \n  repair   \n  disable  \n  remove   \n  purge    \n\nOptions:\n      --dry-run\n          Preview the selected lifecycle action without changing durable state\n      --client <CLIENT>\n          Restrict setup to one supported client\n      --confirm\n          Confirm the generated preview for the default setup action\n      --check\n          Verify installed host projections without changing durable state\n      --development\n          Opt into repository-backed development setup. Installed remains default\n      --development-root <DEVELOPMENT_ROOT>\n          Repository root supplying development plugin/assets\n      --state-root <STATE_ROOT>\n          Isolated development state root; required with --development\n      --port <PORT>\n          Development MCP/process port identity\n      --process-identity <PROCESS_IDENTITY>\n          Explicit process identity used by development status/qualification\n      --client-override <CLIENT_OVERRIDE>\n          Client override as client=source-root,target-root (repeatable)\n  -h, --help\n          Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "skills",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "skills",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: legion skills [list|verify] [--bundle <id>] [--publication]\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "stacks",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "stacks",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "state",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "state",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "state requires a subcommand: snapshot|verify (got --help)\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "status",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "status",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Report the native M1 installed-release status\n\nUsage: legion status [OPTIONS]\n\nOptions:\n      --config <CONFIG>  Versioned explicit composition source for the native M1 API\n  -h, --help             Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "targets",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "targets",
+        "--help"
+      ],
+      "exit_code": 4,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "root",
+      "key": "verify",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion",
+        "verify",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Verify audit facts against a sealed provider plan\n\nUsage: legion verify <RUN>\n\nArguments:\n  <RUN>  \n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev-help",
+      "key": "--help",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "`legion-dev` — repository-contract checks, ported from `scripts/*.mjs`.\n\nEach subcommand mirrors one `pnpm legion:check` step: same stdout/stderr wording, same exit-code semantics (0 = pass, non-zero = fail).\n\nUsage: legion-dev <COMMAND>\n\nCommands:\n  check-portability              Port of `scripts/check-portability.mjs`\n  check-version-parity           Port of `scripts/check-version-parity.mjs`\n  check-publication-surface      Port of `scripts/check-publication-surface.mjs`\n  check-authority-parity         Port of `scripts/check-authority-parity.mjs`\n  evaluate-authority-replay      Grade recorded role decisions against independently labelled replay cases\n  generate-catalogs              Port of `scripts/generate-catalogs.mjs`\n  check-canonical-names          Port of `scripts/check-canonical-names.mjs`\n  check-blueprint-config         Port of `scripts/check-blueprint-config.mjs`\n  check-publication-policy       Port of `scripts/check-publication-policy.mjs`\n  check-distribution-contract    Port of `scripts/check-distribution-contract.mjs`\n  check-release-obligations      Port of `scripts/check-release-obligations.mjs`\n  generate-schemas               Port of `scripts/generate-schemas.mjs`\n  generate-manifest              Port of `scripts/generate-manifest.mjs`\n  normalize-provider-result      Port of `scripts/normalize-provider-result.mjs`\n  native-cli-inventory           Port of `scripts/native-cli/inventory.mjs`\n  check-native-cli-surface       Port of `scripts/check-native-cli-surface.mjs`\n  generate-host-projection       Port of `scripts/generate-host-projection.mjs`\n  generate-skill-catalog         Port of `scripts/generate-skill-catalog.mjs`\n  generate-codex-skill-sidecars  Port of `scripts/generate-codex-skill-sidecars.mjs`\n  refresh-local-skill-manifests  Port of `scripts/refresh-local-skill-manifests.mjs`\n  verify-plugin-parity           Port of `scripts/verify-plugin-parity.mjs`\n  report-to-sarif                Port of `scripts/report-to-sarif.mjs`\n  plugin-dev                     Port of `scripts/plugin-dev.mjs`\n  check-dependency-closure       Port of `scripts/check-dependency-closure.mjs`\n  check-packed-import-closure    Port of `scripts/check-packed-import-closure.mjs`\n  native-cli-parity-installed    Port of `scripts/native-cli/run-installed-parity.mjs`. Windows-only (qualifies the installer-owned stable `legion.exe`); fails immediately off Windows\n  native-cli-capture-rust        Port of `scripts/native-cli/run-rust-characterization.mjs`\n  help                           Print this message or the help of the given subcommand(s)\n\nOptions:\n  -h, --help\n          Print help (see a summary with '-h')\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-authority-parity",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-authority-parity",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-authority-parity.mjs`\n\nUsage: legion-dev check-authority-parity\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-blueprint-config",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-blueprint-config",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-blueprint-config.mjs`\n\nUsage: legion-dev check-blueprint-config [OPTIONS]\n\nOptions:\n      --json  \n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-canonical-names",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-canonical-names",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-canonical-names.mjs`\n\nUsage: legion-dev check-canonical-names [OPTIONS]\n\nOptions:\n      --json  \n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-dependency-closure",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-dependency-closure",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-dependency-closure.mjs`\n\nUsage: legion-dev check-dependency-closure\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-distribution-contract",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-distribution-contract",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-distribution-contract.mjs`\n\nUsage: legion-dev check-distribution-contract\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-native-cli-surface",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-native-cli-surface",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-native-cli-surface.mjs`\n\nUsage: legion-dev check-native-cli-surface [OPTIONS]\n\nOptions:\n      --phase <PHASE>  [default: record]\n  -h, --help           Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-packed-import-closure",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-packed-import-closure",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-packed-import-closure.mjs`\n\nUsage: legion-dev check-packed-import-closure\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-portability",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-portability",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-portability.mjs`\n\nUsage: legion-dev check-portability [OPTIONS]\n\nOptions:\n      --json  \n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-publication-policy",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-publication-policy",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-publication-policy.mjs`\n\nUsage: legion-dev check-publication-policy [OPTIONS]\n\nOptions:\n      --channel <CHANNEL>  \n  -h, --help               Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-publication-surface",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-publication-surface",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-publication-surface.mjs`\n\nUsage: legion-dev check-publication-surface\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-release-obligations",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-release-obligations",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-release-obligations.mjs`\n\nUsage: legion-dev check-release-obligations\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "check-version-parity",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "check-version-parity",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/check-version-parity.mjs`\n\nUsage: legion-dev check-version-parity [OPTIONS]\n\nOptions:\n      --json    \n      --stable  \n  -h, --help    Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "evaluate-authority-replay",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "evaluate-authority-replay",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Grade recorded role decisions against independently labelled replay cases\n\nUsage: legion-dev evaluate-authority-replay [OPTIONS] --observations <OBSERVATIONS>\n\nOptions:\n      --cases <CASES>                [default: src/evals/architecture/authority-adoption.jsonl]\n      --observations <OBSERVATIONS>  \n  -h, --help                         Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "generate-catalogs",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "generate-catalogs",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/generate-catalogs.mjs`\n\nUsage: legion-dev generate-catalogs [OPTIONS]\n\nOptions:\n      --check  \n  -h, --help   Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "generate-codex-skill-sidecars",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "generate-codex-skill-sidecars",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/generate-codex-skill-sidecars.mjs`\n\nUsage: legion-dev generate-codex-skill-sidecars [OPTIONS]\n\nOptions:\n      --check  \n  -h, --help   Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "generate-host-projection",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "generate-host-projection",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/generate-host-projection.mjs`\n\nUsage: legion-dev generate-host-projection [OPTIONS]\n\nOptions:\n      --check  \n  -h, --help   Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "generate-manifest",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "generate-manifest",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/generate-manifest.mjs`\n\nUsage: legion-dev generate-manifest [OPTIONS]\n\nOptions:\n      --check                \n      --registry <REGISTRY>  \n      --out <OUT>            \n  -h, --help                 Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "generate-schemas",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "generate-schemas",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/generate-schemas.mjs`\n\nUsage: legion-dev generate-schemas [OPTIONS]\n\nOptions:\n      --check  \n  -h, --help   Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "generate-skill-catalog",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "generate-skill-catalog",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/generate-skill-catalog.mjs`\n\nUsage: legion-dev generate-skill-catalog [OPTIONS]\n\nOptions:\n      --check  \n  -h, --help   Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "help",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "help",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "error: unrecognized subcommand '--help'\n\nUsage: legion-dev <COMMAND>\n\nFor more information, try '--help'.\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "native-cli-capture-rust",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "native-cli-capture-rust",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/native-cli/run-rust-characterization.mjs`\n\nUsage: legion-dev native-cli-capture-rust [OPTIONS]\n\nOptions:\n      --diagnostic  \n  -h, --help        Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "native-cli-inventory",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "native-cli-inventory",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/native-cli/inventory.mjs`\n\nUsage: legion-dev native-cli-inventory\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "native-cli-parity-installed",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "native-cli-parity-installed",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/native-cli/run-installed-parity.mjs`. Windows-only (qualifies the installer-owned stable `legion.exe`); fails immediately off Windows\n\nUsage: legion-dev native-cli-parity-installed\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "normalize-provider-result",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "normalize-provider-result",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/normalize-provider-result.mjs`\n\nUsage: legion-dev normalize-provider-result [OPTIONS]\n\nOptions:\n      --contract <CONTRACT>  Path to a JSON plan-contract fragment (`{id, denominator, benchmark}`)\n      --raw <RAW>            Path to the raw provider output JSON to normalize\n      --self-test            Run the JS file's embedded self-test instead of normalizing files\n  -h, --help                 Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "plugin-dev",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "plugin-dev",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/plugin-dev.mjs`\n\nUsage: legion-dev plugin-dev\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "refresh-local-skill-manifests",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "refresh-local-skill-manifests",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/refresh-local-skill-manifests.mjs`\n\nUsage: legion-dev refresh-local-skill-manifests [OPTIONS] [BUNDLE]...\n\nArguments:\n  [BUNDLE]...  \n\nOptions:\n      --check  \n  -h, --help   Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "report-to-sarif",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "report-to-sarif",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/report-to-sarif.mjs`\n\nUsage: legion-dev report-to-sarif [OPTIONS] --report <REPORT>\n\nOptions:\n      --report <REPORT>  \n      --out <OUT>        \n  -h, --help             Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "legion-dev",
+      "key": "verify-plugin-parity",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/legion-dev",
+        "verify-plugin-parity",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Port of `scripts/verify-plugin-parity.mjs`\n\nUsage: legion-dev verify-plugin-parity [OPTIONS]\n\nOptions:\n      --check            \n      --structural-only  \n  -h, --help             Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask-help",
+      "key": "--help",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Legion release/packaging pipeline\n\nUsage: xtask <COMMAND>\n\nCommands:\n  verify-release\n          Validate a release manifest (native Rust port of verify-release.mjs)\n  assemble-native-release\n          Native Rust port of scripts/assemble-native-release.mjs\n  package-windows-release\n          \n  prepare-unsigned-candidate\n          Native Rust port of scripts/ci/prepare-unsigned-candidate.mjs. createPortableArchive/SBOM/provenance calls delegate to the external @rightkit/release npm package as a subprocess\n  prepare-windows-candidate-finalization\n          Native Rust port of scripts/prepare-windows-candidate-finalization.mjs\n  finalize-macos-candidate\n          Native Rust port of scripts/finalize-macos-candidate.mjs (both the `--package`/rebind mode and the default prepare mode)\n  qualify-windows-release\n          \n  release-admission\n          Native Rust port of installer-release-chain.mjs's `admission` subcommand (Gate 0A). Reads its inputs from the process environment, matching the JS `admitRelease(process.env)` default\n  release-stage-summary\n          Native Rust port of installer-release-chain.mjs's `stage-summary` subcommand\n  release-evidence-verification\n          Native Rust port of installer-release-chain.mjs's `evidence-verification` subcommand\n  release-finalize-windows\n          Native Rust port of installer-release-chain.mjs's `finalize-windows` subcommand\n  release-finalize-macos\n          Native Rust port of installer-release-chain.mjs's `finalize-macos` subcommand\n  release-qualify-installed\n          Native Rust port of installer-release-chain.mjs's `qualify-installed` subcommand\n  release-publish-qualified\n          Native Rust port of installer-release-chain.mjs's `publish-qualified` subcommand\n  release-local-windows-development\n          Native Rust port of local-windows-development.mjs\n  native-installed-smoke\n          Native Rust port of scripts/ci/native-installed-smoke.mjs\n  help\n          Print this message or the help of the given subcommand(s)\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "assemble-native-release",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "assemble-native-release",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of scripts/assemble-native-release.mjs\n\nUsage: xtask assemble-native-release [OPTIONS]\n\nOptions:\n      --platform <PLATFORM>          \n      --architecture <ARCHITECTURE>  \n      --profile <PROFILE>            \n      --target <TARGET>              \n      --bin-dir <BIN_DIR>            \n      --out <OUT>                    \n      --force                        \n      --finalize-signed              \n      --provenance <PROVENANCE>      \n  -h, --help                         Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "finalize-macos-candidate",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "finalize-macos-candidate",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of scripts/finalize-macos-candidate.mjs (both the `--package`/rebind mode and the default prepare mode)\n\nUsage: xtask finalize-macos-candidate [OPTIONS]\n\nOptions:\n      --package                                      \n      --candidate <CANDIDATE>                        \n      --input <INPUT>                                \n      --output <OUTPUT>                              \n      --notarization-archive <NOTARIZATION_ARCHIVE>  \n      --architecture <ARCHITECTURE>                  [default: arm64]\n      --source-revision <SOURCE_REVISION>            \n      --version <VERSION>                            \n      --receipt <RECEIPT>                            \n  -h, --help                                         Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "help",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "help",
+        "--help"
+      ],
+      "exit_code": 2,
+      "timed_out": false,
+      "output": {
+        "stdout": "",
+        "stderr": "error: unrecognized subcommand '--help'\n\nUsage: xtask <COMMAND>\n\nFor more information, try '--help'.\n",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_NONZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "native-installed-smoke",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "native-installed-smoke",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of scripts/ci/native-installed-smoke.mjs\n\nUsage: xtask native-installed-smoke [OPTIONS] [POSITIONAL]...\n\nArguments:\n  [POSITIONAL]...  Positional fallback: <candidate-root> [isolated-root]\n\nOptions:\n      --candidate <CANDIDATE>          \n      --isolated-root <ISOLATED_ROOT>  \n  -h, --help                           Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "package-windows-release",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "package-windows-release",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: xtask package-windows-release [ARGS]...\n\nArguments:\n  [ARGS]...  \n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "prepare-unsigned-candidate",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "prepare-unsigned-candidate",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of scripts/ci/prepare-unsigned-candidate.mjs. createPortableArchive/SBOM/provenance calls delegate to the external @rightkit/release npm package as a subprocess\n\nUsage: xtask prepare-unsigned-candidate [OPTIONS]\n\nOptions:\n      --input <INPUT>                      \n      --output <OUTPUT>                    \n      --platform <PLATFORM>                \n      --architecture <ARCHITECTURE>        \n      --source-revision <SOURCE_REVISION>  \n      --version <VERSION>                  \n      --created-at <CREATED_AT>            \n      --check                              \n  -h, --help                               Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "prepare-windows-candidate-finalization",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "prepare-windows-candidate-finalization",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of scripts/prepare-windows-candidate-finalization.mjs\n\nUsage: xtask prepare-windows-candidate-finalization [OPTIONS]\n\nOptions:\n      --candidate <CANDIDATE>              \n      --output <OUTPUT>                    \n      --architecture <ARCHITECTURE>        \n      --source-revision <SOURCE_REVISION>  \n      --version <VERSION>                  \n      --receipt <RECEIPT>                  \n  -h, --help                               Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "qualify-windows-release",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "qualify-windows-release",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Usage: xtask qualify-windows-release [ARGS]...\n\nArguments:\n  [ARGS]...  \n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "release-admission",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "release-admission",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of installer-release-chain.mjs's `admission` subcommand (Gate 0A). Reads its inputs from the process environment, matching the JS `admitRelease(process.env)` default\n\nUsage: xtask release-admission\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "release-evidence-verification",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "release-evidence-verification",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of installer-release-chain.mjs's `evidence-verification` subcommand\n\nUsage: xtask release-evidence-verification\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "release-finalize-macos",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "release-finalize-macos",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of installer-release-chain.mjs's `finalize-macos` subcommand\n\nUsage: xtask release-finalize-macos\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "release-finalize-windows",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "release-finalize-windows",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of installer-release-chain.mjs's `finalize-windows` subcommand\n\nUsage: xtask release-finalize-windows\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "release-local-windows-development",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "release-local-windows-development",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of local-windows-development.mjs\n\nUsage: xtask release-local-windows-development [OPTIONS]\n\nOptions:\n      --build-only  \n  -h, --help        Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "release-publish-qualified",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "release-publish-qualified",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of installer-release-chain.mjs's `publish-qualified` subcommand\n\nUsage: xtask release-publish-qualified\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "release-qualify-installed",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "release-qualify-installed",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of installer-release-chain.mjs's `qualify-installed` subcommand\n\nUsage: xtask release-qualify-installed\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "release-stage-summary",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "release-stage-summary",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Native Rust port of installer-release-chain.mjs's `stage-summary` subcommand\n\nUsage: xtask release-stage-summary\n\nOptions:\n  -h, --help  Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    },
+    {
+      "group": "xtask",
+      "key": "verify-release",
+      "invocation": [
+        "/home/runner/work/legion/legion/engine/target/debug/xtask",
+        "verify-release",
+        "--help"
+      ],
+      "exit_code": 0,
+      "timed_out": false,
+      "output": {
+        "stdout": "Validate a release manifest (native Rust port of verify-release.mjs)\n\nUsage: xtask verify-release [OPTIONS] <MANIFEST_PATH>\n\nArguments:\n  <MANIFEST_PATH>  \n\nOptions:\n      --dist-dir <DIST_DIR>  \n  -h, --help                 Print help\n",
+        "stderr": "",
+        "truncated": false
+      },
+      "state": "help",
+      "outcome": "EXIT_ZERO_OBSERVED",
+      "reason": null
+    }
+  ]
+}
