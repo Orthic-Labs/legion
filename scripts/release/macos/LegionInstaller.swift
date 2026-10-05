@@ -7,7 +7,22 @@ final class LegionInstaller: NSObject, NSApplicationDelegate {
   private let commandTimeout: TimeInterval = 60
   private var headless: Bool { CommandLine.arguments.contains("--headless") }
 
+  static func main() {
+    let installer = LegionInstaller()
+    if installer.headless {
+      installer.completeInstallation()
+      return
+    }
+    let app = NSApplication.shared
+    app.delegate = installer
+    withExtendedLifetime(installer) { app.run() }
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
+    completeInstallation()
+  }
+
+  private func completeInstallation() {
     do {
       try install()
       if headless { log("installation complete"); exit(0) }
