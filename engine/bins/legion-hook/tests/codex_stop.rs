@@ -1,10 +1,13 @@
 use serde_json::{json, Value};
-use std::{fs, io::Write, path::PathBuf, process::{Command, Stdio}, time::{SystemTime, UNIX_EPOCH}};
+use std::{fs, io::Write, path::PathBuf, process::{Command, Stdio}, sync::atomic::{AtomicU64, Ordering}, time::{SystemTime, UNIX_EPOCH}};
 
 fn fixture() -> PathBuf {
+    // Parallel tests can observe the same clock tick on macOS.
+    static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
     let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-    let root = std::env::temp_dir().join(format!("legion-codex-stop-{}-{nonce}", std::process::id()));
-    fs::create_dir_all(&root).unwrap();
+    let sequence = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
+    let root = std::env::temp_dir().join(format!("legion-codex-stop-{}-{nonce}-{sequence}", std::process::id()));
+    fs::create_dir(&root).unwrap();
     root
 }
 
