@@ -75,7 +75,7 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string APPL' "$app/Contents/Info.plist"
           # Include shared Pi skills so default setup cannot mistake Baseline
           # discovery for a required Full client or mutate this unrelated skill.
-          mkdir -p "$HOME/.codex" "$HOME/.agents/skills/qualification-unrelated"
+          mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.agents/skills/qualification-unrelated"
           printf '%s\n' '---' 'name: qualification-unrelated' 'description: Unrelated shared-root qualification fixture.' '---' > "$HOME/.agents/skills/qualification-unrelated/SKILL.md"
           cp "$HOME/.agents/skills/qualification-unrelated/SKILL.md" "$RUNNER_TEMP/legion-macos-delivery/optional-pi-fixture.original"
           "$app/Contents/MacOS/Legion Installer" --headless 2> "$RUNNER_TEMP/legion-macos-delivery/installer-qualification.log"

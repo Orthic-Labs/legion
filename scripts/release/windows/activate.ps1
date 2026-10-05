@@ -35,29 +35,51 @@ function Get-BinaryHash([string]$Path) {
   try { return [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '') }
   finally { $hasher.Dispose(); $stream.Dispose() }
 }
-function Sync-PackagedLocalCacheMirrors([string]$VersionPath) {
+function Sync-PackagedLocalCacheMirrors([string]$VersionPath, [System.Collections.Generic.List[object]]$Transactions) {
   $localAppData = [Environment]::GetFolderPath('LocalApplicationData')
-  $packagesRoot = Join-Path $localAppData 'Packages'
+  $packagesRoot = if ($env:LEGION_INSTALL_PACKAGES_ROOT) { [IO.Path]::GetFullPath($env:LEGION_INSTALL_PACKAGES_ROOT) } else { Join-Path $localAppData 'Packages' }
   if (-not (Test-Path -LiteralPath $packagesRoot -PathType Container)) { return }
   foreach ($package in Get-ChildItem -LiteralPath $packagesRoot -Directory -ErrorAction SilentlyContinue) {
     $mirrorProductRoot = Join-Path $package.FullName 'LocalCache\Local\Orthic Labs\Legion'
     if (-not (Test-Path -LiteralPath $mirrorProductRoot -PathType Container)) { continue }
     $mirrorCurrent = Join-Path $mirrorProductRoot 'current'
     $stagePath = Join-Path $mirrorProductRoot ('.next-current-' + [Guid]::NewGuid().ToString('N'))
+    $backupPath = Join-Path $mirrorProductRoot ('.previous-current-' + [Guid]::NewGuid().ToString('N'))
+    $transaction = [pscustomobject]@{current=$mirrorCurrent;stage=$stagePath;backup=$backupPath;backupCreated=$false;replacementCreated=$false}
+    $Transactions.Add($transaction) | Out-Null
     try {
       Write-InstallEvent 'localcache-mirror' 'started' $mirrorCurrent
       Copy-Item -LiteralPath $VersionPath -Destination $stagePath -Recurse
-      if (Test-Path -LiteralPath $mirrorCurrent) { Remove-Item -LiteralPath $mirrorCurrent -Recurse -Force }
-      Move-Item -LiteralPath $stagePath -Destination $mirrorCurrent
       $sourceHash = Get-BinaryHash (Join-Path $VersionPath 'bin\legion.exe')
-      $mirrorHash = Get-BinaryHash (Join-Path $mirrorCurrent 'bin\legion.exe')
-      if ($sourceHash -ne $mirrorHash) { throw "Packaged LocalCache mirror hash mismatch: $mirrorHash != $sourceHash" }
+      $stageHash = Get-BinaryHash (Join-Path $stagePath 'bin\legion.exe')
+      if ($sourceHash -ne $stageHash) { throw "Packaged LocalCache mirror stage hash mismatch: $stageHash != $sourceHash" }
+      if (Test-Path -LiteralPath $mirrorCurrent) {
+        Move-Item -LiteralPath $mirrorCurrent -Destination $backupPath
+        $transaction.backupCreated = $true
+      }
+      Move-Item -LiteralPath $stagePath -Destination $mirrorCurrent
+      $transaction.replacementCreated = $true
+      if ($env:LEGION_INSTALL_TEST_MODE -eq 'mirror-sync-failure') { throw 'Forced packaged LocalCache mirror failure' }
       Write-InstallEvent 'localcache-mirror' 'complete' $mirrorCurrent
     } catch {
-      Remove-Item -LiteralPath $stagePath -Recurse -Force -ErrorAction SilentlyContinue
       Write-InstallEvent 'localcache-mirror' 'failed' ($_ | Out-String).Trim()
       throw
     }
+  }
+}
+function Restore-PackagedLocalCacheMirrors([System.Collections.Generic.List[object]]$Transactions) {
+  for ($index = $Transactions.Count - 1; $index -ge 0; $index--) {
+    $transaction = $Transactions[$index]
+    if ($transaction.replacementCreated) { Remove-Item -LiteralPath $transaction.current -Recurse -Force -ErrorAction SilentlyContinue }
+    Remove-Item -LiteralPath $transaction.stage -Recurse -Force -ErrorAction SilentlyContinue
+    if ($transaction.backupCreated -and (Test-Path -LiteralPath $transaction.backup)) {
+      Move-Item -LiteralPath $transaction.backup -Destination $transaction.current -ErrorAction SilentlyContinue
+    }
+  }
+}
+function Commit-PackagedLocalCacheMirrors([System.Collections.Generic.List[object]]$Transactions) {
+  foreach ($transaction in $Transactions) {
+    Remove-Item -LiteralPath $transaction.stage,$transaction.backup -Recurse -Force -ErrorAction SilentlyContinue
   }
 }
 function Invoke-Bounded([string]$Stage, [string]$FilePath, [string[]]$Arguments) {
@@ -109,6 +131,7 @@ $currentBackupCreated = $false
 $versionBackupCreated = $false
 $currentReplaced = $false
 $versionReplaced = $false
+$mirrorTransactions = [System.Collections.Generic.List[object]]::new()
 Write-InstallEvent 'activation' 'started' "version=$Version"
 try {
   # Build and validate a clean current candidate before moving prior current.
@@ -135,15 +158,17 @@ try {
     try { $refresh = $refreshJson | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Client refresh returned invalid JSON' }
     if ($refresh.status -ne 'complete') { throw "Client refresh status=$($refresh.status)" }
   }
-  Sync-PackagedLocalCacheMirrors $versionPath
+  Sync-PackagedLocalCacheMirrors $versionPath $mirrorTransactions
   $versionHash = Get-BinaryHash (Join-Path $versionPath 'bin\legion.exe')
   $currentHash = Get-BinaryHash $legion
   if ($currentHash -ne $versionHash) { throw "Activation hash mismatch: $currentHash != $versionHash" }
   [ordered]@{schema='legion.install.activation.v1';state='activated';current=$currentPath;target=$versionPath;previous=$null;refresh='complete'} | ConvertTo-Json -Compress | Set-Content -LiteralPath (Join-Path $rootPath 'activation.json') -Encoding UTF8
   Write-InstallEvent 'activation' 'complete' "version=$Version"
+  Commit-PackagedLocalCacheMirrors $mirrorTransactions
   Remove-Item -LiteralPath $backupPath,$versionBackupPath -Recurse -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $payloadPath -Recurse -Force -ErrorAction SilentlyContinue
 } catch {
+  Restore-PackagedLocalCacheMirrors $mirrorTransactions
   if ($currentReplaced) { Remove-Item -LiteralPath $currentPath -Recurse -Force -ErrorAction SilentlyContinue }
   if ($versionReplaced) { Remove-Item -LiteralPath $versionPath -Recurse -Force -ErrorAction SilentlyContinue }
   Remove-Item -LiteralPath $stagePath,$payloadPath -Recurse -Force -ErrorAction SilentlyContinue

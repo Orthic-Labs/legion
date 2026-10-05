@@ -1,8 +1,8 @@
 //! Rust port of `scripts/release/windows/qualify-installed.mjs`: runs a
 //! finalized Windows installer through its qualification stages
 //! (install, version, same-version-upgrade, plugin-root transport,
-//! forced-refresh-failure, stalled-child, repair, status, codex-plugin-opt-in,
-//! doctor, uninstall) in an isolated
+//! staged-validation-failure, mirror-sync-failure, forced-refresh-failure,
+//! stalled-child, repair, status, codex-plugin-opt-in, doctor, uninstall) in an isolated
 //! `LOCALAPPDATA`/`USERPROFILE`, and writes either `qualification.json` or,
 //! on failure, `qualification-failure.json` with captured evidence — Phase A
 //! item 9: a failed run must leave a readable receipt instead of silently
@@ -335,6 +335,8 @@ fn inventory(root: &Path, depth: u32) -> Value {
 fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version: &str, revision: &str, finalization_sha256: &str, workspace: &Path) -> ReleaseResult<Value> {
     let local_app_data = workspace.join("local-app-data");
     let install_root = local_app_data.join("Orthic Labs").join("Legion");
+    let mirror_current = local_app_data.join("Packages").join("Legion-Qualification").join("LocalCache").join("Local").join("Orthic Labs").join("Legion").join("current");
+    fs::create_dir_all(&mirror_current).map_err(|e| fail(format!("could not create isolated LocalCache mirror fixture: {e}")))?;
     let profile = workspace.join("profile");
     for client_root in [".claude", ".codex"] {
         fs::create_dir_all(profile.join(client_root)).map_err(|e| fail(e.to_string()))?;
@@ -343,12 +345,14 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
     let install_log = output.join("setup-install.log");
     let activation_events = output.join("activation-events.jsonl");
     let staged_validation_failure_log = output.join("setup-staged-validation-failure.log");
+    let mirror_sync_failure_log = output.join("setup-mirror-sync-failure.log");
     let forced_refresh_failure_log = output.join("setup-forced-refresh-failure.log");
     let stalled_child_log = output.join("setup-stalled-child.log");
     let setup_logs: Vec<(&str, &PathBuf)> = vec![
         ("install", &install_log),
         ("activationEvents", &activation_events),
         ("stagedValidationFailure", &staged_validation_failure_log),
+        ("mirrorSyncFailure", &mirror_sync_failure_log),
         ("forcedRefreshFailure", &forced_refresh_failure_log),
         ("stalledChild", &stalled_child_log),
     ];
@@ -359,6 +363,7 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
     overrides.insert("USERPROFILE".to_string(), profile.to_string_lossy().to_string());
     overrides.insert("LEGION_STATE_ROOT".to_string(), local_app_data.join("Legion").to_string_lossy().to_string());
     overrides.insert("LEGION_INSTALL_EVENT_LOG".to_string(), activation_events.to_string_lossy().to_string());
+    overrides.insert("LEGION_INSTALL_PACKAGES_ROOT".to_string(), local_app_data.join("Packages").to_string_lossy().to_string());
     let path_sep = if cfg!(windows) { ";" } else { ":" };
     overrides.insert("PATH".to_string(), format!("{}{path_sep}{}", install_root.join("current").join("bin").display(), base_env.get("PATH").cloned().unwrap_or_default()));
     let environment = windows_environment(&base_env, &overrides);
@@ -396,6 +401,10 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
         }
 
         step("version", &mut || execute(runner, &executable, &["--version".into()], &install_root_opts, "installed legion --version"))?;
+        let mirror_executable = mirror_current.join("bin").join("legion.exe");
+        if !mirror_executable.is_file() {
+            return Err(fail(format!("isolated LocalCache mirror executable is missing: {}", mirror_executable.display())));
+        }
 
         // Seed the exact stale directory shape observed in a real same-version
         // upgrade. The next installer run must replace the owned version tree,
@@ -405,6 +414,7 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
         let version_executable = install_root.join("versions").join(version).join("bin").join("legion.exe");
         let pre_upgrade_current_sha256 = sha256_file(&executable)?;
         let pre_upgrade_version_sha256 = sha256_file(&version_executable)?;
+        let pre_upgrade_mirror_sha256 = sha256_file(&mirror_executable)?;
         fs::create_dir_all(&stale_dir).map_err(|e| fail(format!("could not seed stale upgrade entry: {e}")))?;
         fs::write(&stale_file, "stale same-version payload").map_err(|e| fail(format!("could not seed stale upgrade marker: {e}")))?;
         let mut staged_failure_env = environment.clone();
@@ -419,11 +429,29 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
                 "staged payload validation failure",
             )
         })?;
-        if sha256_file(&executable)? != pre_upgrade_current_sha256 || sha256_file(&version_executable)? != pre_upgrade_version_sha256 {
-            return Err(fail("staged payload validation failure changed prior runtime"));
+        if sha256_file(&executable)? != pre_upgrade_current_sha256 || sha256_file(&version_executable)? != pre_upgrade_version_sha256 || sha256_file(&mirror_executable)? != pre_upgrade_mirror_sha256 {
+            return Err(fail("staged payload validation failure changed prior runtime or mirror"));
         }
         if !stale_dir.exists() || !stale_file.exists() {
             return Err(fail("staged payload validation failure did not preserve prior version tree"));
+        }
+        let mut mirror_failure_env = environment.clone();
+        mirror_failure_env.insert("LEGION_INSTALL_TEST_MODE".to_string(), "mirror-sync-failure".to_string());
+        let mirror_failure_opts = CommandOptions { cwd: Some(workspace.to_path_buf()), env: Some(mirror_failure_env) };
+        step("mirror-sync-failure", &mut || {
+            execute_expected_failure(
+                runner,
+                installer,
+                &["/VERYSILENT".into(), "/SUPPRESSMSGBOXES".into(), "/NORESTART".into(), format!("/DIR={}", install_root.display()), format!("/LOG={}", mirror_sync_failure_log.display())],
+                &mirror_failure_opts,
+                "packaged LocalCache mirror failure",
+            )
+        })?;
+        if sha256_file(&executable)? != pre_upgrade_current_sha256 || sha256_file(&version_executable)? != pre_upgrade_version_sha256 || sha256_file(&mirror_executable)? != pre_upgrade_mirror_sha256 {
+            return Err(fail("packaged LocalCache mirror failure changed prior runtime or mirror"));
+        }
+        if !stale_dir.exists() || !stale_file.exists() {
+            return Err(fail("packaged LocalCache mirror failure did not preserve prior version tree"));
         }
         let upgrade_run = step("same-version-upgrade", &mut || {
             execute(
@@ -515,6 +543,7 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
                 "install": commands_stage("install"),
                 "version": commands_stage("version"),
                 "stagedValidationFailure": commands_stage("staged-validation-failure"),
+                "mirrorSyncFailure": commands_stage("mirror-sync-failure"),
                 "sameVersionUpgrade": commands_stage("same-version-upgrade"),
                 "pluginRootTransport": commands_stage("plugin-root-transport"),
                 "forcedRefreshFailure": commands_stage("forced-refresh-failure"),
@@ -525,7 +554,7 @@ fn qualify_inner(runner: CommandRunner, installer: &Path, output: &Path, version
                 "doctor": commands_stage("doctor"),
                 "uninstall": commands_stage("uninstall"),
             },
-            "activation": { "repair": repair, "status": status, "codexPluginRepair": codex_plugin_repair, "stagedValidationRollbackVerified": true, "sameVersionUpgradeClean": true, "pluginRootTransport": plugin_root_transport.stdout, "rollbackVerified": true, "stalledChildBounded": true },
+            "activation": { "repair": repair, "status": status, "codexPluginRepair": codex_plugin_repair, "stagedValidationRollbackVerified": true, "mirrorSyncRollbackVerified": true, "sameVersionUpgradeClean": true, "pluginRootTransport": plugin_root_transport.stdout, "rollbackVerified": true, "stalledChildBounded": true },
         });
         fs::write(&evidence_path, format!("{}\n", serde_json::to_string_pretty(&evidence).unwrap())).map_err(|e| fail(e.to_string()))?;
         let mut result = evidence.clone();
