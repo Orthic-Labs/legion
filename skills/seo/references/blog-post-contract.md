@@ -7,9 +7,8 @@ Every post page must render:
 - Breadcrumb nav (Home › Journal › title) + visible
 - Keyword-led H1, author byline + date + read-time
 - **TL;DR / answer-first block** — directly above or as the first paragraph, answer the title's
-  question in the **first sentence** (≤40 words, self-contained, quotable). If a one-sentence
-  answer isn't possible, lead with a 2–3 line "TL;DR:" summary. This is the single highest-ROI
-  AEO win — AI lifts the answer and humans don't bounce. (See `geo.md` citability.)
+  question directly in the opening (self-contained & accurate). If a one-sentence
+  answer isn't possible, lead with a 2–3 line "TL;DR:" summary. Use direct answers when helpful; choose length for reader task rather than a ranking formula. (See `geo.md` citability.)
 - **Hero image** (`featuredAsset`) — see §3
 - **"In this guide" TOC** — auto-built from `<h2>`s (show if ≥3); inject `id`s for anchor links
 - Body with H2 sections (ids), callouts where useful
@@ -21,8 +20,8 @@ Every post page must render:
 - Title ≤60 (dedup brand suffix — strip trailing `| Brand` variants, append once), meta-desc ≤155, canonical
 - OG: type=article, title, desc, url, **image (per-post `featuredAsset`, 1200×630, width+height)**, site_name; twitter summary_large_image
 - `article:published_time / modified_time / section / tag / author`
-- **`<meta name="robots" content="noai, noimageai">`** site-wide (training opt-out; does NOT block citation)
-- **JSON-LD:** Article/BlogPosting + BreadcrumbList + Person/Organization author + **FAQPage** (derive from body — extractor handles BOTH `<h3>/<h4>` questions AND `<p><strong>Q?</strong></p>`; emit only if ≥2 pairs) + HowTo where step-based
+- **Crawler controls:** follow project policy & documented vendor controls in `ai-search-2026.md`. Existing `noai`/`noimageai` metadata is not proof of enforced training opt-out or search access.
+- **JSON-LD:** Article/BlogPosting, BreadcrumbList & truthful Person/Organization author where applicable. FAQPage/HowTo are optional only when visible content & a documented consumer justify them; neither is a mandatory blog gate or AI-citation lever. Google FAQ rich results retired May 7, 2026; see `schema-types.md`.
 
 ## 3. Hero + body images
 - **Use real brand photography where topically appropriate**, drawn from whatever asset library the brand maintains, and only where a model/lifestyle shot genuinely fits the topic.
@@ -32,11 +31,10 @@ Every post page must render:
 
 ## 4. Linking
 - **Internal:** 2-4 contextual product links woven into body + reciprocal (product pages → posts). Descriptive anchors, never "click here". Link to the brand's real product/shop URLs.
-- **Outbound:** citations only — Wikipedia, gov, academic, standards bodies, **media that reviewed/featured the brand** (credibility links OK), own social. **Never link competitor brands.**
+- **Outbound:** citations only — Wikipedia, gov, academic, standards bodies, **media that reviewed/featured the brand** (credibility links OK), own social. Respect project citation policy; comparison claims may cite first-party competitor documentation. Treat a brand-blog linking preference as scoped, not a universal ban on verifiable comparison sources.
 
 ## 4.5 Ideation — real questions + founder interview (E-E-A-T moat)
-Generic AI-written posts don't rank or get cited. Make each post unique with the approving human's real
-experience:
+Prefer useful original evidence & real experience over generic restatement. For topics needing founder expertise:
 1. **Mine real questions** for the topic — PAA boxes, AlsoAsked, AnswerThePublic, findquestions,
    Reddit/forum threads, GSC 8+ word queries (see `google.md`). Pick the actual question people ask.
 2. **Interview the founder, don't invent.** Prompt: *"I'm writing a post answering <question>. Ask
@@ -56,6 +54,6 @@ experience:
 - Static-site blogs follow the same anatomy in their generator.
 
 ## 7. Pre-publish checklist
-H1 keyword · TL;DR/answer-first sentence · meta title ≤60 + dedup · meta-desc ≤155 · canonical · per-post OG image 1200×630 · article:* meta · Article+BreadcrumbList+FAQPage JSON-LD · TOC anchors · 4-6 FAQ Qs · author bio · 2-3 internal product links + 1 shop · no competitor outbound · all claims cited · hero from real lib or generated (never stock) · noai/noimageai · mobile preview · submit to GSC/Bing after publish.
+Useful title & opening · deduplicated metadata · canonical · relevant OG image · truthful dates/author · applicable schema · TOC/Q&A only when useful · contextual product links & verifiable sources · appropriate hero · documented crawler policy · mobile preview. Character/image/link counts above describe project template defaults, not universal ranking gates. Indexing submission follows current authority & eligible provider workflow; publication does not automatically authorize submissions.
 
 > Author facts and per-brand keyword maps are project-supplied: `<project-overlay>/seo/author-profile.md` and `<project-overlay>/seo/<brand>/keyword-map.csv`.

@@ -136,19 +136,16 @@ Search Analytics: clicks, impressions, CTR, position for last 28 days.
 
 Includes quick-win detection: queries at position 4-10 with high impressions.
 
-**Long-tail / LLM-query mining (AEO):** after pulling the query report, isolate **queries of
-8+ words** — these are the conversational, question-shaped queries that surface in AI Overviews /
-ChatGPT and that competitors ignore while fighting over short head terms. In GSC UI:
-Performance → Queries → filter → Custom (regex) → `^(\S+\s+){7,}\S+$` (matches 8+ words). In our
-pipeline, filter the `gsc_query.py` JSON the same way (`len(query.split()) >= 8`). Each surfaced
-query is a ready-made AEO target: build/extend a post with an answer-first block (see
-`blog-post-contract.md` TL;DR rule) for that exact phrasing. High-impression + low-CTR long-tails
-are the gold.
+**Conversational question discovery:** optionally filter queries of 8+ words with
+`^(\S+\s+){7,}\S+$` in GSC or `len(query.split()) >= 8` in supplied data. Query length
+identifies neither AI-origin traffic nor citations. Validate intent, page ownership, useful
+missing answers & business relevance before proposing a change. Use `ai-search-2026.md`
+for Google generative reports, inclusion control & controlled prompt observations.
 
 **Gap / "didn't show up" analysis (where you're missing or barely ranking):**
 1. **Near-miss (you appear, don't rank):** in the `gsc_query.py` JSON, filter `position > 8 AND impressions > N` — queries Google already shows you for but you're on page 2+. These are the cheapest wins: you're relevant but not strong enough. Strengthen the matching page (answer-first block, depth, internal links) rather than writing new content.
-2. **Zero-click questions:** high impressions + ~0 clicks at a decent position often means an AI Overview / PAA ate the click — target the *exact question* with a self-contained answer block to become the cited source.
-3. **True content gaps (queries you DON'T appear for at all):** GSC only shows queries you already surface for, so for "didn't show up at all," cross-reference: Ahrefs **content gap** (`site-explorer-organic-competitors` → keywords competitors rank for and you don't) + the brand `keyword-map.csv` `(planned)/gap` clusters + PAA harvest (see `geo.md` FAQ-coverage audit). Map each gap to a new page/post.
+2. **Low-CTR questions:** inspect actual SERP, intent, title/snippet fit & competing features before choosing an intervention. Impressions with few clicks do not establish that an AI Overview caused lost traffic or that an answer block will win citations.
+3. **True content gaps (queries you DON'T appear for at all):** GSC only shows queries you already surface for, so for "didn't show up at all," cross-reference: Ahrefs **content gap** (`site-explorer-organic-competitors` → keywords competitors rank for and you don't) + the brand `keyword-map.csv` `(planned)/gap` clusters + PAA harvest (see `geo.md` FAQ-coverage audit). Check existing page ownership & information gain before selecting expansion, a new page or no action.
 
 ### `/seo google inspect <url>`
 
@@ -172,6 +169,17 @@ List submitted sitemaps with status, errors, warnings.
 **Script:** `legion script seo/gsc_query sitemaps --property <property> --json`
 
 ---
+
+## Social/video platform properties (checked 2026-10-06)
+
+Google announced platform properties for Instagram, TikTok, X & YouTube on July 7, 2026. They measure Google discovery of platform content, separately from website properties & native social analytics.
+
+For requested account, identify authorized/verified platform property & report availability. Use supported Performance/Insights reports or export; record account, platform, property, dates, collection time, post URL, query & available metrics. Preserve unavailable reports as unavailable. Do not promise a fixed activation time or assume existing website credentials expose platform data through an API.
+
+Compare relevant post/query discovery with owned topic/page coverage; select a useful video/content improvement through `operations.md`. Keep Google clicks/impressions, native reach, site referrals & qualified outcomes separate. Verify any API support against current documentation before adding automation; until supported, use supplied/authorized exports.
+
+Official source: https://developers.google.com/search/blog/2026/07/search-console-social-video-platforms
+
 
 ## Indexing API
 
@@ -213,7 +221,7 @@ Top organic landing pages ranked by sessions.
 
 ## YouTube (Video SEO)
 
-YouTube mentions have the strongest AI visibility correlation (0.737). Free, API key only.
+Use YouTube data to inspect relevant videos & customer problems. Views/mentions are observations, not proof of AI citation or revenue impact. API-key access applies to supported public Data API calls.
 
 ### `/seo google youtube <query>`
 
@@ -337,7 +345,7 @@ Generate a professional PDF report with charts and analytics.
 - **seo-performance**: CrUX field data supplements Lighthouse lab data
 - **seo-sitemap**: GSC sitemap status shows real crawl/index coverage
 - **seo-content**: GSC query data informs keyword targeting
-- **seo-geo**: GSC search appearance data includes AI Overview references
+- **seo-geo**: dedicated generative reports follow `ai-search-2026.md`; ordinary query rows do not identify AI origin.
 
 ## Output Format
 

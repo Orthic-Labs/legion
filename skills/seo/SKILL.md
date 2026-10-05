@@ -46,6 +46,9 @@ SEO owns search diagnosis and search-specific methods. Legion owns orchestration
 - Questions/AEO inventory: `references/ai-search-2026.md`; use `legion script seo/question_inventory` for GSC-first question extraction.
 - Rank tracking: `references/openseo-absorption.md`; use `legion script seo/rank_tracker` to persist normalized provider observations and ownership changes.
 - SERP intent/page-type mismatch or search experience: `references/search-experience.md`.
+- Free tools/calculators/checkers as acquisition assets: `references/tool-led-growth.md`.
+- Google Search performance of social/video platform properties: `references/google.md`; reuse `references/operations.md` for evaluation.
+- Product demonstrations, evergreen affiliate content, curated SaaS listings & journalist beat research: `references/off-page.md`.
 - Keyword/topic architecture or semantic clustering: `references/topic-clusters.md`.
 - Ecommerce/product/category/Merchant Center/shopping: `references/ecommerce-2026.md` plus `schema.md` when markup is in scope.
 - Local: `references/local.md` plus only relevant maps/local-schema reference.
