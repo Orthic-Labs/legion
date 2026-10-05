@@ -20,7 +20,8 @@ metadata:
 
 The rest of `/seo` analyzes the link profile (`backlinks.md`: toxic links, anchor ratios,
 competitor gap). **This reference is the missing half: how to actually EARN links and
-brand/trust signals.** Pair with `geo.md` & `ai-search-2026.md` for observed citation opportunities. Earned presence can support discovery; correlation does not prove a ranking/citation mechanism.
+brand/trust signals.** Pairs with `geo.md` ("Brand mentions correlate 3× more strongly
+with AI visibility than backlinks" — so mention-earning here is also AEO/GEO work).
 
 ## HARD GUARDRAIL — white-hat only (non-negotiable)
 
@@ -49,14 +50,18 @@ sourcing platforms (Qwoted, Featured, Help a B2B Writer, SourceBottle) connect e
 to reporters writing stories who need a quote/stat.
 
 **Workflow:**
-1. **Identify newsworthy evidence.** Use original research, useful tools, product demonstrations, customer evidence or real founder expertise. A sourced statistics page is one option, with no count quota. Cite primary sources for statistics; apply Article/Dataset schema only when content qualifies.
+1. **Build a linkable asset first.** A genuinely sourced statistics/research page on the
+   brand site (40–80 real, cited stats on the brand's topic) — knife/EDC steel data for DD,
+   slow-fashion/textile-waste data for RH, local-dictation/privacy data for HR. This is what
+   journalists link to. **Every stat cited to a primary source — never fabricate** (see
+   `blog-post-contract.md` §5). Add `Article` + `Dataset` schema.
 2. **Find requests** matching real expertise (the approving human: 11+ yr fashion buying → RH/TS;
    product/CNC/EDC → DD; local-first software → HR). Filter by deadline + relevance.
 3. **Pitch** a tight, specific, quotable answer (2–4 sentences) + 1 stat from the asset +
    1-line credential. No fluff. Reference the asset only where it genuinely supports the story.
 4. **Log every pitch** (dedupe; track placement). See Outreach Tracker below.
 
-Evaluate audience relevance, factual accuracy, placements & qualified referrals; no placement quota or presumed ranking/citation effect.
+**Authority earned here >> any other tactic.** Realistic: a handful of placements/month.
 
 ## Tactic 2 — Unlinked brand-mention reclamation (best ROI)
 
@@ -102,42 +107,21 @@ Plus: spam score <5% (Moz), organic traffic trending up, fresh content <30 days,
 - Proof: 2 published samples (prefer DA 50+, niche-relevant)
 - Close: offer outline or full draft. **One** follow-up after 7 business days. No third.
 
-**Content standards:** follow publisher guidelines & task-appropriate length, original research/firsthand data, clear headings,
+**Content standards:** 1,500–2,500 words, original research/firsthand data, H1→H2→H3,
 author bio (50–100 words, verifiable credentials from the project-supplied author profile), 2–5 original/
 royalty-free images w/ alt text, suggested internal links to THEIR content. Follow their
-guidelines exactly. Record actual acceptance & outcomes; evaluate when the intervention maturity condition is met.
+guidelines exactly. Expectations: 5–10% cold acceptance; ranking impact 45–90 days post-index.
 
 ## Tactic 4 — Content distribution / syndication (amplify, don't spam)
 
 Get existing content in front of more humans + AI crawlers — **legitimately** (NOT the
 Distribb backlink-exchange). Repurpose each pillar post into: LinkedIn article (the approving human's
-founder voice), a useful product/problem YouTube explainer,
+founder voice), a YouTube explainer (strongest AI-citation correlation, 0.737 — see geo.md),
 genuine participation in relevant Reddit/forum/Quora threads (answer first, link only if it
 truly helps), an email-list send, and brand social. Canonical-tag any full-text syndication
 back to the original. Route platform specifics through `/social`.
 
 ---
-
-## Proactive journalist beat research
-
-Find relevant reporters & inspect recent articles. Record beat, article URLs/dates, audience fit & real story evidence; develop a specific angle consistent with their coverage. Prepare a concise tailored draft, then use existing authorized outreach/logging workflow. Newsworthiness comes from evidence, not a fixed statistic quota or a promised Knowledge Panel.
-
-## Product demonstrations for search
-
-Choose a customer problem/long-tail query from first-party questions & observed results. Show an actual product solving it, with accurate limitations, relevant title/description & useful CTA. Where a site watch page is warranted, apply video checks in `workflow-packs.md`. Record query, video/watch URL, product destination, publish identity & evaluation window. Measure Google/YouTube discovery, qualified referral, activation & revenue separately from views. Platform properties follow `google.md`; production routes through Legion's existing social/video capabilities.
-
-## Evergreen affiliate/partner content
-
-Identify relevant partners, including observed competitor affiliates; qualify audience, expertise & product fit. Map tutorial/comparison tasks, provide verifiable facts/demo access & record content URL, target query, referral identifier, relationship/disclosure, compensated-link treatment & outcome. Marketing owns offer/commission terms. Verify current platform disclosure/link rules before publication. Evaluate referred activation/revenue alongside discovery; avoid duplicate thin reviews or paid links passing ranking credit.
-
-## Curated SaaS listings
-
-For software/product projects, qualify individual directories/review/integration destinations by audience fit & eligibility. Record:
-
-`project | platform | audience/eligibility evidence | profile URL | owner | facts checked | submission state | checked date | referral/outcome`
-
-Prepare accurate profile facts, dedupe existing listings & verify resulting profile after authorized submission. Current names/fees/requirements must be checked; a saved directory list is a prospect list. Measure useful discovery/referrals, not directory volume or host DA. Do not build an extension merely to obtain a store-domain backlink.
-
 
 ## Outreach Tracker (always maintain)
 
@@ -161,7 +145,7 @@ Statuses: `prospect → pitched → followed_up → won → lost → no-reply`. 
 ## Output
 
 When asked to "build links" / "off-page plan" for a domain, produce `OFF-PAGE-PLAN.md`:
-1. Evidence-backed linkable asset or contribution recommendation (research, expertise, useful tool or demonstration)
+1. Linkable-asset recommendation (1–2 stat/research pages to build first)
 2. Unlinked-mention list (found via WebSearch/Ahrefs) + outreach drafts
 3. Guest-post prospect list (qualified by the tier table) + pitch drafts
 4. Distribution plan per pillar post

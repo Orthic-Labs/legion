@@ -39,15 +39,6 @@ Official sources to verify:
 - Discover report help: `https://support.google.com/webmasters/answer/16983858`
 - Google AI optimization guide: `https://developers.google.com/search/docs/fundamentals/ai-optimization-guide`
 
-## Google Search generative AI inclusion control (checked 2026-10-06)
-
-Before diagnosing absent AI visibility, inspect Search Console Settings → Search generative AI for target property. Record observed include/exclude/inherit choice, effective parent choice where inherited, property scope & checked time. Unavailable access is `not_testable`; never infer effective state solely from robots or impressions.
-
-Google documents worldwide availability as of August 31, 2026. Exclusion affects supported Search generative experiences, while model-training preferences remain separate. A setting change requires target-bound user authority; diagnosing eligibility does not authorize changing it.
-
-Official source: https://support.google.com/webmasters/answer/16908024
-
-
 ## Bing Webmaster Tools AI Performance
 
 Bing AI Performance reports citation activity across supported AI experiences including Microsoft Copilot, AI-generated summaries in Bing and select partner integrations.
@@ -132,17 +123,6 @@ Prompt sampling complements first-party reports; it does not replace them. Freez
 `prompt | engine/surface | locale | account state | date/time | repetition | brand mentioned | cited? | citation URL | competitors | claim accuracy`
 
 Use repeated observations and report volatility. Never claim population-level share from a small prompt set.
-
-## Turn observed citation sources into opportunities
-
-Use frozen prompt bank & repeated observations above. Group cited URLs/domains by question cluster & engine/surface, retaining prompt, locale, repetition, capture time & raw response. Record competitor presence & whether each source's claims about the product are accurate. Summarize frequency with observed sample denominator; keep engines separate.
-
-For each commercially relevant gap, inspect actual cited source & classify route: improve owned answer/product evidence, correct a factual error, contribute legitimate expertise, seek an earned review/mention, or investigate. Record:
-
-`cluster | engine/surface | source URL | sampled frequency/denominator | competitor presence | claim accuracy | relevance | contribution route | proposed target/action | supporting evidence`
-
-Absence is an observation; its cause is a hypothesis. Never infer that buying access, copying a competitor, or accumulating mentions will secure citations. Select one justified action through `operations.md`; off-site contribution methods belong in `off-page.md`. Comparisons & product-led pages reuse existing page/query ownership instead of creating one page per prompt variation.
-
 
 ## Information-gain gate
 

@@ -87,7 +87,6 @@
       "references/site-audit-checks.md",
       "references/sitemap.md",
       "references/technical.md",
-      "references/tool-led-growth.md",
       "references/topic-clusters.md",
       "references/workflow-packs.md"
     ],
@@ -112,7 +111,7 @@
     {
       "path": "SKILL.md",
       "uri": "legion-skill://seo/SKILL.md",
-      "digest": "sha256:9b3d325b1387adba3ecb5e8e5f4648eecc1a21aeb7f786d0fa708760457fca7d"
+      "digest": "sha256:6872476d5e2e0d2b9655985cdc585bd73f203bbf906c58cf2308a7116493e979"
     },
     {
       "path": "agents/openai.yaml",
@@ -132,7 +131,7 @@
     {
       "path": "config/official-sources.json",
       "uri": "legion-skill://seo/config/official-sources.json",
-      "digest": "sha256:70c1c04da7a7996da9a92ee18c20937e51c0490632a41e019f9816dca35bea34"
+      "digest": "sha256:92cd16512a060861791f20a96539d7228a90b1e887c5dbea30c1ffbdeff34402"
     },
     {
       "path": "config/page-engine.json",
@@ -222,7 +221,7 @@
     {
       "path": "references/ai-search-2026.md",
       "uri": "legion-skill://seo/references/ai-search-2026.md",
-      "digest": "sha256:15ff3f90503eaa546dae78417f89dcdf912c9012cb09e864820e51185cdce365"
+      "digest": "sha256:d9eff2070fedb768e50ab704e171dc211a603dfb9d24e9cc89e45e5879224bd0"
     },
     {
       "path": "references/backlink-quality.md",
@@ -237,12 +236,12 @@
     {
       "path": "references/blog-post-contract.md",
       "uri": "legion-skill://seo/references/blog-post-contract.md",
-      "digest": "sha256:51e8ee6da5876ac49828ce2417c6aa744f41e2d9c3cd5403d534fc2f58fcee47"
+      "digest": "sha256:0d39684fec5b7655c086badfc6fe52a7711fdb0325f472406136337621b17aa1"
     },
     {
       "path": "references/competitor-pages.md",
       "uri": "legion-skill://seo/references/competitor-pages.md",
-      "digest": "sha256:80202cfe0f96a8f45d4d7ed0edb79df1602918fb02218a23569e967426fe4d65"
+      "digest": "sha256:ab3b8db0b91d62ca2a776c4d7af9a116c660efd767312e52f88e0bb40f9f5f32"
     },
     {
       "path": "references/cwv-thresholds.md",
@@ -252,7 +251,7 @@
     {
       "path": "references/dataforseo.md",
       "uri": "legion-skill://seo/references/dataforseo.md",
-      "digest": "sha256:0556af09896c44518ebd744ee2d927ee8e5fbb962e6e802264224e7f521b4c15"
+      "digest": "sha256:950642ae9fd8bd9c021736a79b6ac841b3caf430288b1f12c03194916643b9ac"
     },
     {
       "path": "references/ecommerce-2026.md",
@@ -327,12 +326,12 @@
     {
       "path": "references/google-assets/youtube-api.md",
       "uri": "legion-skill://seo/references/google-assets/youtube-api.md",
-      "digest": "sha256:a6cbe1fd53df000ea686841f5ca24cf2f06f632d815f7c2b88e79d6457516d37"
+      "digest": "sha256:d6c7c0ea2205ce533bfe63f277d5497bf25239c119bfea1cf093eef30a186a6a"
     },
     {
       "path": "references/google.md",
       "uri": "legion-skill://seo/references/google.md",
-      "digest": "sha256:fc939efd276ca7f27ea8cfc5e0f97d750c9063e0ea1581143982609b9ded644a"
+      "digest": "sha256:6c0d70ef563dc78ba35ce30c09cb498486350f25572ad53402afb8c544586665"
     },
     {
       "path": "references/hreflang.md",
@@ -432,7 +431,7 @@
     {
       "path": "references/off-page.md",
       "uri": "legion-skill://seo/references/off-page.md",
-      "digest": "sha256:2c258caf38982663ee8face6880cfbe69276c0f88d2caff3def32f3ffa8e2fbe"
+      "digest": "sha256:13271b772faa9e4017654e373fc20c49606504dd89870cfe8f1e40f489f0daed"
     },
     {
       "path": "references/okf-output.md",
@@ -447,7 +446,7 @@
     {
       "path": "references/operations.md",
       "uri": "legion-skill://seo/references/operations.md",
-      "digest": "sha256:70e76d1f14c05abf2393ec98a90117773db516a2a019142f5daa59b4e84ac056"
+      "digest": "sha256:b1eb15a84674336765d8a0458101afac39081b98c07eb9fbb9dfb681011ad775"
     },
     {
       "path": "references/page.md",
@@ -477,7 +476,7 @@
     {
       "path": "references/schema-types.md",
       "uri": "legion-skill://seo/references/schema-types.md",
-      "digest": "sha256:19e477f3971650d3e96e4f1e6e4d9c1a2ae503d81f98559991ec766d94620c9a"
+      "digest": "sha256:72d056256cbb7272a40cf8b75281210fb5cb303a4d812abf32d17c039c30da22"
     },
     {
       "path": "references/schema.md",
@@ -505,11 +504,6 @@
       "digest": "sha256:c05969277d0d6bcf6b5b647bdb39b069151e7ff311e7ac71e97bbae162813fd2"
     },
     {
-      "path": "references/tool-led-growth.md",
-      "uri": "legion-skill://seo/references/tool-led-growth.md",
-      "digest": "sha256:2f7ec9b9de2ddb015e2ff762b14bd84712c0126f473e3fe540fbfdae9bf19842"
-    },
-    {
       "path": "references/topic-clusters.md",
       "uri": "legion-skill://seo/references/topic-clusters.md",
       "digest": "sha256:0d609dd40c73ef1e538a049fddc65664f6d8b5fd213e228042d408da211dc7c4"
@@ -517,7 +511,7 @@
     {
       "path": "references/workflow-packs.md",
       "uri": "legion-skill://seo/references/workflow-packs.md",
-      "digest": "sha256:344cbf9e39229010947d9fbb797b31cb132a934b18031702644ab43339faf617"
+      "digest": "sha256:715862e2048b5da39f406e2b20b1d102bfe0cade9ce95aa521c7207d39898a00"
     },
     {
       "path": "requirements.txt",

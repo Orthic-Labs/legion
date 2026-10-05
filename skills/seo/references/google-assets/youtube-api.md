@@ -1,6 +1,6 @@
 # YouTube Data API v3 Reference
 
-This API supplies public YouTube observations directly from Google. Mentions/views can inform research; they do not prove AI citation or business impact.
+YouTube mentions have the strongest correlation with AI visibility (0.737 per GEO research). This API provides authoritative YouTube data directly from Google.
 
 ## Endpoints Used
 

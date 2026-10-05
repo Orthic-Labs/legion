@@ -52,13 +52,6 @@ For owned sites, collect the best available subset:
 6. Page-family, query-ownership and internal-link graph for affected pages.
 7. Backlink/mention/provider data only as labelled external evidence.
 
-## Acquisition evidence
-
-Candidate acquisition workflows reuse this loop: tools in `tool-led-growth.md`, citation-source opportunities in `ai-search-2026.md`, & product video/partner/listing/PR methods in `off-page.md`. Collect only evidence relevant to current decision.
-
-Keep website Search Analytics, Google generative impressions, Bing AI citations, Google platform-property post/query performance, native social reach & analytics/business outcomes distinct. Supplied/authorized exports are sufficient when supported APIs are unavailable. A scheduled brief may surface a material social/video discovery opportunity without adding another scheduler or publishing content automatically.
-
-
 ## `seo next` decision method
 
 Build candidates from evidence, not generic SEO checklists. Eligible candidate classes include:

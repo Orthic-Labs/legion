@@ -43,11 +43,17 @@ Google's documentation explicitly recommends JSON-LD over Microdata and RDFa.
 
 ---
 
-## FAQPage: optional semantic markup
+## Restricted: Only for specific site types
 
-Google stopped showing FAQ rich results on May 7, 2026 & removed feature documentation June 15. FAQPage is not a Google rich-result recommendation for any site type. Useful visible Q&A can remain; markup is optional when a documented consumer needs it, not proof of AI citation benefit. Judge existing markup by accuracy & maintenance need, not assumed citation upside.
+| Type | Restriction | Since |
+|------|------------|-------|
+| FAQPage | Government and healthcare authority sites ONLY | August 2023 |
 
-Official changelog (checked 2026-10-06): https://developers.google.com/search/updates
+> Google severely limited FAQ rich results in August 2023. Only authoritative sources (government, health organizations) receive FAQ rich results.
+>
+> **GEO nuance**: FAQPage schema still benefits AI/LLM citation visibility (ChatGPT, Perplexity, Google AI Overviews), even without Google rich results.
+> - **Existing FAQPage on commercial site**: Flag at Info priority, not Critical. Removal removes GEO citation upside.
+> - **Adding new FAQPage**: Not recommended for Google benefit; acceptable if AI search visibility is a priority.
 
 ---
 

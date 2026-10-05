@@ -91,7 +91,7 @@ Fetch live Google organic search results.
 
 ### `/seo dataforseo serp-youtube <keyword>`
 
-Fetch YouTube search results to inspect relevant videos & query coverage; keep observed video visibility separate from AI citations.
+Fetch YouTube search results. Valuable for GEO. YouTube mentions correlate most strongly with AI citations.
 
 **MCP tools:** `serp_youtube_organic_live_advanced`
 
@@ -99,7 +99,7 @@ Fetch YouTube search results to inspect relevant videos & query coverage; keep o
 
 ### `/seo dataforseo youtube <video_id>`
 
-Deep analysis of a specific YouTube video: info, comments & subtitles. Use it when needed to assess actual audience questions or source content, not as a mandatory GEO step.
+Deep analysis of a specific YouTube video: info, comments, and subtitles. YouTube mentions have the strongest correlation (0.737) with AI visibility, making this critical for GEO analysis.
 
 **MCP tools:** `serp_youtube_video_info_live_advanced`, `serp_youtube_video_comments_live_advanced`, `serp_youtube_video_subtitles_live_advanced`
 
