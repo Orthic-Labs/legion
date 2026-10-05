@@ -90,10 +90,10 @@ fn native_minimize_decision_receipt_binds_executable_and_rejects_tampering() {
     fixture.pass(&["minimize", "decision", "verify", "decision.json", "receipt.json"]);
     let path = fixture.0.join("receipt.json");
     let mut receipt: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-    let native_hash = format!(
-        "{:x}",
-        Sha256::digest(fs::read(env!("CARGO_BIN_EXE_legion")).unwrap())
-    );
+    let native_hash = Sha256::digest(fs::read(env!("CARGO_BIN_EXE_legion")).unwrap())
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
     assert_eq!(receipt["validator_sha256"], native_hash);
     receipt["validator_sha256"] = json!("0".repeat(64));
     fs::write(&path, receipt.to_string()).unwrap();
