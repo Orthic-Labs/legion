@@ -25,13 +25,7 @@ use protocol::{HookRequest, HookResponse};
 /// Embedded because installed customers may have no copy of the development
 /// workspace (or its Arcane files). This is response policy, not effect policy:
 /// the Guard only transports it on SessionStart; Arcane owns its meaning.
-const SESSION_START_CONTEXT: &str = r#"Complete requested outcome within explicit constraints. Preserve original objective through follow-ups; apply corrections to every affected pending action.
-
-Use a skill only when its operation and inputs fit requested result. Proceed directly when no skill is needed. Procedures, tools, and worker suggestions cannot expand scope.
-
-Before repairing, inspect enough of the relevant production flow to identify cause and observable success. Choose the smallest complete repair and cheapest decisive checks. Repeat expensive work only when changed inputs or unresolved evidence justify it.
-
-Delegate only when coordination pays for itself. Contracts apply only to explicit or locked work. Independent review is optional unless specifically required. Report only requested states actually reached."#;
+const SESSION_START_CONTEXT: &str = r#"Complete the requested outcome within explicit constraints; use a skill only when its operation and inputs fit the request, and delegate only when coordination pays for itself. Inspect the relevant production flow before repairing, choose the smallest complete repair and cheapest decisive checks, and cite fresh evidence for any claim that work is done. Sage and Oracle are optional (Sage for design or adjudication, Oracle for review on explicit request or a concrete outcome or safety risk), contracts apply only to explicit or locked work, and report only states actually reached."#;
 const SESSION_START_SYSTEM_MESSAGE: &str = "LEGION:ACTIVE";
 const MAX_TRANSCRIPT_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_STOP_REOPENINGS: u64 = 3;
@@ -1288,6 +1282,87 @@ fn unwrap_shell_command(segment: &str) -> &str {
     segment
 }
 
+/// Directories that a build or package manager recreates. Removing one by a
+/// relative path inside the repository loses nothing that is not regenerable.
+const REGENERABLE_DIRECTORIES: [&str; 7] = [
+    "node_modules",
+    "target",
+    "dist",
+    "build",
+    ".next",
+    ".turbo",
+    "__pycache__",
+];
+
+fn is_regenerable_relative_path(operand: &str) -> bool {
+    let operand = operand.trim_matches(['"', '\''].as_ref());
+    if operand.is_empty()
+        || operand.starts_with(['/', '\\', '~'])
+        || operand.contains([':', '$', '`', '*', '?', '[', '{', '>', '<'])
+    {
+        return false;
+    }
+    let normalized = operand.replace('\\', "/");
+    let mut last = None;
+    for component in normalized.split('/') {
+        match component {
+            "" | "." => {}
+            ".." => return false,
+            other => last = Some(other),
+        }
+    }
+    last.map_or(false, |name| REGENERABLE_DIRECTORIES.contains(&name))
+}
+
+/// A recursive `rm` is destructive unless every operand is a relative path to
+/// a regenerable directory. `/`, home, the repository root (`.`), absolute
+/// paths and anything with `..` or a glob stay denied.
+fn rm_is_destructive(segment: &str) -> bool {
+    let mut tokens = segment.split_whitespace();
+    if tokens.next() != Some("rm") {
+        return false;
+    }
+    let mut recursive = false;
+    let mut operands = Vec::new();
+    for token in tokens {
+        if token == "--recursive"
+            || (token.starts_with('-') && !token.starts_with("--") && token.contains('r'))
+        {
+            recursive = true;
+        } else if !token.starts_with('-') {
+            operands.push(token);
+        }
+    }
+    recursive
+        && !(!operands.is_empty()
+            && operands
+                .iter()
+                .all(|operand| is_regenerable_relative_path(operand)))
+}
+
+/// `git clean -n`, `-nd`, and `--dry-run` only list what would be removed.
+fn git_clean_is_dry_run(segment: &str) -> bool {
+    segment.split_whitespace().any(|token| {
+        token == "--dry-run"
+            || (token.starts_with('-') && !token.starts_with("--") && token.contains('n'))
+    })
+}
+
+/// `git restore --staged` only unstages; adding `--worktree` (or `-W`)
+/// discards working-tree edits again.
+fn restore_is_index_only(segment: &str) -> bool {
+    segment.contains("--staged")
+        && !segment
+            .split_whitespace()
+            .any(|token| token == "--worktree" || token == "-w")
+}
+
+fn asks_for_help(segment: &str) -> bool {
+    segment
+        .split_whitespace()
+        .any(|token| matches!(token, "-help" | "--help" | "-h"))
+}
+
 fn is_destructive_command(payload: &Value) -> bool {
     let Some(object) = payload.as_object() else {
         return false;
@@ -1304,16 +1379,8 @@ fn is_destructive_command(payload: &Value) -> bool {
         // and judge what is actually being run.
         let segment = unwrap_shell_command(segment.trim_start());
         let segment = segment.trim_start();
-        if let Some(rest) = segment.strip_prefix("rm") {
-            let rest = rest.trim_start();
-            if rest.starts_with("--recursive") {
-                return true;
-            }
-            if let Some(option) = rest.split_whitespace().next() {
-                if option.starts_with('-') && option.contains('r') {
-                    return true;
-                }
-            }
+        if rm_is_destructive(segment) {
+            return true;
         }
         // Windows recursive deletes are the same class as `rm -r`, and this
         // product ships Windows first: `rmdir /s` and `del /s` were admitted
@@ -1331,14 +1398,14 @@ fn is_destructive_command(payload: &Value) -> bool {
             // `git restore --staged .` only unstages; it destroys nothing.
             || (contains_command_pair(segment, "git", "restore")
                 && segment.contains('.')
-                && !segment.contains("--staged"));
+                && !restore_is_index_only(segment));
         (segment.starts_with("remove-item") && segment.contains("-recurse"))
             || windows_recursive_delete
             || git_discards_worktree
-            || contains_command_pair(segment, "git", "clean")
+            || (contains_command_pair(segment, "git", "clean") && !git_clean_is_dry_run(segment))
             || segment.starts_with("dropdb")
-            || contains_command_pair(segment, "terraform", "apply")
-            || contains_command_pair(segment, "terraform", "destroy")
+            || (contains_command_pair(segment, "terraform", "apply") && !asks_for_help(segment))
+            || (contains_command_pair(segment, "terraform", "destroy") && !asks_for_help(segment))
     };
     command
         .split(|character| matches!(character, ';' | '&' | '|'))
@@ -1668,6 +1735,13 @@ fn repository_root_from_payload(payload: &Map<String, Value>) -> Option<PathBuf>
 
 fn installed_assets_root() -> Option<PathBuf> {
     let executable = std::env::current_exe().ok()?;
+    // Launched through a PATH symlink (`~/.local/bin/legion-hook`), the parent
+    // of the link is not the install root. Follow the link first.
+    let executable = fs::canonicalize(&executable).unwrap_or(executable);
+    installed_assets_for_executable(&executable)
+}
+
+fn installed_assets_for_executable(executable: &Path) -> Option<PathBuf> {
     let current_root = executable.parent()?.parent()?;
     let assets = current_root.join("share").join("legion").join("assets");
     assets.is_dir().then_some(assets)
@@ -1828,7 +1902,14 @@ fn emit_route_trace(
     let Some(path) = trace_path(&request.payload) else {
         return;
     };
-    let _ = append_trace(&path, &trace);
+    if append_trace(&path, &trace).is_err() {
+        // Telemetry never changes a decision, but a silently missing trace is
+        // how the metrics ended up with no data. Leave one line behind.
+        eprintln!(
+            "legion-hook: route-outcome trace was not written to {}",
+            path.display()
+        );
+    }
 }
 
 fn route_trace_from_request(
@@ -2136,8 +2217,60 @@ fn receipt_root(payload: &Value) -> Option<PathBuf> {
     if let Some(root) = state_root {
         return Some(root.join("receipts"));
     }
-    let workspace = std::env::current_dir().ok()?;
-    Some(workspace.join(".audit").join("arcane").join("receipts"))
+    // No explicit state root: keep receipts in one per-user directory keyed by
+    // repository identity (the payload cwd), never beneath whatever directory
+    // this process happened to start in.
+    let identity = first_string(object, &["cwd", "workspace"])
+        .or_else(|| std::env::current_dir().ok().map(|dir| dir.to_string_lossy().into_owned()))?;
+    let digest = legion_contracts::canonical_digest(&identity).ok()?;
+    let key = digest.trim_start_matches("sha256:");
+    let key = key.get(..16).unwrap_or(key);
+    let base = user_state_receipts_root(
+        cfg!(target_os = "macos"),
+        cfg!(windows),
+        std::env::var_os("HOME").map(PathBuf::from),
+        std::env::var_os("USERPROFILE").map(PathBuf::from),
+        std::env::var_os("LOCALAPPDATA").map(PathBuf::from),
+        std::env::var_os("XDG_STATE_HOME").map(PathBuf::from),
+    )?;
+    Some(base.join(key))
+}
+
+/// The per-user receipts directory for this platform, before repository keying.
+fn user_state_receipts_root(
+    macos: bool,
+    windows: bool,
+    home: Option<PathBuf>,
+    user_profile: Option<PathBuf>,
+    local_app_data: Option<PathBuf>,
+    xdg_state_home: Option<PathBuf>,
+) -> Option<PathBuf> {
+    let non_empty = |value: Option<PathBuf>| value.filter(|path| !path.as_os_str().is_empty());
+    if macos {
+        return Some(
+            non_empty(home)?
+                .join("Library")
+                .join("Application Support")
+                .join("Orthic Labs")
+                .join("Legion")
+                .join("state")
+                .join("receipts"),
+        );
+    }
+    if windows {
+        let base = non_empty(local_app_data).or_else(|| {
+            non_empty(user_profile).map(|profile| profile.join("AppData").join("Local"))
+        })?;
+        return Some(
+            base.join("Orthic Labs")
+                .join("Legion")
+                .join("state")
+                .join("receipts"),
+        );
+    }
+    let base = non_empty(xdg_state_home)
+        .or_else(|| non_empty(home).map(|home| home.join(".local").join("state")))?;
+    Some(base.join("legion").join("receipts"))
 }
 
 fn append_trace(path: &Path, trace: &RouteOutcomeTrace) -> Result<(), ()> {
@@ -2196,8 +2329,8 @@ fn response_value(response: &HookResponse) -> Value {
     value
 }
 
-fn write_response(response: HookResponse) -> Result<(), HookError> {
-    let bytes = serde_json::to_vec(&response_value(&response))
+fn write_response(value: Value) -> Result<(), HookError> {
+    let bytes = serde_json::to_vec(&value)
         .map_err(|error| HookError::Serialization(error.to_string()))?;
     let mut stdout = io::BufWriter::new(io::stdout().lock());
     stdout
@@ -2209,6 +2342,140 @@ fn write_response(response: HookResponse) -> Result<(), HookError> {
     stdout
         .flush()
         .map_err(|error| HookError::Io(error.to_string()))
+}
+
+const STOP_EVIDENCE_REMINDER: &str =
+    "Legion: changes were made but the final message cites no evidence.";
+const SESSION_EDIT_DIRECTORY: &str = "session-edits";
+const EDIT_TOOLS: [&str; 5] = ["Write", "Edit", "MultiEdit", "NotebookEdit", "apply_patch"];
+
+fn session_marker(payload: &Value, suffix: &str) -> Option<PathBuf> {
+    let object = payload.as_object()?;
+    let session_id = first_string(object, &["session_id", "sessionId", "conversation_id"])?;
+    let digest = legion_contracts::canonical_digest(&session_id).ok()?;
+    Some(
+        receipt_root(payload)?
+            .join(SESSION_EDIT_DIRECTORY)
+            .join(format!("{}.{suffix}", digest.trim_start_matches("sha256:"))),
+    )
+}
+
+/// Remember that this session changed files, so Stop can ask for evidence.
+/// Observation only: failure to record never changes a decision.
+fn observe_session_edit(request: &HookRequest) {
+    if !request.is_post_effect() {
+        return;
+    }
+    let Some(object) = request.payload.as_object() else {
+        return;
+    };
+    let Some(tool) = first_string(object, &["tool_name", "toolName"]) else {
+        return;
+    };
+    if !EDIT_TOOLS.contains(&tool.as_str()) {
+        return;
+    }
+    let Some(path) = session_marker(&request.payload, "edited") else {
+        return;
+    };
+    if let Some(parent) = path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    let _ = fs::write(&path, b"1\n");
+}
+
+fn transcript_shows_edits(object: &Map<String, Value>) -> bool {
+    let Some(path) = first_string(object, &["transcript_path", "transcriptPath"]) else {
+        return false;
+    };
+    let Ok(mut file) = fs::File::open(path) else {
+        return false;
+    };
+    let length = file.metadata().map(|metadata| metadata.len()).unwrap_or(0);
+    if length > MAX_TRANSCRIPT_BYTES
+        && io::Seek::seek(
+            &mut file,
+            io::SeekFrom::Start(length - MAX_TRANSCRIPT_BYTES),
+        )
+        .is_err()
+    {
+        return false;
+    }
+    let mut bytes = Vec::new();
+    if Read::take(file, MAX_TRANSCRIPT_BYTES)
+        .read_to_end(&mut bytes)
+        .is_err()
+    {
+        return false;
+    }
+    let text = String::from_utf8_lossy(&bytes);
+    text.lines().any(|line| {
+        line.contains("\"type\":\"tool_use\"")
+            && EDIT_TOOLS
+                .iter()
+                .any(|tool| line.contains(&format!("\"name\":\"{tool}\"")))
+    })
+}
+
+/// Does the final message point at something a reader can check: a fenced
+/// command output, a test result line, `file:line`, a URL, or an explicit
+/// statement that nothing was verified?
+fn message_cites_evidence(message: &str) -> bool {
+    let lowered = message.to_lowercase();
+    if [
+        "```",
+        "not verified",
+        "http://",
+        "https://",
+        "test result",
+        " passed",
+        " tests pass",
+        "exit code",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+    {
+        return true;
+    }
+    message.split_whitespace().any(|raw| {
+        let token = raw.trim_matches(|character: char| {
+            matches!(character, '`' | '(' | ')' | ',' | '.' | ';' | '"' | '\'' | '[' | ']')
+        });
+        let pieces: Vec<&str> = token.split(':').collect();
+        pieces.windows(2).any(|pair| {
+            !pair[1].is_empty()
+                && pair[1].chars().all(|character| character.is_ascii_digit())
+                && (pair[0].contains('.') || pair[0].contains('/'))
+        })
+    })
+}
+
+/// Non-blocking, once per session: files changed but the final message cites
+/// no evidence. Stop is never blocked by this.
+fn stop_evidence_reminder(request: &HookRequest, response: &HookResponse) -> Option<String> {
+    if !response.allowed || !matches!(request.event_type.as_str(), "Stop" | "stop") {
+        return None;
+    }
+    let object = request.payload.as_object()?;
+    let message = first_string(object, &["last_assistant_message", "lastAssistantText"])?;
+    if message.trim().is_empty() || message_cites_evidence(&message) {
+        return None;
+    }
+    let edited = session_marker(&request.payload, "edited").map_or(false, |path| path.is_file())
+        || transcript_shows_edits(object);
+    if !edited {
+        return None;
+    }
+    let reminded = session_marker(&request.payload, "reminded")?;
+    if let Some(parent) = reminded.parent() {
+        fs::create_dir_all(parent).ok()?;
+    }
+    fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&reminded)
+        .ok()?;
+    Some(STOP_EVIDENCE_REMINDER.into())
 }
 
 fn error_response(error: HookError) -> HookResponse {
@@ -2236,7 +2503,18 @@ fn main() {
     if codex_host {
         std::process::exit(codex::emit_response(&response, parsed_request.as_ref()));
     }
-    let _ = write_response(response);
+    let mut value = response_value(&response);
+    if let Some(request) = parsed_request.as_ref() {
+        if response.allowed {
+            observe_session_edit(request);
+        }
+        if let (Some(notice), Some(object)) =
+            (stop_evidence_reminder(request, &response), value.as_object_mut())
+        {
+            object.insert("systemMessage".into(), Value::String(notice));
+        }
+    }
+    let _ = write_response(value);
 }
 
 #[cfg(test)]
@@ -3086,11 +3364,11 @@ mod tests {
             .and_then(Value::as_str)
             .expect("SessionStart includes embedded additionalContext");
         for rule in [
-            "Complete requested outcome within explicit constraints",
-            "Use a skill only when its operation and inputs fit requested result",
-            "Choose the smallest complete repair and cheapest decisive checks",
-            "Contracts apply only to explicit or locked work",
-            "Report only requested states actually reached",
+            "Complete the requested outcome within explicit constraints",
+            "use a skill only when its operation and inputs fit the request",
+            "choose the smallest complete repair and cheapest decisive checks",
+            "contracts apply only to explicit or locked work",
+            "report only states actually reached",
         ] {
             assert!(context.contains(rule), "missing session rule: {rule}");
         }
@@ -3251,5 +3529,213 @@ mod tests {
             payload: json!({"routeUncertain":true,"priorEscalations":1}),
         });
         assert_eq!(recursive.code.as_deref(), Some("ARC_ESCALATION_RECURSION"));
+    }
+
+    fn destructive(command: &str) -> bool {
+        is_destructive_command(&json!({"tool_name":"Bash","tool_input":{"command":command}}))
+    }
+
+    #[test]
+    fn dry_runs_and_help_are_not_destructive() {
+        for command in [
+            "git clean -n",
+            "git clean -nd",
+            "git clean --dry-run -fd",
+            "git restore --staged .",
+            "terraform apply -help",
+            "terraform destroy --help",
+        ] {
+            assert!(!destructive(command), "wrongly denied: {command}");
+        }
+    }
+
+    #[test]
+    fn regenerable_relative_directories_may_be_removed() {
+        for command in [
+            "rm -rf node_modules",
+            "rm -rf ./target",
+            "rm -r dist build",
+            "rm -rf packages/web/.next",
+            "bash -c 'rm -rf .turbo'",
+            "rm -rf __pycache__",
+        ] {
+            assert!(!destructive(command), "wrongly denied: {command}");
+        }
+    }
+
+    #[test]
+    fn real_data_loss_stays_destructive() {
+        for command in [
+            "rm -rf /",
+            "rm -rf ~",
+            "rm -rf $HOME",
+            "rm -rf .",
+            "rm -rf ./",
+            "rm -rf ..",
+            "rm -rf src",
+            "rm -rf /abs/path/node_modules",
+            "rm -rf ../node_modules",
+            "rm -rf node_modules src",
+            "rm -rf *",
+            "rm -f -r src",
+            "rm --recursive docs",
+            "git reset --hard",
+            "git restore .",
+            "git restore --staged --worktree .",
+            "git clean -fd",
+            "git checkout -- .",
+            "terraform apply",
+            "terraform destroy",
+        ] {
+            assert!(destructive(command), "wrongly allowed: {command}");
+        }
+    }
+
+    #[test]
+    fn plain_rm_force_is_not_recursive() {
+        assert!(!destructive("rm --force stale.lock"));
+    }
+
+    #[test]
+    fn force_push_still_requires_approval() {
+        assert!(rewrite_push_requires_approval(
+            &json!({"tool_name":"Bash","tool_input":{"command":"git push --force origin main"}})
+        ));
+    }
+
+    #[test]
+    fn fallback_receipts_live_in_one_per_user_directory() {
+        let home = Some(PathBuf::from("/Users/a"));
+        assert_eq!(
+            user_state_receipts_root(true, false, home.clone(), None, None, None),
+            Some(PathBuf::from(
+                "/Users/a/Library/Application Support/Orthic Labs/Legion/state/receipts"
+            ))
+        );
+        assert_eq!(
+            user_state_receipts_root(
+                false,
+                true,
+                None,
+                Some(PathBuf::from("C:/Users/a")),
+                Some(PathBuf::from("C:/Local")),
+                None
+            ),
+            Some(PathBuf::from("C:/Local/Orthic Labs/Legion/state/receipts"))
+        );
+        assert_eq!(
+            user_state_receipts_root(false, false, home.clone(), None, None, None),
+            Some(PathBuf::from("/Users/a/.local/state/legion/receipts"))
+        );
+        assert_eq!(
+            user_state_receipts_root(
+                false,
+                false,
+                home,
+                None,
+                None,
+                Some(PathBuf::from("/xdg"))
+            ),
+            Some(PathBuf::from("/xdg/legion/receipts"))
+        );
+        assert_eq!(user_state_receipts_root(false, false, None, None, None, None), None);
+    }
+
+    #[test]
+    fn explicit_state_root_precedes_the_user_fallback() {
+        let root = receipt_root(&json!({"stateRoot": "/explicit", "cwd": "/repo"}));
+        assert_eq!(root, Some(PathBuf::from("/explicit").join("receipts")));
+    }
+
+    #[test]
+    fn fallback_receipts_are_keyed_by_payload_cwd_not_process_cwd() {
+        if std::env::var_os("LEGION_STATE_ROOT").is_some() {
+            return;
+        }
+        let first = receipt_root(&json!({"cwd": "/repo/one"}));
+        let second = receipt_root(&json!({"cwd": "/repo/two"}));
+        let again = receipt_root(&json!({"cwd": "/repo/one"}));
+        assert_eq!(first, again);
+        if let (Some(first), Some(second)) = (first, second) {
+            assert_ne!(first, second);
+            assert_eq!(first.parent(), second.parent());
+            assert!(!first.starts_with(std::env::current_dir().unwrap().join(".audit")));
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn installed_assets_resolve_through_a_path_symlink() {
+        let root = temporary_repository();
+        let bin = root.join("current").join("bin");
+        fs::create_dir_all(&bin).expect("create bin");
+        fs::create_dir_all(root.join("current/share/legion/assets")).expect("create assets");
+        let real = bin.join("legion-hook");
+        fs::write(&real, b"").expect("write executable stand-in");
+        let linked_dir = root.join("local-bin");
+        fs::create_dir_all(&linked_dir).expect("create link dir");
+        let link = linked_dir.join("legion-hook");
+        std::os::unix::fs::symlink(&real, &link).expect("create symlink");
+        assert!(installed_assets_for_executable(&link).is_none());
+        let resolved = fs::canonicalize(&link).expect("canonicalize");
+        assert!(installed_assets_for_executable(&resolved).is_some());
+        fs::remove_dir_all(root).expect("remove test directory");
+    }
+
+    #[test]
+    fn evidence_pointers_are_recognised() {
+        for message in [
+            "Done.\n```\ncargo test\n```",
+            "All 12 tests passed.",
+            "See src/main.rs:120 for the change.",
+            "Fixed in (engine/lib.rs:7).",
+            "Merged: https://github.com/a/b/pull/1",
+            "Nothing was run; not verified.",
+        ] {
+            assert!(message_cites_evidence(message), "missed: {message}");
+        }
+        for message in ["Done.", "I updated the file and it works.", "Meet at 10:30 today."] {
+            assert!(!message_cites_evidence(message), "false evidence: {message}");
+        }
+    }
+
+    #[test]
+    fn stop_reminder_is_nonblocking_and_once_per_session() {
+        let root = temporary_repository();
+        let session = format!("session-{}", unix_nanos());
+        let state = root.to_string_lossy().into_owned();
+        let post = HookRequest {
+            schema_version: protocol::SCHEMA_VERSION,
+            kind: protocol::REQUEST_KIND.into(),
+            event_type: "PostToolUse".into(),
+            payload: json!({"session_id": session, "stateRoot": state, "tool_name": "Edit"}),
+        };
+        let stop_request = |text: &str| {
+            stop(json!({
+                "session_id": session,
+                "stateRoot": state,
+                "last_assistant_message": text,
+            }))
+        };
+        let unedited = stop(json!({
+            "session_id": "never-edited",
+            "stateRoot": state,
+            "last_assistant_message": "Done.",
+        }));
+        assert!(stop_evidence_reminder(&unedited, &dispatch_inner(unedited.clone())).is_none());
+
+        observe_session_edit(&post);
+        let evidenced = stop_request("Verified: src/main.rs:5");
+        assert!(stop_evidence_reminder(&evidenced, &dispatch_inner(evidenced.clone())).is_none());
+
+        let bare = stop_request("Done.");
+        let response = dispatch_inner(bare.clone());
+        assert!(response.allowed, "the reminder must never block Stop");
+        assert_eq!(
+            stop_evidence_reminder(&bare, &response).as_deref(),
+            Some(STOP_EVIDENCE_REMINDER)
+        );
+        assert!(stop_evidence_reminder(&bare, &response).is_none());
+        fs::remove_dir_all(root).expect("remove test directory");
     }
 }

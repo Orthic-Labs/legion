@@ -6,8 +6,9 @@
 //! the AU20 planted-defect bench fixtures ported from `bench/manifest.json`.
 //! For every bench class this asserts: the positive fixture is detected, and
 //! the negative-control fixture produces zero findings. A class with no
-//! native provider mapping fails loudly as "uncovered class" rather than
-//! being silently skipped — coverage is never faked.
+//! native provider mapping, or whose external tool is missing, FAILS the test.
+//! The only exception is a class listed in `allowed_skips()` with a reason —
+//! coverage is never faked and a skip is never silent.
 
 use std::{
     collections::BTreeMap,
@@ -40,6 +41,19 @@ fn provider_for_class(class: &str) -> Option<&'static str> {
         "drift" => None,
         _ => None,
     }
+}
+
+/// Classes allowed to skip instead of failing, each with the reason. Every
+/// other uncovered or tool-missing class fails the gate.
+fn allowed_skips() -> &'static [(&'static str, &'static str)] {
+    &[("drift", "detector removed; see docs/provenance/retirements.md")]
+}
+
+fn allowed_skip_reason(class: &str) -> Option<&'static str> {
+    allowed_skips()
+        .iter()
+        .find(|(allowed, _)| *allowed == class)
+        .map(|(_, reason)| *reason)
 }
 
 fn registry_lens_ids(id: &str) -> Vec<String> {
@@ -304,23 +318,28 @@ fn run_class(class: &str) -> ClassOutcome {
 macro_rules! bench_class_test {
     ($name:ident, $class:literal) => {
         #[test]
+        #[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the CI bench job with --ignored"]
         fn $name() {
             match run_class($class) {
-                ClassOutcome::Uncovered => {
-                    eprintln!(
-                        "SKIP: UNCOVERED CLASS '{}' has no native Rust provider yet; \
-                         the bench recall gate cannot claim coverage for it.",
+                ClassOutcome::Uncovered => match allowed_skip_reason($class) {
+                    Some(reason) => eprintln!("ALLOWED SKIP: class '{}': {reason}", $class),
+                    None => panic!(
+                        "class '{}' has no native Rust provider and is not in allowed_skips(); \
+                         the bench recall gate cannot claim coverage for it",
                         $class
-                    );
-                }
-                ClassOutcome::ToolMissing(reason) => {
-                    eprintln!(
-                        "SKIP: class '{}' provider is wired but its external tool is unavailable \
-                         in this environment: {reason}. This is a missing-provider gap, not a \
-                         recall failure; the fix is providing/vendoring the tool, not the test.",
+                    ),
+                },
+                ClassOutcome::ToolMissing(reason) => match allowed_skip_reason($class) {
+                    Some(allowed) => {
+                        eprintln!("ALLOWED SKIP: class '{}': {allowed} ({reason})", $class)
+                    }
+                    None => panic!(
+                        "class '{}' provider could not run because its external tool is \
+                         unavailable and the class is not in allowed_skips(): {reason}. \
+                         Provision the tool in the environment running this gate.",
                         $class
-                    );
-                }
+                    ),
+                },
                 ClassOutcome::Recall {
                     positive_hit,
                     negative_clean,
@@ -352,6 +371,7 @@ bench_class_test!(bench_recall_drift, "drift");
 /// `references/audit-provider-benchmarks.schema.json` so the recall gate's
 /// result is machine-readable evidence, not just terminal text.
 #[test]
+#[ignore = "needs gitleaks, node/npm, knip, jscpd, tsc; runs in the CI bench job with --ignored"]
 fn bench_recall_qualification_receipt() {
     let classes = ["secret", "dependency_cve", "dead_code", "duplication", "type_error", "drift"];
     let mut results = Vec::new();
@@ -385,5 +405,19 @@ fn bench_recall_qualification_receipt() {
     let _ = fs::write(
         out_dir.join("bench_recall_receipt.json"),
         serde_json::to_string_pretty(&receipt).unwrap(),
+    );
+    // The receipt is a gate, not a log: every class must pass unless it is
+    // explicitly allowed to skip.
+    let failing = results
+        .iter()
+        .filter(|row| {
+            let class = row["class"].as_str().unwrap_or_default();
+            row["status"] != "pass" && allowed_skip_reason(class).is_none()
+        })
+        .map(|row| format!("{} ({})", row["class"], row["status"]))
+        .collect::<Vec<_>>();
+    assert!(
+        failing.is_empty(),
+        "bench classes neither passing nor in allowed_skips(): {failing:?}"
     );
 }

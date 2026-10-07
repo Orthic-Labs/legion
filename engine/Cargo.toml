@@ -22,6 +22,7 @@ members = [
     "crates/legion-rules",
     "crates/legion-runtime",
     "crates/legion-topology",
+    "crates/legion-workspace-tests",
 
     "bins/legion",
     "bins/legion-dev",

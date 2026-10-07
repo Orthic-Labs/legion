@@ -18,6 +18,7 @@ checks=(
   "generate-schemas --check"
   "check-dependency-closure"
   "check-publication-surface"
+  "check-skill-references"
   "check-packed-import-closure"
   "check-distribution-contract"
   "check-release-obligations"

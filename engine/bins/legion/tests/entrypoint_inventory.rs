@@ -13,8 +13,8 @@ use std::process::{Child, Command, ExitStatus, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-const SCRIPT_COUNT: usize = 77;
-const ROOT_COUNT: usize = 43;
+const SCRIPT_COUNT: usize = 90;
+const ROOT_COUNT: usize = 42;
 const DEV_COUNT: usize = 27;
 const XTASK_COUNT: usize = 16;
 const CHILD_TIMEOUT: Duration = Duration::from_secs(5);
@@ -514,6 +514,84 @@ const SCRIPT_PROBES: &[ScriptProbe] = &[
         args: EMPTY,
         reason: None,
     },
+    ScriptProbe {
+        key: "coder/enforce_cheap_review_routing",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "designer/add-music",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "designer/convert-formats",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "dispatch/validate-route",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "seo/ai_visibility_import",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "seo/checklist_compiler",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "seo/contracts",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "seo/coverage",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "seo/page_engine",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "seo/source_freshness",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "seo/validate-schema",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "seo/analyze_visual",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
+    ScriptProbe {
+        key: "seo/capture_screenshot",
+        mode: ProbeMode::Help,
+        args: HELP,
+        reason: None,
+    },
 ];
 
 const ROOT_COMMANDS: &[&str] = &[
@@ -545,7 +623,6 @@ const ROOT_COMMANDS: &[&str] = &[
     "run",
     "budget",
     "contract",
-    "assurance",
     "completion",
     "host",
     "harness",

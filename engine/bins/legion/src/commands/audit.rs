@@ -127,7 +127,7 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         legion_application::NativeOperation::Audit {
             repository_id: root.to_string_lossy().into_owned(),
             providers: selected_specs.clone(),
-            signing_key,
+            signing_key: signing_key.clone(),
         }
     };
     let result = application
@@ -142,6 +142,15 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             providers,
         } => {
             let binding = native_inventory_binding(&root, &args)?;
+            let (lens_work, lens_work_gaps) = lens_work_items(
+                &root,
+                &selected_specs,
+                signing_key.as_deref(),
+                Some(plan_digest.as_str()),
+                args.out.as_deref(),
+            );
+            let mut input_gaps = native_audit_input_gaps(&args);
+            input_gaps.extend(lens_work_gaps);
             let output = json!({
             "schemaVersion": 1,
             "kind": "audit-provider-plan",
@@ -161,7 +170,8 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "processState": "not-run",
                 "completionValidation": "not-run",
                 "gaps": ["plan-only"],
-                "inputGaps": native_audit_input_gaps(&args)
+                "lensWork": lens_work,
+                "inputGaps": input_gaps
             });
             if let Some(out) = &args.out {
                 write_artifact(
@@ -183,6 +193,21 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
             );
             report.gaps.extend(parity_gaps);
             report.gaps.extend(native_audit_input_gaps(&args));
+            // Reasoning lenses no in-process host executed are `pending-host`
+            // work: emit their packets for the invoking session to run.
+            let (lens_work, lens_work_gaps) = if execution.pending_host.is_empty() {
+                (Vec::new(), Vec::new())
+            } else {
+                lens_work_items(
+                    &root,
+                    &selected_specs,
+                    signing_key.as_deref(),
+                    Some(execution.plan_digest.as_str()),
+                    args.out.as_deref(),
+                )
+            };
+            report.gaps.extend(lens_work_gaps);
+            report.claims.insert("lensWork".into(), json!(lens_work));
             if scope.facts_unavailable {
                 // Node: collect-facts crashes on a gitRef-rejected ref, facts are
                 // written without scope, and the run is incomplete (exit 2).
@@ -296,6 +321,10 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
                 "findingCount": report.findings.len(),
                 "selectedLenses": execution.selected_lenses,
                 "lensesRan": execution.lenses_ran,
+                "reasoningLensesRan": execution.lenses_ran,
+                "reasoningLensesPending": execution.pending_host,
+                "deterministicLensTagCounts": execution.deterministic_lens_tags,
+                "lensWork": lens_work,
                 "contextNotices": context_notices,
                 "gaps": report.gaps,
                 "artifacts": args.out.as_ref().map(|out| json!({
@@ -315,6 +344,59 @@ pub async fn run(args: AuditArgs, cancellation: CancellationToken) -> CommandRes
         _ => Err(CommandError::internal(
             "native audit application returned an incompatible result",
         )),
+    }
+}
+
+/// `pending-host` reasoning-lens work items for the selected plan, with the full
+/// lens packet written to `<out>/lens-packets/<provider>.json` when `--out` is
+/// given. A packet failure is returned as a gap, never as a command error.
+fn lens_work_items(
+    root: &std::path::Path,
+    specs: &[legion_contracts::ProviderSpec],
+    signing_key: Option<&[u8]>,
+    expected_plan_digest: Option<&str>,
+    out: Option<&std::path::Path>,
+) -> (Vec<Value>, Vec<String>) {
+    let built = (|| -> Result<Vec<Value>, String> {
+        let source = super::audit_inventory_source(root).map_err(|error| error.message)?;
+        let inventory = source
+            .inventory(&root.to_string_lossy())
+            .map_err(|error| error.to_string())?;
+        let pending = legion_audit::AuditPlan::compile_with_root(Some(root), &inventory, specs)
+            .map_err(|error| error.to_string())?;
+        let plan = match signing_key {
+            Some(key) => pending.freeze(Some(key)),
+            None => pending.freeze_source_diagnostic(),
+        }
+        .map_err(|error| error.to_string())?;
+        if expected_plan_digest.is_some_and(|digest| digest != plan.digest()) {
+            return Err("plan digest differs from the executed plan".into());
+        }
+        let work = legion_audit::native_providers::reasoning::pending_lens_work(
+            root, &plan, &inventory,
+        )
+        .map_err(|error| error.to_string())?;
+        let mut items = Vec::new();
+        for item in work {
+            let file = format!("{}.json", item.provider_id);
+            let packet = out.map(|out| out.join("lens-packets").join(&file));
+            if let Some(out) = out {
+                let bytes = serde_json::to_vec_pretty(&item).map_err(|error| error.to_string())?;
+                write_artifact(&out.join("lens-packets"), &file, &bytes)
+                    .map_err(|error| error.message)?;
+            }
+            items.push(json!({
+                "provider": item.provider_id,
+                "lensIds": item.lens_ids,
+                "status": "pending-host",
+                "packet": packet,
+            }));
+        }
+        Ok(items)
+    })();
+    match built {
+        Ok(items) => (items, Vec::new()),
+        Err(message) => (Vec::new(), vec![format!("lens-packets-unavailable:{message}")]),
     }
 }
 
@@ -396,8 +478,20 @@ fn native_facts_document(
             json!({
                 "check": entry.provider,
                 "status": provider_status_name(&entry.result.status),
-                "execution_status": if entry.skipped { "skipped" } else { "ran" },
-                "verdict": if entry.result.complete { "pass" } else { "unproven" },
+                "execution_status": if !entry.result.applicable || entry.result.details.contains_key("notApplicable") {
+                    "not-applicable"
+                } else if entry.skipped {
+                    "skipped"
+                } else {
+                    "ran"
+                },
+                "verdict": if entry.result.complete {
+                    "pass"
+                } else if entry.result.details.contains_key("notApplicable") {
+                    "not-applicable"
+                } else {
+                    "unproven"
+                },
             })
         })
         .collect::<Vec<_>>();

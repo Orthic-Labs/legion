@@ -19,7 +19,7 @@ use legion_runtime::p9_skills;
 use legion_runtime::wf_port::{
     r00, r02, r03, r04, r05, r07, r08, r12, r13, r14, r18, r22, r24, r32, r37, r46, r54, w2_005, w2_006,
     w2_007, w2_010, w2_016, w2_017, w2_018, w2_019, w2_020, w2_023, w2_028, w2_029, w2_030,
-    w2_031, w2_032, w2_033, w2_034, w2_044,
+    w2_031, w2_032, w2_033, w2_034, w2_044, w2_027, w2_028,
 };
 use sha2::{Digest, Sha256};
 
@@ -58,9 +58,12 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("alchemist/viewer", alchemist_viewer),
     ("brand-identity/color-check", brand_identity_color_check),
     ("coder/api-worker", coder_api_worker),
+    ("coder/enforce_cheap_review_routing", coder_enforce_cheap_review_routing),
     ("covenant/validate-external-review-packet", covenant_validate_external_review_packet),
+    ("designer/add-music", designer_add_music),
     ("designer/context", designer_context),
     ("designer/context-signals", designer_context_signals),
+    ("designer/convert-formats", designer_convert_formats),
     ("designer/critique-storage", designer_critique_storage),
     ("designer/detect", designer_detect),
     ("designer/detect-csp", designer_detect_csp),
@@ -93,6 +96,7 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("designer/tts-doubao", designer_tts_doubao),
     ("designer/verify", designer_verify),
     ("dispatch/validate-dispatch", dispatch_validate_dispatch),
+    ("dispatch/validate-route", dispatch_validate_route),
     ("foundation/validate-atom-report", foundation_validate_atom_report),
     ("handoff/transcript-handoff", handoff_transcript_handoff),
     ("handoff/validate-handoff", handoff_validate_handoff),
@@ -100,10 +104,16 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("macos-development/tool_preflight", apple_tool_preflight),
     ("qa/qa-functional", qa_qa_functional),
     ("qa/qa-shot", qa_qa_shot),
+    ("seo/ai_visibility_import", seo_ai_visibility_import),
+    ("seo/analyze_visual", seo_analyze_visual),
     ("seo/banana-cost-tracker", seo_banana_cost_tracker),
     ("seo/banana-generate", seo_banana_generate),
     ("seo/banana-presets", seo_banana_presets),
     ("seo/bing_webmaster", seo_bing_webmaster),
+    ("seo/capture_screenshot", seo_capture_screenshot),
+    ("seo/checklist_compiler", seo_checklist_compiler),
+    ("seo/contracts", seo_contracts),
+    ("seo/coverage", seo_coverage),
     ("seo/crux_history", seo_crux_history),
     ("seo/edit", seo_edit),
     ("seo/fetch_page", seo_fetch_page),
@@ -116,6 +126,7 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("seo/indexnow", seo_indexnow),
     ("seo/keyword_planner", seo_keyword_planner),
     ("seo/nlp_analyze", seo_nlp_analyze),
+    ("seo/page_engine", seo_page_engine),
     ("seo/pagespeed_check", seo_pagespeed_check),
     ("seo/parse_html", seo_parse_html),
     ("seo/provider_registry", seo_provider_registry),
@@ -127,8 +138,10 @@ pub const TABLE: &[(&str, Entry)] = &[
     ("seo/seo_closure", seo_seo_closure),
     ("seo/seo_project", seo_seo_project),
     ("seo/site_audit", seo_site_audit),
+    ("seo/source_freshness", seo_source_freshness),
     ("seo/google_report", seo_google_report),
     ("seo/templated_metadata", seo_templated_metadata),
+    ("seo/validate-schema", seo_validate_schema),
     ("seo/youtube_search", seo_youtube_search),
     ("tasklist/validate-tasklist", tasklist_validate_tasklist),
 ];
@@ -2691,4 +2704,811 @@ fn seo_banana_generate(args: &[String]) -> i32 {
     );
     println!("{}", outcome.printed);
     outcome.exit_code
+}
+
+// ---- ported-but-previously-unwired tools -----------------------------------
+//
+// These entries wrap library-only ports whose original CLIs (`main()`) were not
+// carried over. Each wrapper reproduces the deleted script's argv contract, JSON
+// output, and exit code (0 pass, 1 fail, 2 unreadable input).
+
+fn wants_help(args: &[String]) -> bool {
+    args.iter().any(|a| a == "--help" || a == "-h")
+}
+
+fn read_text_file(path: &str) -> Result<String, String> {
+    std::fs::read_to_string(path)
+        .map(|t| t.trim_start_matches('\u{feff}').to_string())
+        .map_err(|e| format!("could not read {path}: {e}"))
+}
+
+fn read_json_file(path: &str) -> Result<serde_json::Value, String> {
+    let text = read_text_file(path)?;
+    serde_json::from_str(&text).map_err(|e| format!("invalid JSON in {path}: {e}"))
+}
+
+/// Splits `<input> [--out <file>]` style argv into (first positional, `--out` value).
+fn input_and_out(args: &[String]) -> (Option<String>, Option<String>) {
+    let mut input: Option<String> = None;
+    let mut out: Option<String> = None;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--out" => {
+                i += 1;
+                out = args.get(i).cloned();
+            }
+            other => {
+                if input.is_none() {
+                    input = Some(other.to_string());
+                }
+            }
+        }
+        i += 1;
+    }
+    (input, out)
+}
+
+/// Prints `value` pretty-printed, optionally also writing it to `out`.
+fn emit_json_report(value: &serde_json::Value, out: Option<&str>) {
+    let text = serde_json::to_string_pretty(value).unwrap_or_default();
+    if let Some(path) = out {
+        let _ = std::fs::write(path, format!("{text}\n"));
+    }
+    println!("{text}");
+}
+
+fn today_date() -> w2_034::date_math::Date {
+    let today = civil_today();
+    w2_034::date_math::Date { year: today.year, month: today.month, day: today.day }
+}
+
+fn rfc3339_now() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let today = civil_today();
+    let rem = secs % 86_400;
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}+00:00",
+        today.year, today.month, today.day, rem / 3600, (rem % 3600) / 60, rem % 60
+    )
+}
+
+fn seo_coverage(args: &[String]) -> i32 {
+    if wants_help(args) {
+        println!("Usage: legion script seo/coverage <controls.json> [--out FILE]");
+        return 0;
+    }
+    let (Some(input), out) = input_and_out(args) else {
+        eprintln!("Usage: legion script seo/coverage <controls.json> [--out FILE]");
+        return 2;
+    };
+    let payload = match read_json_file(&input) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let rows = match w2_029::coverage::rows(&payload) {
+        Ok(rows) => rows,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let result = w2_029::coverage::calculate(&rows);
+    let ok = result.status == "pass";
+    let value = serde_json::to_value(&result).unwrap_or_default();
+    emit_json_report(&value, out.as_deref());
+    if ok { 0 } else { 1 }
+}
+
+fn seo_contracts(args: &[String]) -> i32 {
+    if wants_help(args) {
+        println!("Usage: legion script seo/contracts <bundle.json>");
+        return 0;
+    }
+    let (Some(input), _) = input_and_out(args) else {
+        eprintln!("Usage: legion script seo/contracts <bundle.json>");
+        return 2;
+    };
+    let payload = match read_json_file(&input) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let result = w2_029::contracts::validate_bundle(&payload);
+    let ok = result.get("status").and_then(|v| v.as_str()) == Some("pass");
+    emit_json_report(&result, None);
+    if ok { 0 } else { 1 }
+}
+
+fn seo_page_engine(args: &[String]) -> i32 {
+    if wants_help(args) {
+        println!("Usage: legion script seo/page_engine <bundle.json> [--out FILE]");
+        return 0;
+    }
+    let (Some(input), out) = input_and_out(args) else {
+        eprintln!("Usage: legion script seo/page_engine <bundle.json> [--out FILE]");
+        return 2;
+    };
+    let cfg_path = find_skills_root().join("skills/seo/config/page-engine.json");
+    let cfg: w2_031::page_engine::PageEngineConfig =
+        match read_text_file(&cfg_path.to_string_lossy())
+            .and_then(|t| serde_json::from_str(&t).map_err(|e| e.to_string()))
+        {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                eprintln!("error: page-engine config unreadable: {e}");
+                return 2;
+            }
+        };
+    let bundle = match read_json_file(&input) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let result = w2_031::page_engine::assess(&cfg, &bundle);
+    let ok = result.get("status").and_then(|v| v.as_str()) == Some("pass");
+    emit_json_report(&result, out.as_deref());
+    if ok { 0 } else { 1 }
+}
+
+fn seo_source_freshness(args: &[String]) -> i32 {
+    if wants_help(args) {
+        println!("Usage: legion script seo/source_freshness [--as-of YYYY-MM-DD]");
+        return 0;
+    }
+    let mut as_of = today_date();
+    let mut i = 0;
+    while i < args.len() {
+        if args[i] == "--as-of" {
+            i += 1;
+            match args.get(i).map(|s| w2_034::date_math::Date::parse(s)) {
+                Some(Ok(date)) => as_of = date,
+                Some(Err(e)) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+                None => {
+                    eprintln!("error: --as-of requires YYYY-MM-DD");
+                    return 2;
+                }
+            }
+        }
+        i += 1;
+    }
+    let register_path = find_skills_root().join("skills/seo/config/official-sources.json");
+    let register = match read_json_file(&register_path.to_string_lossy()) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let report = w2_034::source_freshness::assess(&register, as_of);
+    let code = w2_034::source_freshness::exit_code(&report);
+    let value = serde_json::to_value(&report).unwrap_or_default();
+    emit_json_report(&value, None);
+    code
+}
+
+fn seo_ai_visibility_import(args: &[String]) -> i32 {
+    const USAGE: &str = "Usage: legion script seo/ai_visibility_import <google|bing> <export.csv|export.json> --out FILE";
+    if wants_help(args) {
+        println!("{USAGE}");
+        return 0;
+    }
+    let provider = args.first().map(String::as_str).unwrap_or("");
+    let (input, out) = input_and_out(args.get(1..).unwrap_or(&[]));
+    let (Some(input), Some(out)) = (input, out) else {
+        eprintln!("{USAGE}");
+        return 2;
+    };
+    if provider != "google" && provider != "bing" {
+        eprintln!("{USAGE}");
+        return 2;
+    }
+    let text = match read_text_file(&input) {
+        Ok(t) => t,
+        Err(e) => {
+            eprintln!("error: {e}");
+            return 2;
+        }
+    };
+    let rows = if input.to_lowercase().ends_with(".json") {
+        match w2_028::ai_visibility_import::load_rows_from_json(&text) {
+            Ok(rows) => rows,
+            Err(e) => {
+                eprintln!("error: {e}");
+                return 2;
+            }
+        }
+    } else {
+        w2_028::ai_visibility_import::load_rows_from_csv(&text)
+    };
+    let (rendered, count) = if provider == "google" {
+        let result = w2_028::ai_visibility_import::google(&rows, &input);
+        (serde_json::to_string_pretty(&result).unwrap_or_default(), result.rows.len())
+    } else {
+        let result = w2_028::ai_visibility_import::bing(&rows, &input);
+        (serde_json::to_string_pretty(&result).unwrap_or_default(), result.rows.len())
+    };
+    if let Err(e) = std::fs::write(&out, format!("{rendered}\n")) {
+        eprintln!("error: could not write {out}: {e}");
+        return 2;
+    }
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({"provider": provider, "rows": count, "out": out}))
+            .unwrap_or_default()
+    );
+    0
+}
+
+fn seo_checklist_compiler(args: &[String]) -> i32 {
+    const USAGE: &str = "Usage: legion script seo/checklist_compiler compile <source> [--name N] --out FILE\n       legion script seo/checklist_compiler verify <source> --sha256 H --line-count N\n       legion script seo/checklist_compiler diff <old.json> <new.json>";
+    if wants_help(args) {
+        println!("{USAGE}");
+        return 0;
+    }
+    let Some((command, rest)) = args.split_first() else {
+        eprintln!("{USAGE}");
+        return 2;
+    };
+    let mut positional: Vec<String> = Vec::new();
+    let mut name: Option<String> = None;
+    let mut out: Option<String> = None;
+    let mut sha: Option<String> = None;
+    let mut line_count: Option<usize> = None;
+    let mut i = 0;
+    while i < rest.len() {
+        match rest[i].as_str() {
+            "--name" => {
+                i += 1;
+                name = rest.get(i).cloned();
+            }
+            "--out" => {
+                i += 1;
+                out = rest.get(i).cloned();
+            }
+            "--sha256" => {
+                i += 1;
+                sha = rest.get(i).cloned();
+            }
+            "--line-count" => {
+                i += 1;
+                line_count = rest.get(i).and_then(|v| v.parse().ok());
+            }
+            other => positional.push(other.to_string()),
+        }
+        i += 1;
+    }
+    match command.as_str() {
+        "compile" => {
+            let (Some(source), Some(out)) = (positional.first(), out) else {
+                eprintln!("{USAGE}");
+                return 2;
+            };
+            let text = match read_text_file(source) {
+                Ok(t) => t,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            let source_name = name.unwrap_or_else(|| {
+                std::path::Path::new(source)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| source.clone())
+            });
+            let compiled = w2_028::checklist_compiler::compile_text(&text, &source_name);
+            let rendered = serde_json::to_string_pretty(&compiled).unwrap_or_default();
+            if let Err(e) = std::fs::write(&out, format!("{rendered}\n")) {
+                eprintln!("error: could not write {out}: {e}");
+                return 2;
+            }
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "sha256": compiled.sha256,
+                    "line_count": compiled.line_count,
+                    "candidate_count": compiled.candidate_count,
+                    "out": out,
+                }))
+                .unwrap_or_default()
+            );
+            0
+        }
+        "verify" => {
+            let (Some(source), Some(sha), Some(line_count)) = (positional.first(), sha, line_count) else {
+                eprintln!("{USAGE}");
+                return 2;
+            };
+            let text = match read_text_file(source) {
+                Ok(t) => t,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            let (ok, got_sha, got_lines) = w2_028::checklist_compiler::verify(&text, &sha, line_count);
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "status": if ok { "pass" } else { "fail" },
+                    "sha256": got_sha,
+                    "line_count": got_lines,
+                }))
+                .unwrap_or_default()
+            );
+            if ok { 0 } else { 1 }
+        }
+        "diff" => {
+            let (Some(old_path), Some(new_path)) = (positional.first(), positional.get(1)) else {
+                eprintln!("{USAGE}");
+                return 2;
+            };
+            let load = |path: &str| -> Result<w2_028::checklist_compiler::CompileResult, String> {
+                let text = read_text_file(path)?;
+                serde_json::from_str(&text).map_err(|e| format!("invalid compiled checklist {path}: {e}"))
+            };
+            let (old, new) = match (load(old_path), load(new_path)) {
+                (Ok(old), Ok(new)) => (old, new),
+                (Err(e), _) | (_, Err(e)) => {
+                    eprintln!("error: {e}");
+                    return 2;
+                }
+            };
+            let diff = w2_028::checklist_compiler::semantic_diff(&old, &new);
+            println!("{}", serde_json::to_string_pretty(&diff).unwrap_or_default());
+            0
+        }
+        _ => {
+            eprintln!("{USAGE}");
+            2
+        }
+    }
+}
+
+/// SEO schema hook (`PostToolUse` Write/Edit). With a path argument it validates that file;
+/// with none it reads the hook JSON from stdin and uses `tool_input.file_path`.
+/// Exit 0 clean, 1 warnings only, 2 blocking findings.
+fn seo_validate_schema(args: &[String]) -> i32 {
+    if wants_help(args) {
+        println!("Usage: legion script seo/validate-schema [FILE]   (no FILE: hook JSON on stdin)");
+        return 0;
+    }
+    let filepath = match args.first() {
+        Some(path) => path.clone(),
+        None => {
+            let mut stdin_text = String::new();
+            let _ = std::io::Read::read_to_string(&mut std::io::stdin(), &mut stdin_text);
+            let hook: serde_json::Value = serde_json::from_str(&stdin_text).unwrap_or_default();
+            let from_hook = hook
+                .get("tool_input")
+                .and_then(|v| v.get("file_path").or_else(|| v.get("path")))
+                .and_then(|v| v.as_str())
+                .map(str::to_string);
+            match from_hook {
+                Some(path) => path,
+                None => return 0,
+            }
+        }
+    };
+    if !std::path::Path::new(&filepath).is_file() || !w2_027::is_schema_checked_extension(&filepath) {
+        return 0;
+    }
+    let content = match std::fs::read(&filepath) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(_) => return 0,
+    };
+    let errors = w2_027::validate_jsonld(&content);
+    if errors.is_empty() {
+        return 0;
+    }
+    let (critical, warnings) = w2_027::partition_findings(&errors);
+    if !warnings.is_empty() {
+        println!("\u{26a0}\u{fe0f}  Schema validation warnings:");
+        for w in &warnings {
+            println!("  - {w}");
+        }
+    }
+    if !critical.is_empty() {
+        println!("\u{1f6d1} Schema validation ERRORS (blocking):");
+        for e in &critical {
+            println!("  - {e}");
+        }
+    }
+    w2_027::schema_exit_code(&errors)
+}
+
+fn coder_enforce_cheap_review_routing(args: &[String]) -> i32 {
+    const USAGE: &str = "Usage: legion script coder/enforce_cheap_review_routing <dispatch-packet.json>";
+    if wants_help(args) {
+        println!("{USAGE}");
+        return 0;
+    }
+    let Some(path) = args.first() else {
+        eprintln!("{USAGE}");
+        return 2;
+    };
+    let packet = match read_json_file(path) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("FAIL: {e}");
+            return 2;
+        }
+    };
+    let errors = legion_runtime::wf_port::w2_044::routing::routing_errors(&packet, std::path::Path::new(path));
+    if errors.is_empty() {
+        println!("PASS");
+        0
+    } else {
+        println!("FAIL: {} routing defect(s)", errors.len());
+        for error in &errors {
+            println!("- {error}");
+        }
+        1
+    }
+}
+
+fn dispatch_validate_route(args: &[String]) -> i32 {
+    use legion_runtime::wf_port::r46::goal_route_validator as grv;
+    const USAGE: &str = "Usage: legion script dispatch/validate-route <route.json> [--write-receipt FILE | --verify-receipt FILE]";
+    if wants_help(args) {
+        println!("{USAGE}");
+        return 0;
+    }
+    let mut route: Option<String> = None;
+    let mut write_receipt: Option<String> = None;
+    let mut verify_receipt: Option<String> = None;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--write-receipt" => {
+                i += 1;
+                write_receipt = args.get(i).cloned();
+            }
+            "--verify-receipt" => {
+                i += 1;
+                verify_receipt = args.get(i).cloned();
+            }
+            other => {
+                if route.is_none() {
+                    route = Some(other.to_string());
+                }
+            }
+        }
+        i += 1;
+    }
+    let Some(route) = route else {
+        eprintln!("{USAGE}");
+        return 2;
+    };
+    if write_receipt.is_some() && verify_receipt.is_some() {
+        eprintln!("{USAGE}");
+        return 2;
+    }
+    let route_path = std::fs::canonicalize(&route).unwrap_or_else(|_| std::path::PathBuf::from(&route));
+    let raw = match std::fs::read(&route_path) {
+        Ok(raw) => raw,
+        Err(e) => {
+            println!("FAIL: route unreadable: {e}");
+            return 2;
+        }
+    };
+    let data: serde_json::Value = match serde_json::from_slice(&raw) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("FAIL: route unreadable: {e}");
+            return 2;
+        }
+    };
+    let mut errors = grv::validate_route(&data);
+    if let Some(receipt) = &verify_receipt {
+        let receipt_path = std::fs::canonicalize(receipt).unwrap_or_else(|_| std::path::PathBuf::from(receipt));
+        errors.extend(grv::validate_receipt(&route_path, &receipt_path, &raw));
+    }
+    if !errors.is_empty() {
+        println!("FAIL: {} route defect(s)", errors.len());
+        for error in &errors {
+            println!("- {error}");
+        }
+        return 1;
+    }
+    let selected_id = data.get("selected_route_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let expected_ms = data
+        .get("candidates")
+        .and_then(|v| v.as_array())
+        .and_then(|cands| cands.iter().find(|c| c.get("id").and_then(|v| v.as_str()) == Some(selected_id.as_str())))
+        .and_then(|c| c.get("expected_time_to_verified_b_ms"))
+        .cloned()
+        .unwrap_or(serde_json::Value::Null);
+    let digest = grv::sha256_bytes(&raw);
+    if let Some(receipt) = &write_receipt {
+        let receipt_path = std::path::PathBuf::from(receipt);
+        if let Some(parent) = receipt_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let body = json!({
+            "schema": grv::RECEIPT_SCHEMA,
+            "route_path": legion_runtime::wf_port::w2_045::path_utils::canonical_locator(&route_path),
+            "route_sha256": digest,
+            "validator_version": grv::VALIDATOR_VERSION,
+            "validator_sha256": grv::validator_sha256(&route_path).unwrap_or_default(),
+            "selected_route_id": selected_id,
+            "expected_time_to_verified_b_ms": expected_ms,
+            "route_revision": data.get("invalidation").and_then(|v| v.get("revision")).cloned().unwrap_or(serde_json::Value::Null),
+            "created_at": rfc3339_now(),
+        });
+        if let Err(e) = std::fs::write(&receipt_path, format!("{}\n", serde_json::to_string_pretty(&body).unwrap_or_default())) {
+            println!("FAIL: could not write receipt: {e}");
+            return 2;
+        }
+    }
+    let prefix = if verify_receipt.is_some() { "RECEIPT_PASS" } else { "PASS" };
+    println!(
+        "{prefix}: schema={} selected={selected_id} expected_ms={expected_ms} sha256={digest}",
+        grv::SCHEMA
+    );
+    0
+}
+
+fn designer_convert_formats(args: &[String]) -> i32 {
+    use w2_006::convert_formats as cf;
+    if wants_help(args) {
+        println!("Usage: legion script designer/convert-formats <input.mp4> [gif_width] [--minterpolate]");
+        return 0;
+    }
+    let parsed = match cf::parse_args(args) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("{e}");
+            return 1;
+        }
+    };
+    let input = std::path::PathBuf::from(&parsed.input);
+    if !input.is_file() {
+        eprintln!("Input not found: {}", parsed.input);
+        return 1;
+    }
+    let paths = cf::resolve_paths(&input);
+    let passes = [
+        cf::ffmpeg_60fps_args(&input, &paths.out_60fps, parsed.use_minterpolate),
+        cf::ffmpeg_palettegen_args(&input, &parsed.gif_width, &paths.palette),
+        cf::ffmpeg_paletteuse_args(&input, &parsed.gif_width, &paths.palette, &paths.out_gif),
+    ];
+    for pass in &passes {
+        match std::process::Command::new("ffmpeg").args(pass).status() {
+            Ok(status) if status.success() => {}
+            Ok(status) => return status.code().unwrap_or(1),
+            Err(e) => {
+                eprintln!("ffmpeg unavailable: {e}");
+                return 1;
+            }
+        }
+    }
+    let _ = std::fs::remove_file(&paths.palette);
+    println!("{}", paths.out_60fps.display());
+    println!("{}", paths.out_gif.display());
+    0
+}
+
+fn designer_add_music(args: &[String]) -> i32 {
+    use w2_006::add_music as am;
+    if wants_help(args) {
+        println!("Usage: legion script designer/add-music <input.mp4> [--mood=<name>] [--music=<path>] [--out=<path>]");
+        return 0;
+    }
+    let parsed = am::parse_args(args);
+    match &parsed.input {
+        Some(input) if std::path::Path::new(input).is_file() => {}
+        _ => {
+            eprintln!("{}", am::AddMusicError::MissingOrUnreadableInput);
+            return 1;
+        }
+    }
+    let assets_dir = find_skills_root().join("skills/designer/assets");
+    let plan = match am::build_plan(&parsed, &assets_dir) {
+        Ok(plan) => plan,
+        Err(e) => {
+            eprintln!("{e}");
+            return 1;
+        }
+    };
+    if !plan.music.is_file() {
+        eprintln!("{}", am::AddMusicError::MusicNotFound(plan.music.display().to_string()));
+        return 1;
+    }
+    let probe = std::process::Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1"])
+        .arg(&plan.input)
+        .output();
+    let duration: Option<f64> = probe
+        .ok()
+        .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse().ok());
+    let Some(duration) = duration else {
+        eprintln!("{}", am::AddMusicError::DurationUnreadable);
+        return 1;
+    };
+    match std::process::Command::new("ffmpeg").args(am::ffmpeg_args(&plan, duration)).status() {
+        Ok(status) if status.success() => {
+            println!("{}", plan.output.display());
+            0
+        }
+        Ok(status) => status.code().unwrap_or(1),
+        Err(e) => {
+            eprintln!("ffmpeg unavailable: {e}");
+            1
+        }
+    }
+}
+
+fn seo_analyze_visual(args: &[String]) -> i32 {
+    use w2_028::web_page_probe as probe;
+    const USAGE: &str = "Usage: legion script seo/analyze_visual <url> [--timeout MS]";
+    if wants_help(args) {
+        println!("{USAGE}");
+        return 0;
+    }
+    let mut url: Option<String> = None;
+    let mut timeout_ms: u64 = 30_000;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--timeout" | "-t" => {
+                i += 1;
+                timeout_ms = args.get(i).and_then(|v| v.parse().ok()).unwrap_or(timeout_ms);
+            }
+            other => {
+                if url.is_none() {
+                    url = Some(other.to_string());
+                }
+            }
+        }
+        i += 1;
+    }
+    let Some(url) = url else {
+        eprintln!("{USAGE}");
+        return 2;
+    };
+    let mut browser = match probe::ChromePageBrowser::launch() {
+        Ok(b) => b,
+        Err(e) => {
+            println!("{}", json!({"url": url, "error": format!("browser unavailable: {e}")}));
+            return 1;
+        }
+    };
+    let result = probe::run_analyze_visual(&mut browser, &url, timeout_ms);
+    let value = json!({
+        "url": result.url,
+        "above_fold": {
+            "h1_visible": result.above_fold.h1_visible,
+            "cta_visible": result.above_fold.cta_visible,
+            "hero_image": result.above_fold.hero_image,
+        },
+        "mobile": {
+            "viewport_meta": result.mobile.viewport_meta,
+            "horizontal_scroll": result.mobile.horizontal_scroll,
+        },
+        "fonts": {
+            "base_size": result.fonts.base_size,
+            "readable": result.fonts.readable,
+        },
+        "error": result.error,
+    });
+    println!("{}", serde_json::to_string_pretty(&value).unwrap_or_default());
+    if result.error.is_some() { 1 } else { 0 }
+}
+
+fn seo_capture_screenshot(args: &[String]) -> i32 {
+    use w2_028::web_page_probe as probe;
+    const USAGE: &str = "Usage: legion script seo/capture_screenshot <url> [--output DIR] [--viewport desktop|laptop|tablet|mobile] [--all] [--full] [--timeout MS]";
+    if wants_help(args) {
+        println!("{USAGE}");
+        return 0;
+    }
+    let mut url: Option<String> = None;
+    let mut output = "screenshots".to_string();
+    let mut viewport = "desktop".to_string();
+    let mut all = false;
+    let mut full = false;
+    let mut timeout_ms: u64 = 30_000;
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--output" | "-o" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    output = v.clone();
+                }
+            }
+            "--viewport" | "-v" => {
+                i += 1;
+                if let Some(v) = args.get(i) {
+                    viewport = v.clone();
+                }
+            }
+            "--all" | "-a" => all = true,
+            "--full" | "-f" => full = true,
+            "--timeout" | "-t" => {
+                i += 1;
+                timeout_ms = args.get(i).and_then(|v| v.parse().ok()).unwrap_or(timeout_ms);
+            }
+            other => {
+                if url.is_none() {
+                    url = Some(other.to_string());
+                }
+            }
+        }
+        i += 1;
+    }
+    let Some(url) = url else {
+        eprintln!("{USAGE}");
+        return 2;
+    };
+    let home = dirs_home();
+    let output_dir = match probe::resolve_and_check_output_dir(std::path::Path::new(&output), &cwd(), &home) {
+        Ok(dir) => dir,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return 1;
+        }
+    };
+    if let Err(e) = std::fs::create_dir_all(&output) {
+        eprintln!("Error: could not create {output}: {e}");
+        return 1;
+    }
+    let (normalized_url, parsed) = match probe::normalize_url(&url) {
+        Ok(pair) => pair,
+        Err(e) => {
+            eprintln!("Error: {e}");
+            return 1;
+        }
+    };
+    let hostname = parsed.hostname.unwrap_or_default();
+    let viewports: Vec<String> = if all {
+        probe::VIEWPORTS.iter().map(|v| v.name.to_string()).collect()
+    } else {
+        vec![viewport]
+    };
+    let mut browser = match probe::ChromePageBrowser::launch() {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("Error: browser unavailable: {e}");
+            return 1;
+        }
+    };
+    let mut exit = 0;
+    for name in viewports {
+        let path = output_dir.join(probe::screenshot_filename(&hostname, &name));
+        let path_str = path.to_string_lossy().into_owned();
+        println!("Capturing {name} screenshot...");
+        let mut write = |bytes: &[u8]| std::fs::write(&path, bytes);
+        let result = probe::run_capture_screenshot(
+            &mut browser,
+            &normalized_url,
+            &path_str,
+            &name,
+            full,
+            timeout_ms,
+            &mut write,
+        );
+        if result.success {
+            println!("  \u{2713} Saved to {path_str}");
+        } else {
+            println!("  \u{2717} Failed: {}", result.error.unwrap_or_default());
+            exit = 1;
+        }
+    }
+    exit
 }

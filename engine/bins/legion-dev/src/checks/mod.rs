@@ -10,6 +10,7 @@ pub mod portability;
 pub mod publication_policy;
 pub mod publication_surface;
 pub mod release_obligations;
+pub mod skill_references;
 pub mod version_parity;
 
 use std::fs;

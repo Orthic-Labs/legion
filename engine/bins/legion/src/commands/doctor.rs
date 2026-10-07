@@ -24,16 +24,6 @@ const SEMANTIC_PROBES: [&str; 13] = [
     "budget_role_cap_enforcement",
     "budget_amendment_authority",
 ];
-const CODEX_HOOK_EVENTS: [&str; 8] = [
-    "session_start",
-    "subagent_start",
-    "user_prompt_submit",
-    "post_compact",
-    "pre_tool_use",
-    "post_tool_use",
-    "post_tool_use_failure",
-    "stop",
-];
 const LEGACY_NAMES: [&str; 4] = ["seer", "forge", "sorcerer", "sentinel"];
 const NAMING_TOKENS: [&str; 5] = ["seer", "nemesis", "forge", "sentinel", "sorcerer"];
 
@@ -101,7 +91,7 @@ fn home_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-fn command_path(command: &str) -> Option<PathBuf> {
+pub(super) fn command_path(command: &str) -> Option<PathBuf> {
     let path = std::env::var_os("PATH").unwrap_or_default();
     for directory in std::env::split_paths(&path) {
         let candidate = directory.join(command);
@@ -120,20 +110,30 @@ fn command_path(command: &str) -> Option<PathBuf> {
 }
 
 fn runtime_toolchains() -> Value {
-    let Some(executable) = command_path("node") else {
-        return json!({"state":"unproven","tools":[]});
-    };
-    let Ok(output) = Command::new(&executable).arg("--version").output() else {
-        return json!({"state":"unproven","tools":[]});
-    };
-    if !output.status.success() {
+    let tools = ["git", "cargo", "node", "swift"]
+        .into_iter()
+        .filter_map(|name| {
+            let executable = command_path(name)?;
+            let output = Command::new(&executable).arg("--version").output().ok()?;
+            if !output.status.success() {
+                return None;
+            }
+            let version = String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .next()
+                .unwrap_or_default()
+                .trim()
+                .to_owned();
+            if version.is_empty() {
+                return None;
+            }
+            Some(json!({"name":name,"executable":executable,"version":version}))
+        })
+        .collect::<Vec<_>>();
+    if tools.is_empty() {
         return json!({"state":"unproven","tools":[]});
     }
-    let version = String::from_utf8_lossy(&output.stdout).trim().to_owned();
-    if version.is_empty() {
-        return json!({"state":"unproven","tools":[]});
-    }
-    json!({"state":"ready","tools":[{"name":"node","executable":executable,"version":version}]})
+    json!({"state":"ready","tools":tools})
 }
 
 fn installed_roots() -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
@@ -146,10 +146,6 @@ fn installed_roots() -> (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>) {
     let current = share.parent().map(Path::to_path_buf);
     let plugin = current.as_ref().map(|root| root.join("plugin"));
     (Some(share.join("assets")), plugin, Some(composition))
-}
-
-fn coverage_families() -> Vec<String> {
-    vec!["framework.react".into(), "framework.tauri".into()]
 }
 
 fn semantic_health(env: &HashMap<String, String>) -> Value {
@@ -371,6 +367,10 @@ fn binding_section(root: &Path) -> Value {
     json!({"receiptPresent":true,"harnesses":harnesses})
 }
 
+/// Codex hook trust is informational. Legion ships no Codex plugin hooks (the
+/// harness matrix reports Guard enforcement on Codex as unsupported), so there
+/// is no plugin id whose hooks must be trusted and no gap to raise. Report the
+/// hook-state entries Codex itself recorded, without judging them.
 fn codex_hook_trust(home: &Path) -> Value {
     let config_path = home.join(".codex").join("config.toml");
     let text = std::fs::read_to_string(&config_path).unwrap_or_default();
@@ -389,35 +389,125 @@ fn codex_hook_trust(home: &Path) -> Value {
             .and_then(|v| v.strip_suffix('"'))
         {
             if let Some(event) = current.as_deref() {
-                if CODEX_HOOK_EVENTS
-                    .iter()
-                    .any(|name| event == format!("arcane@local-brief:hooks/hooks.json:{name}:0:0"))
-                    && value.strip_prefix("sha256:").is_some_and(|hash| {
-                        hash.len() == 64
-                            && hash
-                                .bytes()
-                                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-                    })
-                {
+                if value.strip_prefix("sha256:").is_some_and(|hash| {
+                    hash.len() == 64
+                        && hash
+                            .bytes()
+                            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+                }) {
                     trusted.insert(event.to_owned());
                 }
             }
         }
     }
-    let required = CODEX_HOOK_EVENTS
-        .iter()
-        .map(|event| format!("arcane@local-brief:hooks/hooks.json:{event}:0:0"))
-        .collect::<Vec<_>>();
-    let missing = required
-        .iter()
-        .filter(|key| !trusted.contains(*key))
-        .cloned()
-        .collect::<Vec<_>>();
-    json!({"configPath":config_path,"configPresent":!text.is_empty(),"plugin":"arcane@local-brief","required":required,"trusted":trusted.into_iter().collect::<Vec<_>>(),"missing":missing,"state":if missing.is_empty() {"pass"} else {"ARC_HOOK_TRUST_REQUIRED"},"remediation":if missing.is_empty() {Value::Null} else {json!("Review & trust observed Guard hooks with Codex /hooks; setup never manufactures trusted_hash.")}})
+    json!({
+        "configPath": config_path,
+        "configPresent": !text.is_empty(),
+        "state": "not-applicable",
+        "detail": "Legion ships no Codex plugin hooks, so no hook trust is required; trusted entries below are recorded by Codex and are not Legion's.",
+        "trusted": trusted.into_iter().collect::<Vec<_>>(),
+        "remediation": Value::Null,
+    })
 }
 
-fn host_requirements(root: &Path) -> Value {
-    let index = root.join("src/registry/host-projection.json");
+/// The Claude Code skills-dir projection: `~/.claude/skills/legion` carrying a
+/// `plugin.json`, with skills, agents, hooks and an MCP descriptor beside it.
+fn skills_dir_install_path(home: &Path) -> PathBuf {
+    home.join(".claude").join("skills").join("legion")
+}
+
+fn skills_dir_manifest(install: &Path) -> Option<Value> {
+    read_json(&install.join("plugin.json"))
+        .or_else(|| read_json(&install.join(".claude-plugin").join("plugin.json")))
+        .filter(|manifest| manifest.get("name").and_then(Value::as_str) == Some("legion"))
+}
+
+fn count_entries_with(directory: &Path, marker: &str) -> usize {
+    std::fs::read_dir(directory)
+        .ok()
+        .map(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .filter(|entry| entry.path().join(marker).is_file())
+                .count()
+        })
+        .unwrap_or(0)
+}
+
+fn skills_dir_installation(home: &Path, source_version: Option<&Value>) -> Option<Value> {
+    let install = skills_dir_install_path(home);
+    let manifest = skills_dir_manifest(&install)?;
+    let installed_version = manifest.get("version").cloned().unwrap_or(Value::Null);
+    let version_matches = source_version.map(|version| *version == installed_version);
+    let agents = std::fs::read_dir(install.join("agents"))
+        .ok()
+        .map(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .filter(|entry| entry.path().extension().and_then(|ext| ext.to_str()) == Some("md"))
+                .count()
+        })
+        .unwrap_or(0);
+    Some(json!({
+        "pluginId": "legion@skills-dir",
+        "kind": "skills-dir",
+        "enabled": true,
+        "scope": "user",
+        "installPath": install,
+        "installedVersion": installed_version,
+        "sourceVersion": source_version,
+        "versionMatches": version_matches,
+        "copyExists": true,
+        "skillCount": count_entries_with(&install.join("skills"), "SKILL.md"),
+        "agentCount": agents,
+        "hooksRegistered": install.join("hooks").join("hooks.json").is_file(),
+        "mcpDescriptor": install.join(".mcp.json").is_file() || install.join("mcp.json").is_file(),
+    }))
+}
+
+/// MCP servers declared beside a plugin manifest. Arguments are reported as
+/// arguments; only path-shaped ones are checked for existence.
+fn mcp_server_rows(base: &Path, manifest: Option<&Value>) -> Vec<Value> {
+    let declared = [
+        manifest.and_then(|value| value.get("mcpServers").cloned()),
+        read_json(&base.join(".mcp.json")).and_then(|value| value.get("mcpServers").cloned()),
+        read_json(&base.join("mcp.json")).and_then(|value| value.get("mcpServers").cloned()),
+    ]
+    .into_iter()
+    .flatten()
+    .find(|value| value.as_object().is_some_and(|servers| !servers.is_empty()));
+    let Some(servers) = declared.as_ref().and_then(Value::as_object) else {
+        return Vec::new();
+    };
+    servers
+        .iter()
+        .map(|(name, server)| {
+            let command = server.get("command").and_then(Value::as_str);
+            let args = server
+                .get("args")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            let missing_paths = args
+                .iter()
+                .filter_map(Value::as_str)
+                .filter(|arg| arg.contains('/') || arg.contains('\\') || arg.ends_with(".json"))
+                .filter(|arg| !arg.starts_with('$') && !arg.starts_with('-'))
+                .filter(|arg| !base.join(arg).exists())
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            json!({
+                "server": name,
+                "command": command,
+                "commandOnPath": command.is_some_and(|value| command_path(value).is_some()),
+                "args": args,
+                "missingPaths": missing_paths,
+            })
+        })
+        .collect()
+}
+
+fn host_requirements(index: &Path) -> Value {
     if !index.is_file() {
         return json!({"present":false,"state":"missing-projection","skills":[]});
     }
@@ -532,11 +622,39 @@ fn host_requirements(root: &Path) -> Value {
     json!({"present":true,"state":state,"skills":skills})
 }
 
-fn host_section(root: &Path, _assets: Option<&Path>, _plugin: Option<&Path>) -> Value {
-    let manifest = read_json(&root.join(".claude-plugin/plugin.json"));
-    let hooks = read_json(&root.join("hooks/hooks.json"));
+fn host_section(root: &Path, _assets: Option<&Path>, plugin: Option<&Path>) -> Value {
+    let home = home_dir();
+    let skills_install = skills_dir_install_path(&home);
+    // Claude Code discovery reads the repository's plugin package when run from
+    // a source checkout, and otherwise the installed skills-dir projection.
+    let in_repository = root.join(".claude-plugin/plugin.json").is_file();
+    let claude_base = if in_repository || skills_dir_manifest(&skills_install).is_none() {
+        root.to_path_buf()
+    } else {
+        skills_install.clone()
+    };
+    let manifest = read_json(&claude_base.join(".claude-plugin/plugin.json"))
+        .or_else(|| read_json(&claude_base.join("plugin.json")));
+    let hooks = read_json(&claude_base.join("hooks/hooks.json"));
     let surface = read_json(&root.join("src/registry/plugin-surface.json"));
-    let projection_path = root.join("src/registry/host-projection.json");
+    // Host projection: the repository copy, else the installed plugin copy,
+    // else the skills-dir copy, so the probe works from any working directory.
+    let (projection_path, projection_source) = [
+        (root.join("src/registry/host-projection.json"), "repository"),
+        (
+            plugin
+                .map(|path| path.join("share/legion/src/registry/host-projection.json"))
+                .unwrap_or_default(),
+            "installed-plugin",
+        ),
+        (
+            skills_install.join("share/legion/src/registry/host-projection.json"),
+            "skills-dir",
+        ),
+    ]
+    .into_iter()
+    .find(|(path, _)| path.is_file())
+    .unwrap_or_else(|| (root.join("src/registry/host-projection.json"), "missing"));
     let projection = read_json(&projection_path);
     let (capabilities, entrypoints) = projection
         .as_ref()
@@ -557,7 +675,6 @@ fn host_section(root: &Path, _assets: Option<&Path>, _plugin: Option<&Path>) -> 
             (capabilities, entrypoints)
         })
         .unwrap_or_default();
-    let home = home_dir();
     let installed_file = read_json(
         &home
             .join(".claude")
@@ -590,6 +707,14 @@ fn host_section(root: &Path, _assets: Option<&Path>, _plugin: Option<&Path>) -> 
             }
         }
     }
+    let source_version = if in_repository {
+        manifest.as_ref().and_then(|value| value.get("version")).cloned()
+    } else {
+        None
+    };
+    if let Some(installation) = skills_dir_installation(&home, source_version.as_ref()) {
+        installations.push(installation);
+    }
     let mut conflicts = Vec::new();
     if root.join(".claude/agents").is_dir() && root.join("agents").is_dir() {
         conflicts.push(json!({"harness":"claude-code","kind":"duplicate-installation-path","detail":"both the plugin package (agents/) and a legion bind projection (.claude/agents/) are present; one installation path must own each harness"}));
@@ -600,32 +725,7 @@ fn host_section(root: &Path, _assets: Option<&Path>, _plugin: Option<&Path>) -> 
         .and_then(Value::as_object)
         .map(|map| map.keys().cloned().collect::<Vec<_>>())
         .unwrap_or_default();
-    let mcp_entrypoints = manifest
-        .as_ref()
-        .and_then(|v| v.get("mcpServers"))
-        .and_then(Value::as_object)
-        .map(|servers| {
-            servers
-                .values()
-                .flat_map(|server| {
-                    server
-                        .get("args")
-                        .and_then(Value::as_array)
-                        .cloned()
-                        .unwrap_or_default()
-                })
-                .filter_map(|arg| {
-                    let raw = arg.as_str()?;
-                    let relative = raw
-                        .strip_prefix("${CLAUDE_PLUGIN_ROOT}/")
-                        .or_else(|| raw.strip_prefix("${PLUGIN_ROOT}/"))
-                        .unwrap_or(raw);
-                    let exists = root.join(relative).is_file();
-                    Some(json!({"path":relative,"exists":exists}))
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
+    let mcp_entrypoints = mcp_server_rows(&claude_base, manifest.as_ref());
     let known = vec![
         "claude-code",
         "codex",
@@ -634,8 +734,9 @@ fn host_section(root: &Path, _assets: Option<&Path>, _plugin: Option<&Path>) -> 
         "pi",
         "generic",
     ];
-    let fidelity_harnesses = read_json(&root.join("src/registry/host-projection.json"))
-        .and_then(|projection| projection.get("harnesses").cloned())
+    let fidelity_harnesses = projection
+        .as_ref()
+        .and_then(|value| value.get("harnesses").cloned())
         .unwrap_or_else(|| json!([]));
     let mut adapter_capabilities = serde_json::Map::new();
     if let Ok(registry) = legion_harness::HarnessRegistry::load() {
@@ -647,6 +748,7 @@ fn host_section(root: &Path, _assets: Option<&Path>, _plugin: Option<&Path>) -> 
     }
     let mut detected = Vec::new();
     if root.join(".claude").exists()
+        || skills_dir_manifest(&skills_install).is_some()
         || root.join(".claude-plugin/plugin.json").exists()
         || root.join("CLAUDE.md").exists()
     {
@@ -703,7 +805,7 @@ fn host_section(root: &Path, _assets: Option<&Path>, _plugin: Option<&Path>) -> 
             .join("outbox.json"),
     )
     .unwrap_or_else(|| json!({"pending":[],"delivered":[],"deadLetter":[]}));
-    json!({"projection":{"path":"src/registry/host-projection.json","present":projection_path.is_file(),"generatedAt":projection_path.metadata().ok().and_then(|metadata| metadata.modified().ok()).map(format_time),"driftCheck":"node scripts/generate-host-projection.mjs --check"},"installations":{"claude-code":installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":projection_path.is_file(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(root),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":root.join("src/packages/arcane/host/claude-code-adapter.mjs").is_file(),"codexHookTrust":codex_hook_trust(&home)}})
+    json!({"projection":{"path":projection_path,"source":projection_source,"present":projection_path.is_file(),"generatedAt":projection_path.metadata().ok().and_then(|metadata| metadata.modified().ok()).map(format_time),"driftCheck":"cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-host-projection --check"},"installations":{"claude-code":installations},"discovery":{"claude-code":{"manifestPresent":manifest.is_some(),"version":manifest.as_ref().and_then(|v| v.get("version")).cloned().unwrap_or(Value::Null),"surfaceDigest":surface.as_ref().and_then(|v| v.get("digest")).cloned().unwrap_or(Value::Null),"surfaceCounts":surface.as_ref().and_then(|v| v.get("counts")).cloned().unwrap_or(Value::Null),"surfaceProblems":surface.as_ref().and_then(|v| v.get("problems")).cloned().unwrap_or(Value::Null),"mcpEntrypoints":mcp_entrypoints,"capabilities":capabilities,"entrypoints":entrypoints,"hookEvents":hook_events}},"conflicts":conflicts,"fidelity":{"present":projection_path.is_file(),"harnesses":fidelity_harnesses},"harnessAdapters":{"known":known,"detected":detected,"capabilities":adapter_capabilities},"hostRequirements":host_requirements(&projection_path),"observations":{"pending":outbox.get("pending").and_then(Value::as_array).map_or(0,Vec::len),"delivered":outbox.get("delivered").and_then(Value::as_array).map_or(0,Vec::len),"deadLetter":outbox.get("deadLetter").and_then(Value::as_array).map_or(0,Vec::len)},"guard":{"keyDirs":key_dirs,"canonicalVerificationKeyring":{"dir":canonical_key_dir,"present":canonical_key_dir.is_dir(),"keyIds":key_ids},"hookRegistration":{"preToolUse":matcher("PreToolUse"),"postToolUse":matcher("PostToolUse"),"stop":hooks.as_ref().and_then(|v| v.get("hooks")).and_then(|v| v.get("Stop")).is_some()},"adapterPresent":command_path("legion-hook").is_some(),"adapter":{"kind":"legion-hook","onPath":command_path("legion-hook")},"codexHookTrust":codex_hook_trust(&home)}})
 }
 
 pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResult {
@@ -732,13 +834,6 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
     if semantic["healthy"] != true {
         gaps.push(json!({"kind":"arcane-semantic-health-unhealthy","detail":semantic["probes"].as_array().into_iter().flatten().filter(|p| p["ok"] == false).map(|p| json!({"id":p["id"],"error":p["error"]})).collect::<Vec<_>>() }));
     }
-    if host
-        .pointer("/guard/codexHookTrust/state")
-        .and_then(Value::as_str)
-        == Some("ARC_HOOK_TRUST_REQUIRED")
-    {
-        gaps.push(json!({"kind":"guard-hook-trust-required","code":"ARC_HOOK_TRUST_REQUIRED","detail":host.pointer("/guard/codexHookTrust/missing").cloned().unwrap_or(Value::Null)}));
-    }
     if naming["status"] == "fail" {
         gaps.push(json!({"kind":"naming-contract-failed","detail":naming["unclassified"]}));
     }
@@ -755,8 +850,15 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
     if binding_pending {
         gaps.push(json!({"kind":"naming-migration-pending","detail":bindings}));
     }
-    let languages = coverage_families();
-    let selected = Vec::<String>::new();
+    lifecycle("coverage-started", Value::Null);
+    let scan = super::coverage::scan(&root);
+    let coverage_rows = super::coverage::rows(&scan).unwrap_or_default();
+    let coverage = super::coverage::coverage_summary(&scan, &coverage_rows);
+    let providers = super::coverage::provider_selection(&root, &scan);
+    lifecycle(
+        "coverage-finished",
+        json!({"entriesSeen":scan.entries_seen,"providersComputed":providers["computed"]}),
+    );
     let mut commands = Vec::new();
     if !env.contains_key("AUDIT_NETWORK_GUARD") {
         commands.push("Set AUDIT_NETWORK_GUARD=active for project-executing providers.".to_owned());
@@ -772,15 +874,11 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
             "Run legion doctor after repairing the failing Arcane semantic probe.".to_owned(),
         );
     }
-    if host
-        .pointer("/guard/codexHookTrust/state")
-        .and_then(Value::as_str)
-        == Some("ARC_HOOK_TRUST_REQUIRED")
-    {
-        commands.push(
-            "Open Codex /hooks & trust current Guard hook definitions, then rerun legion doctor."
-                .to_owned(),
-        );
+    if let Some(tools) = providers["missingTools"].as_array().filter(|tools| !tools.is_empty()) {
+        commands.push(format!(
+            "Install the missing audit tools or accept the matching providers as unavailable: {}.",
+            tools.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", ")
+        ));
     }
     if naming["status"] != "pass" {
         commands
@@ -792,7 +890,7 @@ pub async fn run(args: RootArgs, cancellation: CancellationToken) -> CommandResu
                 .to_owned(),
         );
     }
-    let report = json!({"schemaVersion":1,"kind":"legion-doctor","repository":{"root":root},"coverage":{"languages":languages,"frameworks":[],"systems":[],"unsupported":[]},"providers":{"selected":selected,"blocked":[],"missingTools":[]},"hostCapabilities":{"networkSandbox":env.get("AUDIT_NETWORK_GUARD").map(|v| v == "active").unwrap_or(false),"signing":env.get("AUDIT_PLAN_SIGNING_KEY").is_some_and(|v| !v.is_empty()),"browser":false,"toolchains":runtime_toolchains()},"arcane":{"semanticHealth":semantic},"host":host,"naming":{"schemaVersion":naming["schemaVersion"],"kind":naming["kind"],"status":naming["status"],"canonicalAuthorities":naming["canonicalAuthorities"],"deprecatedAliases":naming["deprecatedAliases"],"unclassified":naming["unclassified"],"bindings":bindings},"binding":binding_section(&root),"cleanClaimPossible":false,"gaps":gaps,"commands":commands});
+    let report = json!({"schemaVersion":1,"kind":"legion-doctor","repository":{"root":root},"coverage":coverage,"providers":providers,"hostCapabilities":{"networkSandbox":env.get("AUDIT_NETWORK_GUARD").map(|v| v == "active").unwrap_or(false),"signing":env.get("AUDIT_PLAN_SIGNING_KEY").is_some_and(|v| !v.is_empty()),"browser":false,"toolchains":runtime_toolchains()},"arcane":{"semanticHealth":semantic},"host":host,"naming":{"schemaVersion":naming["schemaVersion"],"kind":naming["kind"],"status":naming["status"],"canonicalAuthorities":naming["canonicalAuthorities"],"deprecatedAliases":naming["deprecatedAliases"],"unclassified":naming["unclassified"],"bindings":bindings},"binding":binding_section(&root),"cleanClaimPossible":false,"gaps":gaps,"commands":commands});
     lifecycle(
         "finished",
         json!({"gaps":report["gaps"].as_array().map_or(0,Vec::len)}),
@@ -829,7 +927,7 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
-    fn codex_trust_never_manufactures_hashes() {
+    fn codex_hook_trust_raises_no_retired_plugin_gap() {
         let root = std::env::temp_dir().join(format!("legion-doctor-home-{}", std::process::id()));
         std::fs::create_dir_all(root.join(".codex")).unwrap();
         std::fs::write(
@@ -838,8 +936,30 @@ mod tests {
         )
         .unwrap();
         let value = codex_hook_trust(&root);
-        assert_eq!(value["state"], "ARC_HOOK_TRUST_REQUIRED");
+        assert_eq!(value["state"], "not-applicable");
         assert_eq!(value["trusted"], json!([]));
+        assert!(value.get("plugin").is_none());
+        assert!(value.get("missing").is_none());
         let _ = std::fs::remove_dir_all(root);
+    }
+    #[test]
+    fn skills_dir_projection_is_recognised_as_an_installation() {
+        let home = std::env::temp_dir().join(format!("legion-doctor-skills-dir-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&home);
+        let install = home.join(".claude/skills/legion");
+        std::fs::create_dir_all(install.join("skills/audit")).unwrap();
+        std::fs::create_dir_all(install.join("hooks")).unwrap();
+        std::fs::write(install.join("skills/audit/SKILL.md"), "---\nname: audit\n---\n").unwrap();
+        std::fs::write(install.join("hooks/hooks.json"), "{}").unwrap();
+        std::fs::write(install.join("plugin.json"), r#"{"name":"legion","version":"1.2.3"}"#).unwrap();
+        let installation = skills_dir_installation(&home, Some(&json!("1.2.3"))).expect("installation");
+        assert_eq!(installation["pluginId"], "legion@skills-dir");
+        assert_eq!(installation["installedVersion"], "1.2.3");
+        assert_eq!(installation["versionMatches"], true);
+        assert_eq!(installation["skillCount"], 1);
+        assert_eq!(installation["hooksRegistered"], true);
+        std::fs::write(install.join("plugin.json"), r#"{"name":"other"}"#).unwrap();
+        assert!(skills_dir_installation(&home, None).is_none());
+        let _ = std::fs::remove_dir_all(home);
     }
 }

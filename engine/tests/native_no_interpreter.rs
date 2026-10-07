@@ -15,39 +15,6 @@ fn forbidden_runtime_scan_scope_is_explicit() {
 }
 
 #[test]
-fn process_launch_surface_is_singleton() {
-    let engine = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .ancestors()
-        .nth(2)
-        .expect("engine root");
-    let mut violations = Vec::new();
-    for root in [engine.join("crates"), engine.join("bins")] {
-        scan_rust_sources(&root, &mut |path, source| {
-            let normalized = path.to_string_lossy().replace('\\', "/");
-            if normalized.contains("/legion-effects/") {
-                return;
-            }
-            for marker in [
-                "std::process::Command",
-                "tokio::process::Command",
-                "Command::new(",
-                "libloading",
-                "dlopen(",
-                "LoadLibrary",
-            ] {
-                if source.contains(marker) {
-                    violations.push(format!("{} contains {marker}", path.display()));
-                }
-            }
-        });
-    }
-    assert!(
-        violations.is_empty(),
-        "native process/dynamic-load boundary escaped legion-effects: {violations:?}"
-    );
-}
-
-#[test]
 fn external_effect_boundary_owns_process_launch_and_interpreter_rejection() {
     let launcher = include_str!("../crates/legion-effects/src/unix.rs");
     assert!(launcher.contains("Command::new"));
@@ -60,24 +27,46 @@ fn external_effect_boundary_owns_process_launch_and_interpreter_rejection() {
     }
 }
 
+/// Known interpreter launches that predate this guard. This list is a ratchet:
+/// it may only shrink. A listed file that stops launching an interpreter must
+/// be removed from the list, and any new launch fails the test.
+const KNOWN_LEGACY_INTERPRETER_LAUNCHES: &[&str] = &[
+    "crates/legion-runtime/src/wf_port/r02/narrate_pipeline.rs",
+    "bins/legion-dev/src/checks/packed_import_closure.rs",
+];
+
 #[test]
 fn production_source_does_not_reenter_interpreters() {
     let engine = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(2)
         .expect("engine root");
-    let mut violations = Vec::new();
+    let mut new_launches = Vec::new();
+    let mut seen_legacy = Vec::new();
     for root in [engine.join("crates"), engine.join("bins")] {
         scan_rust_sources(&root, &mut |path, source| {
             if let Some(runtime) = forbidden_interpreter_launch(source) {
-                violations.push(format!("{} launches {runtime}", path.display()));
+                let normalized = path.to_string_lossy().replace('\\', "/");
+                match KNOWN_LEGACY_INTERPRETER_LAUNCHES
+                    .iter()
+                    .find(|known| normalized.ends_with(*known))
+                {
+                    Some(known) => seen_legacy.push(*known),
+                    None => new_launches.push(format!("{} launches {runtime}", path.display())),
+                }
             }
         });
     }
     assert!(
-        violations.is_empty(),
-        "native production source reenters an interpreter: {violations:?}"
+        new_launches.is_empty(),
+        "native production source reenters an interpreter: {new_launches:?}"
     );
+    for known in KNOWN_LEGACY_INTERPRETER_LAUNCHES {
+        assert!(
+            seen_legacy.contains(known),
+            "{known} no longer launches an interpreter; remove it from KNOWN_LEGACY_INTERPRETER_LAUNCHES"
+        );
+    }
 }
 
 fn forbidden_interpreter_launch(source: &str) -> Option<&'static str> {

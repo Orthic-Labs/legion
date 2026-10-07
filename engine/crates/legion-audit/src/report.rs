@@ -170,7 +170,27 @@ pub fn canonical_report(
             ("executedProviderCount".into(), json!(result_count)),
             ("completeProviderCount".into(), json!(complete_count)),
             ("selectedLenses".into(), json!(execution.selected_lenses)),
+            // `lensesRan` and `reasoningLensesRan` both mean reasoning lenses
+            // that completed. Lens tags on deterministic providers are
+            // coverage tags only and are reported separately.
             ("lensesRan".into(), json!(execution.lenses_ran)),
+            ("reasoningLensesRan".into(), json!(execution.lenses_ran)),
+            (
+                "selectedReasoningLenses".into(),
+                json!(execution.selected_reasoning_lenses),
+            ),
+            (
+                "reasoningLensesPending".into(),
+                json!(execution
+                    .pending_host
+                    .iter()
+                    .map(|provider| json!({"provider": provider, "status": "pending-host"}))
+                    .collect::<Vec<_>>()),
+            ),
+            (
+                "deterministicLensTagCounts".into(),
+                json!(execution.deterministic_lens_tags),
+            ),
         ]),
         targets: vec![repository_id.to_owned()],
         extensions: BTreeMap::from([
@@ -237,6 +257,9 @@ mod tests {
             results,
             selected_lenses: Vec::new(),
             lenses_ran: Vec::new(),
+            selected_reasoning_lenses: Vec::new(),
+            pending_host: Vec::new(),
+            deterministic_lens_tags: BTreeMap::new(),
             gaps: Vec::new(),
         }
     }

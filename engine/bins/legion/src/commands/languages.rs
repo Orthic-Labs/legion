@@ -1,37 +1,25 @@
-use super::CommandResult;
+use super::{coverage, CommandResult};
 use crate::cli::CommonArgs;
 use serde_json::json;
 
-/// Project the installed provider families as language coverage. Provider
-/// `family` is the native composition's authoritative coverage dimension.
+/// Report the languages and frameworks detected in the working directory from
+/// repository manifests (Cargo.toml, package.json, Package.swift, *.xcodeproj,
+/// pyproject.toml / requirements.txt, go.mod), each with the registry providers
+/// that cover it. An empty list means no recognised manifest was found.
 pub fn run(args: CommonArgs) -> CommandResult {
-    let source: serde_json::Value = serde_json::from_str(PROVIDER_REGISTRY)
-        .map_err(|error| super::CommandError::internal(format!("embedded provider registry invalid: {error}")))?;
-    let provider_ids = source
-        .get("providers")
-        .and_then(serde_json::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter(|provider| provider.get("selectable").and_then(serde_json::Value::as_bool) != Some(false))
-        .filter_map(|provider| provider["id"].as_str())
-        .map(|id| id.strip_prefix("legacy.").unwrap_or(id).to_owned())
-        .collect::<std::collections::BTreeSet<_>>();
-    let languages = [
-        ("framework.react", "framework", ["react.hooks-config"].as_slice()),
-        ("framework.tauri", "framework", ["tauri.capabilities", "tauri.contract-mirror"].as_slice()),
-    ]
-    .into_iter()
-    .map(|(id, kind, providers)| json!({
-        "id": id,
-        "kind": kind,
-        "qualification": "unproven",
-        "providers": providers.iter().filter(|provider| provider_ids.contains(**provider)).collect::<Vec<_>>(),
-    }))
-    .collect::<Vec<_>>();
+    let root = std::env::current_dir().map_err(super::io_error)?;
+    let scan = coverage::scan(&root);
+    let languages = coverage::rows(&scan)?;
     let output = json!({
         "schemaVersion": 1,
         "kind": "legion-languages",
+        "repository": {"root": root},
         "languages": languages,
+        "scan": {
+            "entriesSeen": scan.entries_seen,
+            "entriesTruncated": scan.entries_truncated,
+            "depthLimited": scan.depth_limited,
+        },
     });
     if args.json {
         return Ok(output);
@@ -48,17 +36,8 @@ pub fn run(args: CommonArgs) -> CommandResult {
             )
         })
         .collect::<Vec<_>>();
-    Ok(json!({"json": false, "text": text}))
-}
-
-const PROVIDER_REGISTRY: &str = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/registry/providers.json"));
-
-#[cfg(test)]
-mod tests {
-    use super::PROVIDER_REGISTRY;
-
-    #[test]
-    fn canonical_families_are_projected() {
-        assert!(PROVIDER_REGISTRY.contains("legacy.tauri"));
+    if text.is_empty() {
+        return Ok(json!({"json": false, "text": ["no recognised language or framework manifest found"]}));
     }
+    Ok(json!({"json": false, "text": text}))
 }

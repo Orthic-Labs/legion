@@ -70,12 +70,12 @@ fn output_json(output: &Output) -> Value {
 }
 
 #[test]
-fn root_help_matches_node_usage_surface() {
+fn root_help_is_native_and_lists_commands() {
     let fixture = Fixture::new();
     let output = fixture.run(&["--help"]);
     assert_eq!(output.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("legion <command>"));
+    assert!(stdout.contains("Usage: legion"));
     assert!(stdout.contains("Commands:"));
     assert!(output.stderr.is_empty());
 }

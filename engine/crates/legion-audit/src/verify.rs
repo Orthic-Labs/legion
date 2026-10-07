@@ -33,6 +33,8 @@ pub fn verify_execution(report: &ExecutionReport) -> Result<(), AuditError> {
 }
 
 /// Structural verification never turns an unsigned diagnostic into authenticated evidence.
+/// An unsigned plan runs every provider; the explicit `unsigned-plan` gap is what keeps
+/// the run non-clean, so the report must carry it and must not claim a signature.
 pub fn verify_source_diagnostic(report: &ExecutionReport, plan: &FrozenPlan) -> Result<(), AuditError> {
     if report.plan_signature.is_some() || !report.gaps.iter().any(|gap| gap == "unsigned-plan") {
         return Err(AuditError::Invalid("source diagnostic requires explicit unsigned-plan gap".into()));
@@ -42,15 +44,6 @@ pub fn verify_source_diagnostic(report: &ExecutionReport, plan: &FrozenPlan) -> 
         || report.inventory_digest != plan.plan().inventory_digest
         || report.planned_providers != plan.providers().iter().map(|p| p.id.clone()).collect::<Vec<_>>() {
         return Err(AuditError::Invalid("source diagnostic frozen plan mismatch".into()));
-    }
-    for provider in plan.providers() {
-        if !crate::execution::source_diagnostic_allowed(provider) {
-            let entry = report.results.iter().find(|entry| entry.provider == provider.id);
-            let gap = format!("unsigned-plan-provider-not-executed:{}", provider.id);
-            if !entry.is_some_and(|entry| entry.skipped) || !report.gaps.contains(&gap) {
-                return Err(AuditError::Invalid("source diagnostic executed non-source provider".into()));
-            }
-        }
     }
     verify_execution_structure(report)
 }

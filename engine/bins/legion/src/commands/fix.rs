@@ -11,7 +11,7 @@ pub fn run(args: CommonArgs) -> CommandResult {
         .collect::<Vec<_>>();
     if argv.iter().any(|value| value == "--help") {
         return Ok(json!({
-            "__raw": "Usage: legion fix --plan <sealed-remediation-plan>\n"
+            "__raw": "Usage: legion fix --plan <sealed-remediation-plan>\nValidates the plan digest and shape; it does not apply any change.\n"
         }));
     }
     let plan_index = argv.iter().position(|value| value == "--plan");

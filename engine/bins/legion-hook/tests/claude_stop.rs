@@ -77,3 +77,41 @@ fn claude_classified_mcp_effects_remain_denied() {
         assert_eq!(result["hookSpecificOutput"]["permissionDecision"], "deny");
     }
 }
+
+fn invoke_in(state: &std::path::Path, payload: &Value) -> Value {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_legion-hook"))
+        .env_remove("LEGION_NATIVE_APPLICATION_CONFIG")
+        .env_remove("LEGION_M1_CONFIG")
+        .env("LEGION_STATE_ROOT", state)
+        .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped())
+        .spawn().unwrap();
+    child.stdin.take().unwrap().write_all(payload.to_string().as_bytes()).unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+#[test]
+fn claude_stop_reminds_once_when_edits_have_no_evidence_and_never_blocks() {
+    let state = std::env::temp_dir().join(format!("legion-hook-stop-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&state);
+    let session = "stop-evidence-session";
+    let stop = |text: &str| json!({"hook_event_name":"Stop", "session_id":session,
+        "last_assistant_message":text});
+    // No edits observed: no reminder.
+    let quiet = invoke_in(&state, &stop("Done."));
+    assert!(quiet["systemMessage"].is_null(), "{quiet}");
+    invoke_in(&state, &json!({"hook_event_name":"PostToolUse", "session_id":session,
+        "tool_name":"Edit", "tool_input":{}}));
+    // Evidence present: no reminder.
+    let cited = invoke_in(&state, &stop("Changed src/lib.rs:10, 3 tests passed."));
+    assert!(cited["systemMessage"].is_null(), "{cited}");
+    let reminded = invoke_in(&state, &stop("Done."));
+    assert_eq!(reminded["allowed"], true);
+    assert_ne!(reminded["decision"], "block");
+    assert_eq!(reminded["systemMessage"],
+        "Legion: changes were made but the final message cites no evidence.");
+    let again = invoke_in(&state, &stop("Done."));
+    assert!(again["systemMessage"].is_null(), "{again}");
+    let _ = std::fs::remove_dir_all(&state);
+}

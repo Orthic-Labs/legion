@@ -1,0 +1,76 @@
+# Regenerates every derived artifact that CI checks with --check, formats the
+# Rust workspace, repairs a stale Cargo.lock, and commits the result to main.
+# Manual only. This replaces the recurring temporary lockfile-regen workflows:
+# dispatch this instead of adding a one-off workflow.
+name: legion-regenerate
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: legion-regenerate
+  cancel-in-progress: false
+jobs:
+  private-repo-guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Refuse private repository
+        if: ${{ github.event.repository.private }}
+        run: exit 1
+  regenerate:
+    needs: [private-repo-guard]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: |
+            engine -> target
+          shared-key: legion-rust
+          add-job-id-key: false
+          cache-workspace-crates: false
+          cache-on-failure: true
+      - name: Repair Cargo.lock when stale
+        run: |
+          set -euo pipefail
+          if ! cargo metadata --locked --format-version 1 --manifest-path engine/Cargo.toml > /dev/null; then
+            echo "Cargo.lock is out of date; updating workspace members only."
+            (cd engine && cargo update -w)
+          fi
+      - name: Regenerate derived artifacts
+        run: |
+          set -euo pipefail
+          dev() { cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- "$@"; }
+          dev generate-schemas
+          dev generate-codex-skill-sidecars
+          dev generate-skill-catalog
+          dev generate-host-projection
+          bundles=()
+          for skill_md in skills/*/SKILL.md; do
+            bundles+=("$(basename "$(dirname "$skill_md")")")
+          done
+          dev refresh-local-skill-manifests "${bundles[@]}"
+          dev generate-manifest
+          dev generate-catalogs
+      - name: Format Rust workspace
+        working-directory: engine
+        run: cargo fmt --all
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "Derived artifacts are already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Regenerate derived artifacts" --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push origin HEAD:main

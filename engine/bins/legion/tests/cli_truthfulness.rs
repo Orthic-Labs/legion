@@ -38,12 +38,14 @@ fn bind_explicit_claude_code_is_retired() {
     assert_eq!(claude["retired"], true);
 }
 
-fn hooks_install_reports_unimplemented_surface() {
+#[test]
+fn hooks_install_fails_loudly_instead_of_faking_success() {
     let output = legion(&["--json", "hooks", "install"]);
-    assert_eq!(output.status.code(), Some(0));
-    let value = output_json(&output);
-    assert_eq!(value["kind"], "legion-hooks");
-    assert_eq!(value["implemented"], false);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("not implemented"), "{stderr}");
+    assert!(stderr.contains("git hooks"), "{stderr}");
 }
 
 fn explain_missing_id_is_usage_exit() {
@@ -256,16 +258,14 @@ fn plan_stays_fail_closed_without_native_composition() {
         .is_some_and(|gaps| !gaps.is_empty()));
 }
 
-// Node parity (`src/lib/cli/run.mjs`): `assurance` appears in help but the
-// dispatcher never routed it, so the legacy CLI answered exit 4 on stderr.
-// The native CLI preserves that edge (see the captured
-// `assurance-help` characterization fixture).
+// `assurance` was advertised by the retired Node CLI but never routed. It is no
+// longer a command at all, so it answers like any other unknown command.
 #[test]
-fn assurance_stays_help_only_like_node() {
+fn assurance_is_an_unknown_command() {
     let output = legion(&["assurance", ".", "--json"]);
     assert_eq!(output.status.code(), Some(4));
     assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("unknown command"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unknown command: assurance"));
 }
 
 #[test]

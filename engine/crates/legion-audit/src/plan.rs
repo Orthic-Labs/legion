@@ -60,6 +60,28 @@ pub struct AuditProvider {
     pub required: bool,
 }
 
+impl AuditProvider {
+    /// True when the frozen selector matched nothing in the inventory and the
+    /// selector is not the unconditional `always` selector. Such a provider
+    /// does not apply to this repository: it is excluded from the required
+    /// set and never executed, instead of failing on an empty denominator.
+    pub fn not_applicable(&self) -> bool {
+        self.configuration
+            .get("denominatorCount")
+            .and_then(Value::as_u64)
+            == Some(0)
+            && !self
+                .configuration
+                .get("selector")
+                .is_some_and(selector_is_always)
+    }
+}
+
+fn selector_is_always(selector: &Value) -> bool {
+    selector.as_str() == Some("always")
+        || selector.get("op").and_then(Value::as_str) == Some("always")
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuditPlan {
@@ -250,15 +272,17 @@ impl AuditPlan {
                         serde_json::json!(denominator_count),
                     ),
                 ]);
+                // A provider whose selector matches nothing does not apply to
+                // this repository, so it is never `required`.
+                let applicable = denominator_count > 0 || selector_is_always(&spec.selector);
+                let required = applicable
+                    && spec
+                        .execution
+                        .get("required")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(true);
                 let bounds = BTreeMap::from([
-                    (
-                        "required".into(),
-                        serde_json::json!(spec
-                            .execution
-                            .get("required")
-                            .and_then(Value::as_bool)
-                            .unwrap_or(true)),
-                    ),
+                    ("required".into(), serde_json::json!(required)),
                     ("cleanClaim".into(), serde_json::json!(spec.clean_claim)),
                 ]);
                 Ok::<_, AuditError>(AuditProvider {
@@ -288,11 +312,7 @@ impl AuditPlan {
                         .get("qualificationDigest")
                         .and_then(Value::as_str)
                         .map(ToOwned::to_owned),
-                    required: spec
-                        .execution
-                        .get("required")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(true),
+                    required,
                 })
             })
             .collect::<Result<Vec<_>, AuditError>>()?;

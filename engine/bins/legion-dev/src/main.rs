@@ -36,6 +36,9 @@ enum Command {
     },
     /// Port of `scripts/check-publication-surface.mjs`.
     CheckPublicationSurface,
+    /// Dead-reference gate: skill markdown links, `legion script` names,
+    /// deleted-script mentions, and `hostRequirements` ids.
+    CheckSkillReferences,
     /// Port of `scripts/check-authority-parity.mjs`.
     CheckAuthorityParity,
     /// Grade recorded role decisions against independently labelled replay cases.
@@ -176,6 +179,7 @@ fn main() -> ExitCode {
             checks::version_parity::run(&root, json, stable)
         }
         Command::CheckPublicationSurface => checks::publication_surface::run(&root),
+        Command::CheckSkillReferences => checks::skill_references::run(&root),
         Command::CheckAuthorityParity => checks::authority_parity::run(&root),
         Command::EvaluateAuthorityReplay { cases, observations } => {
             checks::authority_replay::run(&root, &cases, &observations)

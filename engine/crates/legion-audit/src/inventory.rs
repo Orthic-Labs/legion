@@ -121,7 +121,11 @@ impl InventorySource for FilesystemInventorySource {
             entries.push(InventoryEntry {
                 path,
                 symbols: Vec::new(),
-                dependencies: Vec::new(),
+                dependencies: relative
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .map(|name| manifest_dependencies(name, &bytes))
+                    .unwrap_or_default(),
                 package_scripts: if relative.file_name().and_then(|name| name.to_str())
                     == Some("package.json")
                 {
@@ -148,6 +152,204 @@ impl InventorySource for FilesystemInventorySource {
             entries,
         )
     }
+}
+
+/// Dependency names declared by a recognised manifest (`Cargo.toml`,
+/// `package.json`, `pyproject.toml`, `go.mod`, `Package.swift`); empty for any
+/// other file. Sorted and unique, as inventory validation requires. Parsing is
+/// deliberately shallow: names only, no resolution.
+fn manifest_dependencies(file_name: &str, bytes: &[u8]) -> Vec<String> {
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return Vec::new();
+    };
+    let names: BTreeSet<String> = match file_name {
+        "package.json" => package_json_dependencies(text),
+        "Cargo.toml" => cargo_dependencies(text),
+        "pyproject.toml" => pyproject_dependencies(text),
+        "go.mod" => go_mod_dependencies(text),
+        "Package.swift" => swift_package_dependencies(text),
+        _ => BTreeSet::new(),
+    };
+    names.into_iter().collect()
+}
+
+fn package_json_dependencies(text: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    if let Ok(value) = serde_json::from_str::<Value>(text) {
+        for table in [
+            "dependencies",
+            "devDependencies",
+            "peerDependencies",
+            "optionalDependencies",
+        ] {
+            if let Some(object) = value.get(table).and_then(Value::as_object) {
+                names.extend(object.keys().cloned());
+            }
+        }
+    }
+    names
+}
+
+fn dependency_key(raw: &str) -> Option<String> {
+    let name = raw.trim().trim_matches(|c: char| c =='"' || c == '\'').trim();
+    (!name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/' | '@')))
+    .then(|| name.to_owned())
+}
+
+fn cargo_dependencies(text: &str) -> BTreeSet<String> {
+    const KINDS: [&str; 3] = ["dependencies", "dev-dependencies", "build-dependencies"];
+    let mut names = BTreeSet::new();
+    let mut in_dependency_table = false;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            let header = line.trim_start_matches('[').trim_end_matches(']').trim();
+            in_dependency_table = false;
+            for kind in KINDS {
+                let suffix = format!(".{kind}");
+                let infix = format!(".{kind}.");
+                let prefix = format!("{kind}.");
+                if header == kind || header.ends_with(&suffix) {
+                    in_dependency_table = true;
+                } else if let Some(rest) = header.strip_prefix(&prefix) {
+                    names.extend(dependency_key(rest));
+                } else if let Some((_, rest)) = header.split_once(&infix) {
+                    names.extend(dependency_key(rest));
+                }
+            }
+            continue;
+        }
+        if in_dependency_table && !line.starts_with('#') {
+            if let Some((key, _)) = line.split_once('=') {
+                let key = key.trim().split('.').next().unwrap_or_default();
+                names.extend(dependency_key(key));
+            }
+        }
+    }
+    names
+}
+
+fn quoted_strings(line: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut quote: Option<char> = None;
+    let mut text = String::new();
+    for c in line.chars() {
+        match quote {
+            Some(open) if c == open => {
+                found.push(std::mem::take(&mut text));
+                quote = None;
+            }
+            Some(_) => text.push(c),
+            None if c == '"' || c == '\'' => quote = Some(c),
+            None => {}
+        }
+    }
+    found
+}
+
+fn pep508_name(requirement: &str) -> Option<String> {
+    let name = requirement
+        .trim()
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+        .collect::<String>();
+    name.chars()
+        .next()
+        .is_some_and(|first| first.is_ascii_alphanumeric())
+        .then_some(name)
+}
+
+fn pyproject_dependencies(text: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let mut section = String::new();
+    let mut collecting = false;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        if line.starts_with('[') && !collecting {
+            section = line
+                .trim_start_matches('[')
+                .trim_end_matches(']')
+                .trim()
+                .to_owned();
+            continue;
+        }
+        let starts = section == "project"
+            && !collecting
+            && line.split('=').next().map(str::trim) == Some("dependencies")
+            && line.contains('=');
+        let array_section =
+            section == "project.optional-dependencies" || section == "dependency-groups";
+        if starts || collecting || array_section {
+            let body = if starts {
+                line.split_once('=').map_or("", |(_, rest)| rest)
+            } else {
+                line
+            };
+            if !body.contains("include-group") {
+                names.extend(quoted_strings(body).iter().filter_map(|item| pep508_name(item)));
+            }
+            if starts || collecting {
+                collecting = !body.trim_end().trim_end_matches(',').ends_with(']');
+            }
+        } else if section.starts_with("tool.poetry") && section.ends_with("dependencies") {
+            if let Some((key, _)) = line.split_once('=') {
+                if let Some(name) = dependency_key(key).filter(|name| name != "python") {
+                    names.insert(name);
+                }
+            }
+        }
+    }
+    names
+}
+
+fn go_mod_dependencies(text: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let mut in_block = false;
+    for line in text.lines() {
+        let line = line.split("//").next().unwrap_or_default().trim();
+        if in_block {
+            if line == ")" {
+                in_block = false;
+            } else if let Some(module) = line.split_whitespace().next() {
+                names.insert(module.to_owned());
+            }
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix("require") {
+            let rest = rest.trim();
+            if rest.starts_with('(') {
+                in_block = true;
+            } else if let Some(module) = rest.split_whitespace().next() {
+                names.insert(module.to_owned());
+            }
+        }
+    }
+    names
+}
+
+fn swift_package_dependencies(text: &str) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    if let Ok(url) = regex::Regex::new(r#"url:\s*"([^"]+)""#) {
+        for capture in url.captures_iter(text) {
+            let last = capture[1].trim_end_matches('/').rsplit('/').next().unwrap_or_default();
+            let name = last.trim_end_matches(".git");
+            if !name.is_empty() {
+                names.insert(name.to_owned());
+            }
+        }
+    }
+    if let Ok(product) = regex::Regex::new(r#"\.product\(\s*name:\s*"([^"]+)""#) {
+        for capture in product.captures_iter(text) {
+            names.insert(capture[1].to_owned());
+        }
+    }
+    names
 }
 
 /// Paths (relative to `root`, `/`-separated) git treats as part of the
@@ -749,6 +951,70 @@ mod tests {
         assert!(paths.contains(&".gitignore"), "{paths:?}");
         assert!(!paths.iter().any(|path| path.starts_with("dist/")), "{paths:?}");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn manifest_dependencies_are_extracted_sorted_and_unique() {
+        let package = br#"{"dependencies":{"react":"1"},"devDependencies":{"vite":"1","react":"1"}}"#;
+        assert_eq!(manifest_dependencies("package.json", package), ["react", "vite"]);
+
+        let cargo = b"[package]\nname = \"x\"\n[dependencies]\nserde = \"1\"\ntokio = { version = \"1\" }\n[dev-dependencies]\ntempfile.workspace = true\n[dependencies.regex]\nversion = \"1\"\n[workspace.dependencies]\nhex = \"0.4\"\n";
+        assert_eq!(
+            manifest_dependencies("Cargo.toml", cargo),
+            ["hex", "regex", "serde", "tempfile", "tokio"]
+        );
+
+        let pyproject = b"[project]\nname = \"x\"\ndependencies = [\n  \"requests>=2\",\n  \"Flask[async]\",\n]\n[tool.poetry.dependencies]\npython = \"^3.11\"\nnumpy = \"1\"\n";
+        assert_eq!(
+            manifest_dependencies("pyproject.toml", pyproject),
+            ["Flask", "numpy", "requests"]
+        );
+
+        let go_mod = b"module x\n\nrequire github.com/a/b v1.0.0\nrequire (\n\tgithub.com/c/d v2.0.0 // indirect\n)\n";
+        assert_eq!(
+            manifest_dependencies("go.mod", go_mod),
+            ["github.com/a/b", "github.com/c/d"]
+        );
+
+        let swift = b".package(url: \"https://github.com/pointfreeco/swift-composable-architecture.git\", from: \"1.0.0\"),\n.product(name: \"ComposableArchitecture\", package: \"x\")";
+        assert_eq!(
+            manifest_dependencies("Package.swift", swift),
+            ["ComposableArchitecture", "swift-composable-architecture"]
+        );
+
+        assert!(manifest_dependencies("README.md", b"react").is_empty());
+    }
+
+    #[test]
+    fn filesystem_inventory_populates_dependencies_for_any_dependency_selectors() {
+        let root = std::env::temp_dir().join(format!(
+            "legion-inventory-deps-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(
+            root.join("package.json"),
+            r#"{"dependencies":{"react":"18"}}"#,
+        )
+        .unwrap();
+        std::fs::write(root.join("src/app.tsx"), "export const a = 1;\n").unwrap();
+        let inventory = FilesystemInventorySource::new(&root)
+            .unwrap()
+            .inventory("repo")
+            .unwrap();
+        let manifest = inventory
+            .entries
+            .iter()
+            .find(|entry| entry.path == "package.json")
+            .unwrap();
+        assert_eq!(manifest.dependencies, ["react"]);
+        let selected = inventory
+            .denominator_entries(&serde_json::json!({"op":"anyDependency","names":["react"]}))
+            .unwrap();
+        assert_eq!(selected.entries.len(), 1);
+        assert_eq!(selected.entries[0].path, "src/app.tsx");
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

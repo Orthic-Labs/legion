@@ -63,7 +63,7 @@ pub struct ProviderExecution {
     pub skipped: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ExecutionReport {
     pub plan_digest: String,
@@ -72,8 +72,23 @@ pub struct ExecutionReport {
     pub inventory_digest: String,
     pub planned_providers: Vec<String>,
     pub results: Vec<ProviderExecution>,
+    /// Every lens tag carried by a planned provider (reasoning or deterministic).
     pub selected_lenses: Vec<String>,
+    /// Reasoning lenses that actually completed (host-service providers only).
+    /// A lens tag on a deterministic provider is never counted here.
     pub lenses_ran: Vec<String>,
+    /// Lens tags of reasoning providers that apply to this repository.
+    #[serde(default)]
+    pub selected_reasoning_lenses: Vec<String>,
+    /// Reasoning providers whose work is `pending-host`: no reasoning host
+    /// executed them in-process, so the invoking session must run their lens
+    /// packets and ingest the results.
+    #[serde(default)]
+    pub pending_host: Vec<String>,
+    /// Lens tag -> number of completed deterministic providers carrying it.
+    /// Coverage tags only; these are not reasoning lenses.
+    #[serde(default)]
+    pub deterministic_lens_tags: BTreeMap<String, usize>,
     pub gaps: Vec<String>,
 }
 
@@ -81,20 +96,65 @@ fn provider_id(value: &str) -> Result<ProviderId, AuditError> {
     ProviderId::new(value).map_err(AuditError::from)
 }
 
-pub(crate) fn source_diagnostic_allowed(provider: &AuditProvider) -> bool {
-    matches!(
-        provider.kind,
-        crate::plan::ProviderKind::BuiltIn | crate::plan::ProviderKind::RustAlgorithm
-    ) && provider
-        .configuration
-        .get("execution")
-        .and_then(|v| v.get("resourceClaims"))
-        .and_then(Value::as_object)
-        .is_none_or(|claims| {
-            claims.iter().all(|(key, value)| {
-                matches!(key.as_str(), "cpu" | "memoryMb" | "io") || value.as_u64() == Some(0)
-            })
-        })
+fn is_reasoning(provider: &AuditProvider) -> bool {
+    provider.kind == crate::plan::ProviderKind::HostService
+}
+
+fn record_lenses(
+    provider: &AuditProvider,
+    reasoning_ran: &mut Vec<String>,
+    tags: &mut BTreeMap<String, usize>,
+) {
+    if is_reasoning(provider) {
+        reasoning_ran.extend(provider.lens_ids.iter().cloned());
+    } else {
+        for lens in &provider.lens_ids {
+            *tags.entry(lens.clone()).or_insert(0) += 1;
+        }
+    }
+}
+
+fn selected_reasoning_lenses(plan: &FrozenPlan) -> Vec<String> {
+    let mut lenses = plan
+        .providers()
+        .iter()
+        .filter(|provider| is_reasoning(provider) && !provider.not_applicable())
+        .flat_map(|provider| provider.lens_ids.iter().cloned())
+        .collect::<Vec<_>>();
+    lenses.sort();
+    lenses.dedup();
+    lenses
+}
+
+fn is_pending_host(provider: &AuditProvider, result: &ProviderResult) -> bool {
+    is_reasoning(provider)
+        && result.details.get("reasoningHostState").and_then(Value::as_str) == Some("pending-host")
+}
+
+fn not_applicable_execution(provider: &AuditProvider) -> Result<ProviderExecution, AuditError> {
+    Ok(ProviderExecution {
+        provider: provider.id.clone(),
+        skipped: false,
+        result: ProviderResult {
+            schema_version: 1,
+            provider: provider_id(&provider.id)?,
+            applicable: false,
+            required: provider.required,
+            status: ProviderStatus::Ok,
+            complete: false,
+            coverage: None,
+            findings: Vec::new(),
+            coverage_gaps: Vec::new(),
+            degradation: Vec::new(),
+            details: BTreeMap::from([
+                ("notApplicable".to_owned(), Value::Bool(true)),
+                (
+                    "notApplicableReason".to_owned(),
+                    Value::String("selector-denominator-empty".into()),
+                ),
+            ]),
+        },
+    })
 }
 
 pub fn execute(
@@ -125,7 +185,10 @@ pub fn execute(
         .collect::<Vec<_>>();
     selected_lenses.sort();
     selected_lenses.dedup();
+    let selected_reasoning = selected_reasoning_lenses(plan);
     let mut lenses_ran = Vec::new();
+    let mut pending_host = Vec::new();
+    let mut deterministic_lens_tags = BTreeMap::new();
     let planned_providers = plan
         .providers()
         .iter()
@@ -150,12 +213,13 @@ pub fn execute(
             .dependencies
             .iter()
             .any(|dependency| !completed.contains(dependency) || failed.contains(dependency));
-        let source_only = source_diagnostic_allowed(provider);
-        let execution = if plan.signature().is_none() && !source_only {
-            let gap = format!("unsigned-plan-provider-not-executed:{}", provider.id);
-            gaps.push(gap.clone());
-            failed.insert(provider.id.clone());
-            failed_execution(provider, gap, "unsigned-source-diagnostic-only", true)?
+        // An unsigned plan still runs every provider; its only consequence is
+        // the `unsigned-plan` gap recorded above, which keeps the verdict
+        // non-clean. Providers that do not apply to this repository are
+        // reported not-applicable, not failed.
+        let execution = if provider.not_applicable() {
+            completed.insert(provider.id.clone());
+            not_applicable_execution(provider)?
         } else if blocked {
             let gap = format!("dependency-failed:{}", provider.id);
             gaps.push(gap.clone());
@@ -199,11 +263,15 @@ pub fn execute(
                         && matches!(result.status, ProviderStatus::Ok | ProviderStatus::Complete)
                     {
                         completed.insert(provider.id.clone());
-                        lenses_ran.extend(provider.lens_ids.iter().cloned());
+                        record_lenses(provider, &mut lenses_ran, &mut deterministic_lens_tags);
                     } else {
                         failed.insert(provider.id.clone());
                         gaps.push(format!("provider-incomplete:{}", provider.id));
                         gaps.extend(result.coverage_gaps.iter().cloned());
+                        if is_pending_host(provider, &result) {
+                            gaps.push(format!("reasoning-lens-pending-host:{}", provider.id));
+                            pending_host.push(provider.id.clone());
+                        }
                     }
                     ProviderExecution {
                         provider: provider.id.clone(),
@@ -220,7 +288,8 @@ pub fn execute(
             }
         };
         results.push(execution);
-        if provider.benchmark_required_for_clean_claim
+        if !provider.not_applicable()
+            && provider.benchmark_required_for_clean_claim
             && (provider.benchmark_status != "qualified" || provider.qualification_digest.is_none())
         {
             gaps.push(format!("provider-unqualified:{}", provider.id));
@@ -230,7 +299,7 @@ pub fn execute(
     gaps.dedup();
     lenses_ran.sort();
     lenses_ran.dedup();
-    if lenses_ran != selected_lenses {
+    if lenses_ran != selected_reasoning {
         gaps.push("selected reasoning lenses did not complete".into());
     }
     gaps.sort();
@@ -244,6 +313,9 @@ pub fn execute(
         results,
         selected_lenses,
         lenses_ran,
+        selected_reasoning_lenses: selected_reasoning,
+        pending_host,
+        deterministic_lens_tags,
         gaps,
     })
 }
@@ -279,7 +351,10 @@ pub async fn execute_with_cancellation(
         .collect::<Vec<_>>();
     selected_lenses.sort();
     selected_lenses.dedup();
+    let selected_reasoning = selected_reasoning_lenses(plan);
     let mut lenses_ran = Vec::new();
+    let mut pending_host = Vec::new();
+    let mut deterministic_lens_tags = BTreeMap::new();
     let planned_providers = plan
         .providers()
         .iter()
@@ -301,12 +376,13 @@ pub async fn execute_with_cancellation(
             .dependencies
             .iter()
             .any(|d| !completed.contains(d) || failed.contains(d));
-        let source_only = source_diagnostic_allowed(provider);
-        let execution = if plan.signature().is_none() && !source_only {
-            let gap = format!("unsigned-plan-provider-not-executed:{}", provider.id);
-            gaps.push(gap.clone());
-            failed.insert(provider.id.clone());
-            failed_execution(provider, gap, "unsigned-source-diagnostic-only", true)?
+        // An unsigned plan still runs every provider; its only consequence is
+        // the `unsigned-plan` gap recorded above, which keeps the verdict
+        // non-clean. Providers that do not apply to this repository are
+        // reported not-applicable, not failed.
+        let execution = if provider.not_applicable() {
+            completed.insert(provider.id.clone());
+            not_applicable_execution(provider)?
         } else if blocked {
             let gap = format!("dependency-failed:{}", provider.id);
             gaps.push(gap.clone());
@@ -350,11 +426,15 @@ pub async fn execute_with_cancellation(
                             )
                         {
                             completed.insert(provider.id.clone());
-                            lenses_ran.extend(provider.lens_ids.iter().cloned());
+                            record_lenses(provider, &mut lenses_ran, &mut deterministic_lens_tags);
                         } else {
                             failed.insert(provider.id.clone());
                             gaps.push(format!("provider-incomplete:{}", provider.id));
                             gaps.extend(result.coverage_gaps.iter().cloned());
+                            if is_pending_host(provider, &result) {
+                                gaps.push(format!("reasoning-lens-pending-host:{}", provider.id));
+                                pending_host.push(provider.id.clone());
+                            }
                         }
                         ProviderExecution {
                             provider: provider.id.clone(),
@@ -372,7 +452,8 @@ pub async fn execute_with_cancellation(
             }
         };
         results.push(execution);
-        if provider.benchmark_required_for_clean_claim
+        if !provider.not_applicable()
+            && provider.benchmark_required_for_clean_claim
             && (provider.benchmark_status != "qualified" || provider.qualification_digest.is_none())
         {
             gaps.push(format!("provider-unqualified:{}", provider.id));
@@ -382,7 +463,7 @@ pub async fn execute_with_cancellation(
     gaps.dedup();
     lenses_ran.sort();
     lenses_ran.dedup();
-    if lenses_ran != selected_lenses {
+    if lenses_ran != selected_reasoning {
         gaps.push("selected reasoning lenses did not complete".into());
     }
     gaps.sort();
@@ -396,6 +477,9 @@ pub async fn execute_with_cancellation(
         results,
         selected_lenses,
         lenses_ran,
+        selected_reasoning_lenses: selected_reasoning,
+        pending_host,
+        deterministic_lens_tags,
         gaps,
     })
 }

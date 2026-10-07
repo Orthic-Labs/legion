@@ -1256,7 +1256,17 @@ fn read_denominator(input: &LegacyCheckInput) -> (Vec<(InventoryEntry, String)>,
             // Only text counts toward the source budget: binary assets
             // (images, fonts, models) are rejected here anyway, and letting
             // them consume the budget first starved real source files.
-            let text = String::from_utf8(bytes).map_err(|_| String::from("source-invalid-utf8"))?;
+            let text = match String::from_utf8(bytes) {
+                Ok(text) => text,
+                Err(error) => {
+                    // A binary asset is accounted as examined but contributes no
+                    // text and no gap. Only a non-UTF-8 source file stays a gap.
+                    if entry.source_file && !error.as_bytes().contains(&0) {
+                        return Err(String::from("source-invalid-utf8"));
+                    }
+                    String::new()
+                }
+            };
             total = total.saturating_add(text.len() as u64);
             if total > MAX_TOTAL_BYTES {
                 return Err("source-total-byte-limit".into());

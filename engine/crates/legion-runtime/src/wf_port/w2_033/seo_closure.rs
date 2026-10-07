@@ -1,5 +1,7 @@
-//! Rust port of `skills/seo/scripts/seo_closure.py`: the static closure gate for Legion
-//! SEO implementation coverage.
+//! Rust port of the SEO closure gate (formerly `skills/seo/scripts/seo_closure.py`): the static
+//! closure gate for Legion SEO implementation coverage. Controls name `legion script seo/<stem>`
+//! entries; the gate checks those entries against [`NATIVE_ENTRIES`] (the `seo/*` rows of the
+//! `legion script` dispatch table) rather than any on-disk script files.
 //!
 //! `seo_closure.py` is a repository-structure closure gate: it walks the live `skills/seo`
 //! tree, reads several JSON config files and markdown references, and cross-checks them
@@ -127,13 +129,53 @@ pub fn missing_required<'a>(required: &BTreeSet<&'a str>, present: &BTreeSet<Str
         .collect()
 }
 
-const REQUIRED_SCRIPTS: &[&str] = &[
-    "site_audit.py", "gsc_query.py", "gsc_query_v2.py", "gsc_inspect.py", "ga4_report.py",
-    "pagespeed_check.py", "crux_history.py", "ai_visibility_import.py",
-    "templated_metadata.py", "search_ops.py", "seo_project.py", "provider_registry.py",
-    "query_ownership.py", "question_inventory.py", "rank_tracker.py", "coverage.py",
-    "contracts.py", "checklist_compiler.py", "seo_closure.py",
+/// Stems of every `seo/*` row in the `legion script` dispatch table
+/// (`engine/bins/legion/src/commands/script.rs`). The `script_cli` integration test asserts this
+/// list and `legion script --list` agree.
+pub const NATIVE_ENTRIES: &[&str] = &[
+    "ai_visibility_import", "analyze_visual", "banana-cost-tracker", "banana-generate",
+    "banana-presets", "bing_webmaster", "capture_screenshot", "checklist_compiler", "contracts",
+    "coverage", "crux_history", "edit", "fetch_page", "ga4_report", "google_auth", "google_report",
+    "gsc_inspect", "gsc_query", "gsc_query_v2", "indexing_notify", "indexnow", "keyword_planner",
+    "nlp_analyze", "page_engine", "pagespeed_check", "parse_html", "provider_registry",
+    "query_ownership", "question_inventory", "rank_tracker", "render_gap", "search_ops",
+    "seo_closure", "seo_project", "site_audit", "source_freshness", "templated_metadata",
+    "validate-schema", "youtube_search",
 ];
+/// `legion script` entries the SEO closure contract requires (replaces the deleted `.py` set).
+const REQUIRED_ENTRIES: &[&str] = &[
+    "site_audit", "gsc_query", "gsc_query_v2", "gsc_inspect", "ga4_report",
+    "pagespeed_check", "crux_history", "ai_visibility_import",
+    "templated_metadata", "search_ops", "seo_project", "provider_registry",
+    "query_ownership", "question_inventory", "rank_tracker", "coverage",
+    "contracts", "checklist_compiler", "seo_closure",
+];
+
+/// Appends the text of every `.md` file under `dir` (recursively) to `out`.
+fn collect_markdown(dir: &Path, out: &mut String) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_markdown(&path, out);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                out.push('\n');
+                out.push_str(&text);
+            }
+        }
+    }
+}
+
+/// Normalizes a control's script reference (`legion script seo/x`, `seo/x`) to the stem `x`.
+fn entry_stem(reference: &str) -> Option<&str> {
+    let trimmed = reference.trim();
+    let name = trimmed.strip_prefix("legion script ").unwrap_or(trimmed).trim();
+    name.strip_prefix("seo/")
+}
+
 const REQUIRED_REFS: &[&str] = &[
     "manual.md", "operations.md", "ai-search-2026.md", "geo.md", "technical.md",
     "page.md", "schema.md", "sitemap.md", "images.md", "local.md", "hreflang.md",
@@ -142,7 +184,6 @@ const REQUIRED_REFS: &[&str] = &[
     "openseo-absorption.md", "free-data-sources.md", "quality-gates.md",
 ];
 const REQUIRED_TEST_FILES: &[&str] = &[
-    "test_seo_kernel.py", "test_seo_governance.py", "test_provider_replay.py",
     "fixtures/gsc_rows.json", "fixtures/gsc_replay.json", "fixtures/ai_google.csv",
     "fixtures/ai_bing.csv", "fixtures/badseo/noindex.html", "fixtures/badseo/clean.html",
 ];
@@ -157,8 +198,9 @@ const REQUIRED_CRITICAL_GATES: &[&str] = &[
     "measurement-integrity", "deployment-verification", "authority-boundary",
 ];
 const ROUTER_REQUIRED: &[&str] = &[
-    "workflow-packs.md", "seo_project.py", "provider_registry.py", "gsc_query_v2.py",
-    "ai_visibility_import.py", "search_ops.py", "coverage.py", "seo_closure.py",
+    "workflow-packs.md", "legion script seo/seo_project", "legion script seo/provider_registry",
+    "legion script seo/gsc_query_v2", "legion script seo/ai_visibility_import",
+    "legion script seo/search_ops", "legion script seo/coverage", "legion script seo/seo_closure",
 ];
 
 fn set_of(items: &[&str]) -> BTreeSet<String> {
@@ -269,17 +311,36 @@ pub fn check(seo_root: &Path) -> ClosureResult {
         }
         for script in p.get("scripts").and_then(|v| v.as_array()).into_iter().flatten() {
             if let Some(name) = script.as_str() {
-                if !seo_root.join("scripts").join(name).exists() {
-                    errors.push(format!("phase {pid} script missing: {name}"));
+                match entry_stem(name) {
+                    Some(stem) if NATIVE_ENTRIES.contains(&stem) => {}
+                    _ => errors.push(format!("phase {pid} names a `legion script` entry that does not exist: {name}")),
                 }
             }
         }
     }
 
-    let scripts_dir = seo_root.join("scripts");
-    for name in REQUIRED_SCRIPTS {
-        if !scripts_dir.join(name).exists() {
-            errors.push(format!("required SEO implementation script missing: {name}"));
+    for name in REQUIRED_ENTRIES {
+        if !NATIVE_ENTRIES.contains(name) {
+            errors.push(format!("required SEO `legion script` entry missing: seo/{name}"));
+        }
+    }
+    // Every control that names an entry must also be reachable from the router.
+    let router_text = std::fs::read_to_string(seo_root.join("SKILL.md")).unwrap_or_default();
+    let mut referenced: BTreeSet<String> = BTreeSet::new();
+    for p in &phases_json {
+        for script in p.get("scripts").and_then(|v| v.as_array()).into_iter().flatten() {
+            if let Some(stem) = script.as_str().and_then(entry_stem) {
+                referenced.insert(stem.to_string());
+            }
+        }
+    }
+    let mut skill_text = router_text;
+    collect_markdown(&seo_root.join("references"), &mut skill_text);
+    for stem in &referenced {
+        if !skill_text.contains(&format!("seo/{stem}")) {
+            errors.push(format!(
+                "control entry `legion script seo/{stem}` is not referenced from SKILL.md or references/"
+            ));
         }
     }
     let refs_dir = seo_root.join("references");
@@ -425,23 +486,6 @@ pub fn check(seo_root: &Path) -> ClosureResult {
         }
     }
 
-    let legacy = scripts_dir.join("gsc_query.py");
-    if legacy.exists() {
-        if let Ok(text) = std::fs::read_to_string(&legacy) {
-            if !text.to_lowercase().contains("dimensionless") || !text.contains("gsc_query_v2") {
-                errors.push("legacy gsc_query.py does not delegate to provenance-safe v2 aggregate semantics".to_string());
-            }
-        }
-    }
-
-    let test_runner = repo_root.join("scripts").join("test-python.mjs");
-    let runner_ok = test_runner.exists()
-        && std::fs::read_to_string(&test_runner)
-            .map(|t| t.contains("skills/seo/tests"))
-            .unwrap_or(false);
-    if !runner_ok {
-        errors.push("SEO Python regression suite is not wired into repository Python CI".to_string());
-    }
     let notices = repo_root.join("docs").join("THIRD_PARTY_NOTICES.md");
     let notices_ok = notices.exists()
         && std::fs::read_to_string(&notices)

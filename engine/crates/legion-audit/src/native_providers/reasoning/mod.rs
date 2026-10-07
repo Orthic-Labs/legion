@@ -285,6 +285,13 @@ impl ReasoningProviderExecutor {
             )));
         }
         let denominator = reasoning_denominator(plan, provider, inventory)?;
+        // No in-process reasoning host: the lens is `pending-host` work for the
+        // invoking session (see `pending_lens_work`). This is decided before the
+        // signed-invocation envelope is built, because an unsigned plan cannot
+        // form one and must still report the work as pending, not as an error.
+        if self.host.is_none() {
+            return pending_host_result(provider, &denominator);
+        }
         let request = build_invocation(
             plan,
             provider,
@@ -731,6 +738,84 @@ pub fn verify_authenticated_receipt(receipt: &ReasoningReceipt, key: &[u8]) -> R
         hex::decode(presented).map_err(|_| "reasoning receipt MAC is not hex".to_owned())?;
     mac.verify_slice(&presented)
         .map_err(|_| "reasoning receipt MAC verification failed".to_owned())
+}
+
+/// Result for a reasoning provider no in-process host can execute. The work is
+/// not failed: it is `pending-host`, to be run by the invoking session from the
+/// emitted lens packet. It is never complete and never clean.
+fn pending_host_result(
+    provider: &AuditProvider,
+    denominator: &InventoryDenominator,
+) -> Result<ProviderResult, AuditError> {
+    let mut result = failure_result(
+        provider,
+        denominator,
+        "reasoning-host-unavailable",
+        "host-unavailable",
+    )?;
+    result.status = ProviderStatus::Partial;
+    result.degradation.push("pending-host".into());
+    result.details.insert(
+        "reasoningHostState".into(),
+        Value::String("pending-host".into()),
+    );
+    result.details.insert(
+        "workItem".into(),
+        json!({
+            "status": "pending-host",
+            "provider": provider.id,
+            "lensIds": provider.lens_ids,
+            "denominatorCount": denominator.entries.len(),
+        }),
+    );
+    Ok(result)
+}
+
+/// One lens packet awaiting execution by the host session.
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingLensWork {
+    pub provider_id: String,
+    pub lens_ids: Vec<String>,
+    pub status: String,
+    pub request: ReasoningInvocation,
+}
+
+/// Builds the `pending-host` work items for every reasoning provider of the
+/// plan that applies to the repository: each carries the full invocation
+/// packet (lens plan, scoped excerpts, trigger evidence, report schema) that a
+/// subagent executes. Works for signed and unsigned plans; the packet binds the
+/// plan digest and, when present, the signature.
+pub fn pending_lens_work(
+    root: &Path,
+    plan: &FrozenPlan,
+    inventory: &InventoryEnvelope,
+) -> Result<Vec<PendingLensWork>, AuditError> {
+    let mut work = Vec::new();
+    for provider in plan.providers() {
+        if provider.kind != ProviderKind::HostService
+            || !REASONING_PROVIDER_IDS.contains(&provider.id.as_str())
+            || provider.not_applicable()
+        {
+            continue;
+        }
+        let denominator = reasoning_denominator(plan, provider, inventory)?;
+        let request = build_invocation(
+            plan,
+            provider,
+            inventory,
+            &denominator,
+            "pending-host",
+            root,
+        )?;
+        work.push(PendingLensWork {
+            provider_id: provider.id.clone(),
+            lens_ids: provider.lens_ids.clone(),
+            status: "pending-host".into(),
+            request,
+        });
+    }
+    Ok(work)
 }
 
 fn failure_result(

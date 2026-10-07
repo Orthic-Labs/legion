@@ -817,3 +817,98 @@ fn native_script_continuity_roundtrip_and_tamper_rejection() {
     assert_eq!(std::fs::read(&source).unwrap(), original_source);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// Previously library-only ports are reachable through `legion script`.
+#[test]
+fn native_script_list_includes_wired_library_ports() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "--list"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let value: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let scripts: Vec<&str> = value["scripts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    for name in [
+        "coder/enforce_cheap_review_routing",
+        "designer/add-music",
+        "designer/convert-formats",
+        "dispatch/validate-route",
+        "seo/ai_visibility_import",
+        "seo/checklist_compiler",
+        "seo/contracts",
+        "seo/coverage",
+        "seo/page_engine",
+        "seo/source_freshness",
+        "seo/validate-schema",
+        "seo/analyze_visual",
+        "seo/capture_screenshot",
+    ] {
+        assert!(scripts.contains(&name), "expected {name} in {scripts:?}");
+    }
+}
+
+#[test]
+fn native_script_seo_coverage_reports_pass_and_fail() {
+    let dir = std::env::temp_dir().join(format!("legion-seo-coverage-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let pass = dir.join("pass.json");
+    std::fs::write(&pass, r#"[{"id":"a","status":"pass"}]"#).unwrap();
+    let ok = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "seo/coverage", pass.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert_eq!(ok.status.code(), Some(0), "{ok:?}");
+    let fail = dir.join("fail.json");
+    std::fs::write(&fail, r#"[{"id":"a","status":"fail","critical":true}]"#).unwrap();
+    let bad = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "seo/coverage", fail.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert_eq!(bad.status.code(), Some(1), "{bad:?}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The SEO closure gate's entry list must match the dispatch table's `seo/*` rows, and every
+/// `legion script` entry named by the control catalog must be listed.
+#[test]
+fn seo_closure_native_entries_match_script_list_and_catalog() {
+    let output = Command::new(env!("CARGO_BIN_EXE_legion"))
+        .args(["script", "--list"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let value: serde_json::Value = serde_json::from_str(stdout.trim()).unwrap();
+    let mut listed: Vec<String> = value["scripts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(|v| v.as_str())
+        .filter_map(|v| v.strip_prefix("seo/"))
+        .map(str::to_string)
+        .collect();
+    listed.sort();
+    let mut gate: Vec<String> = legion_runtime::wf_port::w2_033::seo_closure::NATIVE_ENTRIES
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    gate.sort();
+    assert_eq!(listed, gate, "seo_closure::NATIVE_ENTRIES drifted from the dispatch table");
+
+    let catalog = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../skills/seo/config/control-catalog.json");
+    if let Ok(text) = std::fs::read_to_string(&catalog) {
+        let catalog: serde_json::Value = serde_json::from_str(&text).unwrap();
+        for phase in catalog["phases"].as_array().into_iter().flatten() {
+            for script in phase["scripts"].as_array().into_iter().flatten() {
+                let name = script.as_str().unwrap().trim_start_matches("legion script ");
+                assert!(listed.iter().any(|l| format!("seo/{l}") == name), "catalog names unknown entry {name}");
+            }
+        }
+    }
+}

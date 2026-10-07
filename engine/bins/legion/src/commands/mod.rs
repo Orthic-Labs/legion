@@ -1,4 +1,3 @@
-pub mod assurance;
 pub mod apple;
 pub mod audit;
 pub mod completion;
@@ -34,6 +33,7 @@ pub mod setup;
 pub mod skills;
 pub mod state;
 pub mod topology;
+pub mod coverage;
 pub mod languages;
 pub mod verify;
 use legion_audit::InventorySource as _;

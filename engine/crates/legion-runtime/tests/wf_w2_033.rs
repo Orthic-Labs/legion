@@ -6,7 +6,9 @@ use legion_runtime::wf_port::w2_033::search_ops::{
     brief, deploy, outcome, start, verify, Deployment, Evaluation, Intervention, Outcome,
     SearchOpsState, SCHEMA_VERSION,
 };
-use legion_runtime::wf_port::w2_033::seo_closure::{check, headings, run as seo_closure_run, validate_phases, PhaseRange};
+use legion_runtime::wf_port::w2_033::seo_closure::{
+    check, headings, run as seo_closure_run, validate_phases, PhaseRange, NATIVE_ENTRIES,
+};
 use legion_runtime::wf_port::w2_033::seo_project::{
     cache_get, cache_key, cache_put, doctor, env_state, load_site, preflight, run as seo_project_run,
     setup_project, PlannedCall,
@@ -192,4 +194,42 @@ fn seo_closure_check_walks_missing_root_and_reports_fail() {
     // whether `<cwd>/skills/seo` exists there, and must return a valid exit status.
     let code = seo_closure_run(&args);
     assert!(code == 0 || code == 1);
+}
+
+/// The closure gate validates `legion script seo/...` entries, never deleted `.py` files.
+#[test]
+fn seo_closure_gate_checks_native_entries_not_python_files() {
+    let root = unique_temp_dir("closure-entries");
+    std::fs::create_dir_all(root.join("config")).unwrap();
+    let phases: Vec<serde_json::Value> = (1..=30)
+        .map(|id| {
+            json!({
+                "id": id,
+                "source_lines": [74 + (id - 1) * 5, 78 + (id - 1) * 5],
+                "owners": ["references/operations.md"],
+                "scripts": if id == 1 { json!(["legion script seo/not_a_real_entry"]) } else { json!(["legion script seo/coverage"]) },
+            })
+        })
+        .collect();
+    let catalog = json!({
+        "statuses": ["pass", "partial", "fail", "na", "not_testable"],
+        "critical_gates": [],
+        "source_line_count": 223,
+        "phases": phases,
+        "workflow_packs": [],
+    });
+    std::fs::write(root.join("config/control-catalog.json"), catalog.to_string()).unwrap();
+    let result = check(&root);
+    assert!(
+        result.errors.iter().any(|e| e.contains("seo/not_a_real_entry")),
+        "unknown entry must be reported: {:?}",
+        result.errors
+    );
+    assert!(
+        !result.errors.iter().any(|e| e.contains(".py") || e.contains("test-python")),
+        "gate must not require Python files: {:?}",
+        result.errors
+    );
+    assert!(NATIVE_ENTRIES.contains(&"coverage"));
+    assert!(NATIVE_ENTRIES.contains(&"validate-schema"));
 }

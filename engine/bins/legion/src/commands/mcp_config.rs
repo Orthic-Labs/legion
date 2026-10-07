@@ -11,13 +11,20 @@ pub fn run(args: CommonArgs) -> CommandResult {
     let action = argv.first().map(String::as_str);
     match action {
         Some("print-config") => {
+            let mut tools = vec!["legion_m1_status".to_owned(), "legion_m1_invoke".to_owned()];
+            tools.extend(
+                crate::apple_mcp::tool_definitions()
+                    .iter()
+                    .filter_map(|tool| tool.get("name").and_then(serde_json::Value::as_str))
+                    .map(str::to_owned),
+            );
             Ok(json!({
                 "schemaVersion": 1,
                 "kind": "legion-mcp-config",
                 "transport": "stdio",
                 "command": "legion",
                 "args": ["serve", "--stdio"],
-                "tools": ["legion_m1_status", "legion_m1_invoke"],
+                "tools": tools,
                 "implemented": true,
             }))
         }
@@ -28,9 +35,10 @@ pub fn run(args: CommonArgs) -> CommandResult {
             "wouldWrite": "unspecified MCP client config",
             "config": mcp_install_config(),
             "dryRun": true,
+            "note": "preview only: nothing was written. Merge `config` into your MCP client config yourself; `legion mcp install` without --preview is not implemented.",
         })),
         _ => Err(CommandError::usage(
-            "mcp requires print-config or install --preview",
+            "mcp requires print-config or install --preview (install without --preview is not implemented)",
         )),
     }
 }

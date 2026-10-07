@@ -97,24 +97,13 @@ fn absent_external_evidence_is_a_typed_blocker_and_never_a_fabricated_pass() {
 }
 
 #[test]
-fn m2_mechanical_adapters_delegate_to_installed_native_commands_without_source_paths() {
+fn m2_plugin_hook_delegates_to_installed_native_command_without_source_paths() {
     let arcane_hook = include_str!("../../hooks/hooks.json");
     assert!(arcane_hook.contains("\"command\": \"legion-hook\""));
     for forbidden in ["/src/", "../src/", "server.mjs", "node "] {
         assert!(
             !arcane_hook.contains(forbidden),
             "arcane hook contains {forbidden}"
-        );
-    }
-
-    let hooks = include_str!("../../src/integrations/hooks/index.mjs");
-    for hook in ["PRE_COMMIT_HOOK", "PRE_PUSH_HOOK"] {
-        assert!(hooks.contains(hook));
-    }
-    for forbidden in ["npx", "python", "@orthic-labs/legion"] {
-        assert!(
-            !hooks.contains(forbidden),
-            "generated hooks contain {forbidden}"
         );
     }
 }

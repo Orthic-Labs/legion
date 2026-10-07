@@ -17,6 +17,59 @@ jobs:
       - name: Refuse private repository
         if: ${{ github.event.repository.private }}
         run: exit 1
+  lint:
+    # Fast format and lint gate. The full validation job stays on Windows;
+    # this job only runs fmt and clippy. Warnings are allowed for now, but
+    # clippy::correctness findings and any rustfmt drift fail the build.
+    needs: [private-repo-guard]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: |
+            engine -> target
+          shared-key: legion-rust-lint
+          add-job-id-key: false
+          cache-workspace-crates: false
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'pull_request' }}
+      - name: Check formatting
+        working-directory: engine
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        working-directory: engine
+        run: cargo clippy --workspace --all-targets --locked -- -A warnings -D clippy::correctness
+  bench:
+    # Planted-defect recall gate. Provisions the external scanners so a
+    # tool-missing class fails instead of skipping green.
+    needs: [private-repo-guard]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@f8be11a05b1d4f3fcebe6410cc16743212b999b0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: |
+            engine -> target
+          shared-key: legion-rust-bench
+          add-job-id-key: false
+          cache-workspace-crates: false
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'pull_request' }}
+      - name: Install scanners
+        run: |
+          set -euo pipefail
+          GL=8.28.0
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GL}/gitleaks_${GL}_linux_x64.tar.gz" | sudo tar -xz -C /usr/local/bin gitleaks
+          npm install -g knip jscpd typescript
+          gitleaks version; knip --version; jscpd --version; tsc --version
+      - name: Bench recall
+        working-directory: engine
+        run: cargo test --locked -p legion-audit --test bench_recall -- --ignored --nocapture
   ci:
     needs: [private-repo-guard]
     strategy:

@@ -65,16 +65,58 @@ fn json(output: &Output) -> Value {
     })
 }
 
+const ROOT_COMMANDS: &[&str] = &[
+    "apple", "status", "serve", "init", "doctor", "bind", "inspect", "targets", "components",
+    "stacks", "controls", "governance", "skills", "languages", "providers", "rules", "schedule",
+    "plan", "audit", "verify", "explain", "report", "fix", "hooks", "mcp", "run", "budget",
+    "contract", "completion", "host", "harness", "authority", "state", "minimize", "catalog",
+    "policy", "decision", "handoff", "research", "review", "setup", "script",
+];
+
 #[test]
-fn audit_help_preserves_node_usage_error_contract() {
+fn every_command_answers_help_natively() {
     let fixture = Fixture::new();
-    let output = fixture.run(&["audit", "--help"]);
+    for command in ROOT_COMMANDS {
+        let output = fixture.run(&[command, "--help"]);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(0), "{command} --help: {stderr}");
+        assert!(
+            stdout.contains(&format!("Usage: legion {command}")),
+            "{command} --help lacks a usage line: {stdout}"
+        );
+        assert!(stderr.is_empty(), "{command} --help wrote to stderr: {stderr}");
+        assert!(!stdout.contains("Unknown option"), "{command}: {stdout}");
+    }
+}
+
+#[test]
+fn root_help_lists_every_command_with_a_description() {
+    let fixture = Fixture::new();
+    let output = fixture.run(&["--help"]);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for command in ROOT_COMMANDS {
+        let line = stdout
+            .lines()
+            .find(|line| line.split_whitespace().next() == Some(*command))
+            .unwrap_or_else(|| panic!("root help omits {command}: {stdout}"));
+        assert!(
+            line.split_whitespace().count() > 1,
+            "root help gives {command} no description: {line}"
+        );
+    }
+    assert!(!stdout.contains("assurance"));
+}
+
+#[test]
+fn unknown_top_level_option_has_no_node_stack_trace() {
+    let fixture = Fixture::new();
+    let output = fixture.run(&["--wat"]);
     assert_eq!(output.status.code(), Some(4));
-    assert!(output.stdout.is_empty());
-    assert_eq!(
-        String::from_utf8_lossy(&output.stderr),
-        "Unknown option '--help'. To specify a positional argument starting with a '-', place it at the end of the command after '--', as in '-- \"--help\"\n"
-    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Unknown option '--wat'"));
+    assert!(!stderr.contains("run.mjs") && !stderr.contains("node:internal"));
 }
 
 #[test]
