@@ -42,19 +42,19 @@ Run this internally after the growth lever is identified and before producing th
 
 | Reference | Role pass |
 |---|---|
-| `ab-test/reference.md` | Experiment designer, statistician, product owner, implementation skeptic |
-| `analytics/reference.md` | Tracking architect, analyst, decision maker, data-quality skeptic |
-| `lead-magnets/reference.md` | Offer strategist, audience pain miner, distribution lead, conversion writer |
-| `pricing/reference.md` | Finance lead, customer psychologist, competitor analyst, simplicity advocate |
-| `referral/reference.md` | Incentive designer, fraud skeptic, lifecycle marketer, product-fit lead |
-| `community/reference.md` | Community builder, member advocate, ritual designer, health-metrics lead |
-| `partnerships/reference.md` | Partner strategist, audience-overlap analyst, offer matcher, ops skeptic |
-| `revops/reference.md` | CRM operator, sales lead, data hygiene lead, process simplifier |
-| `sales-enablement/reference.md` | Sales manager, buyer skeptic, proof builder, enablement operator |
-| `content-performance/reference.md` | Analyst, editor, SEO/social strategist, repurposing lead |
-| `operator-content-os/reference.md` | Operator, media-team lead, systems designer, leverage skeptic |
-| `gtm-audit.md` | GTM strategist, distribution skeptic, narrative critic, channel prioritizer |
-| `telemetry-audit.md` | Data architect, activation auditor, PII watchdog, dashboard designer |
+| `references/ab-test/reference.md` | Experiment designer, statistician, product owner, implementation skeptic |
+| `references/analytics/reference.md` | Tracking architect, analyst, decision maker, data-quality skeptic |
+| `references/lead-magnets/reference.md` | Offer strategist, audience pain miner, distribution lead, conversion writer |
+| `references/pricing/reference.md` | Finance lead, customer psychologist, competitor analyst, simplicity advocate |
+| `references/referral/reference.md` | Incentive designer, fraud skeptic, lifecycle marketer, product-fit lead |
+| `references/community/reference.md` | Community builder, member advocate, ritual designer, health-metrics lead |
+| `references/partnerships/reference.md` | Partner strategist, audience-overlap analyst, offer matcher, ops skeptic |
+| `references/revops/reference.md` | CRM operator, sales lead, data hygiene lead, process simplifier |
+| `references/sales-enablement/reference.md` | Sales manager, buyer skeptic, proof builder, enablement operator |
+| `references/content-performance/reference.md` | Analyst, editor, SEO/social strategist, repurposing lead |
+| `references/operator-content-os/reference.md` | Operator, media-team lead, systems designer, leverage skeptic |
+| `references/gtm-audit.md` | GTM strategist, distribution skeptic, narrative critic, channel prioritizer |
+| `references/telemetry-audit.md` | Data architect, activation auditor, PII watchdog, dashboard designer |
 
 Output standard: measurable hypothesis, target metric, constraint/risk, smallest test, and decision rule.
 

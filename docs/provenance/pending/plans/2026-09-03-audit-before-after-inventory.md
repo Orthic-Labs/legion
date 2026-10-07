@@ -1,3 +1,5 @@
+> Historical (frozen 2026-09-02). Cites code deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Audit skill: before/after inventory across the product extraction
 
 BEFORE is `tools/skills/audit/` in the `<workspace>` workspace repo at `52a90cf0^` — the

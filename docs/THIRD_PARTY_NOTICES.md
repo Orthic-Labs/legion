@@ -58,3 +58,14 @@ The benchmark fixture corpus (`bench/fixtures/`) and SEO regression fixtures und
 `skills/seo/tests/fixtures/` are original Legion material unless a fixture states
 otherwise. Any future rule text, grammar, fixture, or methodology adapted from an
 external project must be listed here with its license and attribution before it ships.
+
+## Idea provenance (no code or text vendored)
+
+These projects informed the review discipline in `doctrine/oracle.md`,
+`doctrine/covenant-seat.md`, `agents/oracle.md`, and `agents/covenant-seat.md`. The wording is
+Legion's own; no source text, code, or data was copied. Listed for attribution.
+
+| Source | License | Idea absorbed |
+|---|---|---|
+| [alibaba/open-code-review](https://github.com/alibaba/open-code-review) | Apache-2.0 | Ranked risk-point plan before review; a finding may be dropped only when a cited line disproves it; reviewed inputs treated as untrusted data. |
+| [mattpocock/skills](https://github.com/mattpocock/skills) | MIT | Review on two separate axes, Standards and Spec, never merged into one verdict. |

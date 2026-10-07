@@ -189,7 +189,7 @@ What you've accomplished:
 - Revenue per user
 - Churn rate post-upgrade
 
-**For comprehensive experiment ideas**: See references/experiments.md
+**For comprehensive experiment ideas**: See references/paywall-assets/experiments.md
 
 ---
 

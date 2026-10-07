@@ -16,13 +16,17 @@ hostRequirements: []
 # Covenant
 
 PRIMARY_DELIVERABLE: Digest-bound Covenant request, record, or packet-only artifact.
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 8
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
 TERMINAL: Mode-specific record exists, or packet-only marker proves no panel ran.
 
-This entrypoint routes to existing Covenant packet engine. It is advisory: it neither grants
+This entrypoint builds the review packet from `assets/external-review-packet-template.md`, shaped by
+`lib/schemas/covenant-request-v1.schema.json` and `covenant-record-v1.schema.json`, and convenes seats
+under `doctrine/covenant-seat.md`. The old Python and JS packet engine no longer exists; the one
+native tool is `legion script covenant/validate-external-review-packet`, which validates an
+external-review packet. It is advisory: it neither grants
 product authorization nor closes Oracle findings.
 
 1. Use decision challenge for a named decision or work artifact; use blocker consult for a named

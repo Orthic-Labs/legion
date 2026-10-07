@@ -120,8 +120,7 @@ Before any pass says complete: exact canon row count; no duplicate tuple; all ap
 Run the validator with the corpus manifest so it verifies expected repository names & cited file existence:
 
 ```bash
-python3 scripts/validate_atom_report.py REPORT.md --mode stage2 --expected-rows N --manifest corpus.json
-# native Rust port (preferred):
+# native Rust validator:
 legion script foundation/validate-atom-report REPORT.md --mode stage2 --expected-rows N --manifest corpus.json
 ```
 

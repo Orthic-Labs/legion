@@ -139,7 +139,7 @@ When the user invokes `/ads audit`, delegate to subagents in parallel:
 1. **Collect context** (see Context Intake above; do this first)
 2. Collect account data (exports, screenshots, or pasted metrics)
 3. Detect business type and identify active platforms
-4. Spawn subagents via Task tool with `context: fork`: audit-google, audit-meta, audit-creative, audit-tracking, audit-budget, audit-compliance
+4. Fan out to at most six subagents using the host's subagent facility, one per brief: audit-google, audit-meta, audit-creative, audit-tracking, audit-budget, audit-compliance. The plugin does not register these as named agents, so start each subagent with the full text of `agents/<name>.md` as its brief plus the collected account context. If the host cannot run subagents, run the six briefs one after another inline and say so
 5. **Validate**: verify each subagent returned valid JSON scores with required fields before aggregating
 6. Collect results and generate unified report with Ads Health Score (0-100)
 7. Create prioritized action plan with Quick Wins
@@ -258,7 +258,7 @@ This skill orchestrates 17 specialized sub-skills:
 8. **ads-creative**: Cross-platform creative quality audit
 9. **ads-landing**: Landing page quality for ad campaigns
 10. **ads-budget**: Budget allocation and bidding strategy
-11. **ads-plan**: Strategic ad planning with industry templates
+11. **plan**: Strategic ad planning, run from `references/manual.md` with the platform references (no separate plan reference ships)
 12. **ads-competitor**: Competitor ad intelligence
 13. **ads-apple**: Apple Search Ads (ASA) deep analysis
 14. **ads-dna**: Brand DNA extraction from website URL
@@ -268,7 +268,9 @@ This skill orchestrates 17 specialized sub-skills:
 
 ## Subagents
 
-For parallel analysis during full audits:
+These are inline subagent briefs loaded from `agents/<name>.md`; they are not registered plugin agents. The six `audit-*` briefs may run in parallel during a full `/ads audit` (the `CHILD_AGENTS_MAX: 6` budget). The four creative briefs below are run inline and sequentially by the main agent, never spawned. Model and `maxTurns` values in the brief headers are advisory sizing hints.
+
+Briefs:
 - `audit-google`: Google Ads checks (G01-G74)
 - `audit-meta`: Meta Ads checks (M01-M46)
 - `audit-creative`: Creative quality for LinkedIn, TikTok, Microsoft
@@ -276,6 +278,6 @@ For parallel analysis during full audits:
 - `audit-budget`: Budget, bidding, structure for LinkedIn, TikTok, Microsoft
 - `audit-compliance`: Compliance, settings, performance across all platforms
 - `creative-strategist`: Campaign concepts from brand profile + audit results (sonnet, maxTurns: 25)
-- `visual-designer`: Image generation with brand injection via the banana MCP host capability (Sonnet, maxTurns: 30)
+- `visual-designer`: Image generation with brand injection via the `banana-image` host capability (Sonnet, maxTurns: 30)
 - `copy-writer`: Headlines, CTAs, primary text within platform limits (Sonnet, maxTurns: 20)
 - `format-adapter`: Asset dimension validation and spec compliance reporting (Haiku, maxTurns: 15)

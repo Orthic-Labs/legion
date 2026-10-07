@@ -60,33 +60,39 @@ Report requested states actually reached. Independent nested repositories are de
 - Legion executes ambient-tier work directly under the operator's authorization. Inside the contract chain, settled meaning remains owned by the producing capability; Legion selects capabilities, attaches authority, materializes work, & routes it; Sage adjudicates only genuinely unresolved material meaning; Alchemist owns controlled bounded transformation where required; Oracle owns independent completion assurance; Covenant dispositions are never Legion's; Arcane shapes cognitive processing & response policy; Guard gates declared typed effects.
 - No false clean. No unbounded execution. No silent scope expansion. Independent work is parallel unless a named reason forbids it.
 
+> `docs/agent-rules.md` is the same Package Rules text below; Claude Code loads it through `CLAUDE.md`, Codex loads this file. Edit both together.
+
 # Legion Package Rules
 
 ## Purpose
 Legion provides shared routing, execution, and independent semantic validation as an installable package.
 
 ## Canonical sources
+- Precedence: `docs/LEGION-CANONICAL-SSOT.md` > `AGENTS.md` > `src/roster/*` & `doctrine/*` > `skills/<id>/SKILL.md` > generated projections.
 - Read `docs/LEGION-CANONICAL-SSOT.md` for system architecture and ownership boundaries.
 - Read `doctrine/legion.md` for routing reference.
-- Read `doctrine/sage.md` for adjudication method.
-- Read `doctrine/alchemist.md` for controlled transformation method.
-- Read `doctrine/oracle.md` for Completion Validation.
-- Read `docs/canon/README.md` for atomic capability inventory/schema.
-- Read generated `docs/pending/README.md` as sole pending-work index.
+- Read `src/roster/*.md` for role identity, authority, and trigger boundary; `doctrine/sage.md`, `doctrine/alchemist.md` & `doctrine/oracle.md` for role method (Oracle: Completion Validation).
+- `docs/provenance/**` (including `docs/provenance/canon/` & `docs/provenance/pending/`) is frozen history that cites deleted code. It is not authoritative and not a pending-work index.
 
 ## Commands
-- Before local build/check/test admission, inspect managed RightKit inventory once, including past 30 minutes. If another build is queued, running, or was processed within that window, never start or queue local work: move to Windows unsigned GitHub CI. Missing inventory fails closed to CI; do not poll or wait for local capacity.
-- Before any Windows installer build, check whole native workspace/all targets on selected build host. GitHub development workflow includes this gate; local path uses `pnpm run native:check:local` only after idle admission.
-- For Windows installer development, use `.github/workflows/windows-development.yml` when local admission is refused or CI is requested. Otherwise use `pnpm run release:local:win:unsigned` from primary checkout after native check passes. Both routes require unsigned installer → isolated installed qualification → exact stable-`current` install. See `docs/reference/release/local-windows-development.md`.
-- Use `pnpm run release:build:win:unsigned` only when build output is requested without install or qualification. Focused local tests supporting this route are allowed.
-- Windows unsigned development CI is authorized; signing, publication & Mac work require explicit scope. CI success proves build/qualification only; download exact qualified installer, reinstall stable `current` & verify requested installed behavior.
+- Before local build/check/test admission, inspect managed RightKit inventory once, including past 30 minutes. If another build is queued, running, or was processed within that window, never start or queue local work: use GitHub CI. Missing inventory fails closed to CI; do not poll or wait for local capacity.
+- Windows installer commands (native check, unsigned development build, CI route) live in `docs/reference/release/local-windows-development.md`. Read it before any installer work.
 
 ## Locked invariants
 - Use Oracle when explicitly requested or when a concrete outcome or safety risk needs independent review. Routine replies, read-only answers, status updates & small reversible changes need no Oracle.
 - Keep Completion Validation read-only, semantic, source-first, and free of test reruns or review artifacts.
 - Reconstruct scope from raw user requests rather than implementer summaries.
 - Preserve one canonical owner for each role and routing concept.
+- Classify every outward reference a packaged skill makes. There are four classes, defined in
+  `src/registry/capabilities.json`: `PACKAGE_INTERNAL`, `HOST_CAPABILITY`, `PROJECT_OVERLAY`, and
+  `HISTORICAL_EVIDENCE`. A reference that fits none of them is a leak.
+- Declare each host capability in the registry with its degradation behaviour, and never ship a
+  fallback the package does not contain.
+- Keep Legion the canonical source for every skill it ships. There is no upstream to import from,
+  so a packaged file carries one digest and no transform record.
+- Every deleted skill file, script, hook, or rule gets a row in `docs/provenance/retirements.md` naming its successor or why it was dropped.
 
 ## Verification
 - Run focused doctrine and routing tests after role changes.
-- Check generated agent-rule overlays after source changes.
+- Refresh `skills/manifests/*.json` with `cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- refresh-local-skill-manifests <bundle>...`
+  after editing any packaged skill file, so digests and consumers stay truthful.

@@ -1,3 +1,5 @@
+> Historical (frozen 2026-09-02). Cites code deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Arcane capability canon
 
 Owner boundary: bounded cognitive control plane; never effect authorization or receipts.
@@ -31,7 +33,7 @@ Required delivery boundary: `PUSHED`.
 |---|---|---|---|---|---|---|
 | ARC-I001 | ARC-001, ARC-002, ARC-009 | Cognitive route-envelope, host policy injection & degradation continuity | `src/lib/cognitive/arcane/route-envelope.mjs@0d6016c8`; `src/lib/cognitive/arcane/host/policy-inject.mjs@0d6016c8`; `src/lib/host/arcane/host-runtime.mjs@0d6016c8` | ADAPT | DELIVERED | Live host cognitive-route producer & continuity ledger |
 | ARC-I002 | ARC-004, ARC-007, ARC-008 | Brief/Minimize, ending-shape & anti-ceremony doctrine | `doctrine/arcane.md@c498a604`; `src/lib/cognitive/arcane/minimize.mjs@LOCAL` | DIRECT_PORT | DELIVERED | SessionStart/Stop cognitive policy surface |
-| ARC-I003 | LEG-008 | Legacy deterministic-executor selection behavior formerly counted as ARC-003 | `docs/canon/registers/preservation-map.md@LOCAL` (original citation `docs/current/atoms/arcane.md@d47d3a08` no longer exists in-repo) | ABSORB_REFERENCE | UNKNOWN | Legion executor binding |
+| ARC-I003 | LEG-008 | Legacy deterministic-executor selection behavior formerly counted as ARC-003 | `docs/provenance/canon/registers/preservation-map.md@LOCAL` (original citation `docs/current/atoms/arcane.md@d47d3a08` no longer exists in-repo) | ABSORB_REFERENCE | UNKNOWN | Legion executor binding |
 | ARC-I004 | ARC-001, ARC-007 | P0.5 relocation of Arcane cognitive-plane modules from mixed package | `docs/provenance/migrations/2026-08-29-pending/arcane-package-migration-result.json@LOCAL` | DIRECT_PORT | DELIVERED | `src/lib/cognitive/arcane` plus CLI & host imports |
 | ARC-I005 | ARC-005, ARC-006 | Bounded falsification & stronger-model escalation execution | `src/lib/host/arcane/host-runtime.mjs@0d6016c8`; `engine/bins/legion-hook/src/main.rs@0d6016c8` | ADAPT | PARTIAL | Host path records caller-supplied challenge/escalation metadata; evidence evaluation & stronger-model execution remain unwired |
 

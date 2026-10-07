@@ -13,7 +13,7 @@ effects:
   - artifact-write
   - process-exec
 hostRequirements:
-  - python-runtime
+  - legion
 ---
 
 # Dispatch

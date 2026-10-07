@@ -68,7 +68,7 @@
       "prompt": "Use /audit to produce a repository-wide findings report.",
       "expected_skill": "audit",
       "forbidden_skills": [],
-      "expected_behavior": "The output should use RepositoryAuditReport schema v2 with category, severity, evidence_strength, judgment, status, caused_by, file evidence, action, and remediation grouping; render-report preserves those fields for Markdown and --agent JSON.",
+      "expected_behavior": "The output should use RepositoryAuditReport schema v2 with category, severity, evidence_strength, judgment, status, caused_by, file evidence, action, and remediation grouping; the report renderer preserves those fields for Markdown and --agent JSON.",
       "severity": "error",
       "mode": "static"
     },

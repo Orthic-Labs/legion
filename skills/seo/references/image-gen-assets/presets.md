@@ -56,14 +56,14 @@ but the preset has bright lighting, follow the user's instruction.
 
 ```bash
 # List presets
-presets.py list
+legion script seo/banana-presets list
 
 # Show details
-presets.py show tech-saas
+legion script seo/banana-presets show tech-saas
 
 # Create interactively (Claude fills in details from conversation)
-presets.py create NAME --colors "#hex,#hex" --style "..." --mood "..."
+legion script seo/banana-presets create NAME --colors "#hex,#hex" --style "..." --mood "..."
 
 # Delete
-presets.py delete NAME --confirm
+legion script seo/banana-presets delete NAME --confirm
 ```

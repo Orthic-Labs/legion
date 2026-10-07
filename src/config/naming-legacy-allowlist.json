@@ -270,7 +270,7 @@
       "reason": "audit records quote retired names as evidence of naming drift"
     },
     {
-      "path": "docs/canon/registers/preservation-map.md",
+      "path": "docs/provenance/canon/registers/preservation-map.md",
       "tokens": [
         "forge"
       ],

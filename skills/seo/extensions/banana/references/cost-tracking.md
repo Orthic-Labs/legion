@@ -27,19 +27,19 @@ Research suggests actual costs may be ~$0.067/img. Verify at https://ai.google.d
 
 ```bash
 # Log a generation
-cost_tracker.py log --model gemini-3.1-flash-image-preview --resolution 1K --prompt "coffee shop hero"
+legion script seo/banana-cost-tracker log --model gemini-3.1-flash-image-preview --resolution 1K --prompt "coffee shop hero"
 
 # View summary (total + last 7 days)
-cost_tracker.py summary
+legion script seo/banana-cost-tracker summary
 
 # Today's usage
-cost_tracker.py today
+legion script seo/banana-cost-tracker today
 
 # Estimate before batch
-cost_tracker.py estimate --model gemini-3.1-flash-image-preview --resolution 1K --count 10
+legion script seo/banana-cost-tracker estimate --model gemini-3.1-flash-image-preview --resolution 1K --count 10
 
 # Reset ledger
-cost_tracker.py reset --confirm
+legion script seo/banana-cost-tracker reset --confirm
 ```
 
 ## Storage

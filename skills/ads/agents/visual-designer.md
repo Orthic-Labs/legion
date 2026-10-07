@@ -32,7 +32,7 @@ Context: Banana MCP is unavailable.
 user: Generate images.
 assistant: Banana MCP is not available. I'll check for the fallback script.
 [Checks banana MCP availability; not connected]
-[Reports to user: "Banana MCP is unavailable. Image generation requires the banana MCP host capability; there is no in-package fallback. Connect banana, or supply the images directly."]
+[Reports to user: "Banana MCP is unavailable. Image generation requires the `banana-image` host capability; there is no in-package fallback. Connect banana, or supply the images directly."]
 commentary: Never silently fail. Check banana MCP first; if it is unavailable, stop and report — do not invent a fallback.
 </example>
 

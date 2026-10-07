@@ -1,9 +1,15 @@
 # Coverage-on-the-change and audit_diff trajectory
 
-Two `render-report.mjs` additions layered on the standard `report.json` shape
+Two report-renderer additions layered on the standard `report.json` shape
 (`references/engine-interface.md` §Report shape). Both are RENDERER-owned: the lenses (or `/commit`'s
-diff-scoped gate) supply input data; `render-report.mjs` computes the gate/verdict and persists what
-needs to persist across runs. Neither one mutates `facts.json` or `collect-facts.mjs`'s check set.
+diff-scoped gate) supply input data; the renderer computes the gate/verdict and persists what
+needs to persist across runs. Neither one mutates `facts.json` or the frozen check set.
+
+**Status.** The renderer logic is ported in `engine/crates/legion-audit/src/wf_port/wf066/render_report.rs`
+(`coverage_gate`, `compute_trajectory`, `persist_trajectory`) but `legion report` does not call it yet:
+`legion report <report.json> --format md|html|sarif|json` only renders what the frozen report already
+contains. Until it is wired, a coverage gate or `audit_diff` block that is absent from `report.json` is
+reported as `UNPROVEN`, never computed by hand.
 
 ## Per-change coverage rows (§2A)
 
@@ -32,11 +38,11 @@ with `/commit`, `skills/commit/SKILL.md` "Coverage on the change"):
 }
 ```
 
-`ratio` is optional — `coverageGate()` derives it from `sum(covered)/sum(touched)` across `perFile`
+`ratio` is optional — `coverage_gate` derives it from `sum(covered)/sum(touched)` across `perFile`
 when omitted. This is a **read of the diff against the test set** — the lens (or `/commit`) never
 re-runs the test suite to produce it.
 
-**Gate thresholds** (`coverageGate()` in `render-report.mjs`):
+**Gate thresholds** (`coverage_gate` in the renderer):
 
 | condition | state | severity |
 |---|---|---|
@@ -68,8 +74,8 @@ chooses to supply diff-scoped coverage on a `/audit --base <ref>` run.
 better or worse since last time? `audit_diff` answers that without asking the user to diff two
 Markdown reports by eye.
 
-**Ownership.** The RUNNER (`render-report.mjs`), not the lenses, computes this — lenses only ever
-describe the *current* state; they have no memory of prior runs. `render-report.mjs` persists a
+**Ownership.** The RUNNER (the report renderer), not the lenses, computes this — lenses only ever
+describe the *current* state; they have no memory of prior runs. The renderer persists a
 compact fingerprint digest at:
 
 ```
@@ -129,7 +135,7 @@ identical object under `audit_diff`.
 
 ## Demonstration (fixture, run 2026-07-25)
 
-Two consecutive `render-report.mjs` invocations 45 days apart, isolated to a scratch history file via
+Two consecutive renderer invocations 45 days apart, isolated to a scratch history file via
 `--trajectory-history`:
 
 - Run 1: `F1` (high, `src/auth/mfa.ts:42`), `F2` (critical, `src/db/query.ts:10`).

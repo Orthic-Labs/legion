@@ -20,7 +20,7 @@ advance the outcome. Sage is domain-independent and attaches only to work that b
 | Competing interpretations, cross-capability conflict, or disputed ownership/boundary needs closure. | Diagnosis, writing, or execution merely has an effect. |
 | Repeated local repairs fail to advance outcome, or Sage is explicitly requested. | Work is bounded implementation inside accepted criteria. |
 
-Authority is exceptional material judgment; diagnosis, write, or execute alone never selects Sage.
+Authority is optional design, reassessment, and adjudication; diagnosis, write, or execute alone never selects Sage.
 
 ## Boundaries
 

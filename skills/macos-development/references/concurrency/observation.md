@@ -396,7 +396,7 @@ actor SyncEngine {
 | `objectWillChange.send()` | Automatic — tracked on property access |
 | `$name` publisher → `sink` | `Observations { … }` (Swift 6.2+) or `withObservationTracking` fallback |
 
-For full Combine-to-Concurrency examples — including `@Published` + `debounce` + `sink` rewritten as `@Observable` + `AsyncSequence` — use `references/async-algorithms.md` (operator-by-operator mapping) and `references/migration.md` (real-world migration walkthroughs). The "Bridging Observable to AsyncSequence" section above shows the modern replacement for `$name.sink { … }` patterns specifically.
+For full Combine-to-Concurrency examples — including `@Published` + `debounce` + `sink` rewritten as `@Observable` + `AsyncSequence` — use `references/concurrency/async-algorithms.md` (operator-by-operator mapping) and `references/concurrency/migration.md` (real-world migration walkthroughs). The "Bridging Observable to AsyncSequence" section above shows the modern replacement for `$name.sink { … }` patterns specifically.
 
 ---
 

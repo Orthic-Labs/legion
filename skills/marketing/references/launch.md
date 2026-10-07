@@ -402,17 +402,6 @@ Record the score and primary mechanic in the launch plan header.
 
 ---
 
-## Optional external jury (explicit opt-in only)
+## Optional independent review
 
-Only when the approving human explicitly requests an external jury, after the plan/strategy doc is written:
-
-```bash
-node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
-  kind: 'launch',
-  artifactPath: '<absolute path to plan .md>',
-  context: { brand: '<brand-code or N/A>', notes: 'plan-launch output', rubricFlags: {} },
-  failHard: true
-}).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
-```
-
-DON'T-SHIP blocks presentation. Surface verdict to user.
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.

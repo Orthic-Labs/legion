@@ -48,11 +48,6 @@ The following absence behavior is copied from `src/registry/capabilities.json` a
 - **Absent behavior:** Coder returns a typed unavailable-provider result and performs no outsourced analysis.
 - **Remedy:** Install the Pi CLI and expose its `pi` command on `PATH`, then invoke Coder again.
 
-### `python-runtime`
-
-- **Absent behavior:** The dependent skill reports that its local validator is unavailable and does not substitute another runtime.
-- **Remedy:** Install Python 3 and expose either `python3` or `python` on `PATH`.
-
 ### `scholarly-search`
 
 - **Absent behavior:** Research returns `UNPROVEN` for scholarly claims.
@@ -306,7 +301,7 @@ The following catalog entries have `domain: null`. The `entrypoint` bundles omit
 - **Domain:** Not declared; catalog value is `null`.
 - **Operations:** `analyze`
 - **Effects:** `source-read`, `network-request`
-- **Host requirements:** `pi-cli`, `python-runtime`. See [their declared absence behavior](#host-capability-degradation).
+- **Host requirements:** `pi-cli`. See [its declared absence behavior](#host-capability-degradation).
 - **Discoverability:** `explicit`
 
 ### `commit`
@@ -342,7 +337,7 @@ The following catalog entries have `domain: null`. The `entrypoint` bundles omit
 - **Domain:** Not declared; catalog value is `null`.
 - **Operations:** `route`, `produce`
 - **Effects:** `source-read`, `artifact-write`, `process-exec`
-- **Host requirements:** `python-runtime`. See [its declared absence behavior](#host-capability-degradation).
+- **Host requirements:** None. Python is not shipped or required.
 - **Discoverability:** `public`
 
 ### `gotchas`
@@ -366,14 +361,14 @@ The following catalog entries have `domain: null`. The `entrypoint` bundles omit
 - **Domain:** Not declared; catalog value is `null`.
 - **Operations:** `analyze`, `produce`
 - **Effects:** `source-read`, `artifact-write`, `process-exec`
-- **Host requirements:** `python-runtime`. See [its declared absence behavior](#host-capability-degradation).
+- **Host requirements:** None. Python is not shipped or required.
 - **Discoverability:** `public`
 
 ### `oracle`
 
 - **Manifest:** [oracle.json](../../skills/manifests/oracle.json)
 - **Kind:** `entrypoint`
-- **Purpose:** Independent read-only Completion Validation against the raw user request. Use `/oracle` before successful delivery.
+- **Purpose:** Independent read-only Completion Validation against the raw user request. Use `/oracle` only on explicit request or for a concrete outcome or safety risk.
 - **Capability class:** Not declared; catalog value is `null`.
 - **Domain:** Not declared; catalog value is `null`.
 - **Operations:** `evaluate`
@@ -390,7 +385,7 @@ The following catalog entries have `domain: null`. The `entrypoint` bundles omit
 - **Domain:** Not declared; catalog value is `null`.
 - **Operations:** `analyze`, `produce`, `execute`
 - **Effects:** `source-read`, `artifact-write`, `process-exec`
-- **Host requirements:** `python-runtime`. See [its declared absence behavior](#host-capability-degradation).
+- **Host requirements:** None. Python is not shipped or required.
 - **Discoverability:** `public`
 
 ### `wake`

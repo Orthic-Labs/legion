@@ -39,7 +39,7 @@ description: >
 
 ### Thumbnail + title testing
 1. Generate 3 title variants (specific number / curiosity gap / contrarian)
-2. Generate 3 thumbnail concepts → /marketing-design
+2. Generate 3 thumbnail concepts → `/designer static`
 3. A/B test plan: which to test first, what to measure, decision rule
 
 ## Hook patterns

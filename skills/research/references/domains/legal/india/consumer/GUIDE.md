@@ -41,7 +41,7 @@ If any of those is missing, the route halts and asks **one** clarifying question
 7. Deterministic pack assembly (`generate_pack.py`) is a repository-only script under
    `src/lib/research-core/workflows/legal/india/consumer/scripts/` — it is **not part of the
    installed plugin** and cannot be run from an installed skill. Until it is ported natively,
-   assemble the pack manually against `references/drafting-standards.md` and flag this gap to
+   assemble the pack manually against `drafting-standards.md` and flag this gap to
    the user rather than claiming automated generation is available.
 8. Flag limitation, jurisdiction, service, evidence, privacy, or professional-review
    risks before filing.

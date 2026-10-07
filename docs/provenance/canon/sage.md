@@ -1,6 +1,8 @@
+> Historical (frozen 2026-09-02). Cites code deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Sage capability canon
 
-Owner boundary: exceptional adjudication of material unresolved meaning.
+Owner boundary: optional cross-cutting design, reassessment, and adjudication of material unresolved meaning.
 
 Required delivery boundary: `PUSHED`.
 
@@ -39,4 +41,4 @@ Required delivery boundary: `PUSHED`.
 
 | ID | Kind | Capability targets | Decision | Authority/evidence | State |
 |---|---|---|---|---|---|
-| SAG-D001 | REFERENCE | SAG-001 | Sage remains exceptional adjudication, not routine architecture or execution. | Root SSOT | RECORDED |
+| SAG-D001 | REFERENCE | SAG-001 | Sage is optional design, reassessment, and adjudication authority, not routine architecture or execution. | Root SSOT | RECORDED |

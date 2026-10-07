@@ -2,8 +2,8 @@
 
 Lens 15's reference. Apps are judged per shipped OS; a screenshot from one OS never clears
 another. The code-side twin is `/audit`'s `platform-parity` lens (per-OS `#[cfg]` branches, CI,
-stubs — `references/desktop-tauri-checklist.md` §6); THIS lens judges the
-rendered result. Canonical implementation contract: `docs/RIGHT-SUITE-CROSS-PLATFORM.md`.
+stubs — the audit skill's `references/desktop-tauri-checklist.md` §6); THIS lens judges the
+rendered result. Where the consuming repository keeps a cross-platform implementation contract (for example `docs/RIGHT-SUITE-CROSS-PLATFORM.md`, a project-overlay doc), follow it.
 
 ## Coverage rule
 

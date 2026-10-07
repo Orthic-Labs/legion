@@ -9,10 +9,6 @@
     {
       "class": "HOST_CAPABILITY",
       "capability": "legion"
-    },
-    {
-      "class": "HOST_CAPABILITY",
-      "capability": "python-runtime"
     }
   ]
 }

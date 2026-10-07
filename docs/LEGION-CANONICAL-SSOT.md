@@ -3,7 +3,7 @@
 **Status:** CANONICAL — permanent root system-architecture source of truth  
 **Repository:** `Orthic-Labs/legion`  
 **Adopted:** 19 August 2026  
-**Supersedes as active architecture authority:** `docs/LEGION-CANONICAL-SSOT-v2.md`, `docs/architecture.md`, `doctrine/architecture/canon-map.md` (architecture-authority claims)
+**Supersedes as active architecture authority:** `docs/provenance/LEGION-CANONICAL-SSOT-v2.md`, `docs/architecture.md`, `docs/provenance/canon-map-archived.md` (architecture-authority claims)
 
 This file is the **one permanent root system-architecture SSOT** for Legion. It owns system
 architecture, ownership boundaries, global invariants, orchestration semantics,
@@ -27,8 +27,6 @@ ownership.
 this root SSOT
     >
 AGENTS.md (live operational constitution, constrained by this SSOT)
-    >
-docs/canon/*.md (atomic capability inventory/state, constrained by this SSOT)
     >
 src/roster/* (role identity/authority) and doctrine/* (delegated method)
     >
@@ -78,8 +76,8 @@ Primary rules:
    Oracle, Covenant, Audit, Architect, Debugger, Arcane, capabilities — are selected/attached
    concerns, not peer orchestrators.
 2. **Capabilities describe expertise and method; roles do not contain skills.**
-3. **Capabilities own routine domain judgment. Sage handles exceptional material unresolved
-   judgment only.**
+3. **Capabilities own routine domain judgment. Sage is optional design,
+   reassessment, and adjudication authority when a material choice exceeds routine capability judgment.**
 4. **Authority is attached to the work that requires it, not statically to a domain, capability,
    operation, or effect.**
 5. **Effects are explicit, and deterministic effect enforcement belongs to the Guard.**
@@ -92,8 +90,8 @@ Primary rules:
 | Semantic concern | Permanent canonical owner | Derived / consumer only |
 |---|---|---|
 | System architecture and ownership boundaries | `docs/LEGION-CANONICAL-SSOT.md` | all architecture summaries/maps |
-| Live Legion constitution | `AGENTS.md` | `CLAUDE.md`, harness context projections |
-| Atomic capability inventory and lifecycle state | `docs/canon/{legion,sage,alchemist,oracle,arcane,guard,covenant,skills}.md` | `docs/canon/README.md`, generated `docs/pending/README.md` |
+| Live Legion constitution | `AGENTS.md` | `docs/agent-rules.md` (the same package-rules text, loaded by Claude Code through `CLAUDE.md`), harness context projections |
+| Historical capability inventory (frozen 2026-09-02, not authoritative) | `docs/provenance/canon/**`, `docs/provenance/pending/**` | none; current ownership is this table |
 | Legion routing/orchestration reference | `doctrine/legion.md` | generated summaries |
 | Sage identity / authority / tier | `src/roster/sage.md` | `agents/sage.md`, doctrine method |
 | Alchemist identity / authority / tier | `src/roster/alchemist.md` | `agents/alchemist.md`, doctrine method |
@@ -110,7 +108,7 @@ Primary rules:
 | Hash-bound handoff transcript normalization, continuity & receipts | `engine/crates/legion-handoff` + `skills/handoff/**` | installed native CLI; no external Membrane runtime |
 | Capability/entrypoint semantics | `skills/<id>/SKILL.md` | catalogs/manifests/projections |
 | Host capability availability | `src/registry/capabilities.json` | SKILL `hostRequirements` |
-| Public distribution and client integration | `docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md` | release policy, bootstrap, host adapters |
+| Public distribution and client integration | `docs/architecture/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md` | release policy, bootstrap, host adapters |
 | Explicit aliases | `src/config/capability-aliases.json` | resolver/projections |
 | Semantic effect vocabulary | this root SSOT | SKILL declarations |
 | Cognitive control plane and response policy | `doctrine/arcane.md` | host delivery surfaces |
@@ -130,7 +128,7 @@ examples: architect, audit, research, designer, seo
 HOST CAPABILITY
 externally supplied execution or tool facility the package does not contain,
 declared in src/registry/capabilities.json
-examples: blueprint-graph, web-search, python-runtime
+examples: blueprint-graph, web-search
 ```
 
 Unqualified "capability" in this document means **domain capability**. Host capabilities are
@@ -225,7 +223,7 @@ and their detailed mandate, boundary, inputs, outputs, and interactions are dele
 
 | Authority | Cross-role responsibility |
 |---|---|
-| Sage | exceptional adjudication of material unresolved meaning; never a routine domain owner or product-state executor |
+| Sage | optional cross-cutting design, reassessment, and adjudication of material unresolved meaning; never a routine domain owner or product-state executor |
 | Alchemist | controlled bounded transformation of settled meaning; never an independent semantic decision-maker |
 | Oracle | independent, read-only Completion Validation; never an implementer or self-certifier |
 
@@ -235,7 +233,7 @@ or contract compilation as a discipline. "Engineering decision authority", "Sage
 
 Executable-contract authorship is orchestration, not Sage authority: the producing capability
 settles routine meaning, Legion materializes the executable work unit/contract, and Sage
-participates only when an item remains genuinely OPEN and requires exceptional adjudication.
+participates only when an item remains genuinely OPEN and requires adjudication.
 Alchemist applies settled bounded work; Oracle independently validates the delivered result.
 
 Covenant is not an authority. It is optional, bounded, advisory, read-only, policy/user-triggered,
@@ -268,6 +266,18 @@ process-exec
 network-request
 ```
 
+Mapping from the semantic classes (declared in SKILL `effects:`) to the runtime
+`legion-contracts::EffectClass` values the Guard enforces (`doctrine/guard.md`). The enum is the
+runtime authority; this table only prevents the two vocabularies from drifting apart:
+
+| Semantic class | Runtime `EffectClass` |
+|---|---|
+| `source-read` | none (non-effect observation) |
+| `artifact-write` | `FILE_WRITE`, `FILE_MOVE` |
+| `repository-write` | `FILE_WRITE`, `FILE_DELETE`, `FILE_MOVE`, `VCS_COMMIT`, `VCS_PUSH` |
+| `process-exec` | `COMMAND_EXEC`, `PROCESS_SPAWN`, `DEPENDENCY_INSTALL`, `CREDENTIAL_ACCESS` |
+| `network-request` | `NETWORK_EGRESS`, `PUBLISH`, `EXTERNAL_SIDE_EFFECT` |
+
 Never infer:
 
 ```text
@@ -295,7 +305,16 @@ delegated to `doctrine/guard.md`.
 
 Cross-boundary invariants:
 
-- Arcane does not authorize effects or keep effect-enforcement receipts.
+- Arcane does not authorize effects or keep effect-enforcement receipts. Its cognitive route is
+  ephemeral. The `legion-arcane` crate name is historical: it holds contract-lifecycle, budget, and
+  receipt-store runtime used by governed work, and none of that is an effect-decision receipt.
+  Receipt kinds stay distinct: Guard effect-decision receipts, contract/runtime receipts, handoff
+  receipts, and the Oracle completion-validation receipt.
+- Oracle is optional (principle 8). The one place a typed `verificationRequirement` may demand an
+  Oracle receipt at Stop is a requirement set by a route or completion producer for a concrete
+  outcome or safety risk; absent such a requirement, Stop never demands Oracle.
+- Brief/Minimize and `BUDGET_STOP` are Arcane policy delivered through Guard's Stop surface. No
+  separate enforcer process is part of the package.
 - The Guard may deliver Arcane-owned cognitive policy through a host lifecycle surface such as
   the Stop event, but it never becomes the owner or enforcer of that cognitive policy.
 - The Guard gates typed effects, not semantic capability labels. Enforcement failures fail
@@ -424,7 +443,7 @@ HOST-SPECIFIC
 Canonical semantic ownership defined by this SSOT remains authoritative. Target product topology
 and native runtime lifecycle are described by `migration/native-rust/PRODUCT-ARCHITECTURE-V2.md`.
 Public distribution, activation transactions, Agent Plugins packaging, and exact client boundaries
-are owned by `docs/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md`. Thin target adapters preserve
+are owned by `docs/architecture/LEGION-DISTRIBUTION-AND-CLIENT-INTEGRATION.md`. Thin target adapters preserve
 collision-safe/reversible installation, truthful fidelity, legacy-writer quarantine, and
 conformance/safety guarantees without preserving descriptor-driven semantic hosting. Legacy
 `.claude`, `.codex`, `.gemini`, and equivalent projections are migration/compatibility surfaces
@@ -534,7 +553,7 @@ first.
 
 ```text
 Legion operational constitution    → AGENTS.md
-Atomic capability inventory/state → docs/canon/{legion,sage,alchemist,oracle,arcane,guard,covenant,skills}.md
+Historical capability inventory     → docs/provenance/canon/** (frozen, not authoritative)
 Legion routing reference           → doctrine/legion.md
 Role identity/authority/tier       → src/roster/{sage,alchemist,oracle}.md
 Role architecture                  → docs/architecture/{sage,alchemist,oracle}.md

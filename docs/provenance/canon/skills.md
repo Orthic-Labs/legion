@@ -1,3 +1,5 @@
+> Historical (frozen 2026-09-02). Cites code deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Skills capability canon
 
 Owner boundary: packaged domain, workflow, context capabilities & explicit entrypoints. Domains are grouping metadata only.

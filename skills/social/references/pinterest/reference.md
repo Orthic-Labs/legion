@@ -53,7 +53,7 @@ description: >
    - Top 30%: bold headline (5-8 words)
    - Middle: visual proof
    - Bottom 20%: brand mark (subtle) + secondary line
-4. **Generate via /marketing-design** with Pinterest preset
+4. **Generate via `/designer static`** with the Pinterest preset
 5. **Metadata:**
    - Title: SEO-keyword-rich, 40-100 chars
    - Description: 200-500 chars, natural keywords, ends w/ CTA hint

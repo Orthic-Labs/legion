@@ -1,6 +1,6 @@
 # SwiftUI Localization Reference
 
-Guidance for user-facing text: `Text`, `Button`, `Label`, navigation/toolbar titles, alerts, and types that carry localizable strings. For the narrower "verbatim vs localized" decision on a single `Text`, see `references/text-patterns.md`.
+Guidance for user-facing text: `Text`, `Button`, `Label`, navigation/toolbar titles, alerts, and types that carry localizable strings. For the narrower "verbatim vs localized" decision on a single `Text`, see `references/swiftui/donor-lee-text-patterns.md`.
 
 ## Table of Contents
 

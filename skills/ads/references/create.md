@@ -75,21 +75,20 @@ Include the selected framework name in campaign-brief.md for the copy-writer age
 Agents must run **sequentially**; `copy-writer` reads the file that `creative-strategist`
 writes, so running them in parallel creates a race condition on `campaign-brief.md`.
 
-**Step 5a; Spawn `creative-strategist`** (Task tool):
+**Step 5a; Run the `creative-strategist` brief** (inline, from `agents/creative-strategist.md`):
 This agent creates `campaign-brief.md` and writes the strategic sections:
 `## Brand DNA Summary`, `## Campaign Concepts`, `## Image Generation Briefs`, `## Next Steps`.
 
 Additional instructions for `creative-strategist`:
-- For e-commerce businesses, also read `skills/ads-plan/assets/ecommerce-creative.md`
-  and select the appropriate creative playbook (Product Launch, Sale/Promotion,
-  Seasonal, Retargeting, Brand Awareness)
+- For e-commerce businesses, choose the creative angle by campaign goal (Product Launch,
+  Sale/Promotion, Seasonal, Retargeting, Brand Awareness)
 - Include banana domain mode recommendations in each Image Generation Brief
   (Product, Editorial, Cinema, UI/Web, or Portrait)
 
 Wait for `creative-strategist` to **fully complete** before continuing.
 
-**Step 5b; Spawn `copy-writer`** (Task tool):
-After `creative-strategist` completes, spawn `copy-writer`. It reads the existing
+**Step 5b; Run the `copy-writer` brief** (inline, from `agents/copy-writer.md`):
+After `creative-strategist` completes, run `copy-writer`. It reads the existing
 `campaign-brief.md` and appends the `## Copy Deck` section with platform-specific
 headlines, primary text, and CTAs.
 

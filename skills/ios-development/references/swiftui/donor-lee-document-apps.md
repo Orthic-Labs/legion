@@ -1,6 +1,6 @@
 # Document-Based Apps (SDK 27+)
 
-> The `Document` protocol family replaces `FileDocument` / `ReferenceFileDocument` for new code on iOS 27, macOS 27, and visionOS 27. **Unavailable on watchOS and tvOS.** For older deployment targets, see the `FileDocument` section in `references/macos-scenes.md`.
+> The `Document` protocol family replaces `FileDocument` / `ReferenceFileDocument` for new code on iOS 27, macOS 27, and visionOS 27. **Unavailable on watchOS and tvOS.** For older deployment targets, see the `FileDocument` section in `references/swiftui/donor-lee-macos-scenes.md`.
 
 ## Table of Contents
 
@@ -194,7 +194,7 @@ Export to another location or format with `fileExporter(isPresented:document:con
 | Single `Snapshot` type | Separate read and write snapshot types |
 | Change tracked by value comparison | Undo registration required |
 
-`FileDocument`, `ReferenceFileDocument`, and their `DocumentGroup(newDocument:)` APIs are soft-deprecated in the SDK 27 toolchain. They remain the compatible option for deployment targets below the aligned 27 releases; follow `references/soft-deprecation.md` when deciding whether migration belongs in the current task. When migrating a `ReferenceFileDocument`, drop `ObservableObject` and `@Published` rather than layering `@Observable` on top.
+`FileDocument`, `ReferenceFileDocument`, and their `DocumentGroup(newDocument:)` APIs are soft-deprecated in the SDK 27 toolchain. They remain the compatible option for deployment targets below the aligned 27 releases; follow `references/swiftui/donor-lee-soft-deprecation.md` when deciding whether migration belongs in the current task. When migrating a `ReferenceFileDocument`, drop `ObservableObject` and `@Published` rather than layering `@Observable` on top.
 
 ## Content Types
 

@@ -50,19 +50,19 @@ Capture the following:
 
 1. **Homepage hero section** (above the fold):
 ```bash
-node ../../qa/scripts/qa-shot.mjs --url [url] --out ./brand-screenshots/   # or: legion script qa/qa-shot --url [url] --out ./brand-screenshots/
+legion script qa/qa-shot --url [url] --out ./brand-screenshots/
 ```
 Saves: `./brand-screenshots/{domain}_homepage.png`
 
 2. **Product or services page**:
 ```bash
-node ../../qa/scripts/qa-shot.mjs --url [url]/products --out ./brand-screenshots/   # or: legion script qa/qa-shot --url [url]/products --out ./brand-screenshots/
+legion script qa/qa-shot --url [url]/products --out ./brand-screenshots/
 ```
 Saves: `./brand-screenshots/{domain}_product.png`
 
 3. **About page** (brand personality):
 ```bash
-node ../../qa/scripts/qa-shot.mjs --url [url]/about --out ./brand-screenshots/   # or: legion script qa/qa-shot --url [url]/about --out ./brand-screenshots/
+legion script qa/qa-shot --url [url]/about --out ./brand-screenshots/
 ```
 Saves: `./brand-screenshots/{domain}_about.png`
 
@@ -72,7 +72,7 @@ with the remaining pages.
 **If `--quick` flag was provided**: skip screenshot capture entirely.
 
 **If capture fails** (Playwright not installed, network error, JS-heavy SPA that times out):
-- Log: `"Screenshot capture skipped; run: python3 -m playwright install chromium"`
+- Log: `"Screenshot capture skipped; the host browser/QA capture was unavailable"`
 - Continue without screenshots
 - Do NOT set the `screenshots` field in brand-profile.json
 

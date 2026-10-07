@@ -24,14 +24,8 @@ Direct access to Google's own SEO data. Bridges the gap between crawl-based
 analysis (existing claude-seo skills) and Google's real-time field data: actual
 Chrome user metrics, real indexation status, search performance, and organic traffic.
 
-Run the commands in this reference from the SEO skill directory:
-
-```powershell
-Set-Location skills/seo
-```
-
-or prefix script paths with `skills/seo/`. The examples below use `scripts/*.py`
-relative to that directory.
+Run the commands in this reference through `legion script seo/<name>` from any working directory.
+Pass `--help` after the script name for its current flags.
 
 All APIs are free. Setup requires a Google Cloud project with API key and/or
 service account -- run `/seo google setup` for step-by-step instructions.
@@ -53,7 +47,7 @@ Config file: `~/.config/claude-seo/google-api.json`
 }
 ```
 
-If missing, read `references/auth-setup.md` and walk the user through setup.
+If missing, read `references/google-assets/auth-setup.md` and walk the user through setup.
 
 ### Credential Tiers
 
@@ -101,7 +95,7 @@ Always communicate the detected tier before running commands.
 Combined Lighthouse lab data + CrUX field data.
 
 **Script:** `legion script seo/pagespeed_check <url> --json`
-**Reference:** `references/pagespeed-crux-api.md`
+**Reference:** `references/google-assets/pagespeed-crux-api.md`
 **Default:** Both mobile + desktop strategies, all Lighthouse categories.
 
 Output merges lab scores (point-in-time Lighthouse) with field data (28-day
@@ -118,7 +112,7 @@ CrUX field data only (no Lighthouse run). Faster.
 25-week CrUX History trends. Shows whether CWV metrics are improving, stable, or degrading.
 
 **Script:** `legion script seo/crux_history <url> --json`
-**Reference:** `references/pagespeed-crux-api.md`
+**Reference:** `references/google-assets/pagespeed-crux-api.md`
 
 Output includes per-metric trend direction, percentage change, and weekly p75 values.
 
@@ -131,7 +125,7 @@ Output includes per-metric trend direction, percentage change, and weekly p75 va
 Search Analytics: clicks, impressions, CTR, position for last 28 days.
 
 **Script:** `legion script seo/gsc_query --property <property> --json`
-**Reference:** `references/search-console-api.md`
+**Reference:** `references/google-assets/search-console-api.md`
 **Default:** 28 days, dimensions=query,page, type=web, limit=1000.
 
 Includes quick-win detection: queries at position 4-10 with high impressions.
@@ -140,13 +134,13 @@ Includes quick-win detection: queries at position 4-10 with high impressions.
 8+ words** — these are the conversational, question-shaped queries that surface in AI Overviews /
 ChatGPT and that competitors ignore while fighting over short head terms. In GSC UI:
 Performance → Queries → filter → Custom (regex) → `^(\S+\s+){7,}\S+$` (matches 8+ words). In our
-pipeline, filter the `gsc_query.py` JSON the same way (`len(query.split()) >= 8`). Each surfaced
+pipeline, filter the `legion script seo/gsc_query` JSON the same way (`len(query.split()) >= 8`). Each surfaced
 query is a ready-made AEO target: build/extend a post with an answer-first block (see
 `blog-post-contract.md` TL;DR rule) for that exact phrasing. High-impression + low-CTR long-tails
 are the gold.
 
 **Gap / "didn't show up" analysis (where you're missing or barely ranking):**
-1. **Near-miss (you appear, don't rank):** in the `gsc_query.py` JSON, filter `position > 8 AND impressions > N` — queries Google already shows you for but you're on page 2+. These are the cheapest wins: you're relevant but not strong enough. Strengthen the matching page (answer-first block, depth, internal links) rather than writing new content.
+1. **Near-miss (you appear, don't rank):** in the `legion script seo/gsc_query` JSON, filter `position > 8 AND impressions > N` — queries Google already shows you for but you're on page 2+. These are the cheapest wins: you're relevant but not strong enough. Strengthen the matching page (answer-first block, depth, internal links) rather than writing new content.
 2. **Zero-click questions:** high impressions + ~0 clicks at a decent position often means an AI Overview / PAA ate the click — target the *exact question* with a self-contained answer block to become the cited source.
 3. **True content gaps (queries you DON'T appear for at all):** GSC only shows queries you already surface for, so for "didn't show up at all," cross-reference: Ahrefs **content gap** (`site-explorer-organic-competitors` → keywords competitors rank for and you don't) + the brand `keyword-map.csv` `(planned)/gap` clusters + PAA harvest (see `geo.md` FAQ-coverage audit). Map each gap to a new page/post.
 
@@ -180,7 +174,7 @@ List submitted sitemaps with status, errors, warnings.
 Notify Google of a URL update.
 
 **Script:** `legion script seo/indexing_notify <url> --json`
-**Reference:** `references/indexing-api.md`
+**Reference:** `references/google-assets/indexing-api.md`
 
 The Indexing API is officially for JobPosting and BroadcastEvent/VideoObject pages.
 Always inform the user of this restriction. Daily quota: 200 publish requests.
@@ -200,7 +194,7 @@ Batch submit URLs from a file. Tracks quota usage.
 Organic traffic report: daily sessions, users, pageviews, bounce rate, engagement.
 
 **Script:** `legion script seo/ga4_report --property <id> --json`
-**Reference:** `references/ga4-data-api.md`
+**Reference:** `references/google-assets/ga4-data-api.md`
 **Default:** 28 days, filtered to Organic Search channel group.
 
 ### `/seo google ga4-pages [property-id]`
@@ -220,7 +214,7 @@ YouTube mentions have the strongest AI visibility correlation (0.737). Free, API
 Search YouTube for videos. Returns title, channel, views, likes, duration.
 
 **Script:** `legion script seo/youtube_search search "<query>" --json`
-**Reference:** `references/youtube-api.md`
+**Reference:** `references/google-assets/youtube-api.md`
 **Quota:** 100 units per search (10,000 units/day free).
 
 ### `/seo google youtube-video <video_id>`
@@ -241,7 +235,7 @@ Google's own entity/sentiment analysis. Enhances E-E-A-T scoring.
 Full NLP analysis: entities, sentiment, content classification.
 
 **Script:** `legion script seo/nlp_analyze --url <url> --json` or `--text "..."`
-**Reference:** `references/nlp-api.md`
+**Reference:** `references/google-assets/nlp-api.md`
 **Free tier:** 5,000 units/month. Requires billing enabled on GCP project.
 
 ### `/seo google entities <url-or-text>`
@@ -261,7 +255,7 @@ Gold-standard keyword volume data. Requires Google Ads account.
 Generate keyword ideas from seed terms.
 
 **Script:** `legion script seo/keyword_planner ideas "<seed>" --json`
-**Reference:** `references/keyword-planner-api.md`
+**Reference:** `references/google-assets/keyword-planner-api.md`
 **Requires:** Ads developer token + customer ID in config (Tier 3).
 
 ### `/seo google volume <keywords>`
@@ -278,18 +272,18 @@ Search volume for specific keywords (comma-separated).
 
 Knowledge Graph entity check. Verifies brand presence.
 
-**Reference:** `references/supplementary-apis.md`
+**Reference:** `references/google-assets/supplementary-apis.md`
 Uses Knowledge Graph Search API with API key.
 
 ### `/seo google safety <url>`
 
 Web Risk API check for malware/social engineering flags.
 
-**Reference:** `references/supplementary-apis.md`
+**Reference:** `references/google-assets/supplementary-apis.md`
 
 ### `/seo google quotas`
 
-Display rate limits table. Read `references/rate-limits-quotas.md`.
+Display rate limits table. Read `references/google-assets/rate-limits-quotas.md`.
 
 ---
 
@@ -333,7 +327,7 @@ Generate a professional PDF report with charts and analytics.
 ## Cross-Skill Integration
 
 - **seo-audit**: Spawns `seo-google` agent for live CWV + indexation data (conditional)
-- **seo-technical**: Uses pagespeed_check.py for real CWV field data
+- **seo-technical**: Uses `legion script seo/pagespeed_check` for real CWV field data
 - **seo-performance**: CrUX field data supplements Lighthouse lab data
 - **seo-sitemap**: GSC sitemap status shows real crawl/index coverage
 - **seo-content**: GSC query data informs keyword targeting

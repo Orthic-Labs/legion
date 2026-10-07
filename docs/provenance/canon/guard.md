@@ -1,3 +1,5 @@
+> Historical (frozen 2026-09-02). Cites code deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Guard capability canon
 
 Owner boundary: deterministic typed effect enforcement & effect-decision receipts.

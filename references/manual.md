@@ -58,9 +58,9 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
 | Stage | Execution |
 |---|---|
 | 0 · Blueprint grounding (if available) | Check freshness; query the current graph + flow inventory; use `.agent/` document/claim artifacts as the verified companion layer |
-| 1 · Scanners (`collect-facts.mjs`) | Consume fresh Blueprint hygiene facts first; run only missing/stale checks in a **parallel**, bounded pool `min(cpus-1,4)`. Size metrics nominate review candidates; they do not emit architecture findings. |
+| 1 · Scanners (`legion audit <root> --out <run-dir>`) | Consume fresh Blueprint hygiene facts first; run only missing/stale checks in a **parallel**, bounded pool `min(cpus-1,4)`. Size metrics nominate review candidates; they do not emit architecture findings. |
 | 1b · `build` / install check | **Sequential, alone**, after the pool (builds/installs are serial) |
-| 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native host subagents** (one fresh subagent per lens, always on lowest available tier; see Lens fan-out). Running lenses inline in the main session is fallback only when no native seat is available. **NO external model APIs** — no api-worker or HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
+| 2 · Reasoning lenses | After stage 1 (all consume `facts.json`). **Default = parallel native host subagents** (one fresh subagent per lens, tier by lens kind: strongest for security/architecture/correctness, mid for the other judgment lenses, lowest for mechanical lenses; see `lens-routing.md`). Running lenses inline in the main session is fallback only when no native seat is available. **NO external model APIs** — no external worker or HTTP model provider (locked 2026-07-05: provider limits repeatedly hung runs) |
 | 3 · Synthesize → render → open | Sequential |
 
 ## Procedure
@@ -107,24 +107,24 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
    bounded `ContextCandidateSet v1`. It never narrows the scanner/check denominator, and exact files
    used to verify a finding are still read in full.
 
-   > **Membrane status.** The typed Audit finding store (`<repo>/.audit/audit/findings.jsonl`,
-   > provider `audit_provider.py`, `status == open` only) and the typed Architect
-   > decision store are live in `main`; Audit still runs standalone directly after Blueprint — no
-   > planner prerequisite. Cross-machine parity claims stay gated on Mac evidence under
-   > `rightcontext-evidence/g2/`; current runtime truth: `membrane/docs/MEMBRANE-STATE.md`.
+   > **Membrane status.** Audit still runs standalone directly after Blueprint — no planner
+   > prerequisite. The typed Audit finding store (`<repo>/.audit/audit/findings.jsonl`, `status ==
+   > open` only) is a project-overlay artifact: read it when present, never require it.
 
 1. **Detect + collect facts (deterministic).** Run:
-   `audit-facts <root>`
-   It detects the stack(s), runs every applicable required + present scanner, and writes
-   `<root>/.audit/<ts>/facts.json` plus secret-redacted per-check logs. **Read `facts.json` —
-   never hand-wave a deterministic check.** Absent tools are `skipped`, never "clean".
+   `legion audit <root> --out <root>/.audit/<ts>`
+   It freezes the provider plan, runs every applicable required + present scanner, and writes
+   `plan.json`, `facts.json`, `report.json`, `report.sarif`, and `execution.json` under the run dir
+   (which must stay inside `<root>/.audit/`). **Read `plan.json` then `facts.json` —
+   never hand-wave a deterministic check.** Absent tools are `skipped`, never "clean". Confirm the
+   run with `legion verify <root>/.audit/<ts>`.
 
-   **Clean bar (Quality gate).** `render-report` computes a scanner-driven verdict separate from the
+   **Clean bar (Quality gate).** The renderer computes a scanner-driven verdict separate from the
    lens health score: **CLEAN** only when every `lint` (biome/eslint/ruff/clippy) · `types` (tsc/mypy) ·
    `build` check RAN with **0 findings** (0 warnings, 0 errors) — clippy runs `-D warnings` so a single
    rustc/clippy warning fails it. Any finding ⇒ **NOT CLEAN**; a gate tool that is absent/errored ⇒
    **UNPROVEN** (cannot certify — never silently clean). The gate is valid even on a lenses-not-run pass
-   and is emitted in the `--agent` summary as `quality_gate` so the audit-fix loop stops only on CLEAN.
+   and is emitted in the report as `quality_gate` so the audit-fix loop stops only on CLEAN.
    The health score can read "good" while warnings remain — the gate is the literal 0-warnings line.
 
    **`quality_gate` is ONE gate, and `CLEAN` on it is never the audit's overall verdict.** These are
@@ -163,13 +163,13 @@ A pipeline. Scanners fan out; the build step is the lone serial exception; stage
 ### CodeRabbit-inspired ergonomics
 
 Local-review scope/diff flags (`--doctor`, `--dir`, `--type all|local|committed|uncommitted`,
-`--base`/`--base-commit`, `--filter-dir`, `--agent`) plus the OKF bundle emit and `crypt prep`
+`--base`/`--base-commit`) plus the OKF bundle emit and `crypt prep`
 lens-input compression are specified in `references/engine-interface.md` §CLI ergonomics. Scope
 metadata is advisory context; scanner coverage remains honest — a scoped report must not claim
 unscanned checks were clean, and none of this turns `/audit` into single-PR review.
 
 2. **Run applicable lenses over `facts.json` + repo — as parallel native host subagents,
-   one fresh subagent per lens, all in ONE wave, always on lowest available tier; inline in main
+   one fresh subagent per lens, all in ONE wave, tier by lens kind (see `lens-routing.md` Model routing); inline in main
    session is fallback only when no native seat is available.** NO external model APIs (locked
    2026-07-05). Model routing, structured task bodies,
    secret-safe inputs, and the skel-vs-RAW excerpt-compression split are owned by
@@ -190,26 +190,24 @@ unscanned checks were clean, and none of this turns `/audit` into single-PR revi
    runtime pass), render + open here. **For a runnable app, do the runtime + visual pass (step 6) FIRST,
    fold its findings into `report.json`, and render + open only then** — otherwise you open a report that
    is missing the runtime/visual findings. Render + open:
-   `audit-report --facts <facts.json> --report <report.json>`
-   then `open-for-review <audit-report.md>`.
-   **MANDATORY durable-knowledge emit (Skill Output Contract):** after the report is written, run
-   `skill-emit report <audit-report.md> --type audit --repo <repo>` —
-   emits the findings as OKF concepts into the memory engine (recallable; one human report stays, no
-   stray markdown). `facts.json`/`report.json` remain the gitignored machine cache. **Typed store
-   is now the authority for planner-side findings (G4):** `audit_provider.py` reads
-   `<repo>/.audit/audit/findings.jsonl` and emits real `ContextCandidate` records from
-   `status == open` findings — resolved / dismissed / superseded are deliberately suppressed and
-   MUST NOT surface to the planner (G4 acceptance rule #3). The OKF emit remains the
-   human-recall path; the typed store is the planner path. Findings no longer flatten into
-   ordinary memories.
+   `legion report <run-dir>/report.json --format md --out <run-dir>/audit-report.md`
+   (`--format html|sarif|json` also work), then show the Markdown to the user with the host's viewer.
+   **Durable-knowledge emit (host capability, optional):** where the host provides `skill-emit`, run
+   `skill-emit report <audit-report.md> --type audit --repo <repo>` to emit the findings as OKF
+   concepts; without it, skip the emit and say so. `facts.json`/`report.json` remain the gitignored
+   machine cache. Open findings in `<repo>/.audit/audit/findings.jsonl` (when the project keeps one)
+   are the planner path; resolved / dismissed / superseded entries must not surface there.
 
 6. **Runtime pass (app-only — runnable apps).** Static analysis reads code at rest; this is the
    only pass that *runs* the app and *measures* behavior. If the target is a runnable app (a
    `qa:browser` script or a dev server exists):
    - Boot it: `pnpm qa:browser` (hidden loopback dev server, `?qa=1` mocks) → URL from
      `.cache/qa-browser/url.txt`. For a plain dev server, use its URL.
-   - `audit-runtime --url <url> --out <root>/.audit/<ts>/runtime` —
-     boots a headless debug browser, waits for the app to actually render (network-idle + interactive
+   - `legion audit <root> --url <url> --out <root>/.audit/<ts>` with the runtime providers selected
+     (`--only <runtime-provider-id>`, ids in `src/registry/providers-runtime.json`; add `--surfaces
+     targets.json` for button/card-driven views). A runtime provider that cannot run (no browser, no
+     `AUDIT_NETWORK_GUARD=active`) stays `UNPROVEN` and the pass is recorded as not run. The runtime
+     pass boots a headless debug browser, waits for the app to actually render (network-idle + interactive
      content settled — not a loading spinner), auto-enumerates SAFE surfaces (tabs / nav links only),
      and per surface captures **visual** (screenshot + layout overflow + console errors), **runtime**
      (JS exceptions / console errors), **performance** — two interaction passes: a TYPING pass (types
@@ -229,7 +227,7 @@ unscanned checks were clean, and none of this turns `/audit` into single-PR revi
      (app never rendered — stuck loader / unmocked IPC: it tested NOTHING) and `shallow:true` (rendered
      but nothing typeable/navigable was reached — pass `--surfaces`). Neither is a clean bill of health.
    - Fold `runtime.json` findings into `report.json` under the `performance` category, each citing
-     `runtime.json` + the surface as evidence and re-runnable via the printed `audit-runtime` command.
+     `runtime.json` + the surface as evidence and re-runnable via the printed `legion audit` command.
    - **Hand off to the visual gate (the e2e seam).** The runtime pass already screenshots every
      surface — that IS the pixel evidence the visual review needs. After the sweep, run **`/audit-visual`**
      over the captured surfaces (`<root>/.audit/<ts>/runtime/*.png` + their URLs): it sends the screenshots
@@ -242,8 +240,8 @@ unscanned checks were clean, and none of this turns `/audit` into single-PR revi
      Blocker-tier findings back into the report under a `ui-ux` category. (Static/library targets with no
      runnable surface skip this — there are no pixels.)
    - **Now render + open (the single, final render).** With `runtime.json` (performance) and the
-     `/audit-visual` (ui-ux) findings folded into `report.json`, run `render-report.mjs` +
-     `open-for-review.mjs` (step 5). For an app this is the FIRST and ONLY render — the report the user
+     `/audit-visual` (ui-ux) findings folded into `report.json`, run `legion report` and show the
+     Markdown (step 5). For an app this is the FIRST and ONLY render — the report the user
      opens is now complete with static + runtime + visual findings, not a stale static-only snapshot.
    - **Cold-start smoke (daemon/desktop apps).** The dev-server sweep boots against an EXISTING
      profile; fresh-install bugs (journal-replay panic on empty state, first-run unwraps) hide there.
@@ -251,7 +249,7 @@ unscanned checks were clean, and none of this turns `/audit` into single-PR revi
      dir + empty DB — point its data-dir env/flag at a temp dir) and capture the boot log. A
      fresh-state crash is a critical `resilience` finding.
    - **No runnable surface** (plain library/repo) → skip with a note; static lenses still run.
-   - *Harness self-check* (only if you touch `audit-runtime.mjs`): run it against
+   - *Harness self-check* (only if you change the runtime provider): run it against
      `bench/_selfcheck/perf.html` (must flag `expensive-typing`) and
      `bench/_selfcheck/clean.html` (must stay clean).
 
@@ -268,8 +266,8 @@ unscanned checks were clean, and none of this turns `/audit` into single-PR revi
 | `schema` | `tsc`/`mypy` errors, serialization sites | — | `tsc`/`mypy` |
 | `security` | `gitleaks`, `pnpm/npm audit`, `pip-audit`, `cargo audit`, `cargo deny`, `semgrep`, `actionlint`, `hadolint`, `dep_pinning`, `binary_pins` (NO-INTEGRITY-PIN downloads = supply-chain gap), `vendored_deps`, `contract_mirror`, `tauri_capabilities` (broad-grant / exposed-command surface), `cargo_unsafe`, `tool_coverage` | **NOT-SCANNED banner if status≠ran** | the scanners |
 | `minimize` *(FULL ponytail)* | deps list, scripts (`package.json`), `knip`/`jscpd`, `facts.decomposition.mechanical_splits`, and **RAW bodies** of suspect files (one-impl abstractions, wrappers, not-wired code) | the FULL 5-tag over-engineering hunt per **`references/ponytail-lens.md`** — `delete` (dead/not-wired/speculative), `stdlib`, `native`, `yagni` (one-impl trait/config/wrapper/one-export file/45-script sprawl), `shrink` (fewer lines, incl. mechanical include-splits). STRICT false-positive discipline (DI/test seams + planned extension are NOT yagni). NOT gated to deps-only | `knip`, `jscpd`, `facts.decomposition` |
-| `performance` *(static + runtime)* | source + lint (react perf rules); `runtime.json` if the runtime pass ran | static = the re-render hazard *smell* (cues in `references/lens-cues.md`); runtime findings MUST cite `runtime.json` evidence | eslint react rules + `audit-runtime` |
-| `a11y` *(app/web only)* | JSX/HTML/templates, `eslint-plugin-jsx-a11y`, `runtime.json` axe results (`findings[].a11y[]`) | semantic accessibility per `references/a11y-checklist.md` — missing labels/alt, ARIA misuse, focus order / keyboard traps, non-semantic interactive elements, contrast-as-policy. Only runs for a UI target; skip pure-backend/library | `eslint-plugin-jsx-a11y` (static) + **axe-core in `audit-runtime`** (WCAG 2 A/AA per surface, runs when axe-core is resolvable); NOT-SCANNED if both absent |
+| `performance` *(static + runtime)* | source + lint (react perf rules); `runtime.json` if the runtime pass ran | static = the re-render hazard *smell* (cues in `references/lens-cues.md`); runtime findings MUST cite `runtime.json` evidence | eslint react rules + the runtime provider |
+| `a11y` *(app/web only)* | JSX/HTML/templates, `eslint-plugin-jsx-a11y`, `runtime.json` axe results (`findings[].a11y[]`) | semantic accessibility per `references/a11y-checklist.md` — missing labels/alt, ARIA misuse, focus order / keyboard traps, non-semantic interactive elements, contrast-as-policy. Only runs for a UI target; skip pure-backend/library | `eslint-plugin-jsx-a11y` (static) + **axe-core in the runtime provider** (WCAG 2 A/AA per surface, runs when axe-core is resolvable); NOT-SCANNED if both absent |
 | `data-safety` *(migrations/SQL **and PII/privacy** in scope)* | migration files, raw SQL, ORM destructive ops, client storage sites, telemetry/analytics init, `tsc`/lint | per `references/migration-safety.md` — irreversible/no-down migration, blocking DDL on a large table, column/table drop = **data loss**, non-`CONCURRENTLY` index, unbatched backfill, `DELETE`/`UPDATE` without a guarded `WHERE`. Plus unbounded retention (history/log/telemetry tables or an outbox with no pruning/orphan sweep) and, when payments/FSM code is in scope: idempotency keys on refund/settlement paths, unique constraint on `(tenant, provider_ref)`, gateway-call-inside-DB-txn, attacker-supplied-tenant-id tracing. **PII & privacy** (any app target): plaintext PII in `localStorage`/`AsyncStorage`/plain SQLite instead of OS keychain/keystore, analytics/telemetry firing before user consent (GDPR/CCPA) or before an EULA/first-run gate, secrets/tokens persisted unencrypted at rest, and **PII leaking into logs/telemetry** (full request bodies, tokens, emails). Runs when the target/diff touches a migration, SQL, a payment/state-machine seam, client-side storage, or telemetry | greppable (migration dirs, DDL keywords, storage APIs, analytics init); high-value, low false-positive |
 | `resilience` *(app/daemon targets — trigger: sidecar/child-process/server/queue code present)* | source, `facts.checks[negative_space].meta` (unsafe_sites), runtime pass cold-start result | per `references/desktop-tauri-checklist.md` §5 — sidecar/child death+hang (watchdog, RPC timeouts), crash/corrupt-file recovery, partial-artifact cleanup, graceful shutdown, backpressure, offline/degraded-network static cues (fetch without retry/backoff/last-known-good), observability (persistent structured logs — is a field bug diagnosable post-hoc? no log file in a shipped desktop app is a finding) | greppable (spawn/Command sites, fetch sites, log-init); runtime cold-start smoke |
 | `platform-parity` *(trigger: `#[cfg(target_os` or `usePlatform` present)* | per-OS branches, CI workflows, marketing/docs claims | per `references/desktop-tauri-checklist.md` §6 — matrix every per-OS branch × shipped OSes; flag stubs (`Empty`/`unimplemented!`/silent `Ok(())`) behind cross-platform claims, per-OS CI coverage, rule-14 window-chrome/hotkey conformance | `git grep cfg(target_os` (deterministic branch inventory) |
@@ -333,10 +331,11 @@ lens fan-out, feed each lens its cue section from that reference alongside its `
 
 ## Scanner registry
 
-The executable check denominator is **`collect-facts.mjs`** — it builds the check set in code at runtime;
-`manifest.json` is a human-readable **documentation mirror** of that set (kept in sync by hand; the evals
-reference it), NOT a config the runner loads. If you add/remove a check, edit `collect-facts.mjs` and
-update `manifest.json` to match — the runner now PROVES the sync every run (`facts.manifest_drift`
+The executable check denominator is the declarative provider registry (`src/registry/providers.json`
+and `providers-runtime.json`) loaded by the native runner. `manifest.json` is a human-readable
+**documentation mirror** of that set (the evals reference it), NOT a config the runner loads. If you
+add/remove a check, edit the registry data and regenerate the mirror
+(`cargo run -q --locked --manifest-path engine/Cargo.toml -p legion-dev -- generate-manifest`) — the runner PROVES the sync every run (`facts.manifest_drift`
 lists missing/stale mirror entries; non-null drift is itself a doc-drift finding). Required checks
 that are *applicable* but do not reach `ran` set `incomplete=true`. The full check → command →
 runs-when registry table (the literal re-run lines the report prints, ~28 checks from `secrets`
@@ -344,24 +343,15 @@ through `runtime`) lives in `references/engine-interface.md` §Scanner registry.
 
 ## AU20 — planted-finding recall/precision bench
 
-`bench/` measures deterministic-scanner recall and precision against a planted-defect corpus.
-Thirteen fixtures, each planted case paired with a negative control, so a scanner that flags
-everything scores recall 1.0 and still fails the gate.
-
-- `node bench/run-bench.mjs` — default mode, scoring the bench's own detectors. The gate is
-  `recall >= threshold && false_positives === 0` (threshold `0.7`). It emits a qualification
-  receipt carrying `corpusDigest` and `receiptDigest`. **A green default run proves the corpus
-  and harness are sound. It proves nothing about `/audit`.**
-- `node bench/run-bench.mjs --real` — routes each case through the production
-  `collect-facts.mjs --only <check>` in a temp directory. A class whose tool is missing is
-  reported `unavailable` and excluded from every denominator, rather than reading as "no
-  findings" — the exact false-clean this bench exists to catch. Expect `GATE: FAIL` on a machine
-  without jscpd, a typed stack, and a drift scanner.
-- `--threshold <n>` and `--json` are also accepted.
-- `node bench/run-provider-selection-benchmark.mjs` — scores provider routing against
-  `src/evals/ground_truth/labeled_samples.json`; exits non-zero on any false positive or negative.
-- `node bench/run-bench.mjs` and the selection benchmark both run in CI
-  (`scripts/ci/right-git-ci.sh`).
+`bench/` holds a planted-defect corpus: thirteen fixtures, each planted case paired with a negative
+control, so a scanner that flags everything still fails. The native test
+`engine/crates/legion-audit/tests/bench_recall.rs` runs the real native providers over those fixtures
+and asserts that every positive is detected and every negative control stays empty. A class with no
+native provider is reported as uncovered. CI runs it; it is a repository test, not an installed
+command. A green bench proves the corpus and the mapped providers only, nothing about `/audit` on
+another repository. Known limit: the `drift` class has no deterministic provider, and a SKIP now fails the
+test (bench_recall no longer passes on SKIP). A class whose scanner is missing on the host is therefore
+a failure to fix, never a clean result.
 
 Rule-output measurement is separate: `bench/rule-output/` binds each detector's own findings to
 ruleId, file and line, which is what `provider-architecture.md` reserves the `measured-pack`
@@ -384,20 +374,20 @@ budgets, team skill, scale, or intentional trade-offs. Render this section only 
 Constraints narrow invalid recommendations (for example, an async or file-split suggestion) but do
 not suppress a verified correctness/security finding.
 
-### Coverage-on-the-change (§2A) and trajectory (`render-report.mjs`)
+### Coverage-on-the-change (§2A) and trajectory (report renderer)
 
 Two renderer-owned additions on top of the report shape above — full contract, matching schema, and
 worked examples in `references/coverage-and-trajectory.md`:
 
 - **Per-change coverage rows.** A binary "tests pass" hides that the CHANGED symbols are untested.
   When a lens supplies `report.coverage = { ratio, perFile:[{file,touched,covered,uncovered,tests,
-  verdict}] }` (the same shape locked with `/commit`'s diff-scoped gate), `render-report.mjs` renders
+  verdict}] }` (the same shape locked with `/commit`'s diff-scoped gate), the report renderer renders
   it as report §2A and computes a coverage gate: ratio < 0.8 is `high`, ratio < 0.5 **or** any touched
   file with an empty `tests` array is `critical`, and a missing ratio (no test infrastructure to read
   against) is `UNPROVEN` — never `CLEAN`. This is a READ of the diff against the test set; the lens
   never re-runs tests to compute it. A whole-repo `/audit` pass with no `coverage` field simply omits
   §2A — coverage-on-the-change is diff-scoped, nothing to render against.
-- **`audit_diff` trajectory.** A snapshot audit has no sense of direction. `render-report.mjs` itself
+- **`audit_diff` trajectory.** A snapshot audit has no sense of direction. The report renderer itself
   (the runner, not a lens) persists a compact fingerprint digest at
   `<workspace>/.audit/audit-trajectory.json` (override with `--trajectory-history <path>`) and diffs
   the current finding set against it on every invocation: `resolved`/`new`/`aged`/`unchanged`/
@@ -405,7 +395,7 @@ worked examples in `references/coverage-and-trajectory.md`:
   category + title`, with a rename-tolerant fallback (`category+title+basename(file)`, accepted only
   as a unique 1:1 pairing). First-ever run at a given history path has nothing to diff against —
   `vs_prior_run` is `null` until a second run exists. Both fields land in the Markdown report and the
-  `--agent` JSON summary (`coverage_gate`, `audit_diff`).
+  JSON summary (`coverage_gate`, `audit_diff`).
 
 ## Hard rules
 
@@ -438,7 +428,7 @@ worked examples in `references/coverage-and-trajectory.md`:
   locus never both ship — resolve with a deterministic check or repro before rendering; if
   unresolvable, render ONE finding with `status: disputed`, never both sides as fact.
 - **INCOMPLETE is honest.** A skipped *required applicable* check stamps the report INCOMPLETE.
-- **Secrets stay redacted.** Logs are written by `collect-facts.mjs` with secrets redacted.
+- **Secrets stay redacted.** Logs are written by the native runner with secrets redacted.
 - **Decompose/architecture findings route to `architect`** (its full `/covenant` workflow is the
   external design gate) — the loop drives the refactor autonomously, it does not hand `/architect` back to the operator.
   The eyes-gate stays the human VISUAL checkpoint; Council is not a separate manual step here.
@@ -463,7 +453,8 @@ skipped, no false "done". No flag is needed: the phrases "audit and fix", "audit
 ### GoalRoute v2 fix-route gate
 
 Before first nontrivial mutation, validate a Minimize decision/receipt under current audit run
-through `lib/minimize/minimize_gate.py` with every new file/dependency declared; then compile GoalRoute and write
+through `legion minimize decision validate <decision.json>` then `legion minimize decision receipt <decision.json> <receipt.json>`
+with every new file/dependency declared; then compile GoalRoute and write
 `<repo>/.audit/<timestamp>/goal-route.json` plus receipt. Set:
 
 - `STATE_A` = latest gate vector, open finding fingerprints, behavior surfaces, dirty-state evidence;
@@ -474,7 +465,7 @@ through `lib/minimize/minimize_gate.py` with every new file/dependency declared;
 - dependency graph = root causes before findings they cause, using `caused_by`;
 - route objective = minimum expected time to verified clean, including retry and regression/rework.
 
-Validate with `lib/goalroute/scripts/validate-route.py`; no patch begins before receipt PASS.
+Verify the receipt with `legion minimize decision verify <decision.json> <receipt.json>`; no patch begins before it PASSES. The GoalRoute route file itself has no wired validator (the Rust port is not exposed by a CLI entry): check it by hand against the objective and constraints above and record `route-validator-unavailable` in the fix report.
 Fix tier controls who may safely apply a fix; it does **not** determine sequence. Prefer safe root-cause
 fixes which clear multiple downstream findings. Parallelize only independent file/state clusters.
 
@@ -595,7 +586,7 @@ ask for: credentials/secrets, payments/billing, legal/compliance, destructive da
 claims, public copy), or any proposed feature/functionality removal. Everything else is the agent's to
 fix while preserving functionality.
 
-1. Run the **full** audit — `collect-facts` **AND every applicable reasoning lens** → `report.json`
+1. Run the **full** audit — `legion audit` **AND every applicable reasoning lens** → `report.json`
    (which MUST set `lenses_ran`). A scanner-only pass is NOT an audit and can never be "clean":
    decomposition, AI-slop, architecture, correctness, and minimize all live in the lenses. Skipping
    them = the report renders WITHHELD/INCOMPLETE, not clean.
@@ -612,7 +603,7 @@ fix while preserving functionality.
     A code-quality MANUAL finding only stays OPEN on genuine no-progress — and that keeps the audit
     NOT-clean. (Human-gated MANUAL = ONLY the non-code-risk/product-decision classes above:
     credentials/payments/legal/destructive-data/external-accounts/positioning/functionality-removal.)
-3. **Re-run `collect-facts` AND the lenses AND the tests** — the gate. The loop advances on real
+3. **Re-run `legion audit` AND the lenses AND the tests** — the gate. The loop advances on real
    scanner + lens + TEST results, not the agent's say-so. Size/structure candidates are deterministic;
    decomposition verdicts are evidence-backed architecture judgments. Reassess every runtime
    candidate, require the complete Architect plan for each `confirmed` verdict, and prove the plan's

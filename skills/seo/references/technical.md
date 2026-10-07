@@ -98,4 +98,4 @@ For each control record:
 
 Use `Pass | Partial | Fail | N/A | Not testable`. Keep critical gates (indexability, canonical/redirect integrity, security/private-data, measurement and authority boundaries) outside any optional score.
 
-Use deterministic scripts first: `site_audit.py`, `fetch_page.py`, render/browser evidence, `gsc_inspect.py`, `pagespeed_check.py`, `crux_history.py`, and provider/log evidence as applicable.
+Use deterministic scripts first: `legion script seo/site_audit`, `legion script seo/fetch_page`, render/browser evidence, `legion script seo/gsc_inspect`, `legion script seo/pagespeed_check`, `legion script seo/crux_history`, and provider/log evidence as applicable.

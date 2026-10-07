@@ -335,29 +335,9 @@ For large-scale creative production (Anthropic's growth team generates 100+ vari
 - `/marketing growth` — structuring creative A/B tests with statistical rigor
 - `/writing` — long-form/script/repurposing content that is NOT ad or conversion copy
 
-## Optional external jury (explicit opt-in only)
+## Optional independent review
 
-Run this external jury only when the approving human explicitly requests it; ordinary drafts use the skill's
-inline conversion and evidence checks.
-
-```bash
-# Save the draft to a file first, then jury it:
-node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
-  kind: 'ad',
-  artifactPath: '<absolute path to draft .md>',
-  context: {
-    brand:       '<brand-code>',
-    notes:       'build-ad draft for review',
-    brandRules:  '<brand voice rules from /brand>',
-    rubricFlags: {}
-  },
-  failHard: true
-}).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
-```
-
-If DON'T-SHIP, surface the verdict to the user. Don't present the draft as
-ready until either (a) jury returns SHIP/REVISE-OK, or (b) the user
-explicitly accepts warn-only mode.
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.
 
 _Additional refs: see ad-assets/_
 

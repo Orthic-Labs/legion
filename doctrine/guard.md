@@ -78,7 +78,7 @@ artifacts are not merged here.
 
 | Event | Current registration | Current Guard treatment |
 | --- | --- | --- |
-| `SessionStart` | `startup`, `resume`, `clear`, `compact` | acknowledge as lifecycle |
+| `SessionStart` | `startup`, `resume`, `clear`, `compact` | acknowledge as lifecycle, and inject the hand-maintained `SESSION_START_CONTEXT` routing/scope text as additional context (`engine/bins/legion-hook/src/main.rs`); that text must stay in step with `AGENTS.md` |
 | `SubagentStart` | all | acknowledge as lifecycle |
 | `SubagentStop` | all | acknowledge as lifecycle |
 | `UserPromptSubmit` | all | acknowledge as lifecycle |
@@ -110,7 +110,7 @@ subagent's own effects are guarded inside its session.
 
 ## Effect classification
 
-`legion-contracts::EffectClass` is the canonical effect vocabulary:
+`legion-contracts::EffectClass` is the runtime effect vocabulary (the semantic names used in SKILL `effects:` map onto it in `docs/LEGION-CANONICAL-SSOT.md` section 7):
 
 ```text
 FILE_WRITE          FILE_DELETE          FILE_MOVE

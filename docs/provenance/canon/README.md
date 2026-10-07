@@ -1,3 +1,5 @@
+> Historical (frozen 2026-09-02). Cites code deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Legion atomic capability canons
 
 Status: canonical capability-state index  
@@ -49,12 +51,12 @@ Closure is derived only when implementation is `DELIVERED`, verification is `FOC
 - Guard remains separate from Arcane. Guard owns typed effect enforcement & receipts; Arcane owns cognitive control.
 - Five domains are Skills grouping metadata, not peer orchestrators or subsystems.
 - Covenant seats are Covenant implementation, not independent subsystem owners.
-- `src/packages/{context,contracts,kernel}` are implementation components under Legion-owned orchestration, not duplicate semantic owners.
+- `src/packages/contracts` is the surviving implementation component under Legion-owned orchestration (the former context and kernel packages were removed).
 - Public distribution & client integration remain Legion-owned.
 - Historical deterministic-substrate & retired assurance-role planning names are provenance only; Oracle is current assurance owner.
 
 ## Derived pending work
 
-[docs/pending/README.md](../../pending/README.md) is generated from open capability rows by `node scripts/check-atomic-canons.mjs --write`. Edit subsystem canons, never generated pending rows.
+[../pending/README.md](../pending/README.md) was generated from open capability rows by a generator that no longer exists; it is frozen and no longer an index of pending work.
 
 Historical pending inventory is preservation-mapped in [registers/preservation-map.md](registers/preservation-map.md). Any legacy row absent from this map, unresolved target, semantic ownership overlap, or stale evidence blocks reconciliation.

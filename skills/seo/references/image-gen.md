@@ -4,7 +4,7 @@ description: "AI image generation for SEO assets: OG/social preview images, blog
 argument-hint: "[og|hero|product|infographic|custom|batch] <description>"
 user-invokable: true
 license: MIT
-compatibility: "Requires nanobanana MCP server"
+compatibility: "Requires the banana-image host capability"
 metadata:
   author: AgriciDaniel
   version: "1.6.1"
@@ -24,13 +24,13 @@ the standalone AI image generation skill for Claude Code.
 
 This skill has two components with distinct roles:
 - **SKILL.md** (this file): Handles interactive `/seo image-gen` commands for generating images
-- **Agent** (`agents/seo-image-gen.md`): Audit-only analyst spawned during `/seo audit` to assess existing OG/social images and produce a generation plan (never auto-generates)
+- **Audit pass**: during `/seo audit`, assess existing OG/social images and produce a generation plan (never auto-generates). No separate agent file is shipped; the audit runs this pass inline.
 
 ## Prerequisites
 
 This skill requires the banana extension to be installed:
 ```bash
-# banana is a host capability (banana MCP); this package ships no installer.
+# banana-image is a host capability (image-generation MCP server); this package ships no installer.
 ```
 
 **Check availability:** Before using any image generation tool, verify the MCP server
@@ -72,7 +72,7 @@ For every generation request:
 2. **Apply SEO defaults** from the use cases table above
 3. **Set aspect ratio** via `set_aspect_ratio` MCP tool
 4. **Construct Reasoning Brief** using the banana Creative Director pipeline:
-   - Load `references/prompt-engineering.md` for the 6-component system
+   - Load `references/image-gen-assets/prompt-engineering.md` for the 6-component system
    - Be SPECIFIC and VISCERAL: describe what the camera sees
 5. **Generate** via `gemini_generate_image` MCP tool
 6. **Post-generation SEO checklist** (see below)
@@ -81,10 +81,9 @@ For every generation request:
 
 If the user mentions a brand or has SEO presets configured:
 ```bash
-python3 legion-skill://seo/extensions/banana/scripts/presets.py list
-# native Rust port (preferred): legion script seo/banana-presets list
+legion script seo/banana-presets list
 ```
-Load matching preset and apply as defaults. Also check `references/seo-image-presets.md`
+Load matching preset and apply as defaults. Also check `references/image-gen-assets/seo-image-presets.md`
 for SEO-specific preset templates.
 
 ## Post-Generation SEO Checklist
@@ -120,8 +119,8 @@ After every successful generation, guide the user on:
 
 Image generation costs money. Be transparent:
 - Show estimated cost before generating (especially for batch)
-- Log every generation: `python3 legion-skill://seo/extensions/banana/scripts/cost_tracker.py log --model MODEL --resolution RES --prompt "brief"` (native: `legion script seo/banana-cost-tracker log --model MODEL --resolution RES --prompt "brief"`)
-- Run `cost_tracker.py summary` (native: `legion script seo/banana-cost-tracker summary`) if user asks about usage
+- Log every generation: `legion script seo/banana-cost-tracker log --model MODEL --resolution RES --prompt "brief"`
+- Run `legion script seo/banana-cost-tracker summary` if user asks about usage
 
 Approximate costs (gemini-3.1-flash):
 - 512: ~$0.02/image
@@ -142,29 +141,29 @@ Approximate costs (gemini-3.1-flash):
 
 | Error | Resolution |
 |-------|-----------|
-| MCP not configured | Connect the `banana` MCP host capability |
+| MCP not configured | Connect the `banana-image` host capability |
 | API key invalid | New key at https://aistudio.google.com/apikey |
 | Rate limited (429) | Wait 60s, retry. Free tier: ~10 RPM / ~500 RPD |
-| `IMAGE_SAFETY` | Rephrase prompt - see `references/prompt-engineering.md` Safety section |
-| MCP unavailable | Fall back: `python3 legion-skill://seo/extensions/banana/scripts/generate.py --prompt "..." --aspect-ratio "16:9"` (native: `legion script seo/banana-generate --prompt "..." --aspect-ratio "16:9"`) |
-| Extension not installed | Ask the caller to connect the `banana` MCP host capability |
+| `IMAGE_SAFETY` | Rephrase prompt - see `references/image-gen-assets/prompt-engineering.md` Safety section |
+| MCP unavailable | Fall back: `legion script seo/banana-generate --prompt "..." --aspect-ratio "16:9"` |
+| Extension not installed | Ask the caller to connect the `banana-image` host capability |
 
 ## Cross-Skill Integration
 
 - **seo-images** (analysis) feeds into **seo-image-gen** (generation): audit results from `/seo images` identify missing or low-quality images; use those findings to drive `/seo image-gen` commands
-- **seo-audit** spawns the seo-image-gen **agent** (not this skill) to analyze OG/social images across the site and produce a prioritized generation plan
+- **seo-audit** runs the image audit pass (not this generation skill) to analyze OG/social images across the site and produce a prioritized generation plan
 - **seo-schema** can consume generated images: after generation, suggest `ImageObject` schema markup pointing to the new assets
 
 ## Reference Documentation
 
 Load on-demand. Do NOT load all at startup:
-- `references/prompt-engineering.md`:6-component system, domain modes, templates
-- `references/gemini-models.md`:Model specs, rate limits, capabilities
-- `references/mcp-tools.md`:MCP tool parameters and responses
-- `references/post-processing.md`:ImageMagick/FFmpeg pipeline recipes
-- `references/cost-tracking.md`:Pricing, usage tracking
-- `references/presets.md`:Brand preset management
-- `references/seo-image-presets.md`:SEO-specific preset templates
+- `references/image-gen-assets/prompt-engineering.md`:6-component system, domain modes, templates
+- `references/image-gen-assets/gemini-models.md`:Model specs, rate limits, capabilities
+- `references/image-gen-assets/mcp-tools.md`:MCP tool parameters and responses
+- `references/image-gen-assets/post-processing.md`:ImageMagick/FFmpeg pipeline recipes
+- `references/image-gen-assets/cost-tracking.md`:Pricing, usage tracking
+- `references/image-gen-assets/presets.md`:Brand preset management
+- `references/image-gen-assets/seo-image-presets.md`:SEO-specific preset templates
 
 ## Response Format
 
@@ -175,30 +174,8 @@ After generating, always provide:
 4. **SEO checklist**:alt text suggestion, file naming, WebP conversion
 5. **Schema snippet**:ImageObject or og:image markup if applicable
 
-## Optional external jury (explicit opt-in only)
+## Optional independent review
 
-Run this external jury only when the approving human explicitly requests it; ordinary image generation uses the
-skill's inline and visual checks.
-
-```bash
-node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
-  kind: 'image',
-  artifactPath: '<absolute path to saved image>',
-  context: {
-    brand:       '<brand-code>',
-    prompt:      '<the prompt that was sent>',
-    brandRules:  '<brand palette/typography rules from /brand>',
-    notes:       'SEO image gen via /seo-image-gen',
-    rubricFlags: { hero_asset: true }   // add for OG / blog hero / above-fold images
-  },
-  failHard: true
-}).then(v=>console.log(JSON.stringify(v.auto_jury_meta))).catch(e=>{console.error(e.message);process.exit(1)})"
-```
-
-If the jury returns DON'T-SHIP, do NOT present the image. Show the user the
-jury verdict (`<image>.verdict.json`) and ask whether to regenerate or proceed.
-
-`failHard: false` is allowed only when the user has explicitly accepted a
-warn-only mode for this batch.
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.
 
 _Additional refs: see image-gen-assets/_

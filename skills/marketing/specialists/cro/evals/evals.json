@@ -84,9 +84,9 @@
       "prompt": "Optimize the checkout flow at https://example.com/checkout — it has friction at the address step.",
       "expected_skill": "optimize",
       "forbidden_skills": [],
-      "expected_behavior": "Because a live URL is provided, the skill MUST invoke the qa-skill chain (qa-functional.mjs / qa-shot.mjs) for browser evidence before issuing any CRO verdict. A verdict without browser evidence is invalid for live-URL tasks.",
+      "expected_behavior": "Because a live URL is provided, the skill MUST invoke the qa-skill chain (legion script qa/qa-functional / qa/qa-shot) for browser evidence before issuing any CRO verdict. A verdict without browser evidence is invalid for live-URL tasks.",
       "assertions": [
-        "requires_tool: qa-functional.mjs"
+        "requires_tool: legion script qa/qa-functional"
       ],
       "severity": "error",
       "mode": "static"

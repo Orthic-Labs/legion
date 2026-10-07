@@ -6,11 +6,11 @@ Preferred capture order:
 
 1. **Local `/qa` skill and project QA harness.**
    - Load the `/qa` skill instructions first and use its configured browser command, normally the gstack `browse` binary (`$B goto`, `$B snapshot`, `$B screenshot`, `$B responsive`, `$B click`, `$B fill`).
-   - Start the app's documented browser QA mode, such as `npm run qa`, `pnpm qa:browser`, or the project-specific script in `AGENTS.md`, `CLAUDE.md`, `README`, or `docs/QA.md`.
+   - Start the app's documented browser QA mode, such as `npm run qa`, `pnpm qa:browser`, or the project-specific script in `AGENTS.md`, `CLAUDE.md`, `README`, or the project's QA doc (for example `docs/QA.md`, a project-overlay file that may not exist).
    - Use the QA URL it emits, usually `http://127.0.0.1:<port>/?qa=1` or a documented route.
    - QA mode should use deterministic mocks for visual states.
    - Capture only the web/app surface, not the OS chrome.
-   - Use `skills/qa/scripts/qa-shot.mjs` (or the native `legion script qa/qa-shot`) for viewport screenshots and `skills/qa/scripts/qa-functional.mjs` (or `legion script qa/qa-functional`) for hover/click/type/key/assert flows.
+   - Use `legion script qa/qa-shot` for viewport screenshots and `legion script qa/qa-functional` for hover/click/type/key/assert flows.
 
 2. **Shared headless Chrome/Edge runner.**
    - Launch installed Chrome/Edge through the `/qa` scripts against the QA URL or local dev URL.
@@ -47,8 +47,8 @@ Suggested generic `/qa` pattern:
 ```powershell
 pnpm qa:browser
 $url = Get-Content .cache\qa-browser\url.txt
-node skills/qa/scripts/qa-shot.mjs --url $url --out .cache\qa-shots\current\app-default.png
-node skills/qa/scripts/qa-functional.mjs --url $url --actions .cache\qa-actions.json
+legion script qa/qa-shot --url $url --out .cache\qa-shots\current\app-default.png
+legion script qa/qa-functional --url $url --actions .cache\qa-actions.json
 ```
 
-If the project provides a dedicated screenshot script, use that instead of improvising. For SampleApp, follow `docs/QA.md` and the project `AGENTS.md`: routine visual QA uses the headless Vite QA harness, not foreground Tauri/WebView2.
+If the project provides a dedicated screenshot script, use that instead of improvising. For a project that ships its own QA doc (SampleApp keeps `docs/QA.md`), follow it and the project `AGENTS.md`: routine visual QA uses the headless Vite QA harness, not foreground Tauri/WebView2.

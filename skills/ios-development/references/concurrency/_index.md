@@ -39,7 +39,7 @@ Quick navigation for the Swift Concurrency skill.
 
 ## Problem Router
 
-- "I need to fix a compiler error quickly" → `../SKILL.md`
+- "I need to fix a compiler error quickly" → `../../SKILL.md`
 - "I need to replace a callback with async/await" → `async-await-basics.md`
 - "I need to protect shared mutable state" → `actors.md`
 - "I need to pass data safely across boundaries" → `sendable.md`

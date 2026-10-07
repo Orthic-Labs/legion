@@ -12,17 +12,17 @@ everywhere). The *implementation* is not. Resolve which one you are in before wr
 
 | Evidence | Toolkit | Design reference | Motion + geometry |
 |---|---|---|---|
-| `.tsx`/`.vue`/`.html`, browser target | web | this file | `motion/stack.md` |
-| `src-tauri/` + React/Qwik/Vue frontend | embedded WebView | this file + **`native-app.md` §7** | `motion/stack.md` + **`motion/webview.md`** |
-| `.swift`, `NSPanel`/`NSHostingView`, `.xcodeproj` | SwiftUI + AppKit | **`native-app.md` §1–§5** | **`motion/native.md` §1–§4** |
-| `.slint` markup + Rust/C++/JS host | Slint | **`native-app.md` §6** | **`motion/native.md` §5** |
+| `.tsx`/`.vue`/`.html`, browser target | web | this file | `specialists/motion/stack.md` |
+| `src-tauri/` + React/Qwik/Vue frontend | embedded WebView | this file + **`native-app.md` §7** | `specialists/motion/stack.md` + **`specialists/motion/webview.md`** |
+| `.swift`, `NSPanel`/`NSHostingView`, `.xcodeproj` | SwiftUI + AppKit | **`native-app.md` §1–§5** | **`specialists/motion/native.md` §1–§4** |
+| `.slint` markup + Rust/C++/JS host | Slint | **`native-app.md` §6** | **`specialists/motion/native.md` §5** |
 
 `native-app.md` covers what changes without a DOM: macOS container vocabulary (window vs sheet vs
 panel vs popover vs inspector), Liquid Glass and `NSVisualEffectView` materials, semantic-vs-brand
 colour, the system-face-in-chrome typography rule, Slint's missing control layer, and Tauri shell
 chrome.
 
-For native toolkits, `motion/native.md` §0 is mandatory reading before ANY animated window, panel,
+For native toolkits, `specialists/motion/native.md` §0 is mandatory reading before ANY animated window, panel,
 sheet, HUD, or palette work: it owns the single-animation-owner rule, presentation-vs-model geometry,
 anchor preservation, and the ban on resizing a window after its visual transition has settled. Native
 surfaces also skip the web-only checks (CLS, hydration, bundle budget) and use `native.md` §4 instead.
@@ -108,8 +108,8 @@ sets · tabs only for sibling views · stable dimensions for repeated controls.
 - Advanced operational controls use progressive disclosure; the default pane is a task-oriented
   summary, not a permanent wall of raw inputs.
 
-Use the qa-engine for hidden/background QA (project `qa:browser` contract, `lib/qa-engine/qa-functional.mjs` for
-hover/click/type/key/assert, `lib/qa-engine/qa-shot.mjs` for app-viewport screenshots). No foreground native
+Use the qa-engine for hidden/background QA (project `qa:browser` contract, `legion script qa/qa-functional` for
+hover/click/type/key/assert, `legion script qa/qa-shot` for app-viewport screenshots). No foreground native
 windows or desktop screenshots by default.
 
 ## Phase 6 — audit-visual gate

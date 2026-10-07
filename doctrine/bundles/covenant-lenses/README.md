@@ -3,14 +3,13 @@
 Recovered from `git show d810d827^:tools/skills/council/references/` (J-1b, 2026-08-09) — Council's
 engine was ported to `skills/covenant/`, but these sixteen domain review lenses were not
 carried over. Each is the specific set of review roles, mandates, and evidence a reviewer needs for
-one domain; recovering them restores the specialization BRIEFING-LAYER.md §3 describes.
+one domain; recovering them restores per-domain specialization of a seat.
 
 **These are assigned per-seat at convene time — one lens per seat.** That assignment IS the
-specialization mechanism (BRIEFING-LAYER.md §2.3): a `covenant-seat` instance is the same
+specialization mechanism: a `covenant-seat` instance is the same
 constitution every time; what makes it a design specialist versus a code specialist is which of
 these files it was handed in its packet. Do not load more than one lens into a single seat — that
-recreates the "too much information competing for attention" failure the briefing layer exists to
-avoid.
+recreates the "too much information competing for attention" failure.
 
 | Lens | Assign when reviewing... |
 |---|---|
@@ -49,5 +48,5 @@ note rather than silently rewritten:
 JSON, Jury seats, resumption/routing tables) was **not** recovered into this bundle. It documents
 the old engine's own operating procedure end-to-end, and that engine is retired; Covenant's
 operating procedure (packets, flows, C-invariants) is authored fresh in `doctrine/covenant-seat.md` and
-`doctrine/covenant-seat.md`, which supersede it in full rather than in the piecewise way a lens
+`agents/covenant-seat.md`, which supersede it in full rather than in the piecewise way a lens
 does. See J-1b's report for the full reasoning.

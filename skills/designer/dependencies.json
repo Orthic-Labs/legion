@@ -4,7 +4,15 @@
   "resources": [
     {
       "class": "HOST_CAPABILITY",
-      "capability": "python-runtime"
+      "capability": "banana-image"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../_shared/anti-slop.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../_shared/parametric-design.md"
     }
   ]
 }

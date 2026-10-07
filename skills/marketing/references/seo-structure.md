@@ -52,7 +52,7 @@ Gather this context (ask if not provided):
 | Hybrid SaaS+content | 3-4 levels | Home, Product, Blog, Resources, Docs | `/product/feature`, `/blog/slug` |
 | Small business | 1-2 levels | Home, Services, About, Contact | `/services/name` |
 
-**For full page hierarchy templates**: See references/site-type-templates.md
+**For full page hierarchy templates**: See references/seo-structure-assets/site-type-templates.md
 
 ---
 
@@ -150,7 +150,7 @@ Home > Blog > SEO Category > Post Title
 
 Breadcrumbs should mirror the URL hierarchy. Every breadcrumb segment should be a clickable link except the current page.
 
-**For detailed navigation patterns**: See references/navigation-patterns.md
+**For detailed navigation patterns**: See references/seo-structure-assets/navigation-patterns.md
 
 ---
 
@@ -252,7 +252,7 @@ graph TD
     FEAT --> F2[Automation]
 ```
 
-**For more Mermaid templates**: See references/mermaid-templates.md
+**For more Mermaid templates**: See references/seo-structure-assets/mermaid-templates.md
 
 ---
 
@@ -356,19 +356,8 @@ Mermaid diagram showing page relationships and navigation zones. Use `graph TD` 
 - **schema-markup**: For implementing breadcrumb and site navigation structured data
 - **competitor-alternatives**: For comparison page frameworks and URL patterns
 
-## Optional external jury (explicit opt-in only)
+## Optional independent review
 
-Only when the approving human explicitly requests an external jury, after the plan/strategy doc is written:
-
-```bash
-node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
-  kind: 'plan',
-  artifactPath: '<absolute path to plan .md>',
-  context: { brand: '<brand-code or N/A>', notes: 'plan-seo-structure output', rubricFlags: {} },
-  failHard: true
-}).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
-```
-
-DON'T-SHIP blocks presentation. Surface verdict to user.
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.
 
 _Additional refs: see seo-structure-assets/_

@@ -43,24 +43,17 @@
       ],
       "remedy": "Install the Pi CLI and expose its `pi` command on PATH, then invoke Coder again."
     },
-    "python-runtime": {
-      "kind": "language-runtime",
-      "summary": "Python runtime used by package-local validators.",
-      "degradation": "The dependent skill reports that its local validator is unavailable and does not substitute another runtime.",
-      "probe": {
-        "kind": "command-any",
-        "commands": [
-          "python3",
-          "python",
-          "py"
-        ]
-      },
-      "commands": [
-        "python3",
-        "python",
-        "py"
-      ],
-      "remedy": "Install Python 3 and expose `python3`, `python`, or the `py` launcher (`py -3.11`) on PATH."
+    "banana-image": {
+      "kind": "mcp-server",
+      "summary": "Image generation and editing through the nano-banana MCP tools (mcp__nano-banana__*), used by Ads, Designer, Marketing, and SEO image steps.",
+      "degradation": "The skill reports the image-generation step unavailable and continues without it. This package ships no fallback generator.",
+      "remedy": "Wire a nano-banana image-generation MCP server into the host. This package ships no generator and no fallback."
+    },
+    "ahrefs": {
+      "kind": "mcp-server",
+      "summary": "Ahrefs backlink, keyword, and site-explorer data through the host's Ahrefs MCP connector.",
+      "degradation": "The skill reports the Ahrefs step unavailable and continues without it; findings that needed Ahrefs data are marked UNPROVEN and never estimated.",
+      "remedy": "Connect an Ahrefs MCP server in the host."
     },
     "morph": {
       "kind": "tool",

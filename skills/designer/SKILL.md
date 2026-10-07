@@ -14,7 +14,7 @@ effects:
   - source-read
   - artifact-write
 hostRequirements:
-  - python-runtime
+  - banana-image
 ---
 
 # Designer

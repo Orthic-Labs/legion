@@ -108,7 +108,7 @@ URL Pattern Breakdown:
 ### scrape -- Single-Page Deep Scrape
 
 Scrape a single page with full JavaScript rendering. More thorough than
-`fetch_page.py` because it executes JS and waits for dynamic content.
+`legion script seo/fetch_page` because it executes JS and waits for dynamic content.
 
 **MCP Tool:** `firecrawl_scrape`
 
@@ -127,12 +127,12 @@ Scrape a single page with full JavaScript rendering. More thorough than
 4. **Main content extraction**: Use `onlyMainContent` for clean E-E-A-T analysis
 5. **Screenshot capture**: Use `screenshot` format for visual analysis
 
-**When to use scrape vs fetch_page.py:**
+**When to use scrape vs `legion script seo/fetch_page`:**
 | Scenario | Use |
 |----------|-----|
-| Static HTML page | `fetch_page.py` (no API cost) |
+| Static HTML page | `legion script seo/fetch_page` (no API cost) |
 | JS-rendered SPA | `firecrawl_scrape` (renders JS) |
-| Need response headers | `fetch_page.py` (returns headers) |
+| Need response headers | `legion script seo/fetch_page` (returns headers) |
 | Need clean markdown | `firecrawl_scrape` (better extraction) |
 | Rate-limited/blocked | `firecrawl_scrape` (handles anti-bot) |
 
@@ -197,6 +197,6 @@ When Firecrawl is available during `/seo audit`:
 | `403 Forbidden` | Site blocks crawling | Check robots.txt, may need to skip this site |
 
 **Graceful fallback:** If Firecrawl is unavailable, inform the user and suggest:
-1. Use `fetch_page.py` for single-page analysis (no API cost)
+1. Use `legion script seo/fetch_page` for single-page analysis (no API cost)
 2. Use `WebFetch` tool for basic HTML retrieval
 3. Connect the `firecrawl` MCP host capability

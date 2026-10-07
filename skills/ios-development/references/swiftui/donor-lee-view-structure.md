@@ -104,7 +104,7 @@ struct ContentView: View {
 }
 ```
 
-For conditional modifier composition and `AnyShapeStyle`, consult `references/modifier-patterns.md`.
+For conditional modifier composition and `AnyShapeStyle`, consult `references/swiftui/donor-lee-modifier-patterns.md`.
 
 ## Extract Subviews, Not Computed Properties
 
@@ -701,7 +701,7 @@ struct MapView: UIViewRepresentable {
 
 ### Debug SwiftUI Renderings
 
-> See `references/performance-patterns.md` (item #8) for the `_printChanges()` vs `_logChanges()` comparison and the `@self`/`@identity` output meaning. The snippets below show the call sites.
+> See `references/swiftui/donor-lee-performance-patterns.md` (item #8) for the `_printChanges()` vs `_logChanges()` comparison and the `@self`/`@identity` output meaning. The snippets below show the call sites.
 
 If it is needed to debug render cycles and read console output you can leverage the `_printChanges()` or `_logChanges()` methods on `View`. These methods print information about when the view is being evaluated and what changes are triggering updates. This can be very helpful when your view body is called multiple times and you want to know why.
 

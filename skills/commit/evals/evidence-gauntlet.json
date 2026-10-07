@@ -1,7 +1,8 @@
 {
   "name": "phase-6.7-evidence-gauntlet",
   "purpose": "Three diff-scoped mechanical checks (mutation, changed-lines coverage, test-order independence) wired into /commit as a host-issued Arcane check.",
-  "rerunnable_command": "node src/lib/gauntlet/gauntlet.mjs --base HEAD",
+  "rerunnable_command": null,
+  "engine_status": "The node gauntlet engine (mutation, coverage, order) was deleted in ebb349ae and has no native replacement. The layers below are retained as a specification, not a runnable proof.",
   "arcane_mapping": {
     "kind": "gauntlet",
     "executor": "host",
@@ -19,21 +20,21 @@
       "what": "Inject a fault per added line; rerun the test command; report survived vs killed.",
       "ok_when": "no mutant survived",
       "fail_signal": "tests-that-cannot-fail",
-      "engine": "src/lib/gauntlet/lib/mutation.mjs"
+      "engine": null
     },
     {
       "name": "coverage",
       "what": "NODE_V8_COVERAGE driven test run; report fraction of added lines executed.",
       "ok_when": "all added lines executed at least once",
       "fail_signal": "untested_changed_lines",
-      "engine": "src/lib/gauntlet/lib/coverage.mjs"
+      "engine": null
     },
     {
       "name": "order",
       "what": "Seed Fisher-Yates shuffle over test files; rerun N times; every run must pass.",
       "ok_when": "every run exited 0",
       "fail_signal": "order_dependent_failure",
-      "engine": "src/lib/gauntlet/lib/order.mjs"
+      "engine": null
     }
   ],
   "anti_gaming": [

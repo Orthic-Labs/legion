@@ -84,9 +84,9 @@ Select banana domain mode based on campaign brief content:
 - **UI/Web**: app install, SaaS
 - **Portrait**: testimonials, people
 
-### Step 6: Spawn Visual Designer Agent
+### Step 6: Run the Visual Designer Brief
 
-Spawn the `visual-designer` agent using the Task tool with `context: fork`,
+Run the `visual-designer` brief inline (load `agents/visual-designer.md`),
 passing the selected domain mode and preset name.
 
 The agent will:
@@ -97,8 +97,8 @@ The agent will:
 
 ### Step 7: Validate with Format Adapter
 
-After the visual-designer completes, spawn the `format-adapter` agent
-with `context: fork` to validate dimensions and report missing formats.
+After the visual-designer completes, run the `format-adapter` brief inline
+(load `agents/format-adapter.md`) to validate dimensions and report missing formats.
 
 ### Step 8: Quality Gate
 
@@ -162,27 +162,8 @@ Use `/banana generate` directly with the specified prompt and aspect ratio.
 - : per-platform specs
 - `legion-skill://ads/references/brand-dna-template.md`: brand injection schema
 
-## Optional external jury (explicit opt-in only)
+## Optional independent review
 
-Run this external jury only when the approving human explicitly requests it; ordinary creative generation uses
-the skill's inline checks.
-
-```bash
-node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
-  kind: 'ad',
-  artifactPath: '<absolute path to saved creative>',
-  context: {
-    brand:       '<brand-code>',
-    campaign:    '<campaign name>',
-    prompt:      '<the creative prompt + copy block>',
-    brandRules:  '<brand palette/typography from /brand>',
-    notes:       'Ad creative via /ads-generate',
-    rubricFlags: { hero_asset: true }
-  },
-  failHard: true
-}).then(v=>console.log(JSON.stringify(v.auto_jury_meta))).catch(e=>{console.error(e.message);process.exit(1)})"
-```
-
-DON'T-SHIP blocks presentation. Show verdict, ask user before regenerating.
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.
 
 _Additional assets: see generate-assets/_

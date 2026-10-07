@@ -4,7 +4,7 @@ description: >
   Top-level skill for SOCIAL/PRINT/MARKETING design — flyers, social posts, OG images, banners, ad creatives,
   posters, postcards, gift cards, packaging inserts, lookbook spreads. NOT for web/app interfaces (use
   /designer). Routes to canvas-design, algorithmic-art, ads-photoshoot, ads-generate, slack-gif-creator,
-  nano-banana MCP. Use when user says "/designer static", "flyer", "social post", "Instagram graphic",
+  the `banana-image` host capability. Use when user says "/designer static", "flyer", "social post", "Instagram graphic",
   "OG image", "banner", "poster", "ad creative", "lookbook", "promo image".
 ---
 
@@ -42,7 +42,7 @@ For one-off graphics that live on social, in email, in print, or as ad creatives
 
 | Need | Use |
 |---|---|
-| Photo enhancement / variations | nano-banana MCP (`mcp__nano-banana__edit_image`) |
+| Photo enhancement / variations | `banana-image` host capability (image edit tool) |
 | New illustration / generative | algorithmic-art (p5.js with seeded params) |
 | Layout-heavy poster / canvas | canvas-design |
 | Product photo styling | ads-photoshoot (5 styles per product) |
@@ -100,16 +100,6 @@ Always output:
 4. **Filenames + save paths**
 5. **Posting-ready note** (caption suggestion, hashtag set if for social)
 
-## Optional external jury (explicit opt-in only)
+## Optional independent review
 
-Run this external jury only when the approving human explicitly requests it.
-
-```bash
-node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
-  kind: 'design',
-  artifactPath: '<absolute path to output>',
-  context: { brand: '<brand-code>', notes: 'design-marketing output' },
-  failHard: true
-}).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
-```
-
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.

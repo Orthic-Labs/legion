@@ -27,14 +27,14 @@
 
 ## 工具链
 
-两个脚本在 `scripts/`：
+以下工具均通过 `legion script designer/<name>` 运行（`legion script --list` 可查）；需要宿主有 Chromium 与 ffmpeg：
 
-### 1. `render-video.js` — HTML → MP4
+### 1. `legion script designer/render-video` — HTML → MP4
 
-录一个 25fps 的 MP4 基础版本。依赖全局 playwright。
+录一个 25fps 的 MP4 基础版本。
 
 ```bash
-NODE_PATH=$(npm root -g) node /path/to/claude-design/scripts/render-video.js <html文件>
+legion script designer/render-video <html文件>
 ```
 
 可选参数：
@@ -45,14 +45,16 @@ NODE_PATH=$(npm root -g) node /path/to/claude-design/scripts/render-video.js <ht
 
 输出：与 HTML 同目录，同名 `.mp4`。
 
-### 2. `add-music.sh` — MP4 + BGM → MP4
+### 2. `legion script designer/add-music` — MP4 + BGM → MP4
 
-给无声 MP4 混入背景音乐，按场景（mood）从内置 BGM 库里选，也可自带音频。自动匹配时长、加淡入淡出。
+给无声 MP4 混入背景音乐。**内置 BGM 音频库（`assets/bgm-<mood>.mp3`）未随本包发布**，所以必须用 `--music=<path>` 指定音频；下表的 mood 仅在宿主自行提供了 `assets/bgm-<mood>.mp3` 时可用。自动匹配时长、加淡入淡出。
 
 ```bash
+legion script designer/add-music in.mp4 --music=<audio-path>
+legion script designer/add-music in.mp4 --mood=tech   # 仅当 bgm-tech.mp3 已由宿主提供
 ```
 
-**内置 BGM 库**（在 `assets/bgm-<mood>.mp3`）：
+**BGM mood 约定**（文件名 `assets/bgm-<mood>.mp3`，本包不含这些文件）：
 
 | `--mood=` | 风格 | 适配场景 |
 |-----------|------|---------|
@@ -72,15 +74,17 @@ NODE_PATH=$(npm root -g) node /path/to/claude-design/scripts/render-video.js <ht
 
 **典型流水线**（动画导出三件套 + 配乐）：
 ```bash
-node render-video.js animation.html                        # 录屏
-# 或针对不同场景：
+legion script designer/render-video animation.html                        # 录屏
+legion script designer/convert-formats animation.mp4                      # 60fps MP4 + GIF
+legion script designer/add-music animation.mp4 --music=<audio-path>       # 配乐
 ```
 
-### 3. `convert-formats.sh` — MP4 → 60fps MP4 + GIF
+### 3. `legion script designer/convert-formats` — MP4 → 60fps MP4 + GIF
 
 从已有 MP4 生成 60fps 版本和 GIF。
 
 ```bash
+legion script designer/convert-formats in.mp4
 ```
 
 输出（与输入同目录）：
@@ -91,8 +95,8 @@ node render-video.js animation.html                        # 录屏
 
 | 模式 | 命令 | 兼容性 | 使用场景 |
 |---|---|---|---|
-| 帧复制（默认）| `convert-formats.sh in.mp4` | QuickTime/Safari/Chrome/VLC 全通 | 通用交付、上传平台、社交媒体 |
-| minterpolate 插帧 | `convert-formats.sh in.mp4 --minterpolate` | macOS QuickTime/Safari 可能拒打 | B站等需要真插帧的展示场景，**交付前必须本地测**目标播放器 |
+| 帧复制（默认）| `legion script designer/convert-formats in.mp4` | QuickTime/Safari/Chrome/VLC 全通 | 通用交付、上传平台、社交媒体 |
+| minterpolate 插帧 | `legion script designer/convert-formats in.mp4 --minterpolate` | macOS QuickTime/Safari 可能拒打 | B站等需要真插帧的展示场景，**交付前必须本地测**目标播放器 |
 
 为什么默认改成帧复制？minterpolate 输出的 H.264 elementary stream 有 known compat bug——之前默认 minterpolate 时多次踩到「macOS QuickTime 打不开」的问题。详见 `animation-pitfalls.md` §14。
 
@@ -101,28 +105,28 @@ node render-video.js animation.html                        # 录屏
 - 1280 —— 更清晰但文件更大
 - 600 —— Twitter/X 优先加载
 
-### 4. `render-video-seek.js` — 真 60fps / 确定性渲染（推荐高质量交付）
+### 4. `legion script designer/render-video-seek` — 真 60fps / 确定性渲染（推荐高质量交付）
 
-`render-video.js` 的 recordVideo 路径有三个固有限制：帧率被 Chromium compositor 锁死 25fps、开头有加载黑帧需 trim、60fps 只能靠事后 minterpolate 插帧（有 ghosting + macOS QuickTime 兼容 bug，见 `animation-pitfalls.md §14`）。需要**真 60fps、确定性输出、或交付 B站/作品集**时，改用 seek 渲染。
+`legion script designer/render-video` 的 recordVideo 路径有三个固有限制：帧率被 Chromium compositor 锁死 25fps、开头有加载黑帧需 trim、60fps 只能靠事后 minterpolate 插帧（有 ghosting + macOS QuickTime 兼容 bug，见 `animation-pitfalls.md §14`）。需要**真 60fps、确定性输出、或交付 B站/作品集**时，改用 seek 渲染。
 
 它逐帧 seek 到时间戳截图、再用 ffmpeg 把 PNG 序列编码成 MP4。技术内核借鉴 HeyGen HyperFrames（Apache 2.0）的「冻结时钟 + seek 截图」思路，但不引入任何第三方包——只用本 skill 已有的 playwright + ffmpeg，runtime 中立。
 
 ```bash
-NODE_PATH=$(npm root -g) node /path/to/claude-design/scripts/render-video-seek.js <html文件> --fps=60
+legion script designer/render-video-seek <html文件> --fps=60
 ```
 
 参数：`--duration` · `--fps`（默认 60）· `--width` · `--height` · `--concurrency`（默认 4 个 worker 并行）· `--settle`（seek 后等几个 rAF 再截图，默认 2，重 layout 动画可调高）· `--keep-chrome`。输出与 HTML 同目录、同名 `.mp4`。
 
 正面解决 recordVideo 三死结：
-- **真原生任意帧率**：`--fps=60` 出真 60fps（每帧都是真实 seek 画面），不再经 `convert-formats.sh` 的 minterpolate 插帧，绕开 ghosting + macOS 兼容 bug
+- **真原生任意帧率**：`--fps=60` 出真 60fps（每帧都是真实 seek 画面），不再经 `legion script designer/convert-formats` 的 minterpolate 插帧，绕开 ghosting + macOS 兼容 bug
 - **无开头黑帧**：不录屏，根本没有加载期黑帧，不需要 `--trim` / `--fontwait`
 - **确定性**：seek 到时间戳截图，同输入同输出，不受机器负载/丢帧影响
 
-**适用边界（重要）**：只支持走 Stage 时钟的动画——`assets/animations.jsx` 的 `<Stage>` 或 `narration_stage.jsx` 的 `<NarrationStage>`，它们会响应 `window.__seekRender` 冻结自驱时钟并暴露 `window.__seek(t)`。纯 CSS `@keyframes` / Lottie / 手写非 Stage 动画不吃 `__seek`，这类继续用 `render-video.js`（脚本检测不到 `__seek` 会报错并提示）。
+**适用边界（重要）**：只支持走 Stage 时钟的动画——`assets/animations.jsx` 的 `<Stage>` 或 `narration_stage.jsx` 的 `<NarrationStage>`，它们会响应 `window.__seekRender` 冻结自驱时钟并暴露 `window.__seek(t)`。纯 CSS `@keyframes` / Lottie / 手写非 Stage 动画不吃 `__seek`，这类继续用 `legion script designer/render-video`（脚本检测不到 `__seek` 会报错并提示）。
 
 **代价**：逐帧截图，长视频总耗时可能比 recordVideo 实时录更久（靠 `--concurrency` 多 worker 缓解）；大量临时 PNG 占盘，渲染前建议关其他大内存 App。
 
-**二选一策略**：默认仍用 `render-video.js`（零风险、覆盖所有动画类型）；需要真 60fps / 确定性 / 高质量交付、且动画走 Stage 时钟时，用 `render-video-seek.js`。带解说的长动画用 `render-narration.sh --seek` 一键走 seek 渲染 + 混音。
+**二选一策略**：默认仍用 `legion script designer/render-video`（零风险、覆盖所有动画类型）；需要真 60fps / 确定性 / 高质量交付、且动画走 Stage 时钟时，用 `legion script designer/render-video-seek`。带解说的长动画用 `legion script designer/render-narration --seek` 一键走 seek 渲染 + 混音。
 
 ## 完整流程（标准推荐）
 
@@ -131,12 +135,11 @@ NODE_PATH=$(npm root -g) node /path/to/claude-design/scripts/render-video-seek.j
 ```bash
 cd <项目目录>
 
-# 假设 $SKILL 指向本 skill 的根目录（自行按安装位置替换）
-
 # 1. 录 25fps 基础 MP4
-NODE_PATH=$(npm root -g) node "$SKILL/scripts/render-video.js" my-animation.html
+legion script designer/render-video my-animation.html
 
 # 2. 派生 60fps MP4 和 GIF
+legion script designer/convert-formats my-animation.mp4
 
 # 产出清单：
 # my-animation.mp4         (25fps · 1-2 MB)
@@ -152,7 +155,7 @@ NODE_PATH=$(npm root -g) node "$SKILL/scripts/render-video.js" my-animation.html
 - 从 context 创建就开始录，必须用 `trim` 裁掉前面的加载时间
 - 默认 webm 格式，需要 ffmpeg 转 H.264 MP4 才能通用播放
 
-`render-video.js` 已处理以上问题。
+`legion script designer/render-video` 已处理以上问题。
 
 ### ffmpeg minterpolate 参数
 

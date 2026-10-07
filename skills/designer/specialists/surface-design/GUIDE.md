@@ -110,7 +110,7 @@ any of them is a defect, not a style choice.
    Record it in `artifacts/build-manifest.md`: `section → exemplar file read → what was kept /
    changed`. A section with no manifest row is unbuilt. The model that skips this ALWAYS believes
    it remembers the exemplar. It doesn't.
-2. **Render every section before building the next.** One section built → screenshot it (qa-shot /
+2. **Render every section before building the next.** One section built → screenshot it (`legion script qa/qa-shot` /
    preview) at desktop + mobile → one self-critique pass against the exemplar and the banned lists
    → revise → only then the next section. Build-everything-look-once is the single biggest source
    of AI-flat output. Evidence lands in `artifacts/qa/sections/`.

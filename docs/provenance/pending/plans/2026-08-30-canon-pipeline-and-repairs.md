@@ -1,3 +1,5 @@
+> Historical (frozen 2026-09-02). Cites code deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Canon pipeline + repairs — 2026-08-30
 
 Location: `legion/docs/pending/plans/`. All paths in this document are workspace-rooted
@@ -16,7 +18,7 @@ This plan is the single source of truth for the **canon-pipeline program** (Part
 absorption checklist). Two companion ledgers track Legion-internal pending work and are NOT
 duplicated here:
 
-1. **Capability closure** — generated `legion/docs/pending/README.md`: 95 committed atoms,
+1. **Capability closure** — generated `legion/docs/provenance/pending/README.md`: 95 committed atoms,
    0 closure-proven. Audit verdict 2026-08-30: implementation DELIVERED for 87/95,
    PARTIAL for 8 (`REPAIR_WIRE`: LEG-005, LEG-015, ARC-001, ARC-005, ARC-006, GRD-009;
    evidence dispositions: ARC-002, ARC-009);

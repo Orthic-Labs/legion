@@ -253,9 +253,7 @@ v5f · 草间彌生 Yayoi Kusama（圆点 + 重复 + 单一强色）
 
 ## 9. 参考样本
 
-完整 director's notes 参考样本（self-contained，本 skill 内）：
-
-`assets/director-notes-samples/launch-film-30s-sample.md`（约 78KB · 11500 字 · 13 镜 · 5 大部分齐全）
+完整 director's notes 参考样本（约 78KB · 11500 字 · 13 镜 · 5 大部分齐全）未随本包发布；按本文档的结构从头写即可。
 
 原始项目位置（含对应实施 HTML + 关键帧）：
 

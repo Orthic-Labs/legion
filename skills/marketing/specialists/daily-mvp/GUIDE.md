@@ -17,7 +17,7 @@ Idea → live URL with email capture in <4 hours.
 1. **Idea brief:** problem, audience, why-now, monetization hypothesis
 2. `/research` quick-scan: does anyone want this?
 3. **Verdict gate:** if no signal, pivot or kill
-4. `/marketing ideas domain` — 5 available domain name candidates (the `/marketing ideas` skill loads its own `references/domain.md`)
+4. `/marketing ideas domain` — 5 available domain name candidates (the `/marketing ideas` skill loads its own `specialists/ideas/references/domain.md`)
 5. User picks + registers
 
 ### Phase 2 — Build (2 hours)
@@ -31,7 +31,7 @@ Idea → live URL with email capture in <4 hours.
 ### Phase 3 — Ship (30 min)
 2. Connect domain
 3. Email capture: ConvertKit form embed = fastest
-4. Verify end-to-end. For local/live page QA, use the shared `qa` skill headlessly: project `qa:browser` when available, `qa-shot.mjs` for app/page viewport screenshots, and `qa-functional.mjs` for email-capture click/type/assert flows. Do not use desktop screenshots for routine visual proof.
+4. Verify end-to-end. For local/live page QA, use the shared `qa` skill headlessly: project `qa:browser` when available, `legion script qa/qa-shot` for app/page viewport screenshots, and `legion script qa/qa-functional` for email-capture click/type/assert flows. Do not use desktop screenshots for routine visual proof.
 
 ### Phase 4 — Tease (1 hour)
 1. `/designer static` — 3 social variants (1:1, 9:16, 16:9)

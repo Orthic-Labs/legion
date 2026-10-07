@@ -68,7 +68,7 @@ Output: 7- or 30-day grid with topic, format, hook, CTA, hashtag set, posting ti
 2. Hook test (first frame for Reel, first slide for carousel, first line for caption)
 3. Caption: hook → 2-3 body lines → CTA OR question (never both)
 4. Hashtags: 5-15 mid-tail in first comment
-5. Generate via /marketing-design or /social youtube for Reel
+5. Generate via `/designer static` or `/social youtube` for Reel
 
 ### Performance review (with screenshots/exports)
 Analyze:

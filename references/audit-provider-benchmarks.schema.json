@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "legion:references/audit-provider-benchmarks.schema.json",
   "title": "Audit provider benchmark results",
-  "description": "Frozen contract for versioned precision/recall measurement results produced by tools/audit/provider-benchmarks.mjs. Every result is bound to the measured provider implementation plus rule-pack digests and to the planted-defect fixture corpus digest. Metrics are always measured; this schema carries no default values.",
+  "description": "Frozen contract for versioned precision/recall measurement results produced by the native bench_recall harness (engine/crates/legion-audit/tests/bench_recall.rs). Every result is bound to the measured provider implementation plus rule-pack digests and to the planted-defect fixture corpus digest. Metrics are always measured; this schema carries no default values.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "results"],

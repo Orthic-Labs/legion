@@ -1,6 +1,6 @@
 # Styled Text Editing
 
-> Attributed `TextEditor`, `AttributedTextSelection`, and `AttributedTextFormattingDefinition` require iOS 26, macOS 26, or visionOS 26. `TextEditor` itself is **unavailable on watchOS and tvOS**. For the verbatim-vs-localized decision on `Text`, see `references/text-patterns.md`.
+> Attributed `TextEditor`, `AttributedTextSelection`, and `AttributedTextFormattingDefinition` require iOS 26, macOS 26, or visionOS 26. `TextEditor` itself is **unavailable on watchOS and tvOS**. For the verbatim-vs-localized decision on `Text`, see `references/swiftui/donor-lee-text-patterns.md`.
 
 ## Table of Contents
 

@@ -1,5 +1,22 @@
 {
   "schemaVersion": 1,
   "kind": "legion-skill-dependencies",
-  "resources": []
+  "resources": [
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "dataforseo"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "ahrefs"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../_shared/anti-slop.md"
+    },
+    {
+      "class": "PACKAGE_INTERNAL",
+      "path": "../_shared/parametric-design.md"
+    }
+  ]
 }

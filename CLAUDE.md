@@ -1,2 +1,2 @@
-<!-- Compatibility adapter. Canonical package rules: docs/agent-rules.md. -->
-@docs/agent-rules.md
+<!-- Compatibility adapter. AGENTS.md is the Legion constitution; its Package Rules section is identical to docs/agent-rules.md. -->
+@AGENTS.md

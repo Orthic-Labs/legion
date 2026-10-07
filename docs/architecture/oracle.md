@@ -40,7 +40,7 @@ Oracle may not:
 
 - write, edit, apply a patch, commit, push, publish, or perform any product-state effect;
 - implement a remediation or certify its own change;
-- replace a capability's domain method, Sage's exceptional adjudication, or Alchemist's bounded
+- replace a capability's domain method, Sage's design and adjudication, or Alchemist's bounded
   execution;
 - trust producer summaries, claimed test totals, or claimed success without source evidence;
 - expand the user's scope or turn adjacent concerns into blockers;

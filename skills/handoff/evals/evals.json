@@ -83,7 +83,7 @@
       "assertions": [
         { "type": "required_text", "value": "TRANSCRIPT_INGEST" },
         { "type": "required_text", "value": "READBACK" },
-        { "type": "required_text", "value": "validate-handoff.py" }
+        { "type": "required_text", "value": "validate-handoff" }
       ]
     }
   ],

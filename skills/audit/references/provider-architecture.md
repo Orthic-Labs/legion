@@ -11,8 +11,8 @@ Audit owns provider planning and execution: project-native build/type/lint/test 
 toolchain/config facts, runtime evidence, visual evidence, release checks, security adjudication,
 coverage reconciliation, and reports.
 
-The legacy `collect-facts.mjs` implementation may inspect local stack details only to choose the
-command for a check that was already selected by the frozen plan. It never selects applicability.
+The native runner may inspect local stack details only to choose the command for a check that
+was already selected by the frozen plan. It never selects applicability.
 A disagreement between its local command adapter and the Blueprint-backed plan produces `skipped` or
 `UNPROVEN`; it cannot narrow the denominator or produce a clean result.
 
@@ -46,12 +46,11 @@ falls back to an agent-invented language inventory.
 
 ## Registry
 
-The executable registry is declarative. `registry/providers.json` contains legacy/facts and
-reasoning contracts; `registry/providers-runtime.json` contains runtime provider contracts and
-coverage-family augmentations. `registry/provider-registry.mjs` is the sole authoritative loader: it
-parses, merges, and validates both files for the planner, verifier, manifest generator, and tests.
-`registry/provider-registry-complete.mjs` is only a compatibility re-export and contains no registry
-logic.
+The executable registry is declarative (provider ids in `providers.json` are now native ids). `src/registry/providers.json` contains legacy/facts and
+reasoning contracts; `src/registry/providers-runtime.json` contains runtime provider contracts and
+coverage-family augmentations. The native registry loader in `legion-audit` is the sole authoritative
+loader: it parses, merges, and validates both files for the planner, verifier, manifest generator, and
+tests. Data shape: `schemas/provider-registry.v1.schema.json`.
 
 `legion-dev generate-manifest` renders the human/scanner compatibility manifest from that same
 loader. Edit registry data, regenerate the manifest, and run `legion-dev generate-manifest --check`; never
@@ -68,11 +67,11 @@ applicable · required · status · complete · coverage · commands · receipts
 inventory · candidates · findings · coverageGaps · artifacts · degradation
 ```
 
-See `schemas/provider-result-v1.schema.json`.
+Result shape is defined by the `legion-audit` provider-result contract (`engine/crates/legion-audit/src/normalize.rs`).
 
 ## Offline execution
 
-The canonical entrypoint is `audit-run.mjs`. Audit always sets defense-in-depth offline controls for
+The canonical entrypoint is `legion audit`. Audit always sets defense-in-depth offline controls for
 package managers and toolchains and excludes checks that inherently require remote advisory or
 version services.
 
@@ -104,22 +103,21 @@ attacker control, source-to-sink trace, reachability, primary controls, environm
 real impact, proof, and false-positive challenge. Evidence strength, verdict, and severity remain
 independent. Confirmed findings require a separate variant analysis before closure.
 
-`adapters/security-adjudication.mjs` enforces provider/context separation and verdict invariants.
-`security-pipeline.mjs` rejects context reuse across candidates.
+Provider/context separation and verdict invariants are enforced by the `legion-audit` security pipeline
+(`engine/crates/legion-audit/src/p12_pipeline`), which rejects context reuse across candidates.
 
 ## Measured rule packs
 
 A provider is marked `measured` only when its own rule outputs—not merely provider
 selection—have reproducible precision and recall artifacts. Rule packs without that evidence remain
 `UNPROVEN` and prevent a clean claim. Numerical metrics are evidence metadata, not repository scores.
-(The harness that produces these artifacts is `tools/audit/provider-benchmarks.mjs`, measured
-against the fixture corpus in `bench/rule-output/` and scored by `bench/precision-recall.mjs`.
-Selection coverage in `bench/corpora/` is deliberately not this evidence: it measures whether a
+(The harness that produces these artifacts is the `bench_recall` test in `engine/crates/legion-audit/tests`,
+measured against the fixture data in `bench/rule-output/`. Selection coverage in `bench/corpora/` is deliberately not this evidence: it measures whether a
 provider claims a file, not whether its findings are right.)
 
 ## Entry points and outputs
 
-- `/audit` → `audit-run.mjs`, the complete shared provider runner.
+- `/audit` → `legion audit`, the complete shared provider runner.
 - `/audit-fix` → a bounded mutation loop over the same frozen provider contract.
 - `/audit-visual` → a thin route over `visual.core`, not a second visual engine.
 - `plan.json` — frozen, integrity-sealed, authenticity-signed provider plan.

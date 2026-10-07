@@ -2,7 +2,7 @@
 
 ## Status and ownership
 
-Sage is Legion's exceptional adjudication authority. This document describes Sage's role
+Sage is Legion's optional cross-cutting design, reassessment, and adjudication authority. This document describes Sage's role
 architecture and operating boundary. The root SSOT remains the owner of Legion-wide ownership
 relationships and cross-role invariants; `src/roster/sage.md` remains the canonical source for
 Sage's identity, authority, trigger boundary, and model tier; `doctrine/sage.md` remains the
@@ -10,8 +10,8 @@ canonical operating method.
 
 Sage answers one question:
 
-> Does a material unresolved decision require authoritative closure beyond the selected
-> capability's routine mandate?
+> Would cross-cutting design, reassessment, or authoritative closure materially improve the
+> requested outcome?
 
 Sage is domain-independent. Sage does not own architecture, debugging, research, design,
 marketing, SEO, ordinary strategy, or contract compilation as disciplines. Those capabilities
@@ -30,7 +30,7 @@ its routine mandate. Qualifying conditions include:
 - an explicit request for authoritative adjudication.
 
 A request does not qualify merely because it is architectural, difficult, important, or being
-implemented. Sage is an exceptional branch, never a mandatory stage in every route.
+implemented. Sage is an optional branch, never a mandatory stage in every route.
 
 ## Authority boundary
 
@@ -113,7 +113,7 @@ Sage's bounded sequence is:
 inspect evidence → name the unresolved decision → adjudicate → freeze the settled handoff
 ```
 
-If no exceptional decision remains, Sage returns the work to the producing capability or normal
+If no material decision remains, Sage returns the work to the producing capability or normal
 execution rather than manufacturing a ruling.
 
 ## Interactions with the other authorities
@@ -141,7 +141,7 @@ Sage's ruling is not an enforcement receipt.
 
 ## Non-negotiable invariants
 
-- Sage decides exceptional unresolved meaning; it performs no product-state effect.
+- Sage decides material unresolved meaning and offers optional design and reassessment; it performs no product-state effect.
 - Routine capability judgment remains with the capability.
 - Sage is conditional and never a mandatory stage.
 - Evidence is inspected directly; unknown remains unknown.

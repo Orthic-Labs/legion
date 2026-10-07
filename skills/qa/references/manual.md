@@ -37,24 +37,15 @@ This is the regression harness surface.
 
 ### Shared QA Tooling
 
-This shared skill provides generic runners under:
+This shared skill provides two native runners, listed by `legion script --list`:
 
-```text
-skills/qa/scripts/
-```
+- `legion script qa/qa-functional --url <url> --actions <actions.json>`: functional hover/click/type/key/assert/screenshot actions.
+- `legion script qa/qa-shot --url <url> --out <file.png>`: viewport screenshot (also `--sweep`).
 
-- `qa-functional.mjs`: functional hover/click/type/key/assert/screenshot actions.
-- `qa-shot.mjs`: viewport screenshot convenience wrapper.
-- `qa.mjs`: shared dependency-free engine used by both wrappers.
-
-These runners use installed Chrome/Edge directly through headless flags and raw CDP. They do not
-use Playwright or Puppeteer. The engine (`qa.mjs`'s `--shot`/`--actions`/`--sweep` dispatch) is
-now also available natively as `legion script qa/qa-shot` and `legion script qa/qa-functional`
-(Rust port `legion-runtime::wf_port::r54`); the `.mjs` wrappers still forward to `qa.mjs` for
-consuming apps that shell out directly.
-
-Run the engine through this skill's own `legion script qa/qa-functional` and `legion script qa/qa-shot`,
-which resolve the bundled copy first and fall back to the repository only during development. `qa-browser.sh`, `qa-browser-stop.sh`, and their `.ps1`
+They use installed Chrome/Edge directly through headless flags and raw CDP, and do not use Playwright
+or Puppeteer. They are the Rust port `legion-runtime::wf_port::r54`; the former `qa.mjs`,
+`qa-functional.mjs`, and `qa-shot.mjs` wrappers no longer exist, so a consuming app that shells out
+must call `legion script ...` instead. `qa-browser.sh`, `qa-browser-stop.sh`, and their `.ps1`
 equivalents are not package files — they are project scripts a consuming app authors itself.
 
 ## Best Implementation For A New App
@@ -99,21 +90,21 @@ Project wrappers can either call the shared runners directly or delegate to them
 Windows:
 
 ```powershell
-qa-shot --url (Get-Content .cache\qa-browser\url.txt) --out .cache\qa-shots\app.png
+legion script qa/qa-shot --url (Get-Content .cache\qa-browser\url.txt) --out .cache\qa-shots\app.png
 ```
 
 ```powershell
-qa-functional --url (Get-Content .cache\qa-browser\url.txt) --actions .cache\qa-actions.json
+legion script qa/qa-functional --url (Get-Content .cache\qa-browser\url.txt) --actions .cache\qa-actions.json
 ```
 
 Mac/Linux:
 
 ```bash
-qa-shot --url "$(cat .cache/qa-browser/url.txt)" --out .cache/qa-shots/app.png
+legion script qa/qa-shot --url "$(cat .cache/qa-browser/url.txt)" --out .cache/qa-shots/app.png
 ```
 
 ```bash
-qa-functional --url "$(cat .cache/qa-browser/url.txt)" --actions .cache/qa-actions.json
+legion script qa/qa-functional --url "$(cat .cache/qa-browser/url.txt)" --actions .cache/qa-actions.json
 ```
 
 ## Functionality QA
@@ -147,13 +138,13 @@ Run:
 Windows:
 
 ```powershell
-qa-functional --url "http://127.0.0.1:3000/?qa=1" --actions ".cache/qa-actions.json"
+legion script qa/qa-functional --url "http://127.0.0.1:3000/?qa=1" --actions ".cache/qa-actions.json"
 ```
 
 Mac/Linux:
 
 ```bash
-qa-functional --url "http://127.0.0.1:3000/?qa=1" --actions ".cache/qa-actions.json"
+legion script qa/qa-functional --url "http://127.0.0.1:3000/?qa=1" --actions ".cache/qa-actions.json"
 ```
 
 Supported actions:
@@ -183,13 +174,13 @@ Run:
 Windows:
 
 ```powershell
-qa-shot --url "http://127.0.0.1:3000/?qa=1" --out ".cache/qa-shots/app.png"
+legion script qa/qa-shot --url "http://127.0.0.1:3000/?qa=1" --out ".cache/qa-shots/app.png"
 ```
 
 Mac/Linux:
 
 ```bash
-qa-shot --url "http://127.0.0.1:3000/?qa=1" --out ".cache/qa-shots/app.png"
+legion script qa/qa-shot --url "http://127.0.0.1:3000/?qa=1" --out ".cache/qa-shots/app.png"
 ```
 
 Screenshot modes every app should support at the project wrapper level:

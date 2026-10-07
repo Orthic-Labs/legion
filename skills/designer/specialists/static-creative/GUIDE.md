@@ -43,15 +43,6 @@ When the request is ambiguous, ask which output type before loading any referenc
 
 Output standard: spec recap, 3 variant briefs, generated assets (or prompts), filenames, posting-ready note.
 
-## Optional external jury (explicit opt-in only)
+## Optional independent review
 
-Run this external jury only when the approving human explicitly requests it.
-
-```bash
-node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
-  kind: 'design',
-  artifactPath: '<absolute path to output>',
-  context: { brand: '<brand-code>', notes: 'design output' },
-  failHard: true
-}).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
-```
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.

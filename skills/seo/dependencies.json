@@ -4,11 +4,23 @@
   "resources": [
     {
       "class": "HOST_CAPABILITY",
-      "capability": "python-runtime"
+      "capability": "legion"
     },
     {
       "class": "HOST_CAPABILITY",
-      "capability": "legion"
+      "capability": "banana-image"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "dataforseo"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "firecrawl"
+    },
+    {
+      "class": "HOST_CAPABILITY",
+      "capability": "ahrefs"
     }
   ]
 }

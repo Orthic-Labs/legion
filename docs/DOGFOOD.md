@@ -47,7 +47,7 @@ GUARD gates declared effects   (legion-hook binary; fails OPEN if absent — see
    ↓
 EXECUTION / INTEGRATION
    ↓
-ORACLE Completion Validation under current policy   (mandatory before every final delivery)
+ORACLE Completion Validation   (optional: explicit request or concrete outcome/safety risk)
    ↓
 DELIVERY
 ```

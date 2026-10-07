@@ -15,7 +15,7 @@ flowchart LR
 
 ## What it does
 
-Legion begins with current user intent. Legion selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Legion attaches authority only where work requires it: Sage for material unresolved meaning/ownership/acceptance, Alchemist for bounded transformation, & Oracle for independent Completion Validation. Arcane owns cognitive processing & response policy. Guard deterministically gates typed effects, reports enforcement health, & owns effect-decision receipts; neither can invent consent.
+Legion begins with current user intent. Legion selects zero or more capabilities from compact public catalog, deterministic runtime validates IDs, & Legion materializes work graph. Legion attaches authority only where work requires it: Sage (optional) for cross-cutting design, reassessment, & material unresolved meaning/ownership/acceptance, Alchemist for bounded implementation (ambient unless work is locked or explicitly contracted), & Oracle (optional) for independent Completion Validation on explicit request or a concrete outcome or safety risk. Arcane owns cognitive processing & response policy. Guard deterministically gates typed effects, reports enforcement health, & owns effect-decision receipts; neither can invent consent.
 
 Work splits into independent units where safe, then reunites at delivery. Capabilities supply expertise, method, workflow, & context; capability never grants authority. Optional domains group catalog entries for discovery only.
 
@@ -24,14 +24,14 @@ Work splits into independent units where safe, then reunites at delivery. Capabi
 | Component | Job | Cannot do |
 |---|---|---|
 | **Legion** | Interpret live intent, route work, coordinate lanes, report delivery state | Manufacture authority from assistant prose or hooks |
-| **Sage** | Exceptionally adjudicate material unresolved meaning, ownership, or acceptance | Own architecture, diagnosis, routine decisions, or implementation |
-| **Alchemist** | Apply bounded changes, repair mechanical failures, verify its work | Settle new engineering decisions |
+| **Sage** | Optional cross-cutting design, reassessment, & adjudication of material unresolved meaning, ownership, or acceptance | Own architecture, diagnosis, routine decisions, or implementation |
+| **Alchemist** | Apply bounded implementation, repair mechanical failures, verify its work | Settle new engineering decisions |
 | **Oracle** | Independently perform Completion Validation over requested outcome & evidence | Own Audit/QA/Audit Visual methods or certify its own fix |
 | **Arcane** | Shape bounded cognitive processing & response policy | Select capabilities, attach authority, or authorize effects |
 | **Guard** | Deterministically gate typed effects, report enforcement health, & own effect-decision receipts | Interpret intent, select capabilities, or attach authority |
 | **Covenant** | Isolated challenge chamber over frozen evidence | Override caller authority |
 
-Oracle is independent assurance authority for Completion Validation.
+Oracle is optional independent assurance authority for Completion Validation; it is never a delivery gate.
 
 ## Catalog grouping
 
@@ -131,8 +131,7 @@ flowchart LR
 
 <sub><b><a href="https://orthic-labs.github.io">Orthic Labs</a></b> — local-first infrastructure for AI-assisted development.</sub>
 
-<!-- blueprint:docs:start -->
 ## Repository truth docs
-- [Product overview](docs/product.md) — what this is and does (generated, code-grounded)
-- [Architecture](docs/architecture.md) — components, flows, interfaces (generated, code-grounded)
-<!-- blueprint:docs:end -->
+- [Canonical system architecture](docs/LEGION-CANONICAL-SSOT.md) — ownership boundaries and global invariants
+- [Role architecture](docs/architecture/) — Sage, Alchemist, Oracle, packaged skills
+- [Historical provenance](docs/provenance/) — frozen records that cite deleted code; not authoritative

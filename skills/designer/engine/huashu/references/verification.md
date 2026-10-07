@@ -38,7 +38,7 @@ legion script designer/verify path/to/design.html
 如果是响应式设计，抓多个viewport：
 
 ```bash
-python verify.py design.html --viewports 1920x1080,1440x900,768x1024,375x667
+legion script designer/verify design.html --viewports 1920x1080,1440x900,768x1024,375x667
 ```
 
 ### 4. 交互检查
@@ -54,26 +54,14 @@ page.video.record('interaction.mp4')
 Deck类HTML，一张张截：
 
 ```bash
-python verify.py deck.html --slides 10  # 截前10张
+legion script designer/verify deck.html --slides 10  # 截前10张
 ```
 
 生成 `deck-slide-01.png`、`deck-slide-02.png`... 方便快速浏览。
 
 ## Playwright Setup
 
-首次使用需要：
-
-```bash
-# 如果还没装，在当前项目或临时工作目录安装
-npm install playwright
-npx playwright install chromium
-
-# 或者Python版
-pip install playwright
-playwright install chromium
-```
-
-如果用户已经全局安装 Playwright，直接用即可。
+`legion script designer/verify` 使用宿主的 Chromium，无需另外安装 Playwright 或 Python。宿主没有可用的 Chromium 时，如实报告验证未运行，不要声称已验证。自己写的 Playwright 脚本才需要自行安装 Playwright。
 
 ## 截图最佳实践
 
@@ -168,17 +156,17 @@ open screenshot.png
 
 ```bash
 # 基础：打开+截图+抓错
-python verify.py design.html
+legion script designer/verify design.html
 
 # 多viewport
-python verify.py design.html --viewports 1920x1080,375x667
+legion script designer/verify design.html --viewports 1920x1080,375x667
 
 # 多slide
-python verify.py deck.html --slides 10
+legion script designer/verify deck.html --slides 10
 
 # 输出到指定目录
-python verify.py design.html --output ./screenshots/
+legion script designer/verify design.html --output ./screenshots/
 
 # headless=false，打开真实浏览器给你看
-python verify.py design.html --show
+legion script designer/verify design.html --show
 ```

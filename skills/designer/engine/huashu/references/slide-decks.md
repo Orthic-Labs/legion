@@ -5,7 +5,7 @@
 **本 skill 的能力覆盖**：
 - **HTML 演示版（基础产物，永远默认必做）** → 每页独立 HTML + `assets/deck_index.html` 聚合，浏览器里键盘翻页、全屏演讲
 - HTML → PDF 导出 → `legion script designer/export-deck-pdf` / `legion script designer/export-deck-stage-pdf`
-- HTML → 可编辑 PPTX 导出 → `references/editable-pptx.md` + scripts/html2pptx.js（内部实现，未单独移植）+ `legion script designer/export-deck-pptx`（要求 HTML 按 4 条硬约束写）
+- HTML → 可编辑 PPTX 导出 → `references/editable-pptx.md` + `legion script designer/export-deck-pptx`（html2pptx 翻译器是其内部实现，无独立入口）（要求 HTML 按 4 条硬约束写）
 
 > **⚠️ HTML 是基础，PDF/PPTX 是衍生物。** 不管最终交付什么格式，都**必须**先做 HTML 聚合演示版（`index.html` + `slides/*.html`），它是幻灯片作品的「源」。PDF/PPTX 是从 HTML 一行命令导出的快照。
 >
@@ -15,7 +15,7 @@
 > - 是 PDF/PPTX 导出的唯一上游（避免「导出后才发现要改 HTML 又要重出」的死循环）
 > - 交付物可以是「HTML + PDF」或「HTML + PPTX」双份，接收方爱用哪个用哪个
 >
-> 2026-04-22 moxt brochure 实测：做完 13 页 HTML + index.html 聚合后，`export_deck_pdf.mjs` 一行导出 PDF，零改动。HTML 版本身就是可直接浏览器演讲的交付物。
+> 2026-04-22 moxt brochure 实测：做完 13 页 HTML + index.html 聚合后，`legion script designer/export-deck-pdf` 一行导出 PDF，零改动。HTML 版本身就是可直接浏览器演讲的交付物。
 
 ---
 
@@ -32,11 +32,11 @@
    │
    ├── 只要浏览器演讲 / 本地 HTML 存档   → 到这里已经完成，HTML 视觉自由度最大
    │
-   ├── 还要 PDF（打印 / 发群 / 存档）     → 跑 export_deck_pdf.mjs 一键出
+   ├── 还要 PDF（打印 / 发群 / 存档）     → 跑 legion script designer/export-deck-pdf 一键出
    │                                          HTML 写法自由，视觉无约束
    │
    └── 还要可编辑 PPTX（同事要改文字）    → 从第一行 HTML 就按 4 条硬约束写
-                                              跑 export_deck_pptx.mjs 一键出
+                                              跑 legion script designer/export-deck-pptx 一键出
                                               牺牲渐变 / web component / 复杂 SVG
 ```
 
@@ -170,11 +170,11 @@ Chromium 默认不带彩色 emoji 字体，`page.pdf()` 或 `page.screenshot()` 
 
 **对策**：用 Unicode 文字符号（`✦` `✓` `✕` `→` `·` `—`）替代，或直接改纯文字（「Email · 23」而不是「📧 23 emails」）。
 
-### 2. `export_deck_pdf.mjs` 报错 `Cannot find package 'playwright'`
+### 2. `legion script designer/export-deck-pdf` 报错 `Cannot find package 'playwright'`
 
-原因：ESM 模块解析从脚本所在位置向上找 `node_modules`。脚本在 `skills/designer/engine/huashu/scripts/`，那里没依赖。
+原因：旧版 Node 脚本依赖 deck 项目里的 `node_modules`。现在由 `legion script designer/export-deck-pdf` 原生端口运行，不再需要把脚本复制进项目或在项目里安装依赖。
 
-**对策**：把脚本复制到 deck 项目目录（例如 `brochure/build-pdf.mjs`），在项目根跑 `npm install playwright pdf-lib`，然后 `node build-pdf.mjs --slides slides --out output/deck.pdf`。
+**对策**：直接运行 `legion script designer/export-deck-pdf --slides slides --out output/deck.pdf`。若报浏览器不可用，说明宿主没有可用的 Chromium，如实报告，不要改用别的导出路径冒充。
 
 ### 3. Google Fonts 没加载完就截图 → 中文显示为系统默认黑体
 
@@ -305,8 +305,7 @@ window.DECK_MANIFEST = [
 
 **为画廊生成缩略图**：用 `legion script designer/gen-deck-thumbs`（原生端口）：
 ```bash
-npm install playwright sharp
-node gen_deck_thumbs.mjs --slides slides --out thumbs --width 1600
+legion script designer/gen-deck-thumbs --slides slides --out thumbs --width 1600
 ```
 然后给 MANIFEST 每项加 `thumb: "thumbs/<同名>.jpg"`。网格模式忽略 thumb（始终 iframe），只有画廊模式用它。
 
@@ -581,10 +580,10 @@ Deck 需要 **intentional variety**：
 
 HTML 优先是第一公民。但用户经常需要 PPTX/PDF 交付。提供两个通用脚本，**任何多文件 deck 都能用**，位于 `scripts/` 下：
 
-### `export_deck_pdf.mjs` — 导出矢量 PDF（多文件架构）
+### `legion script designer/export-deck-pdf` — 导出矢量 PDF（多文件架构）
 
 ```bash
-node scripts/export_deck_pdf.mjs --slides <slides-dir> --out deck.pdf
+legion script designer/export-deck-pdf --slides <slides-dir> --out deck.pdf
 # 原生 Rust 端口（推荐）：
 legion script designer/export-deck-pdf --slides <slides-dir> --out deck.pdf
 ```
@@ -595,21 +594,21 @@ legion script designer/export-deck-pdf --slides <slides-dir> --out deck.pdf
 - **不需要改 HTML 任何一个字**
 - 每个 slide 独立 `page.pdf()`，再用 `pdf-lib` 合并
 
-**依赖**：`npm install playwright pdf-lib`
+**依赖**：宿主需要可用的 Chromium；其余由 `legion` 内置。
 
 **限制**：PDF 不能再编辑文字——要改回到 HTML 改。
 
-### `export_deck_stage_pdf.mjs` — 单文件 deck-stage 架构专用 ⚠️
+### `legion script designer/export-deck-stage-pdf` — 单文件 deck-stage 架构专用 ⚠️
 
-**什么时候用**：deck 是单 HTML 文件 + `<deck-stage>` web component 包裹 N 个 `<section>`（即路径 B 架构）。此时 `export_deck_pdf.mjs` 那套「每个 HTML 一次 `page.pdf()`」走不通，需要走这个专用脚本。
+**什么时候用**：deck 是单 HTML 文件 + `<deck-stage>` web component 包裹 N 个 `<section>`（即路径 B 架构）。此时 `legion script designer/export-deck-pdf` 那套「每个 HTML 一次 `page.pdf()`」走不通，需要走这个专用脚本。
 
 ```bash
-node scripts/export_deck_stage_pdf.mjs --html deck.html --out deck.pdf
+legion script designer/export-deck-stage-pdf --html deck.html --out deck.pdf
 # 原生 Rust 端口（推荐）：
 legion script designer/export-deck-stage-pdf --html deck.html --out deck.pdf
 ```
 
-**为什么不能复用 export_deck_pdf.mjs**（2026-04-20 真实踩坑记录）：
+**为什么不能复用 `legion script designer/export-deck-pdf`**（2026-04-20 真实踩坑记录）：
 
 1. **Shadow DOM 赢过 `!important`**：deck-stage 的 shadow CSS 里有 `::slotted(section) { display: none }`（只 active 的那张 `display: block`）。即使在 light DOM 用 `@media print { deck-stage > section { display: block !important } }` 也压不住——`page.pdf()` 触发 print 媒体后 Chromium 最终渲染只有 active 那一张，结果**整个 PDF 只有 1 页**（当前 active slide 的重复）。
 
@@ -656,11 +655,11 @@ await page.pdf({ width: '1920px', height: '1080px', printBackground: true, prefe
 
 ---
 
-### `export_deck_pptx.mjs` — 导出可编辑 PPTX
+### `legion script designer/export-deck-pptx` — 导出可编辑 PPTX
 
 ```bash
 # 唯一模式：文本框原生可编辑（字体会回落到系统字体）
-node scripts/export_deck_pptx.mjs --slides <dir> --out deck.pptx
+legion script designer/export-deck-pptx --slides <dir> --out deck.pptx
 # 原生 Rust 端口（推荐）：
 legion script designer/export-deck-pptx --slides <dir> --out deck.pptx
 ```
@@ -682,11 +681,11 @@ legion script designer/export-deck-pptx --slides <dir> --out deck.pptx
 - 两者不同时会有**溢出或错位**——每页都要肉眼过
 - 建议目标机器装好 HTML 里用的字体，或 fallback 到 `system-ui`
 
-**视觉优先场景不要走这条路径** → 改用 `export_deck_pdf.mjs` 出 PDF。PDF 视觉 100% 保真、矢量、跨平台、文字可搜——是视觉优先 deck 的真正归宿，不是什么「不可编辑的妥协」。
+**视觉优先场景不要走这条路径** → 改用 `legion script designer/export-deck-pdf` 出 PDF。PDF 视觉 100% 保真、矢量、跨平台、文字可搜——是视觉优先 deck 的真正归宿，不是什么「不可编辑的妥协」。
 
 ### 从一开始就让 HTML 对导出友好
 
-对性能最稳的 deck：**从写 HTML 时就按 editable 的 4 条硬约束写**。这样 `export_deck_pptx.mjs` 可以直接全部 pass。额外成本不大：
+对性能最稳的 deck：**从写 HTML 时就按 editable 的 4 条硬约束写**。这样 `legion script designer/export-deck-pptx` 可以直接全部 pass。额外成本不大：
 
 ```html
 <!-- ❌ 不好 -->
@@ -715,7 +714,7 @@ legion script designer/export-deck-pptx --slides <dir> --out deck.pptx
 
 ## 导出为可编辑 PPTX 的深度路径（仅长期项目）
 
-如果你的 deck 会长期维护、反复修改、团队协作——建议**一开始就按 html2pptx 约束写 HTML**，这样 `export_deck_pptx.mjs` 可以直接全部 pass。详见 `references/editable-pptx.md`（4 条硬约束 + HTML 模板 + 常见错误速查 + 已有视觉稿的 fallback 流程）。
+如果你的 deck 会长期维护、反复修改、团队协作——建议**一开始就按 html2pptx 约束写 HTML**，这样 `legion script designer/export-deck-pptx` 可以直接全部 pass。详见 `references/editable-pptx.md`（4 条硬约束 + HTML 模板 + 常见错误速查 + 已有视觉稿的 fallback 流程）。
 
 ---
 

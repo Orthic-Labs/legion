@@ -1,11 +1,11 @@
 # 可编辑 PPTX 导出：HTML 硬约束 + 尺寸决策 + 常见错误
 
-本文档讲的是**用 scripts/html2pptx.js（内部实现，未单独移植/无独立 CLI 入口）+ `pptxgenjs` 把 HTML 逐元素翻译成真·可编辑 PowerPoint 文本框**的路径，也是 `legion script designer/export-deck-pptx` 唯一支持的路径。
+本文档讲的是**用 html2pptx 翻译器（`legion script designer/export-deck-pptx` 的内部实现，无独立 CLI 入口）+ `pptxgenjs` 把 HTML 逐元素翻译成真·可编辑 PowerPoint 文本框**的路径，也是 `legion script designer/export-deck-pptx` 唯一支持的路径。
 
 
 > **核心前提**：要走这条路，HTML 必须从第一行就按下面 4 条约束写。**不是写完再转**——事后补救会触发 2-3 小时返工（2026-04-20 期权私董会项目实测踩坑）。
 >
-> 视觉自由度优先的场景（动画 / web component / CSS 渐变 / 复杂 SVG）请改走 PDF 路径（`export_deck_pdf.mjs` / `export_deck_stage_pdf.mjs`），**不要**指望 pptx 导出能兼得视觉保真和可编辑——这是 PPTX 文件格式本身的物理约束（见文末「为什么 4 条约束不是 Bug 而是物理约束」）。
+> 视觉自由度优先的场景（动画 / web component / CSS 渐变 / 复杂 SVG）请改走 PDF 路径（`legion script designer/export-deck-pdf` / `legion script designer/export-deck-stage-pdf`），**不要**指望 pptx 导出能兼得视觉保真和可编辑——这是 PPTX 文件格式本身的物理约束（见文末「为什么 4 条约束不是 Bug 而是物理约束」）。
 
 ---
 
@@ -259,7 +259,7 @@ const pptxgen = require('pptxgenjs');
 | 需求 | 选什么 |
 |------|------|
 | 同事会改 PPTX 里的文字 / 发给非技术人员继续编辑 | **本文路径**（editable，需从头按 4 条约束写 HTML） |
-| 只是演讲用 / 发存档，不再改 | `export_deck_pdf.mjs`（多文件）或 `export_deck_stage_pdf.mjs`（单文件 deck-stage），出矢量 PDF |
+| 只是演讲用 / 发存档，不再改 | `legion script designer/export-deck-pdf`（多文件）或 `legion script designer/export-deck-stage-pdf`（单文件 deck-stage），出矢量 PDF |
 | 视觉自由度优先（动画、web component、CSS 渐变、复杂 SVG），接受不可编辑 | **PDF**（同上）——PDF 既保真又跨平台，比「图片 PPTX」更合适 |
 
 **绝不要在视觉自由写好的 HTML 上硬跑 html2pptx**——实测视觉驱动的 HTML pass 率 < 30%，剩下的逐页改造比重写还慢。这种场景应该出 PDF，不是硬挤 PPTX。

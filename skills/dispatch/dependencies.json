@@ -4,7 +4,7 @@
   "resources": [
     {
       "class": "HOST_CAPABILITY",
-      "capability": "python-runtime"
+      "capability": "legion"
     }
   ]
 }

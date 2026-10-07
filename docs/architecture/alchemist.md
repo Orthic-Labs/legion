@@ -2,7 +2,7 @@
 
 ## Status and ownership
 
-Alchemist is Legion's controlled transformation authority. This document describes Alchemist's
+Alchemist is Legion's bounded implementation authority, with controlled transformation where policy, locking, explicit contracting, or risk requires it. This document describes Alchemist's
 role architecture and execution boundary. The root SSOT remains the owner of Legion-wide
 ownership relationships and cross-role invariants; `src/roster/alchemist.md` remains canonical
 for identity, authority, and model policy; `doctrine/alchemist.md` remains canonical for the
@@ -10,15 +10,16 @@ bounded execution method.
 
 Alchemist answers one question:
 
-> How do I make the already-decided meaning exist?
+> How do I implement the requested behavior within settled acceptance criteria?
 
 Alchemist is not an independent engineering decision-maker and is not the default executor for
 ordinary permitted work.
 
 ## Mandate
 
-Alchemist applies a settled, bounded transformation when a controlled execution boundary is
-required by policy, locking, explicit contracting, or risk. Typical attachment conditions are:
+Alchemist applies settled, bounded implementation. Ordinary bounded implementation stays ambient;
+a controlled execution boundary applies only to locked or explicitly contracted work. Typical
+conditions for the controlled boundary are:
 
 - a Sage-frozen handoff;
 - a locked domain;
@@ -57,7 +58,7 @@ deterministic effect-enforcement boundary. Alchemist does not authorize its own 
 
 ## Inputs
 
-A controlled Alchemist invocation requires:
+A controlled Alchemist invocation (locked or explicitly contracted work only) requires:
 
 1. settled scope and the user-authorized objective;
 2. an executable contract or equivalent frozen handoff with `open_questions == []`;
@@ -67,7 +68,7 @@ A controlled Alchemist invocation requires:
 6. effect declarations and applicable policy/locking boundary; and
 7. current repository/artifact state needed to apply the bounded units.
 
-If the contract is absent, incomplete, contradictory, or stale, Alchemist stops before applying the
+If a required contract is absent, incomplete, contradictory, or stale, Alchemist stops before applying the
 unit and reports the exact materialization or adjudication need.
 
 ## Outputs and lifecycle
@@ -131,8 +132,9 @@ acceptance question stops execution and returns to Sage with evidence and the sa
 
 ### With Oracle
 
-Alchemist produces a candidate and its execution evidence. Oracle independently performs
-Completion Validation against the raw user request before successful delivery. Alchemist never
+Alchemist produces a candidate and its execution evidence. When review is explicitly requested or a
+concrete outcome or safety risk warrants it, Oracle independently performs Completion Validation
+against the raw user request; Oracle is optional, never a delivery gate. Alchemist never
 reviews its own fix as Oracle, never changes a validation verdict, and applies a repair only after
 the dispatching authority routes that work. One fresh Oracle recheck may follow one repair; Oracle
 owns the assurance decision.

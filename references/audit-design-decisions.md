@@ -26,6 +26,6 @@ deliberately or not at all; the rationale column says which concern each one ans
 - ❌ No jury/council wiring (unbuilt; D7).
 - ❌ No external plugin dependency (ponytail folded in as a lens).
 - ❌ No 40-scanner engine — ~6 required + ~5 optional, on-demand, graceful-skip.
-- ❌ No agent-native MCP / browser stack — a Markdown file + `open-for-review` is the lazy equal.
+- ❌ No agent-native MCP / browser stack — a Markdown file + `a Markdown file shown in the host viewer is the lazy equal.
 - ❌ No auto-apply — report-only (fixes are *in* the report; applying is a deliberate follow-up).
 - ❌ No global tool auto-install — use what's present; loudly report what's absent.

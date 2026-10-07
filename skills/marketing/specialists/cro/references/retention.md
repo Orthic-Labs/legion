@@ -201,7 +201,7 @@ The key insight: **match the offer to the reason.** A discount won't save someon
 - Use the customer's name and account data when possible
 - Mobile-friendly (many cancellations happen on mobile)
 
-For detailed cancel flow patterns by industry and billing provider, see references/cancel-flow-patterns.md.
+For detailed cancel flow patterns by industry and billing provider, see references/retention-assets/cancel-flow-patterns.md.
 
 ---
 
@@ -321,7 +321,7 @@ Not all failures are the same. Retry strategy by decline type:
 | Overall payment recovery | <30% | 40-50% | 60%+ |
 | Pre-dunning prevention | None | 10-15% | 20-30% |
 
-For the complete dunning playbook with provider-specific setup, see references/dunning-playbook.md.
+For the complete dunning playbook with provider-specific setup, see references/retention-assets/dunning-playbook.md.
 
 ---
 

@@ -18,6 +18,6 @@ Model policy is capability-tiered: `frontier-judgment`, `balanced-executor`, &
 `mechanical-cheap`. A host resolves compatible provider/model IDs; roster source
 never names a vendor model. The resolution lives in `src/config/model-tiers.json`:
 each tier maps to a host-native model id per harness. `agents/<role>.md` `model:`
-fields carry the resolved claude-code value and `check-authority-parity.mjs`
+fields carry the resolved claude-code value and `legion-dev check-authority-parity` (run by `pnpm legion:check`)
 verifies them against the map — an explicit host model change is a map edit plus
 agent resync, never a roster, doctrine, or skill edit.

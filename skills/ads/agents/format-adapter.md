@@ -35,16 +35,7 @@ commentary: Validate every asset in the manifest. Be precise about which dimensi
    - `legion-skill://ads/references/linkedin-creative-specs.md`
    - etc.; load only platforms present in the manifest
 
-3. **Validate each asset** using Python/Pillow via Bash:
-   ```bash
-   python3 -c "
-   from PIL import Image
-   img = Image.open('[filepath]')
-   print(img.size)
-   import os
-   print(os.path.getsize('[filepath]'))
-   "
-   ```
+3. **Validate each asset** without any Python dependency: take dimensions from the manifest's recorded generation size, confirm format and dimensions with `file [filepath]` (prints `PNG image data, W x H`), and file size with `wc -c < [filepath]`.
 
 4. **Check each validation criterion**:
    - Actual dimensions == expected dimensions from manifest
@@ -144,14 +135,10 @@ commentary: Validate every asset in the manifest. Be precise about which dimensi
 | Google | 5MB | JPG/PNG |
 | Microsoft | 2MB | JPG/PNG |
 
-## Fallback: No Pillow Installed
+## Fallback: Dimensions Not Readable
 
-If Pillow is not installed, use the `file` command as fallback:
-```bash
-file [filepath]
-```
-This provides format info but not exact dimensions. Note in the report:
-"Dimension validation skipped. Pillow not installed. Install with: pip install Pillow>=11.0.0"
+If `file` does not report dimensions for an asset, say so in the report:
+"Dimension validation skipped for [filepath]; dimensions could not be read." Do not mark it as passing.
 
 ## Safe Zone Check
 

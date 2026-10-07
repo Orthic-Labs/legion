@@ -311,28 +311,7 @@ Search specific domains using the CLI tool below.
 
 ## Prerequisites
 
-Check if Python is installed:
-
-```bash
-python3 --version || python --version
-```
-
-If Python is not installed, install it based on user's OS:
-
-**macOS:**
-```bash
-brew install python3
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt update && sudo apt install python3
-```
-
-**Windows:**
-```powershell
-winget install Python.Python.3.12
-```
+`<ui-reference-search>` below stands for a search tool the host may provide; this package ships no such tool and needs no Python runtime. When it is unavailable, say so and work from the Quick Reference rules above and the rest of the designer references instead of inventing tool output.
 
 ---
 

@@ -98,7 +98,7 @@ POINT ▶ 触发 (overlay 浮上来)：22 秒 cinematic
 
 **问题**：3D orbit / gallery 里需要素材碎片漂浮，emoji（📚🎤）丑且无品牌、SVG 手画书脊永远不像真书。
 
-**解决**：用 `huashu-gpt-image` 跑一张 4×2 grid 大图（8 件主题相关物品 · 白底 · 60px breathing space · unified style），用 `extract_grid.py --mode bbox` 抠成 8 张独立透明 PNG。
+**解决**：用 `huashu-gpt-image` 跑一张 4×2 grid 大图（8 件主题相关物品 · 白底 · 60px breathing space · unified style），用 `huashu-gpt-image` 自带的网格抠图步骤抠成 8 张独立透明 PNG（本包不含该脚本）。
 
 **Prompt 要点**（详细 prompt patterns 见 `huashu-gpt-image` skill）：
 - IP 锚定（"1960s Caltech archive aesthetic" / "Hearthstone-style consistent treatment"）
@@ -227,7 +227,7 @@ iframe.addEventListener('load', () => {
 - https:// 下也同源（如果同 host），但 audio autoplay 限制更严格
 
 **修复**：
-- 部署前用 `python3 -m http.server` 起本地 HTTP 测试一遍
+- 部署前用任意本地静态服务器（如 `npx serve`）起本地 HTTP 测试一遍
 - BGM 必须等用户点击 ▶ 后再 `bgm.play()`，不要 page-load 立刻播
 
 ---

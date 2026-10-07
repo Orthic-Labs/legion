@@ -93,7 +93,7 @@ conversion failures prose lenses keep missing; thresholds and evidence base live
 `missing-hero-media` (advisory) · `hero-viewport-hog` · `hover-contrast` · `oversized-header` ·
 `broken-internal-link` (`--site`) · `missing-required-page` (`--site`)
 
-Structure rules require a URL scan (`detect.mjs --json --viewport=1440x900 <url>`, then `--tablet`,
+Structure rules require a URL scan (`legion script designer/detect --json --viewport=1440x900 <url>`, then `--tablet`,
 then `--mobile`; site sweep via `--site --site-type=<app|ecommerce|content>` on the homepage). A
 static/file scan CANNOT evaluate them — a clean static run does not clear them, and the report must
 say which mode ran.

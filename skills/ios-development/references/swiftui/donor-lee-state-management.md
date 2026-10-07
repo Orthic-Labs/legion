@@ -149,7 +149,7 @@ enum DeliveryStatus: Equatable { case placed, preparing, shipped, delivered }
 
 This applies to collection properties too: an `Array`/`Set`/`Dictionary` is only `Equatable` when its element type is, so a non-`Equatable` element defeats the short-circuit for the whole collection. (The check is emitted into the generated setter as user code, so it applies on every OS that supports `@Observable` when built with current Xcode.)
 
-This is distinct from `Equatable` *views* (see `references/performance-patterns.md`): that conformance lets SwiftUI skip a view's body; this one lets the model skip notifying observers in the first place.
+This is distinct from `Equatable` *views* (see `references/swiftui/donor-lee-performance-patterns.md`): that conformance lets SwiftUI skip a view's body; this one lets the model skip notifying observers in the first place.
 
 ## @Observable Dependency Granularity
 
@@ -172,7 +172,7 @@ final class AppState {
 }
 ```
 
-For struct-typed properties, expose the fields the views actually read as individual properties on the model (each is then tracked separately). If the struct must remain round-trippable (re-encoded to a payload), keep both: a stored `var user: User` for the original shape and the flattened properties for view consumption, kept in sync in `didSet` on `user`. When many rows each observe several fields of their element, model each element as its own `@Observable` and have the parent **persist** the instances — see the per-item view model pattern in `references/performance-patterns.md`. Reading several already-narrow properties from one model is fine and does not need splitting.
+For struct-typed properties, expose the fields the views actually read as individual properties on the model (each is then tracked separately). If the struct must remain round-trippable (re-encoded to a payload), keep both: a stored `var user: User` for the original shape and the flattened properties for view consumption, kept in sync in `didSet` on `user`. When many rows each observe several fields of their element, model each element as its own `@Observable` and have the parent **persist** the instances — see the per-item view model pattern in `references/swiftui/donor-lee-performance-patterns.md`. Reading several already-narrow properties from one model is fine and does not need splitting.
 
 ## @Binding
 
@@ -258,7 +258,7 @@ Toggle("Play", isOn: $model.isPlaying)
 
 ## @FocusState
 
-See `references/focus-patterns.md` for comprehensive focus management guidance including `@FocusState`, `@FocusedValue`, `.focusable()`, default focus, and common pitfalls.
+See `references/swiftui/donor-lee-focus-patterns.md` for comprehensive focus management guidance including `@FocusState`, `@FocusedValue`, `.focusable()`, default focus, and common pitfalls.
 
 Always mark `@FocusState` as `private`.
 
@@ -412,7 +412,7 @@ Do not add this indirection when the dependency also affects rendering or the pa
 
 ## Environment
 
-For custom environment values, `@Entry`, focused values, stable defaults, and invalidation costs, consult `references/environment-patterns.md`.
+For custom environment values, `@Entry`, focused values, stable defaults, and invalidation costs, consult `references/swiftui/donor-lee-environment-patterns.md`.
 
 ## Decision Flowchart
 
@@ -482,7 +482,7 @@ SwiftUI can't track changes through nested `ObservableObject` properties. Workar
 9. **Prefer `Equatable` types for frequently-written `@Observable` properties** so the generated setter skips redundant invalidations
 10. Pass value-type views only the fields they read
 11. Isolate side-effect-only dependencies when they would invalidate an expensive parent
-12. Follow `references/environment-patterns.md` for custom environment and focused values
+12. Follow `references/swiftui/donor-lee-environment-patterns.md` for custom environment and focused values
 13. **Prefer KeyPath/subscript bindings over closure bindings**; use a computed property, not a marker-enum subscript, for argumentless projections
 14. **Declare a binding you react to as `@Binding`, not a plain `Binding`-typed property** — a plain property isn't tracked, so external changes won't re-evaluate the view (often a Release-only failure)
 15. Do not pass a parent `@Observable` plus an index into a row; pass the element or the fields the row reads

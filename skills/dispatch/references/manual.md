@@ -101,7 +101,7 @@ ownership, dependency order, worker boundary, bounded recovery, acceptance
 evidence, & root integration ownership. Any packet edit requires its governing
 validation and review to run again. Do not add those artifacts to ambient work.
 
-Validate zero-context durable packets with `scripts/validate-dispatch.py <packet>`;
+Validate zero-context durable packets with `legion script dispatch/validate-dispatch <packet>`;
 use `--write-receipt <receipt>` or `--verify-receipt <receipt>` when required.
 
 Use `assets/dispatch-template.md` with `--packet-type legacy` only for explicit

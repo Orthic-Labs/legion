@@ -19,7 +19,7 @@ the requested deliverable truly combines purposes.
 | Research-heavy long-form article that is not a publish-gated SEO blog | `references/research-article.md` |
 | Video, carousel, podcast, or narrative script | `references/script.md` |
 | Content repurposing/atomization | `references/content-repurposer/reference.md` |
-| Blog post, SEO article, blog audit, upgrade, publish QA, internal links/schema | `specialists/blogs/GUIDE.md` and its `references/writing-research.md` when needed |
+| Blog post, SEO article, blog audit, upgrade, publish QA, internal links/schema | `specialists/blogs/GUIDE.md` and its `specialists/blogs/references/writing-research.md` when needed |
 | Landing/sales page, offer, CTA, ad copy, product copy, bio, DM, persuasive copy | `specialists/copywriting/GUIDE.md` |
 | Profile bio or link-in-bio work needing the dedicated profile workflow | `specialists/profile-copy/GUIDE.md` after the copywriting guide |
 | Newsletter campaign, lifecycle flow, sequence, cold outreach, transactional email | `specialists/email/GUIDE.md` |

@@ -3,7 +3,7 @@
 ```text
 PRIMARY_DELIVERABLE: Frozen diff disposition, focused checks, plus bounded repair result.
 SPECIALIST_REFS_MAX: 0
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 8
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
@@ -17,7 +17,7 @@ pre-commit safety net: the same lenses `/audit` runs whole-repo, scoped to just 
 autonomously, so broken or over-engineered code never lands. It uses **our own audit engine** —
 `correctness` is the CodeRabbit fold, `minimize` is the full ponytail hunt — **not** the external
 CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both, see
-`skills/audit/SKILL.md` "CodeRabbit absorption" + `references/ponytail-lens.md`).
+the audit skill's `references/manual.md` "CodeRabbit absorption" and `references/ponytail-lens.md`).
 
 ## When to use / not
 
@@ -37,7 +37,7 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    (last commit), `--base <branch>`, or an explicit path/hunk set. Do NOT use `--type all` here — in
    the audit engine `all` means *whole-repo* (no diff scope) and returns an empty `changed_files`.
    ```bash
-   audit-facts <root> --type local
+   legion audit <root> --type local --out <root>/.audit/<ts>
    ```
    Reads `scope.changed_files` from `facts.json` (mode `diff`) — every later step operates on THAT set only.
    If the change set is empty, stop: nothing to commit (`git diff --name-only` + `git diff --cached --name-only`).
@@ -99,7 +99,7 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    though the risk surface were known to be empty.
 
 2. **Run the diff lenses on the changed files only.** Fan them out as parallel NATIVE subagents (per
-   `/audit` "Lens fan-out" — haiku mechanical / sonnet judgment, never opus, NO external model APIs;
+   the audit skill's `references/lens-routing.md` Model routing — lowest tier for mechanical lenses, mid tier or above for judgment lenses, NO external model APIs;
    inline in the main session is the fallback and often right for a small diff) over JUST
    `scope.changed_files`, running the lenses that apply to a
    change — **not** the whole-repo ones:
@@ -116,6 +116,21 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    finding, run the counterfactual "if this shipped unchanged, would it actually fail — with what input?"
    If you cannot name the failing input, downgrade to `possible` or drop it. A dropped false positive is
    a better review than a surfaced guess.
+
+   **Refutation rule — a finding is withdrawn only by citing the line that disproves it.** This
+   resolves the conflict with the drop-doubtful bias above. The two rules cover different cases:
+   - *No anchor.* A candidate with no verbatim `file:line` and quote, or whose failing input you cannot
+     name, is dropped (or kept as `possible`). Doubt alone is enough to drop an unanchored guess.
+   - *Anchored.* A finding that carries a real anchor is withdrawn only by quoting the specific line
+     (in the diff or in a named out-of-diff file) that proves it wrong: the guard, the validation, the
+     test that pins the behaviour, the generated-file header, the documented invariant. "Probably
+     handled elsewhere" or "seems intentional" does not withdraw it. If no disproving line can be
+     cited, the finding stays, downgraded to `possible` at most, and is listed in one line as
+     unrefuted.
+   - *Protected subjects.* Secrets, authn/authz, data loss, destructive or irreversible operations, and
+     public-contract breaks are never dropped on doubt; they are withdrawn only by a cited disproving
+     line, otherwise they stay and trip the hard stops.
+   Record every withdrawal in the gate artifact with its disproving `file:line`.
 
    **Surfaced finding format (CodeRabbit-style):** emit this only for a finding that changes the
    fix/ship decision.
@@ -169,9 +184,9 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    | `ai-slop` (dup/slop introduced) · `schema` (contract/serialization drift) | `performance` **runtime** pass (no app boot here) |
    | `performance` **static** (N+1 / re-render introduced by the change — these ARE diff-introducible) | repo-wide lenses on unchanged files |
    | `a11y` — only if the diff touches UI (JSX/markup/templates) | |
-   | `data-safety` — only if the diff touches a migration or raw/ORM SQL (see `references/migration-safety.md`) | |
+   | `data-safety` — only if the diff touches a migration or raw/ORM SQL (see the audit skill's `references/migration-safety.md`) | |
    The **lens set is chosen by diff profile**, using the same policy `/audit` applies (see
-   `skills/audit/SKILL.md` → "Lens selection policy") so the two skills cannot drift apart:
+   the audit skill's `references/manual.md` → "Lens selection policy") so the two skills cannot drift apart:
    doc-only, config-only, code non-test, test-only, migration/SQL, new-dependency, UI, public-API,
    performance-targeted. Take the union when several profiles match. Every finding needs a real
    `file:line` per the two-span rule above; verify each locally before acting.
@@ -198,6 +213,14 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
      touching it at all is critical on any non-trivial change. This is a read of the diff against the
      test set — no extra test execution needed. If the repo has no test infrastructure, the per-change
      gate is `UNPROVEN`, never `clean`.
+   - **Per-file completion criterion and coverage line.** A diff review is complete only when every
+     changed file has a recorded disposition from every lens that applies to it: reviewed with no
+     findings, reviewed with findings, or `unreviewed` with a typed reason (`too-large`,
+     `binary`, `generated`, `lens-unavailable`, `read-failed`). Report the result as one line in the
+     summary and in the gate artifact, for example `reviewed 14 of 15 changed files; 1 unreviewed
+     (generated)`. Reading the file's whole changed region is what counts as reviewed; a skim or a
+     skeleton does not. A run with any file `unreviewed` for a reason other than `binary` or
+     `generated` cannot be reported clean: it is `incomplete` and the missing files are named.
    - **Missing companion change ("what should have changed but didn't").** A diff is often incomplete, not
      wrong. When the change touches a public API/type/contract, a config key, a migration, or user-facing
      behavior, check that its *companions* moved too: the tests, the doc/README/changelog that describes it,
@@ -298,6 +321,16 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    next time. Do NOT log one-off, change-specific fixes; the bar is "a standing preference a future
    agent should know," not a changelog of this diff. Casual/one-time fixes are noise.
 
+   **Route recurring misses by kind (retro-style).** When the same miss shows up again, decide which
+   side of the line it sits on before recording it:
+   - *Mechanical* (a pattern a tool could detect: banned call, missing field, unpinned dependency, stale
+     generated file): do not write a reminder. Propose a deterministic check (a lint rule, a
+     registry provider, a test, a CI gate) as a follow-up, naming the file it would live in.
+   - *Judgment* (needs reading intent: wrong abstraction, misleading name, unsafe trade-off): add it to
+     the reviewer standard as a concrete, falsifiable rule (the repo's `gotchas.md` through the gotchas
+     skill, or the relevant lens cue list), not to a memory note.
+   State the routing in the summary; never leave a recurring mechanical miss as prose only.
+
    **A commit-time inference is a low-authority candidate, not a user instruction.** One incident
    observed by an agent is weaker evidence than something the user actually said, and it must not enter
    durable memory at the same authority. Emit it as an evidence-backed candidate (`source: commit`,
@@ -316,7 +349,9 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
    ```json
    {"scope":{"type":"local","files":[],"clusters":[]},"candidateTree":"<sha>","committedTree":"<sha>",
     "riskLevel":"low|medium|high|critical","impact":{"state":"ready|incomplete","fanIn":0},
-    "lensesRequired":[],"lensesRan":[],"findings":[],"fixesApplied":[],
+    "lensesRequired":[],"lensesRan":[],"findings":[],"withdrawn":[{"finding":"","disprovedBy":"<path>:<line>"}],
+    "review":{"changed":0,"reviewed":0,"unreviewed":[{"file":"","reason":""}],"coverageLine":"reviewed N of M changed files"},
+    "fixesApplied":[],
     "coverage":{"ratio":0.0,"perFile":[]},"tests":{"command":"","passed":true},
     "hardStops":[],"deliveryState":"pushed","pushedOid":"<sha>"}
    ```
@@ -328,7 +363,7 @@ CodeRabbit or ponytail binaries (those aren't required; the engine absorbs both,
 Pushing is outward-facing. Refuse to push (and say why) when:
 - A **secret** is in the diff (gitleaks hit) that auto-fix can't resolve — never push a leaked key.
 - A **test is failing** (or the only coverage is an integration/e2e suite that needs live services) — never push red.
-- A **`data-safety` finding** confirms data loss or a prod-locking migration (`references/migration-safety.md`) — surface it, don't push.
+- A **`data-safety` finding** confirms data loss or a prod-locking migration (the audit skill's `references/migration-safety.md`) — surface it, don't push.
 - Fixes **won't converge** (no-progress with findings still open) — report the open findings, don't ship a broken state.
 - The current branch is a **protected / shared default branch** and the repo's norms require a PR.
   **Discover the norms, don't assume them** — a shared skill cannot carry one machine's habits as a

@@ -1,4 +1,4 @@
-# site_audit.py — deterministic crawl checks (Ahrefs Site Audit taxonomy)
+# `legion script seo/site_audit` — deterministic crawl checks (Ahrefs Site Audit taxonomy)
 
 `legion script seo/site_audit` is the deterministic evidence layer for `/seo audit`. It crawls a
 site from its sitemap + internal links (stdlib only, no browser, sites up to ~300 URLs) and
@@ -47,12 +47,12 @@ sitemap_urls, broken_links_all, redirects, issues{class: [loci]}, severity{error
 
 ## Not covered here (use the paired tools / lanes)
 
-- **JS-rendered signals** (Qwik/React runtime schema, client-only content) → `render_gap.mjs`
+- **JS-rendered signals** (Qwik/React runtime schema, client-only content) → `legion script seo/render_gap`
   (raw-vs-rendered DOM diff). site_audit reads server HTML; run render-gap when a framework
   hydrates content client-side.
-- **Field CWV / real Core Web Vitals** → `pagespeed_check.py` + `crux_history.py` (need
+- **Field CWV / real Core Web Vitals** → `legion script seo/pagespeed_check` + `legion script seo/crux_history` (need
   `GOOGLE_API_KEY`). site_audit does not measure performance.
-- **Indexation status, impressions, clicks, positions** → `gsc_inspect.py` / `gsc_query.py`
+- **Indexation status, impressions, clicks, positions** → `legion script seo/gsc_inspect` / `legion script seo/gsc_query`
   (need GSC OAuth). site_audit checks crawlability, not what Google actually indexed/ranks.
 - **Backlinks, DR, keyword volume, competitor SERPs** → Ahrefs/DataForSEO MCP lanes.
 - **Judgment classes** (E-E-A-T, search-intent match, cannibalization, GEO/AI-citability,

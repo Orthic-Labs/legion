@@ -1,7 +1,7 @@
 # SEO Image Presets
 
 Pre-configured presets for common SEO image use cases. These map to banana's
-preset format (see `references/presets.md` for schema details).
+preset format (see `presets.md` for schema details).
 
 ## Preset Templates
 
@@ -123,7 +123,7 @@ preset format (see `references/presets.md` for schema details).
 
 Users can create their own presets:
 ```bash
-python3 legion-skill://seo/extensions/banana/scripts/presets.py create my-brand
+legion script seo/banana-presets create my-brand
 ```
 
 This creates `~/.banana/presets/my-brand.json` with the full schema.

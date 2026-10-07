@@ -22,7 +22,8 @@ metadata:
 
 # Ahrefs: Live SEO Data And Manual UI Exports
 
-Live data via the Ahrefs MCP server (tool prefix `mcp__0e71d0c2-...`).
+Live data via the Ahrefs MCP server (host capability `ahrefs`; its tools carry whatever `mcp__<connector>__` prefix the host assigned, so resolve them by tool name, e.g. `site-explorer-metrics`, `doc`).
+When the capability is absent, report that Ahrefs data is unavailable and mark those findings UNPROVEN; never estimate them.
 
 ## Manual Export Mode — Built-In Browser Only
 
@@ -85,7 +86,7 @@ For this mode, built-in browser beats all other tools. If the built-in browser c
 checking that `site-explorer-metrics` is available. If not, inform the user
 the Ahrefs MCP is not connected.
 
-**Use `mcp__0e71d0c2-64ec-439b-be59-0bff867c72ee__doc` to fetch the exact
+**Use the Ahrefs MCP `doc` tool to fetch the exact
 input schema for any tool before calling it.** The MCP has 100+ tools — always
 fetch schema first rather than guessing parameters.
 
@@ -428,7 +429,7 @@ Match the broader `/seo` skill output conventions:
 | Manual export requested | Use built-in browser only. Navigate UI, click official export, parse downloaded CSV/XLSX. |
 | Built-in browser cannot export/download | Stop and report the browser/export blocker. Do not fall back to scraping or hidden endpoints. |
 | User not signed in | Pause and ask user to sign in interactively in the browser. Never ask for credentials in chat. |
-| Tool schema not loaded | Call `mcp__0e71d0c2-64ec-439b-be59-0bff867c72ee__doc` with the tool name to fetch schema first. |
+| Tool schema not loaded | Call the Ahrefs MCP `doc` tool with the tool name to fetch schema first. |
 | No data for domain | Domain may be new or very small. Report "insufficient data" — do not fabricate metrics. |
 | Brand Radar report not found | Run `management-brand-radar-reports` to list available reports. Ask user to confirm brand name. |
 | Rate limit | Report the limit and suggest spacing requests. |

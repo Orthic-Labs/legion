@@ -67,6 +67,11 @@ user confirmation, or evidence reference.
    - Evidence: <paths, line numbers, command output, artifact IDs, or user-confirmed observation>
    ```
 
+   Route the prevention by failure type: when the recurring miss is mechanical, propose a
+   deterministic check (test, lint, or validator) in the entry or as a follow-up for the user;
+   when it is a matter of judgment, propose a reviewer standard instead of a rule an agent
+   can only self-attest.
+
 5. Verify only that one entry was appended to the intended repository file and
    that no secret values were recorded. Do not run generators or alter source,
    tests, manifests, or unrelated documentation as part of this skill.

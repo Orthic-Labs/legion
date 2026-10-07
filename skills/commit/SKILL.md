@@ -28,7 +28,7 @@ Route one frozen diff through packaged `references/manual.md`. This entrypoint d
 review lenses, test gates, or Git effects.
 
 ```text
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 8
 EXTERNAL_REQUESTS_MAX: 0
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
@@ -49,7 +49,12 @@ supersedes the legacy flat `SPECIALIST_REFS_MAX` cap with a per-step capability 
      capabilities:
        - process-exec
        - source-read
-3. Review every staged line; repair only in-scope defects.
+3. Review every staged line; repair only in-scope defects. Every changed file needs a recorded
+   disposition, and the summary carries a coverage line (`reviewed N of M changed files`); an
+   unreviewed file other than binary or generated makes the result `incomplete`, not clean. A finding
+   with a verbatim anchor is withdrawn only by citing the line that disproves it (see the manual's
+   refutation rule); doubt alone drops only unanchored guesses. Route a recurring miss by kind:
+   mechanical → propose a deterministic check, judgment → add to the reviewer standard.
    EXECUTOR:
      semantic: required
      capabilities:

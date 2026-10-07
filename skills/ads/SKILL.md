@@ -12,14 +12,15 @@ operations:
 effects:
   - source-read
   - network-request
-hostRequirements: []
+hostRequirements:
+  - banana-image
 ---
 
 # Ads
 
 PRIMARY_DELIVERABLE: Evidence-bound paid-media findings or plan.
 SPECIALIST_REFS_MAX: 1
-CHILD_AGENTS_MAX: 0
+CHILD_AGENTS_MAX: 6
 EXTERNAL_REQUESTS_MAX: 12
 MAY_ADD_TASKS: NO
 MAY_CALL_SKILLS: NONE
@@ -35,6 +36,7 @@ Work only within granted accounts, URLs, files, dates, platforms, & spend.
 - Landing page: read `references/landing.md`.
 - Competitor or brand DNA: read `references/competitor.md` or `references/dna.md`.
 - Full multi-platform plan or unfamiliar command: read `references/manual.md`.
+- Agent briefs: the 10 files in `agents/` are role briefs, not registered plugin agents. Only a full `/ads audit` fans out, to at most six subagents (`audit-google`, `audit-meta`, `audit-creative`, `audit-tracking`, `audit-budget`, `audit-compliance`), each started with the full text of its `agents/<name>.md` as its brief. The creative briefs (`creative-strategist`, `copy-writer`, `visual-designer`, `format-adapter`) are run inline, in order, by the main agent; they never spawn.
 
 ## Execute
 

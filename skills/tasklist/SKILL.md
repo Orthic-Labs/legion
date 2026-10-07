@@ -14,12 +14,12 @@ effects:
   - artifact-write
   - process-exec
 hostRequirements:
-  - python-runtime
+  - legion
 ---
 
 # Tasklist
 
-This public entrypoint routes durable validation to package-local `lib/dispatch-validator`; it owns no second validator.
+This public entrypoint routes durable validation to `legion script tasklist/validate-tasklist`; it owns no second validator.
 
 1. Freeze current state, target state, scope, constraints, & completion proof. Then emit concise numbered next actions now.
 2. For inline work, each action states the action, necessary dependency (`START` or a prior step), & completion check. Include paths, expected result, or evidence when known and helpful. Parallelize independent actions & serialize concrete dependencies. Start step 1 when execution was requested.

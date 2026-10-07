@@ -112,7 +112,7 @@ use case 分配（按平台和受众）：
 - 公众号 / X / B 站 / 朋友圈 / Dribbble / 客户演示 / 私域 / ...
 ```
 
-详见 `assets/director-notes-samples/launch-film-30s-sample.md` 的同目录 REVIEW.md。
+样本及其同目录 REVIEW.md 未随本包发布。
 
 ---
 
@@ -257,7 +257,7 @@ subagent 完成需要 12-15 分钟。这段时间主线程绝不该空闲：
 ## 相关文档
 
 - 完整方法论：`references/launch-film-director-notes.md`
-- 单视角样本：`assets/director-notes-samples/launch-film-30s-sample.md`（v5 基线）
+- 单视角样本（v5 基线）：未随本包发布
 - 实战项目位置：作者本地 demos 目录（含 6 + 1 视角全套文件，未随仓库分发）
 - 审校 review：作者本地 REVIEW.md（未随仓库分发）
 

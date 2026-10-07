@@ -11,13 +11,12 @@ effects:
   - network-request
 hostRequirements:
   - pi-cli
-  - python-runtime
   - legion
 ---
 
 # Coder
 
-This public entrypoint routes execution to package-local `lib/coder-api-worker`; it never owns model credentials or mutation authority. `pi-cli` is Legion's declared contract for Pi's external model-provider command, while `python-runtime` runs only package-local adapter code.
+This public entrypoint routes execution through `legion script coder/api-worker`; it never owns model credentials or mutation authority. `pi-cli` is Legion's declared contract for Pi's external model-provider command.
 
 ## HARD CONSTRAINT
 

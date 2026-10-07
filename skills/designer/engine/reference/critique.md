@@ -7,7 +7,7 @@ Resolve one stable target, run two independent assessments, synthesize a design 
 - Assessment A (design review) and Assessment B (detector/browser evidence) are both required.
 - Assessment A must finish before detector findings enter the parent synthesis context. Detector output is deterministic, but it still anchors judgment.
 - If sub-agents are unavailable, fall back sequentially: finish and record Assessment A first, then run Assessment B, then synthesize.
-- A skipped detector is a failed critique run unless `detect.mjs` is missing or crashes after a real attempt.
+- A skipped detector is a failed critique run unless `legion script designer/detect` is missing or crashes after a real attempt.
 - Viewable targets require browser inspection when available.
 - Any local server started only for critique visualization must run in the background, have a recorded stop method, and be stopped before final reporting unless the user asks to keep it.
 - Do not claim a user-visible overlay exists unless script injection succeeded and the detector ran in the page.
@@ -69,7 +69,7 @@ Browser visualization is required for a viewable target when browser automation 
 
 Return: CLI findings JSON/counts, browser console findings if applicable, false positives, and skipped/failed browser steps with concrete reasons.
 
-After Assessment B returns usable CLI findings, reuse them. Do not rerun `detect.mjs` in the parent unless Assessment B failed, was truncated, or omitted count, rule names, or file locations.
+After Assessment B returns usable CLI findings, reuse them. Do not rerun `legion script designer/detect` in the parent unless Assessment B failed, was truncated, or omitted count, rule names, or file locations.
 
 ### Generate Combined Critique Report
 

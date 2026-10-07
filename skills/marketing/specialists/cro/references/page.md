@@ -159,7 +159,7 @@ When recommending experiments, consider tests for:
 - Form optimization
 - Navigation and UX
 
-**For comprehensive experiment ideas by page type**: See references/experiments.md
+**For comprehensive experiment ideas by page type**: See references/page-assets/experiments.md
 
 ---
 

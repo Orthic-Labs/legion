@@ -1,7 +1,7 @@
 # Ad Copy Frameworks
 
 > Updated: 2026-07-18
-> Source: Used by ads-creative, ads-google, ads-meta, and ads-plan skills
+> Source: Used by the creative, Google, and Meta references
 
 > **Storytelling craft source (project-supplied):** `<project-overlay>/storytelling-guide.md`, when the consuming project provides one — hook construction, the dopamine loop, and concreteness moves. For **video** ad scripts, prefer a project-supplied beat-template library if one exists; pick a pattern there before writing a video script. The frameworks below are text-ad shapes and need no external source.
 

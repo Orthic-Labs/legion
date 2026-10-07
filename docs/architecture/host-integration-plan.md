@@ -1,6 +1,8 @@
+> Historical (frozen 2026-09-02). Cites code deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Legion host-integration implementation plan
 
-**Status:** active implementation plan
+**Status:** historical, frozen; superseded by the Rust port
 **Governed by:** `docs/LEGION-CANONICAL-SSOT.md`; host projection is a deliberately lossy compatibility seam
 **Scope:** how canonical Legion semantics reach Claude Code, Codex, Gemini CLI, and
 AGENTS-only harnesses; how Arcane enforces effects on each; how failures are diagnosed.

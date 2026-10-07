@@ -24,7 +24,7 @@ MAY_CALL_SKILLS: NONE
 TERMINAL: One source-bound Brand Card is ready for downstream use.
 
 1. Resolve one named brand or approved identity source. Do not infer brand facts from a name.
-2. Load only its authorized private overlay or supplied source. This package carries no brand corpus.
+2. Load only its authorized private overlay or supplied source. This package carries no brand corpus. Project brand data may live in a PROJECT_OVERLAY (for example the workspace's brand registry, such as `tools/legion-overlay/brand`); when one is present for the named brand, load it as the authorized source rather than reporting `brand-source-unavailable`.
 3. Extract voice, visual system, restrictions, required assets, approval state, & source identity into a compact Brand Card.
 4. Treat locked identity rules as invariants. Separate source facts from open decisions.
 5. If no authorized source is available, return `brand-source-unavailable`; do not create, substitute, or expose a private identity.

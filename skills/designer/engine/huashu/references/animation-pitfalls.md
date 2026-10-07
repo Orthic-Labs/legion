@@ -114,7 +114,7 @@
 **踩的坑**：Playwright `recordVideo` 默认 25fps，从 context 创建就开始录。页面加载、字体加载的前 2 秒都被录进去。交付时视频前面 2 秒空白/闪白。
 
 **规则**：
-- 提供 `render-video.js` 工具处理：warmup navigate → reload 重启动画 → 等 duration → ffmpeg trim head + 转 H.264 MP4
+- 提供 `legion script designer/render-video` 工具处理：warmup navigate → reload 重启动画 → 等 duration → ffmpeg trim head + 转 H.264 MP4
 - 动画的**第 0 帧**要是最终布局已就位的完整初始状态（不是空白或加载中）
 - 想要 60fps？用 ffmpeg `minterpolate` 后处理，不指望浏览器源帧率
 - 想要 GIF？两阶段 palette（`palettegen` + `paletteuse`），对 30s 1080p 动画能压到 3MB
@@ -123,7 +123,7 @@
 
 ## 8. 批量导出 —— tmp 目录必须带 PID 防并发冲突
 
-**踩的坑**：用 `render-video.js` 3 个进程并行录 3 个 HTML。因为 TMP_DIR 只用 `Date.now()` 命名，3 个进程同毫秒启动时共用同一个 tmp 目录。最先完成的进程清理 tmp，另外两个读目录时 `ENOENT`，全部崩溃。
+**踩的坑**：用 `legion script designer/render-video` 3 个进程并行录 3 个 HTML。因为 TMP_DIR 只用 `Date.now()` 命名，3 个进程同毫秒启动时共用同一个 tmp 目录。最先完成的进程清理 tmp，另外两个读目录时 `ENOENT`，全部崩溃。
 
 **规则**：
 - 任何多进程可能共用的临时目录，命名必须带 **PID 或随机后缀**：
@@ -140,7 +140,7 @@
 **规则**：
 - HTML 里给人类用的「chrome 元素」（progress bar / replay button / footer / masthead / counter / phase labels）和视频内容本体分开管理
 - **约定 class 名** `.no-record`：任何带这个 class 的元素，录屏脚本自动隐藏
-- 脚本端（`render-video.js`）默认注入 CSS 隐藏常见 chrome class 名：
+- 脚本端（`legion script designer/render-video`）默认注入 CSS 隐藏常见 chrome class 名：
   ```
   .progress .counter .phases .replay .masthead .footer .no-record [data-role="chrome"]
   ```
@@ -149,7 +149,7 @@
 
 ## 10. 录屏开头几秒动画重复 —— Warmup 帧泄漏
 
-**踩的坑**：`render-video.js` 的旧流程 `goto → wait fonts 1.5s → reload → wait duration`。录制从 context 创建就开始，warmup 阶段动画已经播了一段，reload 后从 0 重启。结果视频前几秒是「动画中段 + 切换 + 动画从 0 开始」，重复感强。
+**踩的坑**：`legion script designer/render-video` 的旧流程 `goto → wait fonts 1.5s → reload → wait duration`。录制从 context 创建就开始，warmup 阶段动画已经播了一段，reload 后从 0 重启。结果视频前几秒是「动画中段 + 切换 + 动画从 0 开始」，重复感强。
 
 **规则**：
 - **Warmup 和 Record 必须用独立的 context**：
@@ -269,7 +269,7 @@ window.__seek = (t) => { fired.clear(); time = t; lastTick = null; render(t); };
 | `playing = false` 默认 | 字体加载期间 `tick` 即使运行也不推进 time，避免渲染错位 |
 | `__ready` 在 tick 首帧设 | 录屏脚本此刻开始计时，对应的画面是动画真正的 t=0 |
 | `document.fonts.ready.then(...)` 里才启动 tick | 规避字体 fallback 宽度测量、避免首帧字体跳变 |
-| `window.__seek` 存在 | 让 `render-video.js` 可以主动矫正——第二道防线 |
+| `window.__seek` 存在 | 让 `legion script designer/render-video` 可以主动矫正——第二道防线 |
 
 **录屏脚本端的对应防御**：
 1. `addInitScript` 注入 `window.__recording = true`（先于 page goto）
@@ -288,7 +288,7 @@ ffmpeg -i video.mp4 -ss $DURATION-0.1 -vframes 1 frame-end.png
 
 ## 13. 录制时禁止 loop —— `window.__recording` 信号
 
-**踩的坑**：动画 Stage 默认 `loop=true`（浏览器里方便看效果）。`render-video.js` 录完 duration 秒还多等 300ms 缓冲才停止，这 300ms 让 Stage 进入下一循环。ffmpeg `-t DURATION` 截取时，最后 0.5-1s 落入下一循环——视频结尾突然回到第一帧（Scene 1），观众以为视频出 bug。
+**踩的坑**：动画 Stage 默认 `loop=true`（浏览器里方便看效果）。`legion script designer/render-video` 录完 duration 秒还多等 300ms 缓冲才停止，这 300ms 让 Stage 进入下一循环。ffmpeg `-t DURATION` 截取时，最后 0.5-1s 落入下一循环——视频结尾突然回到第一帧（Scene 1），观众以为视频出 bug。
 
 **根因**：录制脚本和 HTML 之间没有"我在录制"的握手协议。HTML 不知道自己被录，依然按浏览器交互场景循环。
 
@@ -316,7 +316,7 @@ ffmpeg -i video.mp4 -ss $DURATION-0.1 -vframes 1 frame-end.png
 
 ## 14. 60fps 视频默认用帧复制 —— minterpolate 兼容性差
 
-**踩的坑**：`convert-formats.sh` 用 `minterpolate=fps=60:mi_mode=mci...` 生成的 60fps MP4，在 macOS QuickTime / Safari 部分版本下无法打开（一片黑或直接拒打）。VLC / Chrome 能打开。
+**踩的坑**：`legion script designer/convert-formats` 用 `minterpolate=fps=60:mi_mode=mci...` 生成的 60fps MP4，在 macOS QuickTime / Safari 部分版本下无法打开（一片黑或直接拒打）。VLC / Chrome 能打开。
 
 **根因**：minterpolate 输出的 H.264 elementary stream 包含某些播放器解析有问题的 SEI / SPS 字段。
 
@@ -327,7 +327,7 @@ ffmpeg -i video.mp4 -ss $DURATION-0.1 -vframes 1 frame-end.png
 - 60fps 标签价值是**上传平台的算法识别**（Bilibili / YouTube 上 60fps 标记会优先推流），实际感知流畅度对 CSS 动画来说提升微弱
 - 加 `-profile:v high -level 4.0` 提升 H.264 通用兼容性
 
-**`convert-formats.sh` 已默认改成兼容模式**。如果你需要插帧高质量，加 `--minterpolate` flag：
+**`legion script designer/convert-formats` 已默认改成兼容模式**。如果你需要插帧高质量，加 `--minterpolate` flag：
 ```bash
 ```
 
@@ -340,7 +340,7 @@ ffmpeg -i video.mp4 -ss $DURATION-0.1 -vframes 1 frame-end.png
 **规则**：
 
 - **单文件交付（双击打开即用的 HTML）** → `animations.jsx` 必须**内联**到 `<script type="text/babel">...</script>` 标签内，不要用 `src="animations.jsx"`
-- **多文件项目（起 HTTP server 演示）** → 可以外部加载，但交付时明确写清 `python3 -m http.server 8000` 命令
+- **多文件项目（起 HTTP server 演示）** → 可以外部加载，但交付时明确写清 `npx serve`（或任意本地静态服务器） 命令
 - 判断标准：交付给用户的是"HTML 文件"还是"带 server 的项目目录"？前者用内联
 - Stage 组件 / animations.jsx 经常 200+ 行——贴进 HTML `<script>` 块完全可接受，别怕体积
 

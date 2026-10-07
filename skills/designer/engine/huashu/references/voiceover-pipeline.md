@@ -166,7 +166,7 @@ const App = () => (
                 │  [[cue:xx]] 标关键句）   │
                 └──────────────┬───────────┘
                                │
-                  narrate-pipeline.mjs
+                  legion script designer/narrate-pipeline
                                │
                                ▼
             ┌──────────────────────────────┐
@@ -338,7 +338,7 @@ const { NarrationStage, Scene, Cue, useNarration } = NarrationStageLib;
 
 NarrationStage 自动检测 `window.__recording`：
 - **实播模式**（默认）：跟随 audio 元素的 currentTime，用户暂停/拖动 seek 都能同步
-- **录视频模式**（render-video.js 设置 `window.__recording = true`）：rAF wall-clock 自驱动从 0 开始，暴露 `window.__seek(t)` 给 render-video.js 复位
+- **录视频模式**（`legion script designer/render-video` 设置 `window.__recording = true`）：rAF wall-clock 自驱动从 0 开始，暴露 `window.__seek(t)` 给 `legion script designer/render-video` 复位
 
 ## 三个脚本
 
@@ -347,7 +347,7 @@ NarrationStage 自动检测 `window.__recording`：
 | `legion script designer/tts-doubao` | 单段文本 | 单个 mp3 + 实测时长 |
 | `legion script designer/narrate-pipeline` | 解说稿 .md | voiceover.mp3 + timeline.json |
 | `legion script designer/mix-voiceover` | 视频 + voiceover.mp3 [+ BGM] | 带音频的 MP4 |
-| `scripts/render-narration.sh` | 解说 HTML + timeline.json | 最终 MP4（录制 + 混音一条龙）|
+| `legion script designer/render-narration` | 解说 HTML + timeline.json | 最终 MP4（录制 + 混音一条龙）|
 
 ## .env 配置
 
@@ -371,7 +371,7 @@ DOUBAO_TTS_ENDPOINT=https://openspeech.bytedance.com/api/v1/tts
 5. **写动画 HTML**：用 NarrationStage + 一个或几个 hero element 跨 scene 演戏
 6. **实播预览**：浏览器打开 HTML，点 ▶ Play，听画面+解说同步
 7. **第一观众自检**：用上面「自检 · 第一观众反应」表打分。失败回到 Step 4 重做
-8. **录视频**：`bash scripts/render-narration.sh demo.html --timeline=_narration/timeline.json`（自动录无声 MP4 + 混入 voiceover）
+8. **录视频**：`legion script designer/render-narration demo.html --timeline=_narration/timeline.json`（自动录无声 MP4 + 混入 voiceover）
 9. **可选 BGM**：在 render-narration 加 `--bgm-mood=educational`（或 tech / tutorial 等）
 10. **交付**：浏览器 HTML（实时演示用）+ 最终 MP4（发布用）
 
@@ -382,14 +382,14 @@ DOUBAO_TTS_ENDPOINT=https://openspeech.bytedance.com/api/v1/tts
 | TTS API 报错 | 检查 .env 里 `DOUBAO_TTS_API_KEY` 是否正确 |
 | 某段音频明显比脚本长/短 | 该段文本里有奇怪标点或 emoji，TTS 解析异常 → 改稿 |
 | cue absoluteTime 不准 | 段内子段拼接时 ffmpeg 有问题 → 检查 mp3 编码一致性 |
-| 录视频结果有黑屏 | render-video.js 没拿到 `window.__ready` 信号 → 检查 NarrationStage 是否正常挂载 |
+| 录视频结果有黑屏 | `legion script designer/render-video` 没拿到 `window.__ready` 信号 → 检查 NarrationStage 是否正常挂载 |
 | 录视频画面卡顿 | 动画里有重 layout（大量 box-shadow / blur）→ 简化或预合成 |
 | 实播音画不同步 | audio 元素加载延迟 → 加 `preload="auto"` 或本地预加载 |
 
 ## 何时不用这套 pipeline
 
-- **<60s 短动画**：直接做无声动画 + 后期配音（add-music.sh + 一段单独 TTS）即可，不需要 timeline 驱动
-- **纯 BGM 视频**：用 `add-music.sh` 加预设 BGM
+- **<60s 短动画**：直接做无声动画 + 后期配音（`legion script designer/add-music` + 一段单独 TTS）即可，不需要 timeline 驱动
+- **纯 BGM 视频**：用 `legion script designer/add-music` 加预设 BGM
 - **真人录音替换 TTS**：把 `voiceover.mp3` 替换成真人录音，timeline 自己手写或用 ffprobe 测段时长 + 工具脚本生成 → 流程其余部分通用
 
 ---

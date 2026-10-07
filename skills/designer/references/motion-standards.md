@@ -46,10 +46,10 @@ Every animation in scope is measured against these. A violation is a finding.
 
 This file's triggers assume CSS/DOM. On a **SwiftUI/AppKit** or **Slint** surface, most of them are
 category errors — animating `width`/`height`/`x`/`y` is idiomatic there, and `prefers-reduced-motion`
-does not exist. Load `motion/native.md` and review against its §4 gate instead. Reporting
+does not exist. Load `specialists/motion/native.md` and review against its §4 gate instead. Reporting
 `translate3d`, CLS, hydration, or bundle-budget findings on a native surface is itself a defect.
 
-Native surfaces have their own flag-on-sight list (details in `motion/native.md` §0–§2):
+Native surfaces have their own flag-on-sight list (details in `specialists/motion/native.md` §0–§2):
 
 - Two systems animating the same quantity — SwiftUI animating layout while AppKit resizes the window
 - `NSWindow.setFrame(_:display:animate:)` or `NSViewAnimation` in an interactive path (not interruptible)
@@ -63,7 +63,7 @@ Native surfaces have their own flag-on-sight list (details in `motion/native.md`
 
 On a **Tauri/embedded-webview** surface the triggers below DO apply — it is a browser — but the
 engine is WKWebView on Apple platforms, WebView2 on Windows, WebKitGTK on Linux, and Android System
-WebView on Android. Add `motion/webview.md` §5 and treat single-engine evidence as no evidence.
+WebView on Android. Add `specialists/motion/webview.md` §5 and treat single-engine evidence as no evidence.
 Flag there: missing version-appropriate `backdrop-filter` fallback, an unprofiled animated filter value, CSS blur
 stacked over native vibrancy, transformed drag-region hit testing without built-runtime evidence, or
 View Transitions used without a minimum-version gate and a legible no-transition fallback.
@@ -294,7 +294,7 @@ Slow where the user is deciding, fast where the system responds.
   transitions/keyframes on gesture-driven motion are a finding — springs only.
 - **Spring parameterization** (Apple terms): damping 1.0 (no overshoot) is the UI default; bounce
   (~0.8 damping) only where the gesture carried momentum. Overshoot on a menu that faded in is a
-  finding. Producer doctrine + code: `motion/fluid.md`.
+  finding. Producer doctrine + code: `specialists/motion/fluid.md`.
 
 ## Masking imperfect crossfades
 

@@ -1,3 +1,5 @@
+> Historical evidence record. Cites Node and script paths deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Native CLI build 3 preflight evidence
 
 **Build budget:** 2/3 used

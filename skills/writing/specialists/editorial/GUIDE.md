@@ -142,19 +142,6 @@ Before delivery, score the draft 1-10 on directness, rhythm, trust, authenticity
 3. **One-line edit log** (what I changed from default)
 4. **Repurpose suggestion** (1 line — if this works, what's the next 2 places to put it)
 
-## Optional external jury (explicit opt-in only)
+## Optional independent review
 
-External review is explicit opt-in. When the approving human requests it, use the referenced surface's jury lane;
-otherwise complete the inline editorial checks and deliver without an external model call.
-
-If you produce text directly here (e.g. a quick caption rewrite), call
-the auto-jury yourself before presenting:
-
-```bash
-node -e "import('@orthic-labs/legion/auto-jury').then(m=>m.runAutoJury({
-  kind: 'copy',
-  artifactPath: '<draft .md path>',
-  context: { brand: '<brand-code>', notes: 'writing-pro direct output' },
-  failHard: true
-}).then(v=>console.log('verdict:', v.final_verdict||v.verdict||v.decision)).catch(e=>{console.error(e.message);process.exit(1)})"
-```
+When the stakes justify independent review of this artifact, request it through `/oracle` (or `/covenant` for a contested decision); ordinary work uses the inline checks and needs no external review.

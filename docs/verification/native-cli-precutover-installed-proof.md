@@ -1,3 +1,5 @@
+> Historical evidence record. Cites Node and script paths deleted in the 2026-09-25 Rust port. Not authoritative.
+
 # Native CLI pre-cutover installed proof
 
 **Purpose:** First local unsigned build, stable install, & installed parity before Node deletion.

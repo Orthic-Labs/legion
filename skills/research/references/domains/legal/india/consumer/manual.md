@@ -25,11 +25,11 @@ Indian consumer law is the kind of factual claim CLAUDE.md non-negotiable #2 gov
 
 | Task | Read |
 |---|---|
-| Which commission, pecuniary/territorial jurisdiction, limitation, filing fees | `references/jurisdiction-and-fees.md` |
-| Cite or check a Consumer Protection Act 2019 section | `references/cp-act-2019.md` |
-| Draft the pack, document formatting, consumer-status framing | `references/drafting-standards.md` |
-| File on the portal — steps, what to upload, account setup | `references/ejagriti-filing.md` |
-| Generate the six-document pack | Not shipped: `generate_pack.py` is a repository-only script (`src/lib/research-core/workflows/legal/india/consumer/scripts/`), unavailable from the installed plugin. Assemble manually per `references/drafting-standards.md` until it is ported natively. |
+| Which commission, pecuniary/territorial jurisdiction, limitation, filing fees | `jurisdiction-and-fees.md` |
+| Cite or check a Consumer Protection Act 2019 section | `cp-act-2019.md` |
+| Draft the pack, document formatting, consumer-status framing | `drafting-standards.md` |
+| File on the portal — steps, what to upload, account setup | `ejagriti-filing.md` |
+| Generate the six-document pack | Not shipped: `generate_pack.py` is a repository-only script (`src/lib/research-core/workflows/legal/india/consumer/scripts/`), unavailable from the installed plugin. Assemble manually per `drafting-standards.md` until it is ported natively. |
 
 ## The filing lifecycle
 

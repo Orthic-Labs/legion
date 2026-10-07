@@ -1,6 +1,6 @@
 # Coder Pi Runbook
 
-`/coder` is explicit opt-in only. It delegates to package-local `lib/coder-api-worker/api-worker.py` for a single bounded, read-only Pi CLI job or batch.
+`/coder` is explicit opt-in only. It delegates to `legion script coder/api-worker` for a single bounded, read-only Pi CLI job or batch.
 
 - Use `--help` as source of truth for flags. Worker invokes Pi through argv only; no model HTTP route is available.
 - Default model is confirmed free Pi ID `opencode/hy3-free`. User-named model/tier is explicit authority to select another confirmed catalog ID.

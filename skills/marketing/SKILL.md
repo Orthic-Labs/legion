@@ -12,7 +12,9 @@ operations:
 effects:
   - source-read
   - network-request
-hostRequirements: []
+hostRequirements:
+  - dataforseo
+  - ahrefs
 ---
 
 # Marketing

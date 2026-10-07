@@ -19,11 +19,11 @@ Where artifact writes are permitted, use `legion script seo/search_ops` to persi
 Typical lifecycle:
 
 ```text
-search_ops.py start ...
-search_ops.py deploy ...
-search_ops.py outcome ...
-search_ops.py run --cadence weekly ...
-search_ops.py brief
+legion script seo/search_ops start ...
+legion script seo/search_ops deploy ...
+legion script seo/search_ops outcome ...
+legion script seo/search_ops run --cadence weekly ...
+legion script seo/search_ops brief
 ```
 
 Do not bypass Legion authority: the state script records actions; it does not authorize publication, redirects, indexing pushes, deletion, spend, or outreach.
@@ -44,9 +44,9 @@ Never turn missing credentials, unavailable reports, sampling, or failed collect
 
 For owned sites, collect the best available subset:
 
-1. Google Search Console search performance with explicit date range, dimensions, aggregation/completeness notes. Prefer `gsc_query_v2.py` so dimensionless aggregate totals remain separate from dimension-row coverage.
-2. Google Search Generative AI report export when available; normalize with `ai_visibility_import.py google ...` and keep separate from ordinary Search Analytics unless Google documents an API mapping.
-3. Bing Webmaster traditional search/crawl/index evidence and Bing AI Performance export when available; normalize AI Performance with `ai_visibility_import.py bing ...`.
+1. Google Search Console search performance with explicit date range, dimensions, aggregation/completeness notes. Prefer `legion script seo/gsc_query_v2` so dimensionless aggregate totals remain separate from dimension-row coverage.
+2. Google Search Generative AI report export when available; normalize with `legion script seo/ai_visibility_import google ...` and keep separate from ordinary Search Analytics unless Google documents an API mapping.
+3. Bing Webmaster traditional search/crawl/index evidence and Bing AI Performance export when available; normalize AI Performance with `legion script seo/ai_visibility_import bing ...`.
 4. GA4 or business events where authorized and useful.
 5. Crawl/indexability/render state, sitemap, canonical/redirect graph, CWV.
 6. Page-family, query-ownership and internal-link graph for affected pages.

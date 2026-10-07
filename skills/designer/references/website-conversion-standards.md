@@ -56,7 +56,7 @@ how good the page looks.
 
 ## Site completeness contract (detector-backed via `--site`)
 
-Run on the homepage: `detect.mjs --json --site --site-type=<app|ecommerce|content> <url>`
+Run on the homepage: `legion script designer/detect --json --site --site-type=<app|ecommerce|content> <url>`
 
 | Requirement | Rule id |
 |---|---|
@@ -111,5 +111,5 @@ legion script designer/detect --json --site --site-type=<app|ecommerce|content> 
   `broken-internal-link`, `missing-required-page`) on a marketing/landing surface floor the
   verdict at REVISE. Only the designated approver can waive one, explicitly, per finding. Agents — including this
   one — cannot argue a measured structure blocker down to a Note.
-- Re-runnable proof of the whole rule pack:
-  `node skills/designer/engine/scripts/detector/tests/structure/run-structure-smoke.mjs`
+- Re-runnable proof of the rule pack: run `legion script designer/detect --json` against the fixtures in
+  `engine/scripts/detector/tests/structure/*.html` and confirm each rule fires on its fixture.

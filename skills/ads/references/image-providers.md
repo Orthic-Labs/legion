@@ -12,7 +12,7 @@ brand presets, cost tracking, and post-processing.
 ### Prerequisites
 - banana-claude installed (`/banana setup` to verify)
 - nanobanana-mcp configured with GOOGLE_AI_API_KEY
-- No additional pip packages needed (banana uses stdlib only)
+- No local runtime packages are needed; image generation runs through the `banana-image` host capability
 
 ### MCP Tools (Primary Method)
 
@@ -96,7 +96,7 @@ ads-generate reads this after generation and includes cost summary in generation
 
 ## Fallback Providers
 
-These providers are reachable only through the banana MCP host capability; this package ships no direct generator.
+These providers are reachable only through the `banana-image` host capability; this package ships no direct generator.
 
 ### OpenAI (gpt-image-1)
 - Env: `OPENAI_API_KEY`

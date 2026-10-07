@@ -4,8 +4,8 @@ Loaded from `references/app.md` Phase 0a when the toolkit is not a plain browser
 `app.md` (task truth, workspace signature, IA, state completeness, density, keyboard model) still
 governs — it is toolkit-agnostic. This file covers what changes when there is no DOM.
 
-Motion, window geometry, and transitions are **not** here: `motion/native.md` (SwiftUI/AppKit/Slint)
-or `motion/webview.md` (Tauri). This file is composition, materials, controls, and chrome.
+Motion, window geometry, and transitions are **not** here: `specialists/motion/native.md` (SwiftUI/AppKit/Slint)
+or `specialists/motion/webview.md` (Tauri). This file is composition, materials, controls, and chrome.
 
 ---
 
@@ -84,7 +84,7 @@ GlassEffectContainer {
 blends and re-forms the material as elements change. If you are building an expanding hub, palette,
 or action cluster, this is the supported path and it removes the hand-built
 `matchedGeometryEffect`-plus-window-resize construction that causes the two-owner bug in
-`motion/native.md` §0. Reach for it before building a morph by hand.
+`specialists/motion/native.md` §0. Reach for it before building a morph by hand.
 
 Fallback materials (pre-26, and still correct for large surfaces):
 `.ultraThinMaterial` → `.thinMaterial` → `.regularMaterial` → `.thickMaterial` → `.ultraThickMaterial`.
@@ -165,7 +165,7 @@ Consequences:
   half-themed Slint app is more jarring than an unthemed one.
 - Default styles morph to the system light/dark setting; `Palette.color-scheme` exposes or overrides
   it. Reduce Motion is still a host-provided property that must be wired to animation `enabled:`
-  (see `motion/native.md` §5).
+  (see `specialists/motion/native.md` §5).
 - There is no Slint material/vibrancy primitive. A painted glass approximation will not sample the
   desktop; true translucency requires explicit host/native window integration. Treat that as a mixed
   surface with one material owner, not as a Slint styling toggle.
@@ -184,7 +184,7 @@ website in a frame.
 - Never fake macOS traffic lights on Windows.
 - Render one chord per OS via `<Kbd>` (⌘⌥⌃⇧ vs Ctrl/Alt/Shift).
 - Decide the material once per surface: native vibrancy (constant, cheap, OS-integrated) or CSS
-  `backdrop-filter` (animatable, costlier on WKWebView) — never stacked. `motion/webview.md` §4.
+  `backdrop-filter` (animatable, costlier on WKWebView) — never stacked. `specialists/motion/webview.md` §4.
 - The menu-bar rule from §2 still applies on macOS. A Tauri app is still a Mac app to its user.
 
 ---

@@ -13,7 +13,17 @@ inputs:
 runs:
   using: composite
   steps:
+    # The native `legion` binary is the only audit runner. Use one already on PATH
+    # (an installed release); otherwise build it from this checkout with the pinned toolchain.
     - shell: bash
-      run: corepack pnpm@11.24.0 install --dir "${{ github.action_path }}" --frozen-lockfile --prod
+      run: |
+        if ! command -v legion >/dev/null 2>&1; then
+          cargo build --release --locked --manifest-path "${{ github.action_path }}/engine/Cargo.toml" -p legion
+          echo "${{ github.action_path }}/engine/target/release" >> "$GITHUB_PATH"
+        fi
+    # `--out` must stay under <root>/.audit/. Writes plan.json, facts.json, report.json,
+    # report.sarif, and execution.json.
     - shell: bash
-      run: node "${{ github.action_path }}/tools/audit/audit-run.mjs" "$GITHUB_WORKSPACE" --profile "${{ inputs.profile }}" --out "$RUNNER_TEMP/legion"
+      run: legion audit "$GITHUB_WORKSPACE" --profile "${{ inputs.profile }}" --out "$GITHUB_WORKSPACE/.audit/legion"
+    - shell: bash
+      run: legion verify "$GITHUB_WORKSPACE/.audit/legion"

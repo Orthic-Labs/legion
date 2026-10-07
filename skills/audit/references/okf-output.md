@@ -1,10 +1,9 @@
 # OKF output + LLMLingua compression for doc-heavy skills
 
 Canonical pattern for skills that emit **many agent-facing documents + one human doc**
-(`blueprint`, `audit`, `architecture`, `seo`). Tool: `okf.py`, which is **not part of the installed plugin** — it lives in the
-workspace that operates Legion, not in this package. Sibling of SampleApp's
-Rust `okf` module — identical on-disk format, so output is portable into SampleApp and any
-OKF-aware agent.
+(`blueprint`, `audit`, `architecture`, `seo`). Tool: the `okf` host capability (declared in `src/registry/capabilities.json`), which is **not part of
+the installed plugin**. Without it, emit the uncompressed human deliverable only and state that no OKF
+bundle was produced. The on-disk format is portable to any OKF-aware agent.
 
 ## Why
 
@@ -15,8 +14,8 @@ no SDK, no parser. It is the portable, incrementally-updatable form of the multi
 artifacts these skills already produce.
 
 Compression is the second half: agent-facing prose is the compressible part. LLMLingua-2
-(`compress.py`) drops low-information tokens — but it **breaks code and paths**.
-So `okf.py` compression is **structure-safe**: frontmatter, code fences, markdown links, URLs,
+style compression drops low-information tokens — but it **breaks code and paths**.
+So `okf` compression is **structure-safe**: frontmatter, code fences, markdown links, URLs,
 inline code, and `path:line` refs are passed through VERBATIM; only the prose *between* protected
 spans is token-dropped. The one human doc is never compressed.
 
@@ -29,13 +28,15 @@ spans is token-dropped. The one human doc is never compressed.
 
 ## Usage
 
+When the host provides the `okf` capability:
+
 ```bash
 # emit an OKF bundle from a concepts manifest (one concept per file + index.md)
-py -3.11 <workspace>/tools/lib/okf.py emit <out_dir>/okf <concepts.json> --compress --rate 0.5
+okf emit <out_dir>/okf <concepts.json> --compress --rate 0.5
 #   concepts.json = [{"name","type","title"?,"description"?,"tags"?,"body","links"?}, ...]
 
 # structure-safe compress one existing markdown doc (for an already-emitted agent doc)
-py -3.11 <workspace>/tools/lib/okf.py compress <doc.md> --rate 0.5 > <doc.min.md>
+okf compress <doc.md> --rate 0.5 > <doc.min.md>
 ```
 
 A skill builds `concepts.json` from its structured output (e.g. blueprint's `understanding.json`
@@ -54,6 +55,6 @@ seo → one concept per page/issue), then calls `okf emit --compress`.
 ## Rules
 
 - **Never compress the human doc.** Compression is for the agent bundle only.
-- **`type` is required** on every OKF concept (the one OKF-mandated field) — `okf.py` raises if missing.
+- **`type` is required** on every OKF concept (the one OKF-mandated field) — `okf` raises if missing.
 - Link concepts with ordinary markdown links so the bundle is a graph; `index.md` is auto-generated.
 - LLMLingua model loads once (CPU, ~110M, cached in HF cache); reuse `_pc` across a bundle.

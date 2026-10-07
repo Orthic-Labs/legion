@@ -43,12 +43,12 @@ A missing or failed evidence lane is `partial` or `not_testable`, never `pass`.
 
 Use packaged scripts where they cover the question. Current useful lanes include:
 
-- `site_audit.py` for mechanical site issues;
-- `render_gap.mjs` for raw-vs-rendered SEO signal differences;
-- `gsc_query.py` and `gsc_inspect.py` for owned Google evidence, subject to their documented completeness semantics;
-- `pagespeed_check.py` / `crux_history.py` for performance evidence;
-- `bing_webmaster.py` for supported Bing evidence;
-- `indexnow.py` only as an authorized push action, never an audit read;
+- `legion script seo/site_audit` for mechanical site issues;
+- `legion script seo/render_gap` for raw-vs-rendered SEO signal differences;
+- `legion script seo/gsc_query` and `legion script seo/gsc_inspect` for owned Google evidence, subject to their documented completeness semantics;
+- `legion script seo/pagespeed_check` / `legion script seo/crux_history` for performance evidence;
+- `legion script seo/bing_webmaster` for supported Bing evidence;
+- `legion script seo/indexnow` only as an authorized push action, never an audit read;
 - provider adapters only when their evidence adds decision value.
 
 Do not hand-eyeball a mechanical condition that a deterministic collector can verify. Do not treat deterministic output as a business verdict.

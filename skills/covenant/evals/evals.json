@@ -1,17 +1,18 @@
 {
   "schema_version": 1,
   "skill": "covenant",
+  "proof_note": "Each model_free case previously named covenant.test.mjs, which was deleted with the packet engine (ebb349ae) and has no runner. The expected behaviours are kept as specification data; proof is unwired until a native test covers them.",
   "model_free": [
-    {"id":"COV-SAGE-01","proof":"covenant.test.mjs","expected":"routine architecture does not auto-trigger Covenant"},
-    {"id":"COV-SAGE-02","proof":"covenant.test.mjs","expected":"challenge, disposition, revision, unprimed fresh verdict"},
-    {"id":"COV-SAGE-03","proof":"covenant.test.mjs","expected":"Covenant cannot seal"},
-    {"id":"COV-SAGE-04","proof":"covenant.test.mjs","expected":"changed digest makes verdict stale"},
-    {"id":"COV-ALCH-01","proof":"covenant.test.mjs","expected":"mechanically contract-safe path"},
-    {"id":"COV-ALCH-02","proof":"covenant.test.mjs","expected":"semantic change requires amendment"},
-    {"id":"COV-ALCH-03","proof":"covenant.test.mjs","expected":"out-of-scope cleanup rejected"},
-    {"id":"COV-ALCH-04","proof":"covenant.test.mjs","expected":"review agreement grants no authority"},
-    {"id":"COV-SEER-01","proof":"covenant.test.mjs","expected":"routine Seer flow stays independent"},
-    {"id":"COV-SEER-02","proof":"covenant.test.mjs","expected":"explicit dispute stays advisory"}
+    {"id":"COV-SAGE-01","proof":"unwired","expected":"routine architecture does not auto-trigger Covenant"},
+    {"id":"COV-SAGE-02","proof":"unwired","expected":"challenge, disposition, revision, unprimed fresh verdict"},
+    {"id":"COV-SAGE-03","proof":"unwired","expected":"Covenant cannot seal"},
+    {"id":"COV-SAGE-04","proof":"unwired","expected":"changed digest makes verdict stale"},
+    {"id":"COV-ALCH-01","proof":"unwired","expected":"mechanically contract-safe path"},
+    {"id":"COV-ALCH-02","proof":"unwired","expected":"semantic change requires amendment"},
+    {"id":"COV-ALCH-03","proof":"unwired","expected":"out-of-scope cleanup rejected"},
+    {"id":"COV-ALCH-04","proof":"unwired","expected":"review agreement grants no authority"},
+    {"id":"COV-SEER-01","proof":"unwired","expected":"routine Seer flow stays independent"},
+    {"id":"COV-SEER-02","proof":"unwired","expected":"explicit dispute stays advisory"}
   ],
   "packet_contracts": [
     "packet-only-no-review", "ordinary-review-no-trigger", "fresh-verdict-isolation",

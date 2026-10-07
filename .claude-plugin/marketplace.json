@@ -6,7 +6,7 @@
     {
       "name": "legion",
       "source": "./",
-      "description": "Legion orchestrates capability selection & authority attachment; Arcane shapes cognitive processing & response policy; Guard gates typed effects; Sage, Alchemist, & Oracle provide bounded authority roles."
+      "description": "Legion orchestrates capability selection & authority attachment; Arcane shapes cognitive processing & response policy; Guard gates typed effects; Sage (optional design & adjudication), Alchemist (bounded implementation), & Oracle (optional independent assurance) are the authority roles."
     }
   ]
 }

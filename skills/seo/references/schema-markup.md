@@ -62,7 +62,7 @@ Before implementing schema, understand:
 | LocalBusiness | Local business pages | name, address |
 | Event | Events, webinars | name, startDate, location |
 
-**For complete JSON-LD examples**: See references/schema-examples.md
+**For complete JSON-LD examples**: See references/schema-markup-assets/schema-examples.md
 
 ---
 

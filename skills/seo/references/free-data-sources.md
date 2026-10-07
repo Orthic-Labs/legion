@@ -16,7 +16,7 @@ themselves hand you the same facts for free — and more accurately, because it'
 
 | Question about YOUR site | Free source | Paid tool needed? |
 |---|---|---|
-| Crawl/technical issues (titles, meta, h1, links, canonicals…) | `site_audit.py` | No |
+| Crawl/technical issues (titles, meta, h1, links, canonicals…) | `legion script seo/site_audit` | No |
 | Rankings, clicks, impressions, positions | Google Search Console | No |
 | Is this URL indexed? | GSC URL Inspection | No |
 | My backlinks | GSC + Bing Webmaster | No |
@@ -41,7 +41,7 @@ sites are owned, so the free stack below covers them completely.
 > **Ahrefs Webmaster Tools (AWT)** is free to *use* but has **no free API** — the data is only in
 > the dashboard / manual CSV export. So it is NOT in this automated stack. If you download an AWT
 > CSV by hand, drop it in `SEO/exports/<site>/` and the audit will parse it as a manual lane.
-> Google's **Indexing API** (`indexing_notify.py`) is free but officially only honors JobPosting/
+> Google's **Indexing API** (`legion script seo/indexing_notify`) is free but officially only honors JobPosting/
 > VideoObject pages — use IndexNow for general pages instead.
 
 ## Where to get each credential
@@ -104,13 +104,13 @@ runner passes them as `--property` / `--property-id` per call.
 
 | Script | Provider | Reads |
 |---|---|---|
-| `pagespeed_check.py` | PageSpeed + CrUX | `GOOGLE_API_KEY` |
-| `crux_history.py` | CrUX | `GOOGLE_API_KEY` |
-| `gsc_query.py`, `gsc_inspect.py` | Search Console | `GOOGLE_APPLICATION_CREDENTIALS`, `GSC_PROPERTY` |
-| `ga4_report.py` | GA4 | `GOOGLE_APPLICATION_CREDENTIALS`, `GA4_PROPERTY_ID` |
-| `bing_webmaster.py` | Bing Webmaster | `BING_API_KEY` |
-| `indexnow.py` | IndexNow | `INDEXNOW_KEY` |
-| `site_audit.py` | (none — crawls directly) | — |
+| `legion script seo/pagespeed_check` | PageSpeed + CrUX | `GOOGLE_API_KEY` |
+| `legion script seo/crux_history` | CrUX | `GOOGLE_API_KEY` |
+| `legion script seo/gsc_query`, `legion script seo/gsc_inspect` | Search Console | `GOOGLE_APPLICATION_CREDENTIALS`, `GSC_PROPERTY` |
+| `legion script seo/ga4_report` | GA4 | `GOOGLE_APPLICATION_CREDENTIALS`, `GA4_PROPERTY_ID` |
+| `legion script seo/bing_webmaster` | Bing Webmaster | `BING_API_KEY` |
+| `legion script seo/indexnow` | IndexNow | `INDEXNOW_KEY` |
+| `legion script seo/site_audit` | (none — crawls directly) | — |
 
 Once the env vars are set and the service account is granted access to each property, the audit
 pulls all six providers automatically — no per-run auth.

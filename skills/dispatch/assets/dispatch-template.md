@@ -431,6 +431,6 @@ Required blocker record must include all tokens: `RECOVERY_EXHAUSTED`, `INDEPEND
 - [ ] Executor can distinguish COMPLETE from plausible-looking output.
 - [ ] TRUE_BLOCKER requires attempts, raw evidence, preserved state, missing input, & resume command.
 - [ ] Fresh-agent simulation found no unstated judgment.
-- [ ] `validate-dispatch.py` returns PASS on exact dispatched bytes.
+- [ ] `legion script dispatch/validate-dispatch` returns PASS on exact dispatched bytes.
 - [ ] No dispatch, derived handoff, or execution packet is called ready before validator PASS + receipt.
 - [ ] Fresh adversarial Oracle/subagent review passes after validator PASS; any packet-byte change triggers revalidation & fresh review.

@@ -25,7 +25,7 @@
       "prompt": "Check if example.com has a render gap — does Googlebot see the same schema as the browser?",
       "expected_skill": "seo",
       "forbidden_skills": ["audit"],
-      "expected_behavior": "The SEO skill triggers, loads references/technical.md, and runs node seo/scripts/render_gap.mjs --url https://example.com to diff raw HTML vs JS-rendered DOM for all 8 signals including json_ld_count.",
+      "expected_behavior": "The SEO skill triggers, loads references/technical.md, and runs legion script seo/render_gap --url https://example.com to diff raw HTML vs JS-rendered DOM for all 8 signals including json_ld_count.",
       "severity": "error",
       "mode": "discovery"
     },
@@ -101,7 +101,7 @@
       "prompt": "Run a render gap check on a Qwik site and explain what it means for schema.",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "The skill runs render_gap.mjs, diffs json_ld_count between raw HTML (0) and rendered DOM (>0), flags json_ld_count as client_only, and explains that Qwik renders schema at runtime — it is invisible to a non-rendering crawler but visible to Googlebot's full render path. It recommends SSR or prerendering for critical schema.",
+      "expected_behavior": "The skill runs legion script seo/render_gap, diffs json_ld_count between raw HTML (0) and rendered DOM (>0), flags json_ld_count as client_only, and explains that Qwik renders schema at runtime — it is invisible to a non-rendering crawler but visible to Googlebot's full render path. It recommends SSR or prerendering for critical schema.",
       "severity": "error",
       "mode": "static"
     },
@@ -128,7 +128,7 @@
       "prompt": "Run the full cross-cutting checklist on this e-commerce site.",
       "expected_skill": "seo",
       "forbidden_skills": [],
-      "expected_behavior": "The skill must run all four cross-cutters: cannibalization-detector (check >=2 pages same intent), intent-drift-mapper (check format vs intent mismatch), render-gap-analyzer (run render_gap.mjs), and content-decay-tracker (check ranking trajectory vs competitor freshness).",
+      "expected_behavior": "The skill must run all four cross-cutters: cannibalization-detector (check >=2 pages same intent), intent-drift-mapper (check format vs intent mismatch), render-gap-analyzer (run legion script seo/render_gap), and content-decay-tracker (check ranking trajectory vs competitor freshness).",
       "severity": "error",
       "mode": "static"
     }

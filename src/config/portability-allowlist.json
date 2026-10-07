@@ -196,7 +196,7 @@
       "reason": "immutable migration request records original integration checkouts"
     },
     {
-      "path": "docs/pending/plans/2026-08-30-canon-pipeline-and-repairs.md",
+      "path": "docs/provenance/pending/plans/2026-08-30-canon-pipeline-and-repairs.md",
       "patterns": [
         "developer-workspace"
       ],

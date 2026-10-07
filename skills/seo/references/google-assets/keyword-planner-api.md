@@ -49,13 +49,10 @@ Add to `~/.config/claude-seo/google-api.json`:
 - Exact QPM/QPS not publicly documented
 - Google recommends caching results
 
-## Python Library
+## Client Library
 
-```bash
-pip install google-ads
-```
-
-Uses `google-ads` library (separate from `google-api-python-client`).
+`legion script seo/keyword_planner` calls the Google Ads API directly; nothing needs to be installed for it.
+Use Google's official Ads client library only when writing a separate integration.
 
 ## Important Notes
 

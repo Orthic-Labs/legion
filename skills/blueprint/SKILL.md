@@ -27,6 +27,11 @@ metadata:
 Blueprint owns current repository truth: source identity, graph structure, symbols, references,
 flows, impact, freshness, doc truth, contradictions, coverage gaps, & re-anchoring.
 
+Membrane Blueprint is an optional host capability (`blueprint-graph`); this package does not
+ship it. Without it, Blueprint does not build or fake a graph: it returns the typed
+`membrane-unavailable`/`blueprint-graph` result, and the caller continues with ordinary bounded file
+inspection while stating that no graph evidence was produced.
+
 Invoke Blueprint only when a repository graph/current-state map is requested or needed to resolve
 material relationships. Chat transcripts, supplied prose, & ordinary bounded file inspection stay
 direct. The no-grep-substitution rule applies only to claims requiring graph completeness.

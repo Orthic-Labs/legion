@@ -6,8 +6,8 @@ Read this file before Stage 2 of `/audit` or every iteration of `/audit-fix`.
 
 The reasoning lenses run on native host subagents or inline in main session, never on external
 model APIs. This is the locked audit-specific exception: prior provider limits and network
-registration repeatedly hung full audit runs. Do not rebuild the retired `api-worker.py --batch`
-path inside this skill.
+registration repeatedly hung full audit runs. Do not route lenses through an external model worker
+or HTTP model provider.
 
 The read-only lenses are `doc-drift`, `architecture`, `correctness`, `ai-slop`, `naming`,
 `dead-file`, `schema`, `security`, `minimize`, and `performance`, plus conditional `a11y`,
@@ -17,7 +17,7 @@ out in one parallel wave.
 ## Input contract
 
 For each lens, pass the lens question, its redacted `facts.json` slice, the scoped file excerpts it
-needs, and the report schema from `SKILL.md`. `collect-facts.mjs` redacts secrets in logs. The
+needs, and the report schema from `SKILL.md`. The native runner redacts secrets in logs. The
 security lens receives scanner summaries and safe excerpts, never raw `.env` or key material.
 
 **Excerpt compression:** use skeleton excerpts for `naming` & `dead-file` surveys.
@@ -50,16 +50,36 @@ justified with searched scope and reason. Present but incomplete or inaccessible
 
 ## Model routing
 
-- Dispatch every lens to lowest available native tier. Lens category never upgrades model tier.
-- `architecture`, `security`, `schema`, `correctness`, `minimize`, `doc-drift`, `data-safety`,
-  `resilience`, and `release-readiness` receive raw logic, exact contracts, or failure-mode evidence.
-- `ai-slop`, `naming`, `dead-file`, `performance`, `a11y`, and `platform-parity` receive scoped
-  evidence; a11y and platform parity still receive relevant raw excerpts.
+- Tier follows the kind of reasoning, not a blanket floor: judgment lenses carry the false-negative
+  risk, so a lowest-tier seat is not acceptable for them. (Restored: the all-lowest-tier rule of
+  2026-09-19 left every lens on the cheapest model and the judgment lenses under-reasoned.)
+- `security`, `architecture`, and `correctness` run on the strongest available native tier. They
+  decide exploitability, structural shape, and real bugs, and a miss there is expensive.
+- `schema`, `minimize`, `doc-drift`, `data-safety`, `resilience`, and `release-readiness` run on at
+  least the mid tier; they receive raw logic, exact contracts, or failure-mode evidence.
+- `ai-slop`, `naming`, `dead-file`, `performance`, `a11y`, and `platform-parity` are mechanical:
+  the lowest available native tier is fine. They receive scoped evidence; a11y and platform parity
+  still receive relevant raw excerpts.
+- If a tier is unavailable on the host, use the next tier down and record the downgrade in the lens
+  output; never silently relabel a lowest-tier run as a judgment-tier run.
 - Conditional lenses spawn only when their trigger fires.
 - `minimize` reads raw bodies and `references/ponytail-lens.md`; a skeleton alone cannot distinguish
   dead abstraction from a real DI, test, or extension seam.
 - Semantic lanes read [semantic review](semantic-review.md) for test-quality, design-smell,
   attribution, and change-risk rules; preserve DI seams and framework conventions.
+
+## Glob-routed rubric packs
+
+Beyond the lens cues in [lens-cues.md](lens-cues.md), give each lens the short rubric pack whose glob
+matches the files in its scope. A pack adds concrete checks; it never widens the frozen provider
+plan, and a pack that matches no scoped file is simply not loaded.
+
+| Glob | Pack | Primary lenses |
+|---|---|---|
+| `**/*.rs` | [rubrics/rust.md](rubrics/rust.md) | `correctness`, `security`, `resilience`, `performance` |
+| `**/*.swift` | [rubrics/swift.md](rubrics/swift.md) | `correctness`, `security`, `resilience`, `platform-parity` |
+| `.github/workflows/*.y{,a}ml` | [rubrics/github-workflow.md](rubrics/github-workflow.md) | `security`, `release-readiness` |
+| `**/Cargo.toml` | [rubrics/cargo-toml.md](rubrics/cargo-toml.md) | `security`, `release-readiness`, `minimize` |
 
 ## Correctness verify-pass
 
